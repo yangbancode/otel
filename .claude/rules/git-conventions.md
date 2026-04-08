@@ -44,5 +44,12 @@ Merge to main via PR. Use squash merge by default.
 
 ## Pull Requests
 
+### Single commit
+
 - PR title matches the commit subject
 - PR body matches the commit message body
+
+### Multiple commits
+
+- PR title summarizes all commits in the branch
+- PR body lists each commit in order using `git log main..HEAD --reverse --pretty=format:"* %s%n%n%b"`
