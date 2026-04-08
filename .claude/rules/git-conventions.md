@@ -52,4 +52,4 @@ Merge to main via PR. Use squash merge by default.
 ### Multiple commits
 
 - PR title summarizes all commits in the branch
-- PR body lists each commit in order using `git log main..HEAD --reverse --pretty=format:"* %s%n%n%b"`
+- PR body lists each commit in order using `git log main..HEAD --reverse --pretty=format:"## %s%n%n%b"`
