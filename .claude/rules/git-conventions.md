@@ -41,3 +41,8 @@ Follow GitHub Flow.
 - `refactor/<description>`: refactoring
 
 Merge to main via PR. Use squash merge by default.
+
+## Pull Requests
+
+- PR title matches the commit subject
+- PR body matches the commit message body

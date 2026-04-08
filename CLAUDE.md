@@ -6,4 +6,5 @@
 
 ## Rules
 
+- [Workflow](.claude/rules/workflow.md)
 - [Git Conventions](.claude/rules/git-conventions.md)
