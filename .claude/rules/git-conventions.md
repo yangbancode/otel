@@ -40,7 +40,7 @@ Follow GitHub Flow.
 - `docs/<description>`: documentation
 - `refactor/<description>`: refactoring
 
-Merge to main via PR. Use squash merge by default.
+Merge to main via PR. Use merge commit (no squash) to preserve all commits.
 
 ## Pull Requests
 
