@@ -7,11 +7,12 @@ Each decision has its own document under [decisions/](decisions/) with related [
 ## Phase 1: Traces
 
 ### Foundation
-- [ ] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
+- [x] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
 - [ ] [Behaviours, Protocols, and Structs Convention](decisions/behaviours-protocols-and-structs-convention.md)
 - [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
 - [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
 - [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
+- [ ] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
 
 ### Common
 - [ ] [AnyValue Type System](decisions/anyvalue-type-system.md)
