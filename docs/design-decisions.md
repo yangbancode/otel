@@ -11,6 +11,7 @@ Each decision has its own document under [decisions/](decisions/) with related [
 - [ ] [Behaviours, Protocols, and Structs Convention](decisions/behaviours-protocols-and-structs-convention.md)
 - [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
 - [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
+- [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
 
 ### Common
 - [ ] [AnyValue Type System](decisions/anyvalue-type-system.md)
@@ -48,6 +49,9 @@ Each decision has its own document under [decisions/](decisions/) with related [
 - [ ] [TracerProvider SDK: Configuration](decisions/tracerprovider-sdk-configuration.md)
 - [ ] [TracerProvider SDK: Shutdown & ForceFlush](decisions/tracerprovider-sdk-shutdown-and-forceflush.md)
 
+### Trace SDK — Span Limits
+- [ ] [Span Limits](decisions/span-limits.md)
+
 ### Trace SDK — Sampling
 - [ ] [Sampler Interface & ShouldSample](decisions/sampler-interface-and-shouldsample.md)
 - [ ] [Built-in Samplers](decisions/built-in-samplers.md)
@@ -82,12 +86,36 @@ Each decision has its own document under [decisions/](decisions/) with related [
 ## Phase 2: OTLP HTTP Exporter
 - [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [Exporter Packaging Strategy](decisions/exporter-packaging-strategy.md)
+- [ ] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
+- [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 
 ## Phase 3: Metrics
-- [ ] [Metrics API](decisions/metrics-api.md)
-- [ ] [Metrics SDK](decisions/metrics-sdk.md)
 
-## Phase 4: Logs, Baggage, OTLP gRPC
-- [ ] [Logs API & SDK](decisions/logs-api-and-sdk.md)
+### Metrics API
+- [ ] [MeterProvider & Meter API](decisions/meterprovider-and-meter-api.md)
+- [ ] [Synchronous Instruments](decisions/synchronous-instruments.md)
+- [ ] [Asynchronous Instruments & Callbacks](decisions/asynchronous-instruments-and-callbacks.md)
+
+### Metrics SDK
+- [ ] [MeterProvider SDK](decisions/meterprovider-sdk.md)
+- [ ] [Meter: Instrument Registration & Validation](decisions/meter-instrument-registration-and-validation.md)
+- [ ] [View System](decisions/view-system.md)
+- [ ] [Aggregation Types](decisions/aggregation-types.md)
+- [ ] [Async Observations & Cardinality Limits](decisions/async-observations-and-cardinality-limits.md)
+- [ ] [Exemplar System](decisions/exemplar-system.md)
+- [ ] [MetricReader & Periodic Exporting](decisions/metricreader-and-periodic-exporting.md)
+- [ ] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
+
+## Phase 4: Logs, OTLP gRPC
+
+### Logs API
+- [ ] [Logs API](decisions/logs-api.md)
+
+### Logs SDK
+- [ ] [Logs SDK](decisions/logs-sdk.md)
+
+### :logger Integration
 - [ ] [:logger Integration](decisions/logger-integration.md)
+
+### OTLP gRPC Exporter
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
