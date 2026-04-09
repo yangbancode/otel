@@ -1,0 +1,13 @@
+# Protobuf Encoding & Code Generation
+
+## Question
+
+How to handle protobuf serialization/deserialization shared between HTTP and gRPC exporters? Which library, code generation vs runtime encoding?
+
+## Decision
+
+TBD
+
+## Compliance
+
+- `compliance/otlp-protocol.md` — encoding-related items (binary protobuf, JSON protobuf, content-type)
