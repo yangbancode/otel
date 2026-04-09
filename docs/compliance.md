@@ -1,8 +1,8 @@
-# OpenTelemetry Specification v1.55.0 Compliance Checklist
+# OpenTelemetry Specification v1.55.0 Compliance
 
-Stable specification items only. Scope: Traces, Metrics, Logs, Baggage, Context, Resource, Exporters (Console, OTLP HTTP, OTLP gRPC).
+Stable specification items only. Organized by implementation order aligned with [Tech Spec](tech-spec.md) phases. Check items as they are implemented.
 
-## 1. Common
+## Phase 1: Foundation
 
 ### Attributes
 
@@ -16,23 +16,6 @@ Stable specification items only. Scope: Traces, Metrics, Logs, Baggage, Context,
 - [ ] Truncate string/byte array values exceeding length limit
 - [ ] Discard attributes exceeding count limit
 - [ ] Apply value length limit recursively to nested arrays and maps
-
-### Environment Variables (General)
-
-- [ ] `OTEL_SDK_DISABLED` — disable SDK for all signals (default: false)
-- [ ] `OTEL_RESOURCE_ATTRIBUTES` — key-value pairs for resource attributes
-- [ ] `OTEL_SERVICE_NAME` — set service.name resource attribute
-- [ ] `OTEL_LOG_LEVEL` — SDK internal logger level (default: info)
-- [ ] `OTEL_PROPAGATORS` — comma-separated propagator list (default: tracecontext,baggage)
-- [ ] `OTEL_TRACES_SAMPLER` — sampler for traces (default: parentbased_always_on)
-- [ ] `OTEL_TRACES_SAMPLER_ARG` — sampler argument
-- [ ] `OTEL_TRACES_EXPORTER` — trace exporter (default: otlp)
-- [ ] `OTEL_METRICS_EXPORTER` — metrics exporter (default: otlp)
-- [ ] `OTEL_LOGS_EXPORTER` — logs exporter (default: otlp)
-- [ ] `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT` — global attribute value length limit
-- [ ] `OTEL_ATTRIBUTE_COUNT_LIMIT` — global attribute count limit (default: 128)
-
-## 2. Context
 
 ### Context API
 
@@ -76,9 +59,35 @@ Stable specification items only. Scope: Traces, Metrics, Logs, Baggage, Context,
 - [ ] Implement TextMapPropagator for W3C Baggage specification
 - [ ] On conflict, new pair takes precedence
 
-## 3. Resource
+### Baggage API
 
-### Resource SDK
+- [ ] Get value by name (return value or null)
+- [ ] Get all name/value pairs (order not significant)
+- [ ] Set value: accept name, value (strings), optional metadata
+- [ ] Remove value by name (return new Baggage without entry)
+- [ ] Each name associates with exactly one value
+- [ ] Names and values are valid UTF-8 strings; names must be non-empty
+- [ ] Case-sensitive treatment of names and values
+- [ ] Baggage container is immutable
+- [ ] Metadata: opaque string wrapper with no semantic meaning
+
+### Baggage — Context Interaction
+
+- [ ] Extract Baggage from Context
+- [ ] Insert Baggage into Context
+- [ ] Retrieve and set active Baggage (for implicit propagation)
+- [ ] Remove all Baggage entries from a Context
+
+### Baggage — Propagation
+
+- [ ] W3C Baggage TextMapPropagator implementation
+- [ ] On conflict, new pair takes precedence
+
+### Baggage — Functional Without SDK
+
+- [ ] API must be fully functional without an installed SDK
+
+### Resource
 
 - [ ] Create Resource from attributes
 - [ ] Accept optional schema_url
@@ -95,7 +104,7 @@ Stable specification items only. Scope: Traces, Metrics, Logs, Baggage, Context,
 - [ ] Resource attributes are immutable after creation
 - [ ] Provide read-only attribute retrieval
 
-## 4. Traces
+## Phase 2: Traces
 
 ### Trace API — TracerProvider
 
@@ -261,7 +270,74 @@ Stable specification items only. Scope: Traces, Metrics, Logs, Baggage, Context,
 - [ ] ForceFlush: hint to complete prior exports promptly
 - [ ] ForceFlush and Shutdown must be thread-safe
 
-## 5. Metrics
+### Console Exporter — Spans
+
+- [ ] Output spans to stdout/console
+- [ ] Output format is implementation-defined
+- [ ] Document as debugging/learning tool, not for production
+- [ ] Default pairing with Simple SpanProcessor
+
+## Phase 3: OTLP Exporters (Traces)
+
+### OTLP Exporter — Common Configuration
+
+- [ ] `OTEL_EXPORTER_OTLP_ENDPOINT` — base endpoint URL
+- [ ] Per-signal endpoint overrides (`*_TRACES_ENDPOINT`, `*_METRICS_ENDPOINT`, `*_LOGS_ENDPOINT`)
+- [ ] `OTEL_EXPORTER_OTLP_PROTOCOL` — grpc, http/protobuf, http/json (default: http/protobuf)
+- [ ] Per-signal protocol overrides
+- [ ] `OTEL_EXPORTER_OTLP_HEADERS` — key-value pairs as request headers
+- [ ] Per-signal header overrides
+- [ ] `OTEL_EXPORTER_OTLP_COMPRESSION` — gzip or none
+- [ ] Per-signal compression overrides
+- [ ] `OTEL_EXPORTER_OTLP_TIMEOUT` — per-batch timeout (default: 10s)
+- [ ] Per-signal timeout overrides
+- [ ] `OTEL_EXPORTER_OTLP_CERTIFICATE` — TLS certificate file
+- [ ] Per-signal certificate overrides
+- [ ] `OTEL_EXPORTER_OTLP_CLIENT_KEY` — mTLS client private key
+- [ ] `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` — mTLS client certificate
+- [ ] Signal-specific options take precedence over general options
+- [ ] Emit User-Agent header (e.g., OTel-OTLP-Exporter-Elixir/VERSION)
+
+### OTLP Protocol — Encoding
+
+- [ ] Binary Protobuf encoding (Proto3)
+- [ ] JSON Protobuf encoding: traceId/spanId as hex (not base64), enum as integers, lowerCamelCase keys
+- [ ] Receivers must ignore unknown fields in JSON
+
+### OTLP/HTTP Exporter
+
+- [ ] Default endpoint: http://localhost:4318
+- [ ] Append signal-specific paths to base endpoint: /v1/traces, /v1/metrics, /v1/logs
+- [ ] Per-signal endpoint used as-is (no path appending)
+- [ ] HTTP POST requests for sending telemetry
+- [ ] Support binary Protobuf (Content-Type: application/x-protobuf)
+- [ ] Support JSON Protobuf (Content-Type: application/json) — optional but recommended
+- [ ] Support gzip compression (Content-Encoding: gzip)
+- [ ] Handle HTTP 200 OK (success)
+- [ ] Handle partial success (HTTP 200 with partial_success field)
+- [ ] Handle HTTP 400 Bad Request (non-retryable)
+- [ ] Handle retryable status codes: 429, 502, 503, 504
+- [ ] Respect Retry-After header on 429/503
+- [ ] Exponential backoff with jitter for retries
+- [ ] Must not modify URL beyond specified rules
+
+### OTLP/gRPC Exporter
+
+- [ ] Default endpoint: http://localhost:4317
+- [ ] Unary RPC calls with Export*ServiceRequest messages
+- [ ] Support gzip compression
+- [ ] Handle success: Export*ServiceResponse
+- [ ] Handle partial success (partial_success field)
+- [ ] Handle retryable gRPC status: UNAVAILABLE (with optional RetryInfo)
+- [ ] Handle non-retryable gRPC status: INVALID_ARGUMENT
+- [ ] Retryable gRPC codes: CANCELLED, DEADLINE_EXCEEDED, ABORTED, OUT_OF_RANGE, UNAVAILABLE, DATA_LOSS
+- [ ] Non-retryable gRPC codes: UNKNOWN, INVALID_ARGUMENT, NOT_FOUND, ALREADY_EXISTS, PERMISSION_DENIED, UNAUTHENTICATED, FAILED_PRECONDITION, INTERNAL, UNIMPLEMENTED
+- [ ] Exponential backoff with jitter for retries
+- [ ] https scheme takes precedence over insecure setting
+- [ ] Configurable concurrent request count
+- [ ] `OTEL_EXPORTER_OTLP_INSECURE` — transport security (default: false)
+
+## Phase 4: Metrics
 
 ### Metrics API — MeterProvider
 
@@ -450,7 +526,15 @@ Stable specification items only. Scope: Traces, Metrics, Logs, Baggage, Context,
 - [ ] ForceFlush: hint to complete prior exports
 - [ ] ForceFlush and Shutdown must be thread-safe
 
-## 6. Logs
+### Console Exporter — Metrics
+
+- [ ] Output metrics to stdout/console
+- [ ] Output format is implementation-defined
+- [ ] Document as debugging/learning tool, not for production
+- [ ] Default temporality: Cumulative for all instrument kinds
+- [ ] Pair with Periodic Exporting MetricReader (default interval: 10000ms)
+
+## Phase 5: Logs, Baggage, OTLP gRPC
 
 ### Logs API — LoggerProvider
 
@@ -527,114 +611,26 @@ Stable specification items only. Scope: Traces, Metrics, Logs, Baggage, Context,
 - [ ] Shutdown: call once; subsequent Export returns Failure
 - [ ] ForceFlush and Shutdown must be thread-safe
 
-## 7. Baggage
-
-### Baggage API
-
-- [ ] Get value by name (return value or null)
-- [ ] Get all name/value pairs (order not significant)
-- [ ] Set value: accept name, value (strings), optional metadata
-- [ ] Remove value by name (return new Baggage without entry)
-- [ ] Each name associates with exactly one value
-- [ ] Names and values are valid UTF-8 strings; names must be non-empty
-- [ ] Case-sensitive treatment of names and values
-- [ ] Baggage container is immutable
-- [ ] Metadata: opaque string wrapper with no semantic meaning
-
-### Baggage — Context Interaction
-
-- [ ] Extract Baggage from Context
-- [ ] Insert Baggage into Context
-- [ ] Retrieve and set active Baggage (for implicit propagation)
-- [ ] Remove all Baggage entries from a Context
-
-### Baggage — Propagation
-
-- [ ] W3C Baggage TextMapPropagator implementation
-- [ ] On conflict, new pair takes precedence
-
-### Baggage — Functional Without SDK
-
-- [ ] API must be fully functional without an installed SDK
-
-## 8. Exporters
-
-### Console (stdout) Exporter — Spans
-
-- [ ] Output spans to stdout/console
-- [ ] Output format is implementation-defined
-- [ ] Document as debugging/learning tool, not for production
-- [ ] Default pairing with Simple SpanProcessor
-
-### Console (stdout) Exporter — Metrics
-
-- [ ] Output metrics to stdout/console
-- [ ] Output format is implementation-defined
-- [ ] Document as debugging/learning tool, not for production
-- [ ] Default temporality: Cumulative for all instrument kinds
-- [ ] Pair with Periodic Exporting MetricReader (default interval: 10000ms)
-
-### Console (stdout) Exporter — Logs
+### Console Exporter — Logs
 
 - [ ] Output LogRecords to stdout/console
 - [ ] Output format is implementation-defined
 - [ ] Document as debugging/learning tool, not for production
 - [ ] Default pairing with Simple LogRecordProcessor
 
-### OTLP Exporter — Common Configuration
+## Environment Variables
 
-- [ ] `OTEL_EXPORTER_OTLP_ENDPOINT` — base endpoint URL
-- [ ] Per-signal endpoint overrides (`*_TRACES_ENDPOINT`, `*_METRICS_ENDPOINT`, `*_LOGS_ENDPOINT`)
-- [ ] `OTEL_EXPORTER_OTLP_PROTOCOL` — grpc, http/protobuf, http/json (default: http/protobuf)
-- [ ] Per-signal protocol overrides
-- [ ] `OTEL_EXPORTER_OTLP_HEADERS` — key-value pairs as request headers
-- [ ] Per-signal header overrides
-- [ ] `OTEL_EXPORTER_OTLP_COMPRESSION` — gzip or none
-- [ ] Per-signal compression overrides
-- [ ] `OTEL_EXPORTER_OTLP_TIMEOUT` — per-batch timeout (default: 10s)
-- [ ] Per-signal timeout overrides
-- [ ] `OTEL_EXPORTER_OTLP_CERTIFICATE` — TLS certificate file
-- [ ] Per-signal certificate overrides
-- [ ] `OTEL_EXPORTER_OTLP_CLIENT_KEY` — mTLS client private key
-- [ ] `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` — mTLS client certificate
-- [ ] Signal-specific options take precedence over general options
-- [ ] Emit User-Agent header (e.g., OTel-OTLP-Exporter-Elixir/VERSION)
+General SDK configuration. Applied across all phases.
 
-### OTLP/HTTP Exporter
-
-- [ ] Default endpoint: http://localhost:4318
-- [ ] Append signal-specific paths to base endpoint: /v1/traces, /v1/metrics, /v1/logs
-- [ ] Per-signal endpoint used as-is (no path appending)
-- [ ] HTTP POST requests for sending telemetry
-- [ ] Support binary Protobuf (Content-Type: application/x-protobuf)
-- [ ] Support JSON Protobuf (Content-Type: application/json) — optional but recommended
-- [ ] Support gzip compression (Content-Encoding: gzip)
-- [ ] Handle HTTP 200 OK (success)
-- [ ] Handle partial success (HTTP 200 with partial_success field)
-- [ ] Handle HTTP 400 Bad Request (non-retryable)
-- [ ] Handle retryable status codes: 429, 502, 503, 504
-- [ ] Respect Retry-After header on 429/503
-- [ ] Exponential backoff with jitter for retries
-- [ ] Must not modify URL beyond specified rules
-
-### OTLP/gRPC Exporter
-
-- [ ] Default endpoint: http://localhost:4317
-- [ ] Unary RPC calls with Export*ServiceRequest messages
-- [ ] Support gzip compression
-- [ ] Handle success: Export*ServiceResponse
-- [ ] Handle partial success (partial_success field)
-- [ ] Handle retryable gRPC status: UNAVAILABLE (with optional RetryInfo)
-- [ ] Handle non-retryable gRPC status: INVALID_ARGUMENT
-- [ ] Retryable gRPC codes: CANCELLED, DEADLINE_EXCEEDED, ABORTED, OUT_OF_RANGE, UNAVAILABLE, DATA_LOSS
-- [ ] Non-retryable gRPC codes: UNKNOWN, INVALID_ARGUMENT, NOT_FOUND, ALREADY_EXISTS, PERMISSION_DENIED, UNAUTHENTICATED, FAILED_PRECONDITION, INTERNAL, UNIMPLEMENTED
-- [ ] Exponential backoff with jitter for retries
-- [ ] https scheme takes precedence over insecure setting
-- [ ] Configurable concurrent request count
-- [ ] `OTEL_EXPORTER_OTLP_INSECURE` — transport security (default: false)
-
-### OTLP Protocol — Encoding
-
-- [ ] Binary Protobuf encoding (Proto3)
-- [ ] JSON Protobuf encoding: traceId/spanId as hex (not base64), enum as integers, lowerCamelCase keys
-- [ ] Receivers must ignore unknown fields in JSON
+- [ ] `OTEL_SDK_DISABLED` — disable SDK for all signals (default: false)
+- [ ] `OTEL_RESOURCE_ATTRIBUTES` — key-value pairs for resource attributes
+- [ ] `OTEL_SERVICE_NAME` — set service.name resource attribute
+- [ ] `OTEL_LOG_LEVEL` — SDK internal logger level (default: info)
+- [ ] `OTEL_PROPAGATORS` — comma-separated propagator list (default: tracecontext,baggage)
+- [ ] `OTEL_TRACES_SAMPLER` — sampler for traces (default: parentbased_always_on)
+- [ ] `OTEL_TRACES_SAMPLER_ARG` — sampler argument
+- [ ] `OTEL_TRACES_EXPORTER` — trace exporter (default: otlp)
+- [ ] `OTEL_METRICS_EXPORTER` — metrics exporter (default: otlp)
+- [ ] `OTEL_LOGS_EXPORTER` — logs exporter (default: otlp)
+- [ ] `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT` — global attribute value length limit
+- [ ] `OTEL_ATTRIBUTE_COUNT_LIMIT` — global attribute count limit (default: 128)
