@@ -4,15 +4,18 @@ Decisions specific to implementing the OpenTelemetry SDK on the BEAM VM. These a
 
 Each decision has its own document under [decisions/](decisions/) with related [compliance](compliance.md) items linked. When all linked compliance items are checked, the implementation for that decision is complete.
 
+Items are ordered by implementation sequence — completing them top to bottom produces a working system.
+
 ## Phase 1: Traces
 
 ### Foundation
 - [x] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
-- [ ] [Behaviours, Protocols, and Structs Convention](decisions/behaviours-protocols-and-structs-convention.md)
-- [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
-- [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
-- [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
 - [ ] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
+- [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
+- [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
+- [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
+- [ ] [Supervision Tree Structure](decisions/supervision-tree-structure.md)
+- [ ] [Application Boot Order](decisions/application-boot-order.md)
 
 ### Common
 - [ ] [AnyValue Type System](decisions/anyvalue-type-system.md)
@@ -24,20 +27,19 @@ Each decision has its own document under [decisions/](decisions/) with related [
 - [ ] [Context Attach/Detach & Process-Local Storage](decisions/context-attach-detach-and-process-local-storage.md)
 - [ ] [Cross-Process Context Passing](decisions/cross-process-context-passing.md)
 
+### Semantic Conventions
+- [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
+
 ### Resource
 - [ ] [Resource Creation & Merge](decisions/resource-creation-and-merge.md)
 - [ ] [Resource Detection & Environment Variables](decisions/resource-detection-and-environment-variables.md)
 
-### Trace API — Provider & Tracer
-- [ ] [TracerProvider API](decisions/tracerprovider-api.md)
-- [ ] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)
-
-### Trace API — SpanContext
+### Trace API
 - [ ] [SpanContext Struct](decisions/spancontext-struct.md)
 - [ ] [SpanContext Validation & Remote](decisions/spancontext-validation-and-remote.md)
 - [ ] [TraceState](decisions/tracestate.md)
-
-### Trace API — Span
+- [ ] [TracerProvider API](decisions/tracerprovider-api.md)
+- [ ] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)
 - [ ] [Span Interface & Lifecycle](decisions/span-interface-and-lifecycle.md)
 - [ ] [Span Creation](decisions/span-creation.md)
 - [ ] [Span Operations: Attributes & Events](decisions/span-operations-attributes-and-events.md)
@@ -46,30 +48,22 @@ Each decision has its own document under [decisions/](decisions/) with related [
 - [ ] [NonRecordingSpan & No-SDK Behavior](decisions/nonrecordingspan-and-no-sdk-behavior.md)
 - [ ] [Trace Context Interaction](decisions/trace-context-interaction.md)
 
-### Trace SDK — Provider & Configuration
+### Trace SDK
 - [ ] [TracerProvider SDK: Configuration](decisions/tracerprovider-sdk-configuration.md)
 - [ ] [TracerProvider SDK: Shutdown & ForceFlush](decisions/tracerprovider-sdk-shutdown-and-forceflush.md)
-
-### Trace SDK — Span Limits
 - [ ] [Span Limits](decisions/span-limits.md)
-
-### Trace SDK — Sampling
+- [ ] [ID Generation](decisions/id-generation.md)
 - [ ] [Sampler Interface & ShouldSample](decisions/sampler-interface-and-shouldsample.md)
 - [ ] [Built-in Samplers](decisions/built-in-samplers.md)
-
-### Trace SDK — Span Creation & Storage
-- [ ] [ID Generation](decisions/id-generation.md)
-- [ ] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
 - [ ] [Span Storage & ETS Design](decisions/span-storage-and-ets-design.md)
+- [ ] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
 
-### Trace SDK — Span Processors
+### Span Processors & Exporters
+- [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)
+- [ ] [Console (stdout) Exporter](decisions/console-stdout-exporter.md)
 - [ ] [SpanProcessor Interface](decisions/spanprocessor-interface.md)
 - [ ] [SimpleSpanProcessor](decisions/simplespanprocessor.md)
 - [ ] [BatchSpanProcessor](decisions/batchspanprocessor.md)
-
-### Trace SDK — Span Exporters
-- [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)
-- [ ] [Console (stdout) Exporter](decisions/console-stdout-exporter.md)
 
 ### Propagators
 - [ ] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)
@@ -80,13 +74,9 @@ Each decision has its own document under [decisions/](decisions/) with related [
 - [ ] [Baggage API](decisions/baggage-api.md)
 - [ ] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
 
-### OTP Infrastructure
-- [ ] [Supervision Tree Structure](decisions/supervision-tree-structure.md)
-- [ ] [Application Boot Order](decisions/application-boot-order.md)
-
 ## Phase 2: OTLP HTTP Exporter
-- [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [Exporter Packaging Strategy](decisions/exporter-packaging-strategy.md)
+- [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 
@@ -120,9 +110,6 @@ Each decision has its own document under [decisions/](decisions/) with related [
 
 ### OTLP gRPC Exporter
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
-
-## Semantic Conventions
-- [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
 
 ## Release
 - [ ] [Hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
