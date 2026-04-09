@@ -30,6 +30,7 @@ TBD
   * Instrument Advisory Parameters (Stable) — [L986](../references/opentelemetry-specification/v1.55.0/metrics/sdk.md#L986)
   * Instrument Advisory Parameters (Stable) — [L990](../references/opentelemetry-specification/v1.55.0/metrics/sdk.md#L990)
   * Instrument Advisory Parameters (Stable) — [L996](../references/opentelemetry-specification/v1.55.0/metrics/sdk.md#L996)
+  * Instrument Advisory Parameters (Stable) — [L1009](../references/opentelemetry-specification/v1.55.0/metrics/sdk.md#L1009)
   * Instrument Enabled — [L1029](../references/opentelemetry-specification/v1.55.0/metrics/sdk.md#L1029)
   * Instrument Enabled — [L1037](../references/opentelemetry-specification/v1.55.0/metrics/sdk.md#L1037)
   * Numerical Limits Handling — [L1842](../references/opentelemetry-specification/v1.55.0/metrics/sdk.md#L1842)
