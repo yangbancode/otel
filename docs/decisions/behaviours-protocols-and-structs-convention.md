@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-No direct compliance items — crosscutting architectural pattern underlying all interface definitions.
+

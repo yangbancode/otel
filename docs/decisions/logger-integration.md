@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-No direct OTel spec compliance items — this is BEAM-specific integration. Supports Logs SDK compliance items indirectly.
+

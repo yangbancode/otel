@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-No direct compliance items — this is a purely BEAM-specific structural decision that affects all signals.
+

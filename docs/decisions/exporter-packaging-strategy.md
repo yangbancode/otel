@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-No direct compliance items — packaging decision.
+

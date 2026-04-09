@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-No direct compliance items — BEAM-specific. Supports all shutdown/force_flush cascading requirements.
+
