@@ -42,12 +42,3 @@
 - [ ] MUST propagate valid `traceparent` using same header — [L383](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L383)
 - [ ] MUST propagate valid `tracestate` unless empty — [L383](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L383)
 
-### B3 Requirements
-- [ ] B3 Extract: MUST attempt to extract from both single and multi-header formats — [L404](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L404)
-- [ ] B3 Extract: MUST preserve debug trace flag and propagate with subsequent requests — [L407](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L407)
-- [ ] B3 Extract: implementation MUST set sampled trace flag when debug flag is set — [L409](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L409)
-- [ ] B3 Extract: MUST NOT reuse X-B3-SpanId as server-side span id — [L410](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L410)
-- [ ] B3 Inject: MUST default to single-header format — [L416](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L416)
-- [ ] B3 Inject: MUST provide configuration to change default to multi-header — [L417](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L417)
-- [ ] B3 Inject: MUST NOT propagate X-B3-ParentSpanId — [L419](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L419)
-- [ ] B3 Fields: MUST return header names corresponding to configured format — [L424](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L424)
