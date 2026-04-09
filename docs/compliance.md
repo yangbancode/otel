@@ -10,7 +10,7 @@ References:
 |---------|-------|
 | [Common](compliance/common.md) | 47 |
 | [Context](compliance/context.md) | 13 |
-| [API Propagators](compliance/api-propagators.md) | 36 |
+| [API Propagators](compliance/api-propagators.md) | 28 |
 | [Baggage](compliance/baggage.md) | 17 |
 | [Resource](compliance/resource.md) | 19 |
 | [Trace API](compliance/trace-api.md) | 116 |
@@ -25,4 +25,4 @@ References:
 | [OTLP Protocol](compliance/otlp-protocol.md) | 75 |
 | [OTLP Exporter Configuration](compliance/otlp-exporter.md) | 17 |
 | [Environment Variables](compliance/environment-variables.md) | 29 |
-| **Total** | **845** |
+| **Total** | **837** |
