@@ -11,13 +11,6 @@ TBD
 ## Compliance
 
 - [Trace API](../compliance/trace-api.md)
-  * Span — [L329](../references/opentelemetry-specification/v1.55.0/trace/api.md#L329)
-  * Span — [L333](../references/opentelemetry-specification/v1.55.0/trace/api.md#L333)
-  * Span — [L365](../references/opentelemetry-specification/v1.55.0/trace/api.md#L365)
-  * Span — [L366](../references/opentelemetry-specification/v1.55.0/trace/api.md#L366)
-  * Span — [L368](../references/opentelemetry-specification/v1.55.0/trace/api.md#L368)
-  * Span — [L371](../references/opentelemetry-specification/v1.55.0/trace/api.md#L371)
-  * Span — [L375](../references/opentelemetry-specification/v1.55.0/trace/api.md#L375)
   * Span Creation — [L380](../references/opentelemetry-specification/v1.55.0/trace/api.md#L380)
   * Span Creation — [L382](../references/opentelemetry-specification/v1.55.0/trace/api.md#L382)
   * Span Creation — [L387](../references/opentelemetry-specification/v1.55.0/trace/api.md#L387)
@@ -33,8 +26,3 @@ TBD
   * Span Creation — [L419](../references/opentelemetry-specification/v1.55.0/trace/api.md#L419)
   * Span Creation — [L426](../references/opentelemetry-specification/v1.55.0/trace/api.md#L426)
   * Specifying Links — [L444](../references/opentelemetry-specification/v1.55.0/trace/api.md#L444)
-  * Link — [L805](../references/opentelemetry-specification/v1.55.0/trace/api.md#L805)
-  * Link — [L815](../references/opentelemetry-specification/v1.55.0/trace/api.md#L815)
-  * Link — [L821](../references/opentelemetry-specification/v1.55.0/trace/api.md#L821)
-  * Link — [L830](../references/opentelemetry-specification/v1.55.0/trace/api.md#L830)
-  * Link — [L832](../references/opentelemetry-specification/v1.55.0/trace/api.md#L832)

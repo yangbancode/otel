@@ -11,9 +11,6 @@ TBD
 ## Compliance
 
 - [Common](../compliance/common.md)
-  * Attribute — [L183](../references/opentelemetry-specification/v1.55.0/common/README.md#L183)
-  * Attribute — [L185](../references/opentelemetry-specification/v1.55.0/common/README.md#L185)
-  * Attribute — [L187](../references/opentelemetry-specification/v1.55.0/common/README.md#L187)
   * Attribute Limits — [L255](../references/opentelemetry-specification/v1.55.0/common/README.md#L255)
   * Attribute Limits — [L263](../references/opentelemetry-specification/v1.55.0/common/README.md#L263)
   * Attribute Limits — [L267](../references/opentelemetry-specification/v1.55.0/common/README.md#L267)
