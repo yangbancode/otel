@@ -11,14 +11,6 @@ TBD
 ## Compliance
 
 - [Trace API](../compliance/trace-api.md)
-  * Context Interaction — [L164](../references/opentelemetry-specification/v1.55.0/trace/api.md#L164)
-  * Context Interaction — [L164](../references/opentelemetry-specification/v1.55.0/trace/api.md#L164)
-  * Context Interaction — [L170](../references/opentelemetry-specification/v1.55.0/trace/api.md#L170)
-  * Context Interaction — [L174](../references/opentelemetry-specification/v1.55.0/trace/api.md#L174)
-  * Context Interaction — [L174](../references/opentelemetry-specification/v1.55.0/trace/api.md#L174)
-  * Context Interaction — [L182](../references/opentelemetry-specification/v1.55.0/trace/api.md#L182)
-  * Span Operations — Get Context — [L457](../references/opentelemetry-specification/v1.55.0/trace/api.md#L457)
-  * Span Operations — Get Context — [L460](../references/opentelemetry-specification/v1.55.0/trace/api.md#L460)
-  * Span Operations — IsRecording — [L478](../references/opentelemetry-specification/v1.55.0/trace/api.md#L478)
-  * Span Operations — IsRecording — [L483](../references/opentelemetry-specification/v1.55.0/trace/api.md#L483)
-  * Span Operations — IsRecording — [L485](../references/opentelemetry-specification/v1.55.0/trace/api.md#L485)
+  * Context Interaction — L164, L164, L170, L174, L174, L182
+  * Span Operations — Get Context — L457, L460
+  * Span Operations — IsRecording — L478, L483, L485

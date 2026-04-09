@@ -11,6 +11,4 @@ TBD
 ## Compliance
 
 - [Trace SDK](../compliance/trace-sdk.md)
-  * TracerProvider — Configuration — [L113](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L113)
-  * TracerProvider — Configuration — [L119](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L119)
-  * TracerProvider — Configuration — [L120](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L120)
+  * TracerProvider — Configuration — L113, L119, L120

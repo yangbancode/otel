@@ -11,7 +11,4 @@ TBD
 ## Compliance
 
 - [Trace SDK](../compliance/trace-sdk.md)
-  * Id Generators — [L880](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L880)
-  * Id Generators — [L882](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L882)
-  * Id Generators — [L887](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L887)
-  * Id Generators — [L899](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L899)
+  * Id Generators — L880, L882, L887, L899

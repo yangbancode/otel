@@ -11,6 +11,4 @@ TBD
 ## Compliance
 
 - [API Propagators](../compliance/api-propagators.md)
-  * W3C Trace Context Requirements — [L383](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L383)
-  * W3C Trace Context Requirements — [L383](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L383)
-  * W3C Trace Context Requirements — [L383](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L383)
+  * W3C Trace Context Requirements — L383, L383, L383

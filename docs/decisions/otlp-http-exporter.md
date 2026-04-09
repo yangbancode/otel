@@ -11,66 +11,24 @@ TBD
 ## Compliance
 
 - [OTLP Protocol](../compliance/otlp-protocol.md)
-  * OTLP/HTTP — [L390](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L390)
-  * OTLP/HTTP — [L392](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L392)
-  * Binary Protobuf Encoding — [L400](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L400)
-  * JSON Protobuf Encoding — [L409](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L409)
-  * JSON Protobuf Encoding — [L418](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L418)
-  * JSON Protobuf Encoding — [L426](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L426)
-  * JSON Protobuf Encoding — [L443](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L443)
-  * OTLP/HTTP Request — [L454](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L454)
-  * OTLP/HTTP Request — [L459](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L459)
-  * OTLP/HTTP Request — [L462](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L462)
-  * OTLP/HTTP Request — [L469](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L469)
-  * OTLP/HTTP Response — [L478](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L478)
-  * OTLP/HTTP Response — [L482](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L482)
-  * OTLP/HTTP Response — [L484](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L484)
-  * OTLP/HTTP Response — [L485](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L485)
-  * Full Success (HTTP) — [L498](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L498)
-  * Full Success (HTTP) — [L500](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L500)
-  * Full Success (HTTP) — [L507](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L507)
-  * Partial Success (HTTP) — [L513](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L513)
-  * Partial Success (HTTP) — [L518](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L518)
-  * Partial Success (HTTP) — [L525](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L525)
-  * Partial Success (HTTP) — [L533](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L533)
-  * Partial Success (HTTP) — [L536](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L536)
-  * Failures (HTTP) — [L541](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L541)
-  * Failures (HTTP) — [L545](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L545)
-  * Failures (HTTP) — [L554](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L554)
-  * Failures (HTTP) — [L560](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L560)
-  * Failures (HTTP) — [L562](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L562)
-  * Failures (HTTP) — [L566](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L566)
-  * Failures (HTTP) — [L568](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L568)
-  * Bad Data (HTTP) — [L580](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L580)
-  * Bad Data (HTTP) — [L581](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L581)
-  * Bad Data (HTTP) — [L586](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L586)
-  * OTLP/HTTP Throttling — [L592](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L592)
-  * OTLP/HTTP Throttling — [L597](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L597)
-  * OTLP/HTTP Throttling — [L600](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L600)
-  * All Other Responses — [L608](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L608)
-  * OTLP/HTTP Connection — [L614](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L614)
-  * OTLP/HTTP Connection — [L618](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L618)
-  * OTLP/HTTP Connection — [L620](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L620)
-  * OTLP/HTTP Concurrent Requests — [L632](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L632)
-  * OTLP/HTTP Default Port — [L636](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L636)
-  * Implementation Recommendations — [L648](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L648)
-  * Implementation Recommendations — [L650](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L650)
-  * Implementation Recommendations — [L669](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L669)
-  * Future Versions and Interoperability — [L695](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L695)
-  * Future Versions and Interoperability — [L723](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L723)
+  * OTLP/HTTP — L390, L392
+  * Binary Protobuf Encoding — L400
+  * JSON Protobuf Encoding — L409, L418, L426, L443
+  * OTLP/HTTP Request — L454, L459, L462, L469
+  * OTLP/HTTP Response — L478, L482, L484, L485
+  * Full Success (HTTP) — L498, L500, L507
+  * Partial Success (HTTP) — L513, L518, L525, L533, L536
+  * Failures (HTTP) — L541, L545, L554, L560, L562, L566, L568
+  * Bad Data (HTTP) — L580, L581, L586
+  * OTLP/HTTP Throttling — L592, L597, L600
+  * All Other Responses — L608
+  * OTLP/HTTP Connection — L614, L618, L620
+  * OTLP/HTTP Concurrent Requests — L632
+  * OTLP/HTTP Default Port — L636
+  * Implementation Recommendations — L648, L650, L669
+  * Future Versions and Interoperability — L695, L723
 - [OTLP Exporter Configuration](../compliance/otlp-exporter.md)
-  * Configuration Options — [L13](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L13)
-  * Configuration Options — [L14](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L14)
-  * Configuration Options — [L17](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L17)
-  * Configuration Options — [L26](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L26)
-  * Configuration Options — [L71](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L71)
-  * Configuration Options — [L77](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L77)
-  * Configuration Options — [L83](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L83)
-  * Endpoint URLs for OTLP/HTTP — [L101](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L101)
-  * Endpoint URLs for OTLP/HTTP — [L105](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L105)
-  * Endpoint URLs for OTLP/HTTP — [L115](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L115)
-  * Specify Protocol — [L169](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L169)
-  * Specify Protocol — [L170](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L170)
-  * Specify Protocol — [L173](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L173)
-  * User Agent — [L205](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L205)
-  * User Agent — [L211](../references/opentelemetry-specification/v1.55.0/protocol/exporter.md#L211)
+  * Configuration Options — L13, L14, L17, L26, L71, L77, L83
+  * Endpoint URLs for OTLP/HTTP — L101, L105, L115
+  * Specify Protocol — L169, L170, L173
+  * User Agent — L205, L211

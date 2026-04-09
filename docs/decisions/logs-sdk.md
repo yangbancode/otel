@@ -11,74 +11,27 @@ TBD
 ## Compliance
 
 - [Logs SDK](../compliance/logs-sdk.md)
-  * LoggerProvider — [L55](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L55)
-  * LoggerProvider — [L59](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L59)
-  * LoggerProvider — [L60](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L60)
-  * LoggerProvider Creation — [L65](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L65)
-  * Logger Creation — [L69](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L69)
-  * Logger Creation — [L72](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L72)
-  * Logger Creation — [L74](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L74)
-  * Logger Creation — [L79](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L79)
-  * Logger Creation — [L80](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L80)
-  * Logger Creation — [L81](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L81)
-  * Configuration — [L92](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L92)
-  * Configuration — [L97](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L97)
-  * Shutdown — [L140](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L140)
-  * Shutdown — [L141](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L141)
-  * Shutdown — [L144](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L144)
-  * Shutdown — [L147](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L147)
-  * Shutdown — [L152](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L152)
-  * ForceFlush — [L163](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L163)
-  * ForceFlush — [L163](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L163)
-  * ForceFlush — [L167](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L167)
-  * ForceFlush — [L172](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L172)
-  * Emit a LogRecord (SDK) — [L226](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L226)
-  * Emit a LogRecord (SDK) — [L228](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L228)
-  * Emit a LogRecord (SDK) — [L231](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L231)
-  * Enabled (SDK) — [L256](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L256)
-  * Enabled (SDK) — [L267](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L267)
-  * Enabled (SDK) — [L270](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L270)
-  * ReadableLogRecord — [L279](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L279)
-  * ReadableLogRecord — [L281](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L281)
-  * ReadableLogRecord — [L285](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L285)
-  * ReadableLogRecord — [L289](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L289)
-  * ReadWriteLogRecord — [L302](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L302)
-  * LogRecord Limits — [L323](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L323)
-  * LogRecord Limits — [L326](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L326)
-  * LogRecord Limits — [L331](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L331)
-  * LogRecord Limits — [L345](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L345)
-  * LogRecord Limits — [L347](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L347)
-  * LogRecordProcessor — [L363](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L363)
-  * LogRecordProcessor — [L365](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L365)
-  * OnEmit — [L397](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L397)
-  * OnEmit — [L409](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L409)
-  * Enabled (Processor) — [L439](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L439)
-  * Processor Shutdown — [L462](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L462)
-  * Processor Shutdown — [L463](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L463)
-  * Processor Shutdown — [L466](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L466)
-  * Processor Shutdown — [L469](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L469)
-  * Processor Shutdown — [L471](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L471)
-  * Processor ForceFlush — [L480](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L480)
-  * Processor ForceFlush — [L484](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L484)
-  * Processor ForceFlush — [L486](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L486)
-  * Processor ForceFlush — [L487](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L487)
-  * Processor ForceFlush — [L492](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L492)
-  * Processor ForceFlush — [L495](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L495)
-  * Processor ForceFlush — [L500](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L500)
-  * Built-in Processors — [L507](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L507)
-  * Built-in Processors — [L510](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L510)
-  * Simple Processor — [L521](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L521)
-  * Batching Processor — [L534](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L534)
-  * LogRecordExporter — [L559](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L559)
-  * LogRecordExporter — [L563](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L563)
-  * Export — [L582](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L582)
-  * Export — [L586](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L586)
-  * Exporter ForceFlush — [L620](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L620)
-  * Exporter ForceFlush — [L622](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L622)
-  * Exporter ForceFlush — [L627](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L627)
-  * Exporter Shutdown — [L637](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L637)
-  * Exporter Shutdown — [L638](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L638)
-  * Exporter Shutdown — [L640](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L640)
-  * Concurrency Requirements (SDK) — [L654](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L654)
-  * Concurrency Requirements (SDK) — [L657](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L657)
-  * Concurrency Requirements (SDK) — [L659](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L659)
+  * LoggerProvider — L55, L59, L60
+  * LoggerProvider Creation — L65
+  * Logger Creation — L69, L72, L74, L79, L80, L81
+  * Configuration — L92, L97
+  * Shutdown — L140, L141, L144, L147, L152
+  * ForceFlush — L163, L163, L167, L172
+  * Emit a LogRecord (SDK) — L226, L228, L231
+  * Enabled (SDK) — L256, L267, L270
+  * ReadableLogRecord — L279, L281, L285, L289
+  * ReadWriteLogRecord — L302
+  * LogRecord Limits — L323, L326, L331, L345, L347
+  * LogRecordProcessor — L363, L365
+  * OnEmit — L397, L409
+  * Enabled (Processor) — L439
+  * Processor Shutdown — L462, L463, L466, L469, L471
+  * Processor ForceFlush — L480, L484, L486, L487, L492, L495, L500
+  * Built-in Processors — L507, L510
+  * Simple Processor — L521
+  * Batching Processor — L534
+  * LogRecordExporter — L559, L563
+  * Export — L582, L586
+  * Exporter ForceFlush — L620, L622, L627
+  * Exporter Shutdown — L637, L638, L640
+  * Concurrency Requirements (SDK) — L654, L657, L659
