@@ -119,3 +119,6 @@ Each decision has its own document under [decisions/](decisions/) with related [
 
 ### OTLP gRPC Exporter
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
+
+## Semantic Conventions
+- [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
