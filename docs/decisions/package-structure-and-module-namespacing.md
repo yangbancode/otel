@@ -148,6 +148,54 @@ Otel.Exporter.Stdout.Trace
 Otel.Exporter.OTLP.Trace
 ```
 
+### Versioning Strategy
+
+Each app is versioned independently. Different factors drive version changes for different apps:
+
+| Factor | Affected apps |
+|--------|--------------|
+| OTel Spec version change | `otel_api`, `otel_sdk`, `otel_exporter_*` |
+| OTel Semantic Conventions version change | `otel_semantic_conventions` |
+| Erlang/OTP or Elixir version change | All apps |
+| Bug fix or internal improvement | Individual app only |
+
+Inter-app compatibility is declared via version constraints in `mix.exs`:
+
+```elixir
+# otel_sdk/mix.exs
+defp deps do
+  [{:otel_api, "~> 1.0", in_umbrella: true}]
+end
+```
+
+Each app's `mix.exs` records which OTel spec version it targets:
+
+```elixir
+# otel_api/mix.exs
+def project do
+  [
+    app: :otel_api,
+    version: "0.1.0",
+    package: [
+      links: %{
+        "OTel Spec" => "https://github.com/open-telemetry/opentelemetry-specification/releases/tag/v1.55.0"
+      }
+    ]
+  ]
+end
+```
+
+`otel_semantic_conventions` additionally records the Semantic Conventions version:
+
+```elixir
+# otel_semantic_conventions/mix.exs
+package: [
+  links: %{
+    "OTel SemConv" => "https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.30.0"
+  }
+]
+```
+
 ### Scope Boundary
 
 Included in this umbrella (OTel spec components):
