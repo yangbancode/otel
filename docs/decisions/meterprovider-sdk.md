@@ -16,7 +16,7 @@ TBD
   * MeterProvider Creation — L117
   * Meter Creation — L121, L124, L126, L131, L132, L133
   * Configuration — L144, L150
-  * Shutdown — L191, L193, L196, L198, L203, L1430, L1431, L1434, L1437
+  * Shutdown — L191, L193, L196, L198, L203
   * ForceFlush — L216, L219, L220, L225
   * Defaults and Configuration — L1837
   * Compatibility Requirements (Stable) — L1862, L1865

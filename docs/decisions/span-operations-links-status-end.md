@@ -14,4 +14,4 @@ TBD
   * Span Operations — Add Link — L562
   * Span Operations — Set Status — L574, L594, L599, L602, L603, L606, L609, L613, L614, L619, L622
   * Span Operations — End — L652, L659, L662, L665, L666, L673, L677, L678
-  * Link — L805, L815, L821, L830, L832, L805, L815, L821, L830, L832
+  * Link — L805, L815, L821, L830, L832

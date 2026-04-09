@@ -12,5 +12,3 @@ TBD
 
 - [Trace API](../compliance/trace-api.md)
   * Context Interaction — L164, L164, L170, L174, L174, L182
-  * Span Operations — Get Context — L457, L460
-  * Span Operations — IsRecording — L478, L483, L485
