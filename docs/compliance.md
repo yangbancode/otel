@@ -2,9 +2,13 @@
 
 Stable specification items only. Organized by implementation order aligned with [Tech Spec](tech-spec.md) phases. Check items as they are implemented.
 
+Reference: [references/opentelemetry-specification-v1.55.0](references/opentelemetry-specification-v1.55.0/README.md)
+
 ## Phase 1: Foundation
 
 ### Attributes
+
+> Ref: [common/README.md](references/opentelemetry-specification-v1.55.0/common/README.md)
 
 - [ ] Support primitive attribute types: string, boolean, integer (signed 64-bit), double (IEEE 754)
 - [ ] Support homogeneous arrays of primitive types
@@ -19,6 +23,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Context API
 
+> Ref: [context/README.md](references/opentelemetry-specification-v1.55.0/context/README.md)
+
 - [ ] Context is immutable; write operations return new Context
 - [ ] Create a key: accept key name, return opaque key object
 - [ ] Get value: accept Context and key, return associated value
@@ -29,6 +35,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Propagators — TextMapPropagator
 
+> Ref: [context/api-propagators.md](references/opentelemetry-specification-v1.55.0/context/api-propagators.md)
+
 - [ ] Inject: accept Context and carrier, set propagation fields
 - [ ] Extract: accept Context and carrier, return new Context with extracted values
 - [ ] Extract must not throw on unparseable values
@@ -38,15 +46,21 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Composite Propagator
 
+> Ref: [context/api-propagators.md](references/opentelemetry-specification-v1.55.0/context/api-propagators.md)
+
 - [ ] Combine multiple propagators into one
 - [ ] Invoke component propagators in registration order
 
 ### Global Propagators
 
+> Ref: [context/api-propagators.md](references/opentelemetry-specification-v1.55.0/context/api-propagators.md)
+
 - [ ] Provide get/set for global propagator
 - [ ] Default to no-op propagator unless explicitly configured
 
 ### W3C TraceContext Propagator
+
+> Ref: [context/api-propagators.md](references/opentelemetry-specification-v1.55.0/context/api-propagators.md), [trace/tracestate-handling.md](references/opentelemetry-specification-v1.55.0/trace/tracestate-handling.md)
 
 - [ ] Parse and validate `traceparent` header per W3C Trace Context Level 2
 - [ ] Parse and validate `tracestate` header
@@ -56,10 +70,14 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### W3C Baggage Propagator
 
+> Ref: [baggage/api.md](references/opentelemetry-specification-v1.55.0/baggage/api.md)
+
 - [ ] Implement TextMapPropagator for W3C Baggage specification
 - [ ] On conflict, new pair takes precedence
 
 ### Baggage API
+
+> Ref: [baggage/api.md](references/opentelemetry-specification-v1.55.0/baggage/api.md)
 
 - [ ] Get value by name (return value or null)
 - [ ] Get all name/value pairs (order not significant)
@@ -73,6 +91,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Baggage — Context Interaction
 
+> Ref: [baggage/api.md](references/opentelemetry-specification-v1.55.0/baggage/api.md)
+
 - [ ] Extract Baggage from Context
 - [ ] Insert Baggage into Context
 - [ ] Retrieve and set active Baggage (for implicit propagation)
@@ -80,14 +100,20 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Baggage — Propagation
 
+> Ref: [baggage/api.md](references/opentelemetry-specification-v1.55.0/baggage/api.md)
+
 - [ ] W3C Baggage TextMapPropagator implementation
 - [ ] On conflict, new pair takes precedence
 
 ### Baggage — Functional Without SDK
 
+> Ref: [baggage/api.md](references/opentelemetry-specification-v1.55.0/baggage/api.md)
+
 - [ ] API must be fully functional without an installed SDK
 
 ### Resource
+
+> Ref: [resource/sdk.md](references/opentelemetry-specification-v1.55.0/resource/sdk.md)
 
 - [ ] Create Resource from attributes
 - [ ] Accept optional schema_url
@@ -108,6 +134,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace API — TracerProvider
 
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md)
+
 - [ ] Provide function to get a Tracer
 - [ ] Accept `name` parameter (required)
 - [ ] Accept optional `version` parameter
@@ -120,11 +148,15 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace API — Tracer
 
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md)
+
 - [ ] Provide function to create new Spans
 - [ ] Provide Enabled API returning boolean
 - [ ] Thread-safe for concurrent use
 
 ### Trace API — SpanContext
+
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md)
 
 - [ ] TraceId: 16-byte array, at least one non-zero byte
 - [ ] SpanId: 8-byte array, at least one non-zero byte
@@ -137,6 +169,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace API — TraceState
 
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md), [trace/tracestate-handling.md](references/opentelemetry-specification-v1.55.0/trace/tracestate-handling.md)
+
 - [ ] Get value for key
 - [ ] Add new key/value pair (returns new TraceState)
 - [ ] Update existing key/value pair (returns new TraceState)
@@ -145,6 +179,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] All mutations return new TraceState (immutable)
 
 ### Trace API — Span Creation
+
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md)
 
 - [ ] Spans created only via Tracer (no other API)
 - [ ] Accept span name (required)
@@ -160,6 +196,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace API — SpanKind
 
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md)
+
 - [ ] SERVER
 - [ ] CLIENT
 - [ ] PRODUCER
@@ -167,6 +205,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] INTERNAL (default)
 
 ### Trace API — Span Operations
+
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md)
 
 - [ ] GetContext: return SpanContext (same for entire lifetime)
 - [ ] IsRecording: return boolean; false after End
@@ -189,11 +229,15 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace API — No-Op Behavior
 
+> Ref: [trace/api.md](references/opentelemetry-specification-v1.55.0/trace/api.md)
+
 - [ ] Without SDK: API is no-op
 - [ ] Return non-recording Span with SpanContext from parent Context
 - [ ] If no parent: return Span with all-zero IDs
 
 ### Trace SDK — TracerProvider
+
+> Ref: [trace/sdk.md](references/opentelemetry-specification-v1.55.0/trace/sdk.md)
 
 - [ ] Specify Resource at creation
 - [ ] Configure SpanProcessors, IdGenerator, SpanLimits, Sampler
@@ -206,6 +250,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace SDK — Span Limits
 
+> Ref: [trace/sdk.md](references/opentelemetry-specification-v1.55.0/trace/sdk.md), [configuration/sdk-environment-variables.md](references/opentelemetry-specification-v1.55.0/configuration/sdk-environment-variables.md)
+
 - [ ] `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` — per-span attribute value length
 - [ ] `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` — max span attributes (default: 128)
 - [ ] `OTEL_SPAN_EVENT_COUNT_LIMIT` — max span events (default: 128)
@@ -216,10 +262,14 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace SDK — IdGenerator
 
+> Ref: [trace/sdk.md](references/opentelemetry-specification-v1.55.0/trace/sdk.md)
+
 - [ ] Default: randomly generate TraceId (16 bytes) and SpanId (8 bytes)
 - [ ] Provide mechanism for custom IdGenerator
 
 ### Trace SDK — Samplers
+
+> Ref: [trace/sdk.md](references/opentelemetry-specification-v1.55.0/trace/sdk.md)
 
 - [ ] AlwaysOn: return RECORD_AND_SAMPLE; description "AlwaysOnSampler"
 - [ ] AlwaysOff: return DROP; description "AlwaysOffSampler"
@@ -234,6 +284,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Sampler ShouldSample and GetDescription must be thread-safe
 
 ### Trace SDK — SpanProcessor
+
+> Ref: [trace/sdk.md](references/opentelemetry-specification-v1.55.0/trace/sdk.md)
 
 - [ ] OnStart: called synchronously when span starts; must not block/throw
 - [ ] OnEnd: called after span ends with readable span
@@ -262,6 +314,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Trace SDK — SpanExporter
 
+> Ref: [trace/sdk.md](references/opentelemetry-specification-v1.55.0/trace/sdk.md)
+
 - [ ] Export: accept batch of spans, return Success or Failure
 - [ ] Export must not be called concurrently for same instance
 - [ ] Export must not block indefinitely (reasonable timeout)
@@ -272,6 +326,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Console Exporter — Spans
 
+> Ref: [trace/sdk_exporters/stdout.md](references/opentelemetry-specification-v1.55.0/trace/sdk_exporters/stdout.md)
+
 - [ ] Output spans to stdout/console
 - [ ] Output format is implementation-defined
 - [ ] Document as debugging/learning tool, not for production
@@ -280,6 +336,8 @@ Stable specification items only. Organized by implementation order aligned with 
 ## Phase 3: OTLP Exporters (Traces)
 
 ### OTLP Exporter — Common Configuration
+
+> Ref: [protocol/exporter.md](references/opentelemetry-specification-v1.55.0/protocol/exporter.md)
 
 - [ ] `OTEL_EXPORTER_OTLP_ENDPOINT` — base endpoint URL
 - [ ] Per-signal endpoint overrides (`*_TRACES_ENDPOINT`, `*_METRICS_ENDPOINT`, `*_LOGS_ENDPOINT`)
@@ -300,11 +358,15 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### OTLP Protocol — Encoding
 
+> Ref: [protocol/otlp.md](references/opentelemetry-specification-v1.55.0/protocol/otlp.md)
+
 - [ ] Binary Protobuf encoding (Proto3)
 - [ ] JSON Protobuf encoding: traceId/spanId as hex (not base64), enum as integers, lowerCamelCase keys
 - [ ] Receivers must ignore unknown fields in JSON
 
 ### OTLP/HTTP Exporter
+
+> Ref: [protocol/otlp.md](references/opentelemetry-specification-v1.55.0/protocol/otlp.md), [protocol/exporter.md](references/opentelemetry-specification-v1.55.0/protocol/exporter.md)
 
 - [ ] Default endpoint: http://localhost:4318
 - [ ] Append signal-specific paths to base endpoint: /v1/traces, /v1/metrics, /v1/logs
@@ -322,6 +384,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Must not modify URL beyond specified rules
 
 ### OTLP/gRPC Exporter
+
+> Ref: [protocol/otlp.md](references/opentelemetry-specification-v1.55.0/protocol/otlp.md), [protocol/exporter.md](references/opentelemetry-specification-v1.55.0/protocol/exporter.md)
 
 - [ ] Default endpoint: http://localhost:4317
 - [ ] Unary RPC calls with Export*ServiceRequest messages
@@ -341,6 +405,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Metrics API — MeterProvider
 
+> Ref: [metrics/api.md](references/opentelemetry-specification-v1.55.0/metrics/api.md)
+
 - [ ] Provide function to get/create a Meter
 - [ ] Accept `name` parameter (required)
 - [ ] Accept optional `version` parameter
@@ -352,10 +418,14 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Metrics API — Meter
 
+> Ref: [metrics/api.md](references/opentelemetry-specification-v1.55.0/metrics/api.md)
+
 - [ ] Provide functions to create all instrument types
 - [ ] Thread-safe for concurrent use
 
 ### Metrics API — Instrument General
+
+> Ref: [metrics/api.md](references/opentelemetry-specification-v1.55.0/metrics/api.md)
 
 - [ ] Instrument identity: name, kind, unit, description
 - [ ] Name: starts with alpha, max 255 chars, case-insensitive
@@ -364,6 +434,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Description: optional, supports BMP Unicode, at least 1023 chars
 
 ### Metrics API — Synchronous Instruments
+
+> Ref: [metrics/api.md](references/opentelemetry-specification-v1.55.0/metrics/api.md)
 
 #### Counter
 
@@ -391,6 +463,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Metrics API — Asynchronous Instruments
 
+> Ref: [metrics/api.md](references/opentelemetry-specification-v1.55.0/metrics/api.md)
+
 #### Observable Counter
 
 - [ ] Create with name, optional unit, description, advisory params, callbacks
@@ -411,12 +485,16 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Metrics API — Callback Requirements
 
+> Ref: [metrics/api.md](references/opentelemetry-specification-v1.55.0/metrics/api.md)
+
 - [ ] Callbacks evaluated exactly once per collection per instrument
 - [ ] Observations from single callback treated as same instant
 - [ ] Should be reentrant safe
 - [ ] Should not make duplicate observations (same attributes)
 
 ### Metrics SDK — MeterProvider
+
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
 
 - [ ] Specify Resource at creation
 - [ ] Configure MetricExporters, MetricReaders, Views
@@ -429,6 +507,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Metrics SDK — Meter
 
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
+
 - [ ] Validate instrument names on creation
 - [ ] Emit error for invalid instrument names
 - [ ] Handle duplicate instrument registration (warn, aggregate identical)
@@ -438,6 +518,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Instrument Enabled: false when MeterConfig disabled or all Views use Drop
 
 ### Metrics SDK — Views
+
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
 
 - [ ] Instrument selection criteria: name (exact/wildcard), type, unit, meter_name, meter_version, meter_schema_url
 - [ ] Single asterisk matches all instruments
@@ -452,6 +534,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Views not merged; warn on conflicting metric identities
 
 ### Metrics SDK — Aggregation
+
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
 
 - [ ] Drop aggregation: ignore all measurements
 - [ ] Default aggregation: select per instrument kind
@@ -471,12 +555,16 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Metrics SDK — Temporal Aggregation
 
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
+
 - [ ] Cumulative temporality: consistent start timestamp across all collection intervals
 - [ ] Cumulative: data points persist regardless of new measurements
 - [ ] Delta temporality: start timestamp advances between collections
 - [ ] Delta: only data points with measurements since previous collection
 
 ### Metrics SDK — Cardinality Limits
+
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
 
 - [ ] View-specific limit takes precedence
 - [ ] MetricReader default limit applies second
@@ -486,6 +574,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Every measurement reflected exactly once (no double-counting/dropping)
 
 ### Metrics SDK — Exemplars
+
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
 
 - [ ] Exemplar sampling on by default
 - [ ] ExemplarFilter: AlwaysOn, AlwaysOff, TraceBased (default)
@@ -498,6 +588,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Thread-safe ExemplarReservoir methods
 
 ### Metrics SDK — MetricReader
+
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
 
 - [ ] Configure: exporter, default aggregation, output temporality, cardinality limit
 - [ ] Optional: MetricProducers, MetricFilter
@@ -518,6 +610,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Metrics SDK — MetricExporter (Push)
 
+> Ref: [metrics/sdk.md](references/opentelemetry-specification-v1.55.0/metrics/sdk.md)
+
 - [ ] Export: accept metrics, return Success or Failure
 - [ ] Export must not be called concurrently for same instance
 - [ ] Export must not block indefinitely
@@ -527,6 +621,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] ForceFlush and Shutdown must be thread-safe
 
 ### Console Exporter — Metrics
+
+> Ref: [metrics/sdk_exporters/stdout.md](references/opentelemetry-specification-v1.55.0/metrics/sdk_exporters/stdout.md)
 
 - [ ] Output metrics to stdout/console
 - [ ] Output format is implementation-defined
@@ -538,6 +634,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Logs API — LoggerProvider
 
+> Ref: [logs/api.md](references/opentelemetry-specification-v1.55.0/logs/api.md)
+
 - [ ] Provide function to get a Logger
 - [ ] Accept `name` parameter (required)
 - [ ] Accept optional `version`, `schema_url`, `attributes` parameters
@@ -546,6 +644,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Logs API — Logger
 
+> Ref: [logs/api.md](references/opentelemetry-specification-v1.55.0/logs/api.md)
+
 - [ ] Provide function to emit LogRecord
 - [ ] Accept optional: Timestamp, Observed Timestamp, Context, Severity Number, Severity Text, Body, Attributes, Event Name
 - [ ] Provide Enabled API returning boolean
@@ -553,6 +653,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Thread-safe for concurrent use
 
 ### Logs SDK — LoggerProvider
+
+> Ref: [logs/sdk.md](references/opentelemetry-specification-v1.55.0/logs/sdk.md)
 
 - [ ] Specify Resource at creation
 - [ ] Configure LogRecordProcessors
@@ -564,12 +666,16 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Logs SDK — Logger
 
+> Ref: [logs/sdk.md](references/opentelemetry-specification-v1.55.0/logs/sdk.md)
+
 - [ ] Set ObservedTimestamp to current time if unspecified
 - [ ] Apply exception semantic conventions to exception attributes
 - [ ] User-provided attributes must not be overwritten by exception-derived attributes
 - [ ] Thread-safe for all methods
 
 ### Logs SDK — LogRecord Limits
+
+> Ref: [logs/sdk.md](references/opentelemetry-specification-v1.55.0/logs/sdk.md), [configuration/sdk-environment-variables.md](references/opentelemetry-specification-v1.55.0/configuration/sdk-environment-variables.md)
 
 - [ ] Configurable attribute count limit
 - [ ] Configurable attribute value length limit
@@ -578,6 +684,8 @@ Stable specification items only. Organized by implementation order aligned with 
 - [ ] Log message when attributes discarded (at most once per LogRecord)
 
 ### Logs SDK — LogRecordProcessor
+
+> Ref: [logs/sdk.md](references/opentelemetry-specification-v1.55.0/logs/sdk.md)
 
 - [ ] OnEmit: called synchronously; must not block/throw
 - [ ] LogRecord mutations visible to next registered processors
@@ -605,6 +713,8 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Logs SDK — LogRecordExporter
 
+> Ref: [logs/sdk.md](references/opentelemetry-specification-v1.55.0/logs/sdk.md)
+
 - [ ] Export: accept batch of LogRecords, return Success or Failure
 - [ ] Export must not be called concurrently for same instance
 - [ ] Export must not block indefinitely
@@ -613,12 +723,16 @@ Stable specification items only. Organized by implementation order aligned with 
 
 ### Console Exporter — Logs
 
+> Ref: [logs/sdk_exporters/stdout.md](references/opentelemetry-specification-v1.55.0/logs/sdk_exporters/stdout.md)
+
 - [ ] Output LogRecords to stdout/console
 - [ ] Output format is implementation-defined
 - [ ] Document as debugging/learning tool, not for production
 - [ ] Default pairing with Simple LogRecordProcessor
 
 ## Environment Variables
+
+> Ref: [configuration/sdk-environment-variables.md](references/opentelemetry-specification-v1.55.0/configuration/sdk-environment-variables.md)
 
 General SDK configuration. Applied across all phases.
 
