@@ -123,3 +123,6 @@ Each decision has its own document under [decisions/](decisions/) with related [
 
 ## Semantic Conventions
 - [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
+
+## Release
+- [ ] [Hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
