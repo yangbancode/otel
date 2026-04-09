@@ -4,7 +4,7 @@
 
 - [Tech Spec](docs/tech-spec.md)
 - [Compliance](docs/compliance.md)
-- [Design Decisions](docs/design-decisions.md)
+- [Decisions](docs/decisions.md)
 
 ## Rules
 

@@ -32,7 +32,7 @@ All signals target stable items in the OpenTelemetry specification.
 
 - Auto-generated attribute key constants from the [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions) repository
 
-Implementation order and phases are defined in [Design Decisions](design-decisions.md).
+Implementation order and phases are defined in [Decisions](decisions.md).
 
 ### Out of Scope
 
