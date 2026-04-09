@@ -31,5 +31,15 @@
 - [ ] Logger SHOULD provide Enabled API — [L135](../references/opentelemetry-specification/v1.55.0/logs/api.md#L135)
 - [ ] Enabled API SHOULD accept Context parameter (optional if implicit supported, MUST use current if unspecified) — [L140](../references/opentelemetry-specification/v1.55.0/logs/api.md#L140)
 - [ ] When only explicit Context, accepting Context parameter is REQUIRED — [L143](../references/opentelemetry-specification/v1.55.0/logs/api.md#L143)
-- [ ] Enabled API SHOULD accept Severity Number (optional) — [L144](../references/opentelemetry-specification/v1.55.0/logs/api.md#
-Now I have all 11 files read. Let me compile the complete compliance checklist.
+- [ ] Enabled API SHOULD accept Severity Number (optional) — [L144](../references/opentelemetry-specification/v1.55.0/logs/api.md#L144)
+- [ ] Enabled API SHOULD accept Event Name (optional) — [L145](../references/opentelemetry-specification/v1.55.0/logs/api.md#L145)
+- [ ] Enabled MUST return a language idiomatic boolean type — [L147](../references/opentelemetry-specification/v1.55.0/logs/api.md#L147)
+- [ ] API SHOULD be documented that authors need to call each time they emit a LogRecord — [L152](../references/opentelemetry-specification/v1.55.0/logs/api.md#L152)
+
+### Optional and Required Parameters
+- [ ] For each optional parameter, API MUST be structured to accept it but MUST NOT obligate user to provide it — [L161](../references/opentelemetry-specification/v1.55.0/logs/api.md#L161)
+- [ ] For each required parameter, API MUST be structured to obligate user to provide it — [L164](../references/opentelemetry-specification/v1.55.0/logs/api.md#L164)
+
+### Concurrency Requirements
+- [ ] LoggerProvider: all methods MUST be safe for concurrent use — [L172](../references/opentelemetry-specification/v1.55.0/logs/api.md#L172)
+- [ ] Logger: all methods MUST be safe for concurrent use — [L175](../references/opentelemetry-specification/v1.55.0/logs/api.md#L175)

@@ -85,7 +85,7 @@
 
 ### Failures (HTTP)
 - [ ] If processing fails, server MUST respond with appropriate HTTP 4xx or 5xx status code — [L541](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L541)
-- [ ] Response body for all 4xx and 5xx MUST be Protobuf-encoded Status message — [L545](../references/opentelemetry-specification/v1.55.0/../opentelemetry-proto/v1.10.0/docs/specification.md#L545)
+- [ ] Response body for all 4xx and 5xx MUST be Protobuf-encoded Status message — [L545](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L545)
 - [ ] Status.message SHOULD contain developer-facing error message — [L554](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L554)
 - [ ] Server SHOULD use HTTP response status codes to indicate retryable/not-retryable — [L560](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L560)
 - [ ] Client SHOULD honour HTTP response status codes as retryable/not-retryable — [L562](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L562)
@@ -118,7 +118,7 @@
 
 ### Implementation Recommendations
 - [ ] Client SHOULD implement queuing, acknowledgment handling, and retry logic per destination — [L648](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L648)
-- [ ] Queues SHOULD reference shared, immutable data to minimize memory overhead — [L649](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L649)
+- [ ] Queues SHOULD reference shared, immutable data to minimize memory overhead — [L650](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L650)
 - [ ] Senders SHOULD NOT create empty envelopes (zero spans/metrics/logs) — [L669](../references/opentelemetry-proto/v1.10.0/docs/specification.md#L669)
 
 ### Future Versions and Interoperability

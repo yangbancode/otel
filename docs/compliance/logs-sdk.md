@@ -32,7 +32,7 @@
 ### ForceFlush
 - [ ] ForceFlush SHOULD provide a way to let caller know success/failure/timeout — [L163](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L163)
 - [ ] ForceFlush SHOULD return ERROR status on error, NO ERROR otherwise — [L163](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L163)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L168](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L168)
+- [ ] ForceFlush SHOULD complete or abort within some timeout — [L167](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L167)
 - [ ] ForceFlush MUST invoke ForceFlush on all registered LogRecordProcessors — [L172](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L172)
 
 ### Emit a LogRecord (SDK)
@@ -109,7 +109,7 @@
 ### Exporter ForceFlush
 - [ ] ForceFlush SHOULD provide a way to let caller know success/failure/timeout — [L620](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L620)
 - [ ] ForceFlush SHOULD only be called in absolutely necessary cases — [L622](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L622)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L625](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L625)
+- [ ] ForceFlush SHOULD complete or abort within some timeout — [L627](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L627)
 
 ### Exporter Shutdown
 - [ ] Shutdown SHOULD be called only once for each LogRecordExporter instance — [L637](../references/opentelemetry-specification/v1.55.0/logs/sdk.md#L637)

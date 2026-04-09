@@ -124,7 +124,6 @@
 - [ ] Record value SHOULD be documented as expected to be non-negative — [L797](../references/opentelemetry-specification/v1.55.0/metrics/api.md#L797)
 - [ ] Record API SHOULD NOT validate value — [L799](../references/opentelemetry-specification/v1.55.0/metrics/api.md#L799)
 - [ ] Record API MUST be structured to accept a variable number of attributes, including none — [L804](../references/opentelemetry-specification/v1.55.0/metrics/api.md#L804)
-- [ ] API MUST allow callers to provide flexible attributes at invocation time — [L902](../references/opentelemetry-specification/v1.55.0/metrics/api.md#L902)
 
 ### Gauge
 
