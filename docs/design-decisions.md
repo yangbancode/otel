@@ -12,6 +12,7 @@ Each decision has its own document under [decisions/](decisions/) with related [
 - [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
 - [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
 - [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
+- [ ] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
 
 ### Common
 - [ ] [AnyValue Type System](decisions/anyvalue-type-system.md)
