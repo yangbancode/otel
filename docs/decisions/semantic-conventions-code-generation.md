@@ -8,4 +8,7 @@ How to generate Elixir modules for OpenTelemetry Semantic Conventions? What is t
 
 TBD
 
-## Compliance
+## References
+
+- [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions)
+- [opentelemetry-erlang semconv generation pipeline](../references/opentelemetry-erlang-semconv/)
