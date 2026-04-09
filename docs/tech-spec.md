@@ -13,27 +13,22 @@ Pure Elixir implementation of the OpenTelemetry SDK. This project implements the
 
 ## Project Scope
 
-### Signals (in order of implementation)
+### Signals
 
-1. **Traces** — Spans, Context Propagation, SpanProcessor, Sampler
-2. **Metrics** — Meter, Instruments, MetricReader, Aggregation
-3. **Logs** — LogRecord, LoggerProvider, LogRecordProcessor
-4. **Baggage** — Context-based key-value propagation
+- **Traces** — Spans, Context Propagation, SpanProcessor, Sampler
+- **Metrics** — Meter, Instruments, MetricReader, Aggregation
+- **Logs** — LogRecord, LoggerProvider, LogRecordProcessor
+- **Baggage** — Context-based key-value propagation
 
 All signals target stable items in the OpenTelemetry specification.
 
-### Exporters (in order of implementation)
+### Exporters
 
-1. **Console (stdout)** — for development/debugging
-2. **OTLP HTTP** — HTTP/protobuf
-3. **OTLP gRPC** — gRPC/protobuf
+- **Console (stdout)** — for development/debugging
+- **OTLP HTTP** — HTTP/protobuf
+- **OTLP gRPC** — gRPC/protobuf
 
-### Implementation Phases
-
-- **Phase 1**: Traces (Span, TracerProvider, Context Propagation, Console Exporter)
-- **Phase 2**: OTLP HTTP Exporter + complete Traces
-- **Phase 3**: Metrics
-- **Phase 4**: Logs, Baggage, OTLP gRPC Exporter
+Implementation order and phases are defined in [Design Decisions](design-decisions.md).
 
 ### Out of Scope
 
