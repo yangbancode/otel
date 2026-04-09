@@ -14,6 +14,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
 - [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
 - [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
+- [ ] [Supervision Tree Structure](decisions/supervision-tree-structure.md)
+- [ ] [Application Boot Order](decisions/application-boot-order.md)
 
 ### Common
 - [ ] [AnyValue Type System](decisions/anyvalue-type-system.md)
@@ -24,6 +26,9 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Context Data Structure & Operations](decisions/context-data-structure-and-operations.md)
 - [ ] [Context Attach/Detach & Process-Local Storage](decisions/context-attach-detach-and-process-local-storage.md)
 - [ ] [Cross-Process Context Passing](decisions/cross-process-context-passing.md)
+
+### Semantic Conventions
+- [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
 
 ### Resource
 - [ ] [Resource Creation & Merge](decisions/resource-creation-and-merge.md)
@@ -47,18 +52,18 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [TracerProvider SDK: Configuration](decisions/tracerprovider-sdk-configuration.md)
 - [ ] [TracerProvider SDK: Shutdown & ForceFlush](decisions/tracerprovider-sdk-shutdown-and-forceflush.md)
 - [ ] [Span Limits](decisions/span-limits.md)
+- [ ] [ID Generation](decisions/id-generation.md)
 - [ ] [Sampler Interface & ShouldSample](decisions/sampler-interface-and-shouldsample.md)
 - [ ] [Built-in Samplers](decisions/built-in-samplers.md)
-- [ ] [ID Generation](decisions/id-generation.md)
-- [ ] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
 - [ ] [Span Storage & ETS Design](decisions/span-storage-and-ets-design.md)
+- [ ] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
 
 ### Span Processors & Exporters
+- [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)
+- [ ] [Console (stdout) Exporter](decisions/console-stdout-exporter.md)
 - [ ] [SpanProcessor Interface](decisions/spanprocessor-interface.md)
 - [ ] [SimpleSpanProcessor](decisions/simplespanprocessor.md)
 - [ ] [BatchSpanProcessor](decisions/batchspanprocessor.md)
-- [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)
-- [ ] [Console (stdout) Exporter](decisions/console-stdout-exporter.md)
 
 ### Propagators
 - [ ] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)
@@ -69,13 +74,9 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Baggage API](decisions/baggage-api.md)
 - [ ] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
 
-### OTP Infrastructure
-- [ ] [Supervision Tree Structure](decisions/supervision-tree-structure.md)
-- [ ] [Application Boot Order](decisions/application-boot-order.md)
-
 ## Phase 2: OTLP HTTP Exporter
-- [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [Exporter Packaging Strategy](decisions/exporter-packaging-strategy.md)
+- [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 
@@ -109,9 +110,6 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ### OTLP gRPC Exporter
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
-
-## Semantic Conventions
-- [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
 
 ## Release
 - [ ] [Hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
