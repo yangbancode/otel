@@ -3,6 +3,7 @@
 ## Docs
 
 - [Tech Spec](docs/tech-spec.md)
+- [Compliance](docs/compliance.md)
 
 ## Rules
 
