@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/environment-variables.md` — all 29 items (naming, parsing, boolean/numeric/enum rules, SDK config, attribute limits, exporter selection)
+- `compliance/environment-variables.md` — Implementation Guidelines, Parsing Empty Value, Boolean, Numeric, Enum, General SDK Configuration, Batch LogRecord Processor, Attribute Limits, LogRecord Limits, Exporter Selection, Language Specific

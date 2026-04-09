@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/baggage.md` — all 17 items (operations, case-sensitive keys/values, fully functional without SDK)
+- `compliance/baggage.md` — Overview, Operations, Context Interaction, Clear Baggage, Conflict Resolution

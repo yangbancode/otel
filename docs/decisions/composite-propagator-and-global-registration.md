@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/api-propagators.md` — Composite + Global + Distribution (10 items: composite create/extract/inject, global get/set, no-op default, W3C default)
+- `compliance/api-propagators.md` — Composite Propagator, Global Propagators, Propagators Distribution

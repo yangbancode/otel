@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — View + Instrument Selection Criteria + Stream Configuration + Measurement Processing (30 items)
+- `compliance/metrics-sdk.md` — View (Stable), Instrument Selection Criteria, Stream Configuration, Measurement Processing

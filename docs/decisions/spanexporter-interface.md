@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Exporter Interface + Export + ForceFlush + Concurrency (9 items)
+- `compliance/trace-sdk.md` — Span Exporter — Interface Definition, Span Exporter — Export, Span Exporter — ForceFlush

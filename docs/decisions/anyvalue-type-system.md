@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/common.md` — AnyValue section + AnyValue representation for non-OTLP (27 items)
+- `compliance/common.md` — AnyValue, map<string, AnyValue>, AnyValue Representation for Non-OTLP Protocols

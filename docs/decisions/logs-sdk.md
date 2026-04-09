@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/logs-sdk.md` — all 71 items (LoggerProvider SDK, Logger Creation, Configuration, Shutdown, ForceFlush, Emit, Enabled, ReadableLogRecord, ReadWriteLogRecord, LogRecord Limits, Processors, Exporters, Concurrency)
+- `compliance/logs-sdk.md` — LoggerProvider, LoggerProvider Creation, Logger Creation, Configuration, Shutdown, ForceFlush, Emit a LogRecord (SDK), Enabled (SDK), ReadableLogRecord, ReadWriteLogRecord, LogRecord Limits, LogRecordProcessor, OnEmit, Enabled (Processor), Processor Shutdown, Processor ForceFlush, Built-in Processors, Simple Processor, Batching Processor, LogRecordExporter, Export, Exporter ForceFlush, Exporter Shutdown, Concurrency Requirements (SDK)

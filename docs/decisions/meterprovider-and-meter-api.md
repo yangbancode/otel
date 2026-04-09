@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-api.md` — MeterProvider + Get a Meter + Meter + Compatibility + Concurrency (13 items)
+- `compliance/metrics-api.md` — MeterProvider, Get a Meter, Meter, Compatibility requirements, Concurrency requirements

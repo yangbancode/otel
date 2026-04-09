@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Shutdown + ForceFlush (8 items: shutdown once, no-op after shutdown, success/failure/timeout, cascade to processors)
+- `compliance/trace-sdk.md` — TracerProvider — Shutdown, TracerProvider — ForceFlush

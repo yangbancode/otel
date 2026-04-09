@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — Aggregation + Histogram Aggregations + Explicit Bucket + Base2 Exponential (10 items)
+- `compliance/metrics-sdk.md` — Aggregation (Stable), Histogram Aggregations, Explicit Bucket Histogram Aggregation, Base2 Exponential Bucket Histogram Aggregation

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — TracerProvider Configuration (3 items: configuration owned by provider, updated config applies to existing tracers)
+- `compliance/trace-sdk.md` — TracerProvider — Configuration

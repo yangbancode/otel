@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — TracerProvider + Get a Tracer (6 items: global default, multiple instances, get-tracer function, name parameter, invalid name fallback, config changes)
+- `compliance/trace-api.md` — TracerProvider, Get a Tracer

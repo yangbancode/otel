@@ -10,5 +10,5 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Tracer (2 items: create span, report if enabled)
-- `compliance/trace-sdk.md` — TracerProvider Tracer Creation (3 items: only through provider, implement get-tracer, InstrumentationScope stored)
+- `compliance/trace-api.md` — Tracer
+- `compliance/trace-sdk.md` — TracerProvider — Tracer Creation

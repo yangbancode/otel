@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — SpanContext + Retrieving IDs (9 items: creation, not overridable, hex/binary forms, internal storage)
+- `compliance/trace-api.md` — SpanContext, Retrieving the TraceId and SpanId

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/context.md` — Overview, Create Key, Get Value, Set Value (7 items)
+- `compliance/context.md` — Overview, Create a Key, Get Value, Set Value

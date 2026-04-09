@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/otlp-protocol.md` — encoding-related items (binary protobuf, JSON protobuf, content-type)
+- `compliance/otlp-protocol.md` — General, Binary Protobuf Encoding, JSON Protobuf Encoding

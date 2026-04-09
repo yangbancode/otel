@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Span Creation (14 items: only via Tracer, not auto-activate, accept name, parent context, attributes at creation, start timestamp, root span, same TraceId, inherit TraceState, must end, links at creation)
+- `compliance/trace-api.md` — Span Creation, Specifying Links

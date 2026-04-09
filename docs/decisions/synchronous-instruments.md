@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-api.md` — Synchronous Instrument API + Counter + Histogram + Gauge + UpDownCounter + Instrument general + Enabled (46 items)
+- `compliance/metrics-api.md` — Instrument, Instrument unit, Instrument description, Instrument advisory parameters (Mixed top-level, sub-sections checked individually), Synchronous Instrument API, General operations (Enabled), Counter, Histogram, Gauge, UpDownCounter

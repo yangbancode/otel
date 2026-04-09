@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Id Generators (4 items: random by default, custom mechanism, consistent naming, vendor-specific not in core)
+- `compliance/trace-sdk.md` — Id Generators

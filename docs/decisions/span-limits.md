@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Span Limits (6 items: attribute adherence, configurable via TracerProvider, EventCountLimit/LinkCountLimit naming, SpanLimits class, discard message logging)
+- `compliance/trace-sdk.md` — Span Limits

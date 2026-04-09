@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Built-in Samplers (7 items: AlwaysOn/AlwaysOff descriptions, TraceIdRatioBased ratio/determinism/subset)
+- `compliance/trace-sdk.md` — Built-in Samplers — AlwaysOn, Built-in Samplers — AlwaysOff, Built-in Samplers — TraceIdRatioBased

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Span general + Lifetime + Concurrency (14 items: naming, start time, mutability, no attribute access, must be created via Tracer, timestamps, concurrency)
+- `compliance/trace-api.md` — Span, Span Lifetime, Concurrency Requirements

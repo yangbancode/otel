@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — Meter + Duplicate Instrument Registration + Name Conflict + Instrument Name/Unit/Description + Advisory Parameters + Enabled + Numerical Limits (20 items)
+- `compliance/metrics-sdk.md` — Meter (Stable), Duplicate Instrument Registration, Name Conflict, Instrument Name, Instrument Unit, Instrument Description, Instrument Advisory Parameters (Stable), Instrument Enabled, Numerical Limits Handling

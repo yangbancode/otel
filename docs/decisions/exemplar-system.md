@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — Exemplar + ExemplarFilter + ExemplarReservoir + Defaults + SimpleFixedSize + AlignedHistogram + Custom (25 items)
+- `compliance/metrics-sdk.md` — Exemplar (Stable), ExemplarFilter, ExemplarReservoir, Exemplar Defaults, SimpleFixedSizeExemplarReservoir, AlignedHistogramBucketExemplarReservoir, Custom ExemplarReservoir

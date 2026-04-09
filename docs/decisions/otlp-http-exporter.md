@@ -10,5 +10,5 @@ TBD
 
 ## Compliance
 
-- `compliance/otlp-protocol.md` — OTLP/HTTP sections (request, response, success, partial success, failures, bad data, throttling, connection)
-- `compliance/otlp-exporter.md` — all 17 items (endpoint, protocol, headers, compression, timeout, certificate, user-agent)
+- `compliance/otlp-protocol.md` — OTLP/HTTP, Binary Protobuf Encoding, JSON Protobuf Encoding, OTLP/HTTP Request, OTLP/HTTP Response, Full Success (HTTP), Partial Success (HTTP), Failures (HTTP), Bad Data (HTTP), OTLP/HTTP Throttling, All Other Responses, OTLP/HTTP Connection, OTLP/HTTP Concurrent Requests, OTLP/HTTP Default Port, Implementation Recommendations, Future Versions and Interoperability
+- `compliance/otlp-exporter.md` — Configuration Options, Endpoint URLs for OTLP/HTTP, Specify Protocol, User Agent

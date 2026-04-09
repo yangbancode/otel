@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Wrapping + No SDK (10 items: NonRecordingSpan, IsRecording=false, no-op operations, API without SDK)
+- `compliance/trace-api.md` — Wrapping a SpanContext in a Span, Behavior of the API in the absence of an installed SDK

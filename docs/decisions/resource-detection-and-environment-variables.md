@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/resource.md` — Detector interface, failure handling, schema URL, OTEL_RESOURCE_ATTRIBUTES parsing (11 items)
+- `compliance/resource.md` — Detecting Resource Information, Environment Variable Resource

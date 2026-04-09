@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — Observations Inside Asynchronous Callbacks (5 items) + Cardinality Limits (10 items)
+- `compliance/metrics-sdk.md` — Observations Inside Asynchronous Callbacks (Stable), Cardinality Limits (Stable)

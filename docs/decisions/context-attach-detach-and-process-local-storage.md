@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/context.md` — Optional Global Operations (5 items: attach, detach, current context)
+- `compliance/context.md` — Optional Global Operations

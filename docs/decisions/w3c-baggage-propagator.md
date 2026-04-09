@@ -10,5 +10,5 @@ TBD
 
 ## Compliance
 
-- `compliance/baggage.md` — Propagation (1 item)
-- `compliance/api-propagators.md` — Distribution (1 item: W3C Baggage must be maintained)
+- `compliance/baggage.md` — Propagation
+- `compliance/api-propagators.md` — Propagators Distribution

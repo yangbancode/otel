@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-api.md` — Asynchronous Instrument API + Async Counter + Async Gauge + Async UpDownCounter + Measurement (38 items)
+- `compliance/metrics-api.md` — Asynchronous Instrument API, Asynchronous Counter, Asynchronous Gauge, Asynchronous UpDownCounter, Measurement

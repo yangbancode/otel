@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — IsValid + IsRemote (4 items)
+- `compliance/trace-api.md` — IsValid, IsRemote

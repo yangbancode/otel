@@ -10,4 +10,5 @@ TBD
 
 ## Compliance
 
-- `compliance/otlp-protocol.md` — retry/throttling items for both HTTP and gRPC (failures, throttling, connection handling)
+- `compliance/otlp-protocol.md` — Failures (gRPC), OTLP/gRPC Throttling, Failures (HTTP), OTLP/HTTP Throttling, All Other Responses, OTLP/HTTP Connection
+- `compliance/otlp-exporter.md` — Retry

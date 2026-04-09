@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — MetricExporter + Push Metric Exporter + Export + ForceFlush + Shutdown + MetricProducer (14 items)
+- `compliance/metrics-sdk.md` — MetricExporter (Stable), Push Metric Exporter, MetricProducer (Stable)

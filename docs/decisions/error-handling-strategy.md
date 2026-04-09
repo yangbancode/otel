@@ -10,6 +10,6 @@ TBD
 
 ## Compliance
 
-- `compliance/api-propagators.md` — Extract MUST NOT throw on parse failure
-- `compliance/trace-api.md` — Invalid TraceState handling
-- `compliance/logs-sdk.md` — OnEmit SHOULD NOT block or throw exceptions
+- `compliance/api-propagators.md` — Operations
+- `compliance/trace-api.md` — TraceState
+- `compliance/logs-sdk.md` — OnEmit

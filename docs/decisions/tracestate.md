@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — TraceState (6 items: operations, W3C rules, immutability, validation)
+- `compliance/trace-api.md` — TraceState

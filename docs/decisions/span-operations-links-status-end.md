@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Add Link + Set Status + End + Link (25 items: add link post-creation, status description rules, end behavior, link structure)
+- `compliance/trace-api.md` — Span Operations — Add Link, Span Operations — Set Status, Span Operations — End, Link

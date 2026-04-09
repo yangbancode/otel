@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/common.md` — Attribute Limits (13 items: count limit, value length limit, truncation rules, defaults)
+- `compliance/common.md` — Attribute Limits

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/logs-api.md` — all 28 items (LoggerProvider, Get a Logger, Logger, Emit, Enabled, Optional/Required Parameters, Concurrency)
+- `compliance/logs-api.md` — LoggerProvider, Get a Logger, Logger, Emit a LogRecord, Enabled, Optional and Required Parameters, Concurrency Requirements

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/api-propagators.md` — W3C Trace Context Requirements (3 items: parse/validate traceparent+tracestate, propagate traceparent, propagate tracestate)
+- `compliance/api-propagators.md` — W3C Trace Context Requirements

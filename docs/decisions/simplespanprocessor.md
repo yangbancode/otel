@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Simple Processor (1 item: synchronize export calls)
+- `compliance/trace-sdk.md` — Built-in Span Processors — Simple Processor

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — SDK Span Creation + Additional Span Interfaces (8 items: creation order, readable span access, read/write span)
+- `compliance/trace-sdk.md` — SDK Span Creation, Additional Span Interfaces

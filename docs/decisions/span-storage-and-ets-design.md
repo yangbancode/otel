@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Concurrency requirements (4 items: TracerProvider, Sampler, SpanProcessor, SpanExporter thread-safety)
+- `compliance/trace-sdk.md` — Concurrency requirements

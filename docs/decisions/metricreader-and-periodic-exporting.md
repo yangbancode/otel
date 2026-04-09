@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — MetricReader + Collect + Shutdown + Periodic Exporting MetricReader + ForceFlush (20 items)
+- `compliance/metrics-sdk.md` — MetricReader (Stable), Collect, Shutdown, Periodic Exporting MetricReader, ForceFlush (Periodic)

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/metrics-sdk.md` — General + MeterProvider + Creation + Configuration + Shutdown + ForceFlush + Defaults + Compatibility + Concurrency (22 items)
+- `compliance/metrics-sdk.md` — General, MeterProvider (Stable), MeterProvider Creation, Meter Creation, Configuration, Shutdown, ForceFlush, Defaults and Configuration, Compatibility Requirements (Stable), Concurrency Requirements (Stable)

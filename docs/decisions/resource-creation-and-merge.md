@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/resource.md` — Resource creation, SDK defaults, merge rules (8 items)
+- `compliance/resource.md` — Resource SDK, SDK-provided Resource Attributes, Create, Merge

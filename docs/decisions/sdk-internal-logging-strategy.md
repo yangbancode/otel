@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-Crosscutting — all "SHOULD log/warn" items across compliance files:
-- `compliance/trace-sdk.md` — Span Limits discard message
-- `compliance/metrics-sdk.md` — invalid name, duplicate instrument warnings
-- `compliance/logs-sdk.md` — invalid name warning
+Crosscutting — "SHOULD log/warn" items across compliance files:
+- `compliance/trace-sdk.md` — Span Limits
+- `compliance/metrics-sdk.md` — Meter Creation, Duplicate Instrument Registration, Name Conflict
+- `compliance/logs-sdk.md` — Logger Creation

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Processor Interface + OnStart + OnEnd + Shutdown + ForceFlush + Built-in (16 items)
+- `compliance/trace-sdk.md` — Span Processor — Interface Definition, Span Processor — OnStart, Span Processor — OnEnd, Span Processor — Shutdown, Span Processor — ForceFlush, Built-in Span Processors

@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Set Attributes + Add Events (6 items: set attributes, add events, ordering)
+- `compliance/trace-api.md` — Span Operations — Set Attributes, Span Operations — Add Events

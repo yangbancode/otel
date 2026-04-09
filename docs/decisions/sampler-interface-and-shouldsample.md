@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Sampling + ShouldSample + GetDescription (9 items: processor receives IsRecording, exporter receives Sampled, SampledFlag rules, ShouldSample, GetDescription)
+- `compliance/trace-sdk.md` — Sampling, Sampler — ShouldSample, Sampler — GetDescription

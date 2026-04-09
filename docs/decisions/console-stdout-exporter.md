@@ -10,6 +10,6 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-exporters.md` — Console exporter (2 items: unspecified format, paired with simple processor)
-- `compliance/metrics-exporters.md` — Console exporter (5 items)
-- `compliance/logs-exporters.md` — Console exporter (2 items)
+- `compliance/trace-exporters.md` — Console (stdout)
+- `compliance/metrics-exporters.md` — Console (stdout)
+- `compliance/logs-exporters.md` — Console (stdout)

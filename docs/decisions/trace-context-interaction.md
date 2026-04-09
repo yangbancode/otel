@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Context Interaction (6 items: extract/combine span with context, key not exposed, get/set active span, fully in API, get context, IsRecording)
+- `compliance/trace-api.md` — Context Interaction, Span Operations — Get Context, Span Operations — IsRecording

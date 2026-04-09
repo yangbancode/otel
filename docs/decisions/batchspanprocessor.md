@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-sdk.md` — Batching Processor (2 items: synchronize export, export triggers)
+- `compliance/trace-sdk.md` — Built-in Span Processors — Batching Processor

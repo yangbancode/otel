@@ -10,4 +10,4 @@ TBD
 
 ## Compliance
 
-- `compliance/trace-api.md` — Record Exception (5 items)
+- `compliance/trace-api.md` — Span Operations — Record Exception
