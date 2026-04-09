@@ -28,6 +28,10 @@ All signals target stable items in the OpenTelemetry specification.
 - **OTLP HTTP** — HTTP/protobuf
 - **OTLP gRPC** — gRPC/protobuf
 
+### Semantic Conventions
+
+- Auto-generated attribute key constants from the [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions) repository
+
 Implementation order and phases are defined in [Design Decisions](design-decisions.md).
 
 ### Out of Scope
