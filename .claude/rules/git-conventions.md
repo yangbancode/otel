@@ -52,4 +52,4 @@ Merge to main via PR. Use merge commit (no squash) to preserve all commits.
 ### Multiple commits
 
 - PR title summarizes all commits in the branch
-- PR body lists each commit in order using `git log main..HEAD --reverse --pretty=format:"* %s%n%n%b"`
+- PR body is the exact output of `git log main..HEAD --reverse --pretty=format:"* %s%n%n%b"` (includes footers such as Co-Authored-By)
