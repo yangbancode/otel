@@ -12,7 +12,7 @@ defmodule Otel.API.Ctx do
   """
 
   @type t :: map()
-  @type key :: reference()
+  @opaque key :: {String.t(), reference()}
   @type value :: term()
   @opaque token :: t()
 
@@ -22,11 +22,11 @@ defmodule Otel.API.Ctx do
   Creates a new opaque context key.
 
   Multiple calls with the same name return different keys (L65).
-  The name is for debugging only; uniqueness is guaranteed by
-  `make_ref/0`.
+  The name exists for debugging purposes and does not uniquely
+  identify the key (L65). Uniqueness is guaranteed by `make_ref/0`.
   """
   @spec create_key(String.t()) :: key()
-  def create_key(_name), do: make_ref()
+  def create_key(name), do: {name, make_ref()}
 
   @doc """
   Returns an empty context.

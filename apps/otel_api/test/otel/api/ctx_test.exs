@@ -4,9 +4,10 @@ defmodule Otel.API.CtxTest do
   alias Otel.API.Ctx
 
   describe "create_key/1" do
-    test "returns a reference" do
-      key = Ctx.create_key("test")
-      assert is_reference(key)
+    test "returns a tuple with name and reference" do
+      {name, ref} = Ctx.create_key("test")
+      assert name == "test"
+      assert is_reference(ref)
     end
 
     test "same name returns different keys" do
