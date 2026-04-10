@@ -38,7 +38,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Span Limits](decisions/span-limits.md)
 - [x] [ID Generation](decisions/id-generation.md)
 - [x] [Sampler Interface & ShouldSample](decisions/sampler-interface-and-shouldsample.md)
-- [ ] [Built-in Samplers](decisions/built-in-samplers.md)
+- [x] [Built-in Samplers](decisions/built-in-samplers.md)
 - [ ] [Span Storage & ETS Design](decisions/span-storage-and-ets-design.md)
 - [ ] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
 

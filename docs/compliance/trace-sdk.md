@@ -63,19 +63,28 @@
 
 ### Built-in Samplers — AlwaysOn
 
-- [ ] Description MUST be `AlwaysOnSampler` — [L426](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L426)
+- [x] Description MUST be `AlwaysOnSampler` — [L426](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L426)
 
 ### Built-in Samplers — AlwaysOff
 
-- [ ] Description MUST be `AlwaysOffSampler` — [L431](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L431)
+- [x] Description MUST be `AlwaysOffSampler` — [L431](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L431)
 
 ### Built-in Samplers — TraceIdRatioBased
 
-- [ ] TraceIdRatioBased MUST ignore the parent SampledFlag — [L447](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L447)
-- [ ] Description MUST return a string of the form `"TraceIdRatioBased{RATIO}"` — [L450](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L450)
-- [ ] Description precision SHOULD be high enough to identify different ratios — [L453](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L453)
-- [ ] Sampling algorithm MUST be deterministic (deterministic hash of TraceId) — [L462](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L462)
-- [ ] A TraceIdRatioBased sampler with a given probability MUST also sample all traces that a lower probability sampler would sample — [L467](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L467)
+- [x] TraceIdRatioBased MUST ignore the parent SampledFlag — [L447](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L447)
+- [x] Description MUST return a string of the form `"TraceIdRatioBased{RATIO}"` — [L450](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L450)
+- [x] Description precision SHOULD be high enough to identify different ratios — [L453](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L453)
+- [x] Sampling algorithm MUST be deterministic (deterministic hash of TraceId) — [L462](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L462)
+- [x] A TraceIdRatioBased sampler with a given probability MUST also sample all traces that a lower probability sampler would sample — [L467](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L467)
+
+### Built-in Samplers — ParentBased
+
+- [x] ParentBased delegates to sub-samplers based on parent state — [L563](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L563)
+- [x] root sampler is a required parameter — [L575](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L575)
+- [x] remoteParentSampled default is AlwaysOn — [L579](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L579)
+- [x] remoteParentNotSampled default is AlwaysOff — [L580](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L580)
+- [x] localParentSampled default is AlwaysOn — [L581](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L581)
+- [x] localParentNotSampled default is AlwaysOff — [L582](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L582)
 
 ### Span Limits
 
