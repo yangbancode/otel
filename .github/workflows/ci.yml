@@ -24,7 +24,7 @@ jobs:
         elixir: ["1.19.5"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: erlef/setup-beam@v1
         with:
@@ -32,7 +32,7 @@ jobs:
           elixir-version: ${{ matrix.elixir }}
 
       - name: Cache deps and _build
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             deps
@@ -42,7 +42,7 @@ jobs:
             mix-${{ matrix.otp }}-${{ matrix.elixir }}-
 
       - name: Cache Dialyzer PLTs
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: _build/dev/dialyxir_*.plt*
           key: plt-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
