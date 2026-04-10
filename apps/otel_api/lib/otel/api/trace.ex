@@ -9,7 +9,7 @@ defmodule Otel.API.Trace do
   alias Otel.API.Ctx
   alias Otel.API.Trace.{Span, SpanContext, Tracer, TracerProvider}
 
-  @span_key :"$otel.trace.span"
+  @span_key :"__otel.trace.span__"
 
   @doc """
   Returns a Tracer for the given instrumentation scope.
