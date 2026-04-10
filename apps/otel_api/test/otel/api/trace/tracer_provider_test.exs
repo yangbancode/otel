@@ -1,7 +1,7 @@
 defmodule Otel.API.Trace.TracerProviderTest do
   use ExUnit.Case
 
-  alias Otel.API.Trace.{InstrumentationScope, Noop, TracerProvider}
+  alias Otel.API.Trace.{InstrumentationScope, Tracer, TracerProvider}
 
   setup do
     # Clean up persistent_term keys between tests
@@ -28,7 +28,7 @@ defmodule Otel.API.Trace.TracerProviderTest do
   describe "get_tracer/1,2,3" do
     test "returns noop tracer when no SDK installed" do
       {module, _config} = TracerProvider.get_tracer("my_lib")
-      assert module == Noop
+      assert module == Tracer.Noop
     end
 
     test "returns same tracer for same name" do
@@ -39,22 +39,22 @@ defmodule Otel.API.Trace.TracerProviderTest do
 
     test "accepts version and schema_url" do
       tracer = TracerProvider.get_tracer("my_lib", "1.0.0", "https://example.com")
-      assert {Noop, []} == tracer
+      assert {Tracer.Noop, []} == tracer
     end
 
     test "accepts attributes" do
       tracer = TracerProvider.get_tracer("my_lib", "1.0.0", nil, %{key: "val"})
-      assert {Noop, []} == tracer
+      assert {Tracer.Noop, []} == tracer
     end
 
     test "returns working tracer for nil name with warning" do
       {module, _config} = TracerProvider.get_tracer(nil)
-      assert module == Noop
+      assert module == Tracer.Noop
     end
 
     test "returns working tracer for empty name with warning" do
       {module, _config} = TracerProvider.get_tracer("")
-      assert module == Noop
+      assert module == Tracer.Noop
     end
 
     test "caches tracer in persistent_term" do

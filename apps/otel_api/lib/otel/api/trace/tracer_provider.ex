@@ -6,9 +6,9 @@ defmodule Otel.API.Trace.TracerProvider do
   When no SDK is installed, all operations return no-op tracers.
   """
 
-  alias Otel.API.Trace.{InstrumentationScope, Noop, Tracer}
+  alias Otel.API.Trace.{InstrumentationScope, Tracer}
 
-  @default_tracer {Noop, []}
+  @default_tracer {Tracer.Noop, []}
 
   @provider_key {__MODULE__, :global}
   @tracer_key_prefix {__MODULE__, :tracer}

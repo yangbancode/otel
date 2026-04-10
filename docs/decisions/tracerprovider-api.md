@@ -12,7 +12,7 @@ Use `persistent_term` for global TracerProvider storage, same as opentelemetry-e
 
 ### Tracer Representation
 
-A Tracer is a `{module, config}` tuple. The module implements the tracer callbacks (start_span, etc.). Without SDK installed, the default is `{Otel.API.Trace.Noop, []}`.
+A Tracer is a `{module, config}` tuple. The module implements the tracer callbacks (start_span, etc.). Without SDK installed, the default is `{Otel.API.Trace.Tracer.Noop, []}`.
 
 ### Get a Tracer
 
@@ -34,7 +34,7 @@ When no SDK is installed:
 | `Otel.API.Trace` | `apps/otel_api/lib/otel/api/trace.ex` | Public API entry point, global provider, context interaction |
 | `Otel.API.Trace.TracerProvider` | `apps/otel_api/lib/otel/api/trace/tracer_provider.ex` | TracerProvider behaviour |
 | `Otel.API.Trace.Tracer` | `apps/otel_api/lib/otel/api/trace/tracer.ex` | Tracer behaviour |
-| `Otel.API.Trace.Noop` | `apps/otel_api/lib/otel/api/trace/noop.ex` | No-op tracer implementation |
+| `Otel.API.Trace.Tracer.Noop` | `apps/otel_api/lib/otel/api/trace/noop.ex` | No-op tracer implementation |
 | `Otel.API.Trace.InstrumentationScope` | `apps/otel_api/lib/otel/api/trace/instrumentation_scope.ex` | Scope struct |
 
 ## Compliance

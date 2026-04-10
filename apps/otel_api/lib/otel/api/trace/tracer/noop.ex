@@ -1,4 +1,4 @@
-defmodule Otel.API.Trace.Noop do
+defmodule Otel.API.Trace.Tracer.Noop do
   @moduledoc """
   No-op tracer used when no SDK is installed.
 

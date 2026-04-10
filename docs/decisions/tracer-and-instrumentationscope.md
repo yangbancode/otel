@@ -18,7 +18,7 @@ A simple struct with name, version, and schema_url. Identifies the instrumentati
 
 - `Otel.API.Trace.Tracer` — behaviour definition
 - `Otel.API.Trace.InstrumentationScope` — struct
-- `Otel.API.Trace.Noop` — no-op tracer implementation
+- `Otel.API.Trace.Tracer.Noop` — no-op tracer implementation
 
 ## Compliance
 
