@@ -23,24 +23,24 @@ defmodule Otel.SDK.Trace.Sampler do
   @doc """
   Initializes sampler configuration from options.
   """
-  @callback setup(opts()) :: config()
+  @callback setup(opts :: opts()) :: config()
 
   @doc """
   Returns a human-readable description of the sampler.
   """
-  @callback description(config()) :: description()
+  @callback description(config :: config()) :: description()
 
   @doc """
   Returns a sampling decision for a span to be created.
   """
   @callback should_sample(
-              Otel.API.Ctx.t(),
-              Otel.API.Trace.SpanContext.trace_id(),
-              [{Otel.API.Trace.SpanContext.t(), map()}],
-              String.t(),
-              Otel.API.Trace.SpanKind.t(),
-              map(),
-              config()
+              ctx :: Otel.API.Ctx.t(),
+              trace_id :: Otel.API.Trace.SpanContext.trace_id(),
+              links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+              name :: String.t(),
+              kind :: Otel.API.Trace.SpanKind.t(),
+              attributes :: map(),
+              config :: config()
             ) :: sampling_result()
 
   @doc """
@@ -48,7 +48,7 @@ defmodule Otel.SDK.Trace.Sampler do
 
   Accepts `{module, opts}` and returns `{module, description, config}`.
   """
-  @spec new({module(), opts()}) :: t()
+  @spec new(spec :: {module(), opts()}) :: t()
   def new({module, sampler_opts}) do
     config = module.setup(sampler_opts)
     {module, module.description(config), config}
@@ -58,13 +58,13 @@ defmodule Otel.SDK.Trace.Sampler do
   Invokes the sampler's should_sample callback.
   """
   @spec should_sample(
-          t(),
-          Otel.API.Ctx.t(),
-          Otel.API.Trace.SpanContext.trace_id(),
-          list(),
-          String.t(),
-          Otel.API.Trace.SpanKind.t(),
-          map()
+          sampler :: t(),
+          ctx :: Otel.API.Ctx.t(),
+          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
+          links :: list(),
+          name :: String.t(),
+          kind :: Otel.API.Trace.SpanKind.t(),
+          attributes :: map()
         ) ::
           sampling_result()
   def should_sample({module, _description, config}, ctx, trace_id, links, name, kind, attributes) do
@@ -74,6 +74,6 @@ defmodule Otel.SDK.Trace.Sampler do
   @doc """
   Returns the sampler's description.
   """
-  @spec description(t()) :: description()
+  @spec description(sampler :: t()) :: description()
   def description({_module, desc, _config}), do: desc
 end

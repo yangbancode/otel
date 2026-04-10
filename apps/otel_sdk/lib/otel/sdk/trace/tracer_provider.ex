@@ -30,7 +30,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @doc """
   Starts the TracerProvider with the given configuration.
   """
-  @spec start_link(keyword()) :: GenServer.on_start()
+  @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     {config, server_opts} = Keyword.pop(opts, :config, %{})
     GenServer.start_link(__MODULE__, config, server_opts)
@@ -39,7 +39,12 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @doc """
   Returns a tracer for the given instrumentation scope.
   """
-  @spec get_tracer(GenServer.server(), String.t(), String.t(), String.t() | nil) ::
+  @spec get_tracer(
+          server :: GenServer.server(),
+          name :: String.t(),
+          version :: String.t(),
+          schema_url :: String.t() | nil
+        ) ::
           Otel.API.Trace.Tracer.t()
   def get_tracer(server, name, version \\ "", schema_url \\ nil) do
     GenServer.call(server, {:get_tracer, name, version, schema_url})
@@ -48,7 +53,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @doc """
   Returns the resource associated with this provider.
   """
-  @spec resource(GenServer.server()) :: map()
+  @spec resource(server :: GenServer.server()) :: map()
   def resource(server) do
     GenServer.call(server, :resource)
   end
@@ -56,7 +61,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @doc """
   Returns the current configuration.
   """
-  @spec config(GenServer.server()) :: config()
+  @spec config(server :: GenServer.server()) :: config()
   def config(server) do
     GenServer.call(server, :config)
   end
@@ -67,7 +72,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   Invokes shutdown on all registered processors. After shutdown,
   get_tracer returns the noop tracer. Can only be called once.
   """
-  @spec shutdown(GenServer.server(), timeout()) :: :ok | {:error, term()}
+  @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ 5000) do
     GenServer.call(server, :shutdown, timeout)
   end
@@ -75,7 +80,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @doc """
   Forces all registered processors to export pending spans.
   """
-  @spec force_flush(GenServer.server(), timeout()) :: :ok | {:error, term()}
+  @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def force_flush(server, timeout \\ 5000) do
     GenServer.call(server, :force_flush, timeout)
   end

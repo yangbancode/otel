@@ -25,7 +25,7 @@ defmodule Otel.API.Trace.Span do
 
   The returned value is the same for the entire span lifetime (L460).
   """
-  @spec get_context(Otel.API.Trace.SpanContext.t()) :: Otel.API.Trace.SpanContext.t()
+  @spec get_context(span_ctx :: Otel.API.Trace.SpanContext.t()) :: Otel.API.Trace.SpanContext.t()
   def get_context(%Otel.API.Trace.SpanContext{} = span_ctx), do: span_ctx
 
   @doc """
@@ -35,7 +35,7 @@ defmodule Otel.API.Trace.Span do
   Without SDK, always returns false. The SDK sets the actual recording
   state based on sampler decisions.
   """
-  @spec recording?(Otel.API.Trace.SpanContext.t()) :: boolean()
+  @spec recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
   def recording?(%Otel.API.Trace.SpanContext{}), do: false
 
   @doc """
@@ -44,13 +44,20 @@ defmodule Otel.API.Trace.Span do
   Ignored if the span is not recording. Setting an attribute with
   the same key as an existing attribute overwrites the value.
   """
-  @spec set_attribute(Otel.API.Trace.SpanContext.t(), String.t() | atom(), term()) :: :ok
+  @spec set_attribute(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          key :: String.t() | atom(),
+          value :: term()
+        ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{}, _key, _value), do: :ok
 
   @doc """
   Sets multiple attributes on the span.
   """
-  @spec set_attributes(Otel.API.Trace.SpanContext.t(), map() | [{String.t() | atom(), term()}]) ::
+  @spec set_attributes(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          attributes :: map() | [{String.t() | atom(), term()}]
+        ) ::
           :ok
   def set_attributes(%Otel.API.Trace.SpanContext{}, _attributes), do: :ok
 
@@ -65,7 +72,11 @@ defmodule Otel.API.Trace.Span do
   - `:time` — custom timestamp (integer, nanoseconds)
   - `:attributes` — event attributes (map)
   """
-  @spec add_event(Otel.API.Trace.SpanContext.t(), String.t() | atom(), keyword()) :: :ok
+  @spec add_event(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          name :: String.t() | atom(),
+          opts :: keyword()
+        ) :: :ok
   def add_event(%Otel.API.Trace.SpanContext{}, _name, _opts \\ []), do: :ok
 
   @doc """
@@ -73,7 +84,11 @@ defmodule Otel.API.Trace.Span do
 
   Adding links at span creation is preferred over calling this later.
   """
-  @spec add_link(Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanContext.t(), map()) :: :ok
+  @spec add_link(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          linked_ctx :: Otel.API.Trace.SpanContext.t(),
+          attributes :: map()
+        ) :: :ok
   def add_link(%Otel.API.Trace.SpanContext{}, _linked_ctx, _attributes \\ %{}), do: :ok
 
   @doc """
@@ -87,13 +102,17 @@ defmodule Otel.API.Trace.Span do
   `:error` takes precedence over `:unset`. Attempting to set
   `:unset` is always ignored (L603).
   """
-  @spec set_status(Otel.API.Trace.SpanContext.t(), status_code(), String.t()) :: :ok
+  @spec set_status(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          code :: status_code(),
+          description :: String.t()
+        ) :: :ok
   def set_status(%Otel.API.Trace.SpanContext{}, _code, _description \\ ""), do: :ok
 
   @doc """
   Updates the name of the span.
   """
-  @spec update_name(Otel.API.Trace.SpanContext.t(), String.t()) :: :ok
+  @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(%Otel.API.Trace.SpanContext{}, _name), do: :ok
 
   @doc """
@@ -105,7 +124,7 @@ defmodule Otel.API.Trace.Span do
 
   This operation MUST NOT perform blocking I/O (L677).
   """
-  @spec end_span(Otel.API.Trace.SpanContext.t(), integer() | nil) :: :ok
+  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer() | nil) :: :ok
   def end_span(%Otel.API.Trace.SpanContext{}, _timestamp \\ nil), do: :ok
 
   @doc """
@@ -119,7 +138,12 @@ defmodule Otel.API.Trace.Span do
 
   Additional attributes can be provided and are merged (L697).
   """
-  @spec record_exception(Otel.API.Trace.SpanContext.t(), Exception.t(), list(), map()) :: :ok
+  @spec record_exception(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          exception :: Exception.t(),
+          stacktrace :: list(),
+          attributes :: map()
+        ) :: :ok
   def record_exception(
         %Otel.API.Trace.SpanContext{},
         _exception,

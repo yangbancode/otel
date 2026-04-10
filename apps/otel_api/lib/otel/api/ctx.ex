@@ -25,7 +25,7 @@ defmodule Otel.API.Ctx do
   The name exists for debugging purposes and does not uniquely
   identify the key (L65). Uniqueness is guaranteed by `make_ref/0`.
   """
-  @spec create_key(term()) :: key()
+  @spec create_key(name :: term()) :: key()
   def create_key(name), do: {name, make_ref()}
 
   @doc """
@@ -39,7 +39,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Sets a value in the current process context.
   """
-  @spec set_value(key(), value()) :: :ok
+  @spec set_value(key :: key(), value :: value()) :: :ok
   def set_value(key, value) do
     Process.put(@ctx_key, set_value(get_current(), key, value))
     :ok
@@ -50,7 +50,7 @@ defmodule Otel.API.Ctx do
 
   Returns `nil` if the key is not found.
   """
-  @spec get_value(key()) :: value()
+  @spec get_value(key :: key()) :: value()
   def get_value(key) do
     get_value(get_current(), key, nil)
   end
@@ -58,7 +58,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Gets a value from the current process context with a default.
   """
-  @spec get_value(key(), value()) :: value()
+  @spec get_value(key :: key(), default :: value()) :: value()
   def get_value(key, default) when not is_map(key) do
     get_value(get_current(), key, default)
   end
@@ -66,7 +66,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Removes a key from the current process context.
   """
-  @spec remove(key()) :: :ok
+  @spec remove(key :: key()) :: :ok
   def remove(key) do
     case Process.get(@ctx_key) do
       ctx when is_map(ctx) ->
@@ -92,7 +92,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Sets a value in the given context, returning a new context.
   """
-  @spec set_value(t(), key(), value()) :: t()
+  @spec set_value(ctx :: t(), key :: key(), value :: value()) :: t()
   def set_value(ctx, key, value) when is_map(ctx) do
     Map.put(ctx, key, value)
   end
@@ -104,7 +104,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Gets a value from the given context.
   """
-  @spec get_value(t(), key(), value()) :: value()
+  @spec get_value(ctx :: t(), key :: key(), default :: value()) :: value()
   def get_value(ctx, key, default) when is_map(ctx) do
     Map.get(ctx, key, default)
   end
@@ -114,14 +114,14 @@ defmodule Otel.API.Ctx do
   @doc """
   Removes a key from the given context, returning a new context.
   """
-  @spec remove(t(), key()) :: t()
+  @spec remove(ctx :: t(), key :: key()) :: t()
   def remove(ctx, key) when is_map(ctx), do: Map.delete(ctx, key)
   def remove(_, _), do: new()
 
   @doc """
   Clears all values from the given context.
   """
-  @spec clear(t()) :: t()
+  @spec clear(ctx :: t()) :: t()
   def clear(_ctx), do: new()
 
   # --- Attach / Detach ---
@@ -143,7 +143,7 @@ defmodule Otel.API.Ctx do
   Returns a token that can be passed to `detach/1` to restore
   the previous context.
   """
-  @spec attach(t()) :: token()
+  @spec attach(ctx :: t()) :: token()
   def attach(ctx) do
     Process.put(@ctx_key, ctx)
   end
@@ -151,7 +151,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Restores a previous context from a token returned by `attach/1`.
   """
-  @spec detach(token()) :: t() | nil
+  @spec detach(token :: token()) :: t() | nil
   def detach(token) do
     Process.put(@ctx_key, token)
   end

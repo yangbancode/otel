@@ -41,7 +41,7 @@
       # If you create your own checks, you must specify the source files for
       # them here, so they can be loaded by Credo before running the analysis.
       #
-      requires: ["lib/credo/"],
+      requires: [],
       #
       # If you want to enforce a style guide and need a more traditional linting
       # experience, you can change `strict` to `true` below:
@@ -75,7 +75,6 @@
           {Credo.Check.Consistency.SpaceAroundOperators, []},
           {Credo.Check.Consistency.SpaceInParentheses, []},
           {Credo.Check.Consistency.TabsOrSpaces, []},
-          {Credo.Check.Consistency.NoAlias, []},
 
           #
           ## Design Checks
@@ -83,6 +82,7 @@
           # You can customize the priority of any check
           # Priority values are: `low, normal, high, higher`
           #
+          # Disabled: we use full module names (see .claude/rules/code-conventions.md)
           {Credo.Check.Design.AliasUsage, false},
           {Credo.Check.Design.TagFIXME, []},
           # You can also customize the exit_status of each check.
@@ -94,6 +94,7 @@
           #
           ## Readability Checks
           #
+          # Disabled: no alias used in this project
           {Credo.Check.Readability.AliasOrder, false},
           {Credo.Check.Readability.FunctionNames, []},
           {Credo.Check.Readability.LargeNumbers, []},

@@ -14,7 +14,12 @@ defmodule Otel.API.Trace do
   @doc """
   Returns a Tracer for the given instrumentation scope.
   """
-  @spec get_tracer(String.t(), String.t(), String.t() | nil, map()) :: Otel.API.Trace.Tracer.t()
+  @spec get_tracer(
+          name :: String.t(),
+          version :: String.t(),
+          schema_url :: String.t() | nil,
+          attributes :: map()
+        ) :: Otel.API.Trace.Tracer.t()
   def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     Otel.API.Trace.TracerProvider.get_tracer(name, version, schema_url, attributes)
   end
@@ -22,7 +27,7 @@ defmodule Otel.API.Trace do
   @doc """
   Extracts the current Span's SpanContext from the given context.
   """
-  @spec current_span(Otel.API.Ctx.t()) :: Otel.API.Trace.SpanContext.t()
+  @spec current_span(ctx :: Otel.API.Ctx.t()) :: Otel.API.Trace.SpanContext.t()
   def current_span(ctx) do
     Otel.API.Ctx.get_value(ctx, @span_key, %Otel.API.Trace.SpanContext{})
   end
@@ -30,7 +35,8 @@ defmodule Otel.API.Trace do
   @doc """
   Returns a new context with the given SpanContext set as the current span.
   """
-  @spec set_current_span(Otel.API.Ctx.t(), Otel.API.Trace.SpanContext.t()) :: Otel.API.Ctx.t()
+  @spec set_current_span(ctx :: Otel.API.Ctx.t(), span_ctx :: Otel.API.Trace.SpanContext.t()) ::
+          Otel.API.Ctx.t()
   def set_current_span(ctx, span_ctx) do
     Otel.API.Ctx.set_value(ctx, @span_key, span_ctx)
   end
@@ -46,7 +52,7 @@ defmodule Otel.API.Trace do
   @doc """
   Sets the span in the implicit (process) context.
   """
-  @spec set_current_span(Otel.API.Trace.SpanContext.t()) :: :ok
+  @spec set_current_span(span_ctx :: Otel.API.Trace.SpanContext.t()) :: :ok
   def set_current_span(span_ctx) do
     Otel.API.Ctx.set_value(@span_key, span_ctx)
   end
@@ -63,7 +69,7 @@ defmodule Otel.API.Trace do
   `Span.set_attribute/3` later, as samplers can only consider
   information already present during creation (L403).
   """
-  @spec start_span(Otel.API.Trace.Tracer.t(), String.t(), start_opts()) ::
+  @spec start_span(tracer :: Otel.API.Trace.Tracer.t(), name :: String.t(), opts :: start_opts()) ::
           Otel.API.Trace.SpanContext.t()
   def start_span(tracer, name, opts \\ []) do
     start_span(Otel.API.Ctx.get_current(), tracer, name, opts)
@@ -74,7 +80,12 @@ defmodule Otel.API.Trace do
 
   The new span is NOT automatically set as the current span (L382).
   """
-  @spec start_span(Otel.API.Ctx.t(), Otel.API.Trace.Tracer.t(), String.t(), start_opts()) ::
+  @spec start_span(
+          ctx :: Otel.API.Ctx.t(),
+          tracer :: Otel.API.Trace.Tracer.t(),
+          name :: String.t(),
+          opts :: start_opts()
+        ) ::
           Otel.API.Trace.SpanContext.t()
   def start_span(ctx, {module, _config} = tracer, name, opts) do
     module.start_span(ctx, tracer, name, opts)
@@ -90,10 +101,10 @@ defmodule Otel.API.Trace do
   Returns the function's return value.
   """
   @spec with_span(
-          Otel.API.Trace.Tracer.t(),
-          String.t(),
-          start_opts(),
-          (Otel.API.Trace.SpanContext.t() -> result)
+          tracer :: Otel.API.Trace.Tracer.t(),
+          name :: String.t(),
+          opts :: start_opts(),
+          fun :: (Otel.API.Trace.SpanContext.t() -> result)
         ) :: result
         when result: term()
   def with_span(tracer, name, opts \\ [], fun) do
@@ -105,11 +116,11 @@ defmodule Otel.API.Trace do
   a function, then ends the span.
   """
   @spec with_span(
-          Otel.API.Ctx.t(),
-          Otel.API.Trace.Tracer.t(),
-          String.t(),
-          start_opts(),
-          (Otel.API.Trace.SpanContext.t() -> result)
+          ctx :: Otel.API.Ctx.t(),
+          tracer :: Otel.API.Trace.Tracer.t(),
+          name :: String.t(),
+          opts :: start_opts(),
+          fun :: (Otel.API.Trace.SpanContext.t() -> result)
         ) ::
           result
         when result: term()
