@@ -10,9 +10,17 @@ defmodule Otel.API.Trace.Span do
   The SDK overrides these via the tracer module dispatch.
   """
 
-  alias Otel.API.Trace.SpanContext
+  alias Otel.API.Trace.{SpanContext, SpanKind}
 
   @type status_code :: :unset | :ok | :error
+
+  @type start_opts :: [
+          kind: SpanKind.t(),
+          attributes: map(),
+          links: [{SpanContext.t(), map()}],
+          start_time: integer(),
+          is_root: boolean()
+        ]
 
   @doc """
   Returns the SpanContext for the given span.
