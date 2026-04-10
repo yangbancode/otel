@@ -9,9 +9,6 @@ defmodule Otel.SDK.Trace.TracerProvider do
 
   use GenServer
 
-  alias Otel.API.Trace.InstrumentationScope
-  alias Otel.API.Trace.TracerProvider, as: APITracerProvider
-
   @type config :: %{
           sampler: {module(), term()},
           processors: [{module(), map()}],
@@ -75,13 +72,13 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @impl true
   def init(user_config) do
     config = Map.merge(@default_config, user_config)
-    APITracerProvider.set_provider(__MODULE__)
+    Otel.API.Trace.TracerProvider.set_provider(__MODULE__)
     {:ok, config}
   end
 
   @impl true
   def handle_call({:get_tracer, name, version, schema_url}, _from, config) do
-    scope = %InstrumentationScope{
+    scope = %Otel.API.Trace.InstrumentationScope{
       name: name,
       version: version,
       schema_url: schema_url

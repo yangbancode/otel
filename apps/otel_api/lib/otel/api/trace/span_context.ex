@@ -7,8 +7,6 @@ defmodule Otel.API.Trace.SpanContext do
   IDs are stored as non-negative integers, matching opentelemetry-erlang.
   """
 
-  alias Otel.API.Trace.TraceState
-
   @type trace_id :: non_neg_integer()
   @type span_id :: non_neg_integer()
   @type trace_flags :: non_neg_integer()
@@ -17,21 +15,21 @@ defmodule Otel.API.Trace.SpanContext do
           trace_id: trace_id(),
           span_id: span_id(),
           trace_flags: trace_flags(),
-          tracestate: TraceState.t(),
+          tracestate: Otel.API.Trace.TraceState.t(),
           is_remote: boolean()
         }
 
   defstruct trace_id: 0,
             span_id: 0,
             trace_flags: 0,
-            tracestate: %TraceState{},
+            tracestate: %Otel.API.Trace.TraceState{},
             is_remote: false
 
   @doc """
   Creates a new SpanContext.
   """
-  @spec new(trace_id(), span_id(), trace_flags(), TraceState.t()) :: t()
-  def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ %TraceState{}) do
+  @spec new(trace_id(), span_id(), trace_flags(), Otel.API.Trace.TraceState.t()) :: t()
+  def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ %Otel.API.Trace.TraceState{}) do
     %__MODULE__{
       trace_id: trace_id,
       span_id: span_id,

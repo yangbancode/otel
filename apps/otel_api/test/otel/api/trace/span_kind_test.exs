@@ -1,8 +1,6 @@
 defmodule Otel.API.Trace.SpanKindTest do
   use ExUnit.Case, async: true
 
-  alias Otel.API.Trace.SpanKind
-
   describe "type" do
     test "all span kinds are valid atoms" do
       kinds = [:internal, :server, :client, :producer, :consumer]
@@ -17,6 +15,6 @@ defmodule Otel.API.Trace.SpanKindTest do
   # SpanKind is a type-only module. Dialyzer enforces the type
   # constraint. This test documents the valid values.
   test "module exists" do
-    assert Code.ensure_loaded?(SpanKind)
+    assert Code.ensure_loaded?(Otel.API.Trace.SpanKind)
   end
 end

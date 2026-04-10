@@ -6,15 +6,13 @@ defmodule Otel.API.Trace.Tracer do
   the module implements this behaviour.
   """
 
-  alias Otel.API.Ctx
-  alias Otel.API.Trace.SpanContext
-
   @type t :: {module(), term()}
 
   @doc """
   Starts a new span. Returns the SpanContext of the created span.
   """
-  @callback start_span(Ctx.t(), t(), String.t(), keyword()) :: SpanContext.t()
+  @callback start_span(Otel.API.Ctx.t(), t(), String.t(), keyword()) ::
+              Otel.API.Trace.SpanContext.t()
 
   @doc """
   Returns whether the tracer is enabled.
