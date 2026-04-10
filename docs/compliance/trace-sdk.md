@@ -11,7 +11,7 @@
 ### TracerProvider — Configuration
 
 - [x] Configuration (SpanProcessors, IdGenerator, SpanLimits, Sampler) MUST be owned by the TracerProvider — [L113](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L113)
-- [x] If configuration is updated, the updated configuration MUST also apply to all already returned Tracers — [L119](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L119)
+- [x] If configuration is updated, the updated configuration MUST also apply to all already returned Tracers — [L119](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L119) (tracer holds provider pid reference; GenServer state changes are visible)
 - [x] It MUST NOT matter whether a Tracer was obtained before or after the configuration change — [L120](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L120)
 
 ### TracerProvider — Shutdown

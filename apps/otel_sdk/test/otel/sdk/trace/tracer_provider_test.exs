@@ -15,6 +15,11 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       assert Process.alive?(pid)
     end
 
+    test "registers as global provider on start" do
+      {:ok, _pid} = TracerProvider.start_link()
+      assert Otel.API.Trace.TracerProvider.get_provider() == TracerProvider
+    end
+
     test "starts with custom config" do
       {:ok, pid} = TracerProvider.start_link(config: %{resource: %{service: "test"}})
       assert TracerProvider.resource(pid) == %{service: "test"}
