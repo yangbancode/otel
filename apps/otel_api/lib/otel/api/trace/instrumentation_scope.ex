@@ -6,10 +6,12 @@ defmodule Otel.API.Trace.InstrumentationScope do
   @type t :: %__MODULE__{
           name: String.t(),
           version: String.t(),
-          schema_url: String.t() | nil
+          schema_url: String.t() | nil,
+          attributes: map()
         }
 
   defstruct name: "",
             version: "",
-            schema_url: nil
+            schema_url: nil,
+            attributes: %{}
 end

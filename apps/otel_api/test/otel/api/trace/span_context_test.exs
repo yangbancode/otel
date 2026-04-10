@@ -165,6 +165,7 @@ defmodule Otel.API.Trace.SpanContextTest do
       assert ctx.trace_flags == 0
       assert ctx.tracestate == %TraceState{}
       assert ctx.is_remote == false
+      assert ctx.is_recording == false
       assert SpanContext.valid?(ctx) == false
     end
   end

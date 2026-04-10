@@ -21,8 +21,13 @@ defmodule Otel.API.TraceTest do
       assert module == Otel.API.Trace.Noop
     end
 
-    test "delegates to TracerProvider with all args" do
+    test "delegates to TracerProvider with name, version, schema_url" do
       {module, _} = Trace.get_tracer("my_lib", "1.0.0", "https://example.com")
+      assert module == Otel.API.Trace.Noop
+    end
+
+    test "delegates to TracerProvider with attributes" do
+      {module, _} = Trace.get_tracer("my_lib", "1.0.0", nil, %{key: "val"})
       assert module == Otel.API.Trace.Noop
     end
   end

@@ -36,14 +36,14 @@ defmodule Otel.API.Trace.TracerProvider do
   Invalid name (nil or empty) returns a working Tracer with empty
   name and logs a warning. Tracers are cached in `persistent_term`.
   """
-  @spec get_tracer(String.t(), String.t(), String.t() | nil) :: Tracer.t()
-  def get_tracer(name, version \\ "", schema_url \\ nil) do
+  @spec get_tracer(String.t(), String.t(), String.t() | nil, map()) :: Tracer.t()
+  def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
     key = {@tracer_key_prefix, {name, version, schema_url}}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        tracer = fetch_or_default(name, version, schema_url)
+        tracer = fetch_or_default(name, version, schema_url, attributes)
         :persistent_term.put(key, tracer)
         tracer
 
@@ -56,9 +56,14 @@ defmodule Otel.API.Trace.TracerProvider do
   Returns the InstrumentationScope for a tracer obtained with the
   given parameters.
   """
-  @spec scope(String.t(), String.t(), String.t() | nil) :: InstrumentationScope.t()
-  def scope(name, version \\ "", schema_url \\ nil) do
-    %InstrumentationScope{name: name, version: version, schema_url: schema_url}
+  @spec scope(String.t(), String.t(), String.t() | nil, map()) :: InstrumentationScope.t()
+  def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+    %InstrumentationScope{
+      name: name,
+      version: version,
+      schema_url: schema_url,
+      attributes: attributes
+    }
   end
 
   defp validate_name(nil) do
@@ -79,7 +84,7 @@ defmodule Otel.API.Trace.TracerProvider do
 
   defp validate_name(name) when is_binary(name), do: name
 
-  defp fetch_or_default(_name, _version, _schema_url) do
+  defp fetch_or_default(_name, _version, _schema_url, _attributes) do
     @default_tracer
   end
 end

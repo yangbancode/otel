@@ -30,6 +30,8 @@
 
 - [x] Tracer MUST provide function to create a new Span — [L193](../references/opentelemetry-specification/v1.55.0/trace/api.md#L193)
 - [x] Tracer SHOULD provide function to report if Tracer is Enabled — [L197](../references/opentelemetry-specification/v1.55.0/trace/api.md#L197)
+- [x] Enabled API MUST be structured in a way for parameters to be added — [L209](../references/opentelemetry-specification/v1.55.0/trace/api.md#L209)
+- [x] Enabled API MUST return a language idiomatic boolean type — [L212](../references/opentelemetry-specification/v1.55.0/trace/api.md#L212)
 
 ### SpanContext
 

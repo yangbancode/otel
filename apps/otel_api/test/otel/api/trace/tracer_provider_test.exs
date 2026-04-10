@@ -42,6 +42,11 @@ defmodule Otel.API.Trace.TracerProviderTest do
       assert {Noop, []} == tracer
     end
 
+    test "accepts attributes" do
+      tracer = TracerProvider.get_tracer("my_lib", "1.0.0", nil, %{key: "val"})
+      assert {Noop, []} == tracer
+    end
+
     test "returns working tracer for nil name with warning" do
       {module, _config} = TracerProvider.get_tracer(nil)
       assert module == Noop
@@ -62,16 +67,17 @@ defmodule Otel.API.Trace.TracerProviderTest do
   describe "scope/1,2,3" do
     test "creates InstrumentationScope with name" do
       scope = TracerProvider.scope("my_lib")
-      assert %InstrumentationScope{name: "my_lib", version: "", schema_url: nil} == scope
+      assert %InstrumentationScope{name: "my_lib", version: "", schema_url: nil, attributes: %{}} == scope
     end
 
     test "creates InstrumentationScope with all fields" do
-      scope = TracerProvider.scope("my_lib", "1.0.0", "https://example.com")
+      scope = TracerProvider.scope("my_lib", "1.0.0", "https://example.com", %{key: "val"})
 
       assert %InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
-               schema_url: "https://example.com"
+               schema_url: "https://example.com",
+               attributes: %{key: "val"}
              } == scope
     end
   end

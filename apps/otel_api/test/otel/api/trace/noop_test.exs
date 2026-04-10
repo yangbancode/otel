@@ -31,9 +31,13 @@ defmodule Otel.API.Trace.NoopTest do
     end
   end
 
-  describe "enabled?/1" do
+  describe "enabled?/2" do
     test "returns false" do
       assert Noop.enabled?({Noop, []}) == false
+    end
+
+    test "returns false with opts" do
+      assert Noop.enabled?({Noop, []}, span_name: "test") == false
     end
   end
 end

@@ -24,5 +24,5 @@ defmodule Otel.API.Trace.Noop do
   end
 
   @impl true
-  def enabled?(_tracer), do: false
+  def enabled?(_tracer, _opts \\ []), do: false
 end

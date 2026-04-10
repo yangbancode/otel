@@ -18,6 +18,10 @@ defmodule Otel.API.Trace.Tracer do
 
   @doc """
   Returns whether the tracer is enabled.
+
+  Accepts optional keyword opts for future extensibility per spec
+  (L209: "the API MUST be structured in a way for parameters to
+  be added").
   """
-  @callback enabled?(t()) :: boolean()
+  @callback enabled?(t(), keyword()) :: boolean()
 end

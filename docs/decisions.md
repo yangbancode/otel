@@ -26,8 +26,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### Trace API
 - [x] [SpanContext](decisions/spancontext-struct.md)
 - [x] [TraceState](decisions/tracestate.md)
-- [ ] [TracerProvider API](decisions/tracerprovider-api.md)
-- [ ] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)
+- [x] [TracerProvider API](decisions/tracerprovider-api.md)
+- [x] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)
 - [ ] [Span Interface & Lifecycle](decisions/span-interface-and-lifecycle.md)
 - [ ] [Span Creation](decisions/span-creation.md)
 - [ ] [Span Operations: Attributes & Events](decisions/span-operations-attributes-and-events.md)

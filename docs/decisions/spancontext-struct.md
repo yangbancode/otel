@@ -15,12 +15,13 @@ defstruct [
   :trace_id,
   :span_id,
   trace_flags: 0,
-  tracestate: [],
-  is_remote: false
+  tracestate: %TraceState{},
+  is_remote: false,
+  is_recording: false
 ]
 ```
 
-Only spec-defined fields are stored. `IsValid` is a function that computes from trace_id and span_id, not a cached field. `is_recording` belongs to Span, not SpanContext.
+`IsValid` is a function that computes from trace_id and span_id, not a cached field. `is_recording` is an implementation field (same as opentelemetry-erlang) needed to distinguish recording vs non-recording spans in the Noop tracer and SDK.
 
 ### ID Representation
 

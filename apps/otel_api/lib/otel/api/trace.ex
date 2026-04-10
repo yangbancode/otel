@@ -14,9 +14,9 @@ defmodule Otel.API.Trace do
   @doc """
   Returns a Tracer for the given instrumentation scope.
   """
-  @spec get_tracer(String.t(), String.t(), String.t() | nil) :: Otel.API.Trace.Tracer.t()
-  def get_tracer(name, version \\ "", schema_url \\ nil) do
-    TracerProvider.get_tracer(name, version, schema_url)
+  @spec get_tracer(String.t(), String.t(), String.t() | nil, map()) :: Otel.API.Trace.Tracer.t()
+  def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+    TracerProvider.get_tracer(name, version, schema_url, attributes)
   end
 
   @doc """
