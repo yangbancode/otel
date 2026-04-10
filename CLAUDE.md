@@ -10,3 +10,4 @@
 
 - [Workflow](.claude/rules/workflow.md)
 - [Git Conventions](.claude/rules/git-conventions.md)
+- [Code Conventions](.claude/rules/code-conventions.md)
