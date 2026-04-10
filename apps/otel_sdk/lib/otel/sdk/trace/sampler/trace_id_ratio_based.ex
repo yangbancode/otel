@@ -22,12 +22,12 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
         true -> trunc(probability * @max_value)
       end
 
-    %{probability: probability, id_upper_bound: id_upper_bound}
+    %{probability: probability / 1.0, id_upper_bound: id_upper_bound}
   end
 
   @impl true
   def description(%{probability: probability}) do
-    "TraceIdRatioBased{#{:erlang.float_to_binary(probability / 1, decimals: 6)}}"
+    "TraceIdRatioBased{#{:erlang.float_to_binary(probability, decimals: 6)}}"
   end
 
   @impl true

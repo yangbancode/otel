@@ -14,11 +14,11 @@ TracerProvider SDK is a `GenServer` that owns all configuration. Same pattern as
 
 | Config | Type | Default |
 |---|---|---|
-| `sampler` | `{module, opts}` | `{Otel.SDK.Trace.Sampler.AlwaysOn, []}` |
+| `sampler` | `{module, opts}` | `ParentBased(root=AlwaysOn)` per spec L421 |
 | `processors` | `[{module, config}]` | `[]` |
 | `id_generator` | `module` | `Otel.SDK.Trace.IdGenerator.Default` |
 | `resource` | `map()` | `%{}` (Resource module TBD) |
-| `span_limits` | `map()` | spec defaults (SpanLimits module TBD) |
+| `span_limits` | `Otel.SDK.Trace.SpanLimits.t()` | spec defaults |
 
 Configuration is stored in GenServer state. All tracers returned by `get_tracer` hold a reference to the provider and read configuration from it.
 
