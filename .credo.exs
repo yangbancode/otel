@@ -75,6 +75,7 @@
           {Credo.Check.Consistency.SpaceAroundOperators, []},
           {Credo.Check.Consistency.SpaceInParentheses, []},
           {Credo.Check.Consistency.TabsOrSpaces, []},
+          {Credo.Check.Consistency.NoAlias, []},
 
           #
           ## Design Checks
@@ -160,12 +161,7 @@
           {Credo.Check.Warning.UnusedRegexOperation, []},
           {Credo.Check.Warning.UnusedStringOperation, []},
           {Credo.Check.Warning.UnusedTupleOperation, []},
-          {Credo.Check.Warning.WrongTestFilename, []},
-
-          #
-          ## Custom Checks
-          #
-          {Credo.Check.Warning.NoAlias, []}
+          {Credo.Check.Warning.WrongTestFilename, []}
         ],
         disabled: [
           #

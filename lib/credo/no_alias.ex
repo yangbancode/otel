@@ -1,7 +1,7 @@
-defmodule Credo.Check.Warning.NoAlias do
+defmodule Credo.Check.Consistency.NoAlias do
   use Credo.Check,
     base_priority: :high,
-    category: :warning,
+    category: :consistency,
     explanations: [
       check: """
       `alias` is not allowed in this project. Use full module names instead.
