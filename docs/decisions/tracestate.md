@@ -17,18 +17,21 @@ Keys and values are strings conforming to W3C Trace Context spec:
 
 ### Operations
 
-Per spec (L284), at minimum:
+Per spec (L284), four separate operations plus encode/decode:
 
 | Function | Description |
 |---|---|
 | `new/0,1` | Create empty or from list of pairs |
 | `get/2` | Get value for key |
-| `put/3` | Add new or update existing key/value (moved to front) |
+| `add/3` | Add new key/value pair to front |
+| `update/3` | Update existing key's value and move to front |
 | `delete/2` | Remove key/value pair |
 | `encode/1` | Encode to W3C header string |
 | `decode/1` | Decode from W3C header string |
 
-All mutating operations validate input and return unchanged TraceState on invalid input (L294-L295).
+`add/3` and `update/3` are separate per spec — add prepends without deduplication, update only works on existing keys. Both validate input and return unchanged TraceState on invalid input (L294-L295).
+
+`decode/1` rejects the entire header if any entry is invalid or if the number of members exceeds 32.
 
 ### Module: `Otel.API.Trace.TraceState`
 
