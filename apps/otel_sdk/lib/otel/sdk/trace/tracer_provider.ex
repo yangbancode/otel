@@ -67,16 +67,43 @@ defmodule Otel.SDK.Trace.TracerProvider do
     GenServer.call(server, :config)
   end
 
+  @doc """
+  Shuts down the TracerProvider.
+
+  Invokes shutdown on all registered processors. After shutdown,
+  get_tracer returns the noop tracer. Can only be called once.
+  """
+  @spec shutdown(GenServer.server(), timeout()) :: :ok | {:error, term()}
+  def shutdown(server, timeout \\ 5000) do
+    GenServer.call(server, :shutdown, timeout)
+  end
+
+  @doc """
+  Forces all registered processors to export pending spans.
+  """
+  @spec force_flush(GenServer.server(), timeout()) :: :ok | {:error, term()}
+  def force_flush(server, timeout \\ 5000) do
+    GenServer.call(server, :force_flush, timeout)
+  end
+
   # --- Server Callbacks ---
 
   @impl true
   def init(user_config) do
-    config = Map.merge(@default_config, user_config)
+    config =
+      @default_config
+      |> Map.merge(user_config)
+      |> Map.put(:shut_down, false)
+
     Otel.API.Trace.TracerProvider.set_provider(__MODULE__)
     {:ok, config}
   end
 
   @impl true
+  def handle_call({:get_tracer, _name, _version, _schema_url}, _from, %{shut_down: true} = config) do
+    {:reply, {Otel.API.Trace.Tracer.Noop, []}, config}
+  end
+
   def handle_call({:get_tracer, name, version, schema_url}, _from, config) do
     scope = %Otel.API.Trace.InstrumentationScope{
       name: name,
@@ -88,11 +115,48 @@ defmodule Otel.SDK.Trace.TracerProvider do
     {:reply, tracer, config}
   end
 
+  def handle_call(:shutdown, _from, %{shut_down: true} = config) do
+    {:reply, {:error, :already_shut_down}, config}
+  end
+
+  def handle_call(:shutdown, _from, config) do
+    result = invoke_all_processors(config.processors, :shutdown)
+    {:reply, result, %{config | shut_down: true}}
+  end
+
+  def handle_call(:force_flush, _from, %{shut_down: true} = config) do
+    {:reply, {:error, :shut_down}, config}
+  end
+
+  def handle_call(:force_flush, _from, config) do
+    result = invoke_all_processors(config.processors, :force_flush)
+    {:reply, result, config}
+  end
+
   def handle_call(:resource, _from, config) do
     {:reply, config.resource, config}
   end
 
   def handle_call(:config, _from, config) do
     {:reply, config, config}
+  end
+
+  defp invoke_all_processors(processors, function) do
+    results =
+      Enum.reduce(processors, [], fn {processor, processor_config}, errors ->
+        try do
+          case apply(processor, function, [processor_config]) do
+            :ok -> errors
+            {:error, reason} -> [{processor, reason} | errors]
+          end
+        catch
+          kind, reason -> [{processor, {kind, reason}} | errors]
+        end
+      end)
+
+    case results do
+      [] -> :ok
+      errors -> {:error, Enum.reverse(errors)}
+    end
   end
 end
