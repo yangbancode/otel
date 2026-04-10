@@ -58,12 +58,12 @@
 
 ### TraceState
 
-- [ ] Tracing API MUST provide at least: get value for a given key, add a new key/value pair, update an existing value for a given key, delete a key/value pair — [L284](../references/opentelemetry-specification/v1.55.0/trace/api.md#L284)
-- [ ] TraceState operations MUST follow the rules described in the W3C Trace Context specification — [L291](../references/opentelemetry-specification/v1.55.0/trace/api.md#L291)
-- [ ] All mutating operations MUST return a new TraceState with the modifications applied — [L292](../references/opentelemetry-specification/v1.55.0/trace/api.md#L292)
-- [ ] TraceState MUST at all times be valid according to W3C Trace Context specification — [L293](../references/opentelemetry-specification/v1.55.0/trace/api.md#L293)
-- [ ] Every mutating operation MUST validate input parameters — [L294](../references/opentelemetry-specification/v1.55.0/trace/api.md#L294)
-- [ ] If invalid value is passed the operation MUST NOT return TraceState containing invalid data and MUST follow general error handling guidelines — [L295](../references/opentelemetry-specification/v1.55.0/trace/api.md#L295)
+- [x] Tracing API MUST provide at least: get value for a given key, add a new key/value pair, update an existing value for a given key, delete a key/value pair — [L284](../references/opentelemetry-specification/v1.55.0/trace/api.md#L284)
+- [x] TraceState operations MUST follow the rules described in the W3C Trace Context specification — [L291](../references/opentelemetry-specification/v1.55.0/trace/api.md#L291)
+- [x] All mutating operations MUST return a new TraceState with the modifications applied — [L292](../references/opentelemetry-specification/v1.55.0/trace/api.md#L292)
+- [x] TraceState MUST at all times be valid according to W3C Trace Context specification — [L293](../references/opentelemetry-specification/v1.55.0/trace/api.md#L293)
+- [x] Every mutating operation MUST validate input parameters — [L294](../references/opentelemetry-specification/v1.55.0/trace/api.md#L294)
+- [x] If invalid value is passed the operation MUST NOT return TraceState containing invalid data and MUST follow general error handling guidelines — [L295](../references/opentelemetry-specification/v1.55.0/trace/api.md#L295)
 
 ### Span
 

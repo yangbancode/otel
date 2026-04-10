@@ -2,6 +2,7 @@ defmodule Otel.API.Trace.SpanContextTest do
   use ExUnit.Case, async: true
 
   alias Otel.API.Trace.SpanContext
+  alias Otel.API.Trace.TraceState
 
   @valid_trace_id 0xFF000000000000000000000000000001
   @valid_span_id 0xFF00000000000001
@@ -14,14 +15,15 @@ defmodule Otel.API.Trace.SpanContextTest do
       assert ctx.trace_id == @valid_trace_id
       assert ctx.span_id == @valid_span_id
       assert ctx.trace_flags == 0
-      assert ctx.tracestate == []
+      assert ctx.tracestate == %TraceState{}
       assert ctx.is_remote == false
     end
 
     test "accepts trace_flags and tracestate" do
-      ctx = SpanContext.new(@valid_trace_id, @valid_span_id, 1, [{"vendor", "value"}])
+      ts = TraceState.new([{"vendor", "value"}])
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
       assert ctx.trace_flags == 1
-      assert ctx.tracestate == [{"vendor", "value"}]
+      assert ctx.tracestate == ts
     end
   end
 
@@ -117,13 +119,51 @@ defmodule Otel.API.Trace.SpanContextTest do
     end
   end
 
+  describe "trace_id_bytes/1" do
+    test "returns 16-byte binary" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      bytes = SpanContext.trace_id_bytes(ctx)
+      assert byte_size(bytes) == 16
+    end
+
+    test "zero trace_id returns 16 zero bytes" do
+      ctx = SpanContext.new(@zero_trace_id, @valid_span_id)
+      assert SpanContext.trace_id_bytes(ctx) == <<0::128>>
+    end
+
+    test "roundtrips with integer" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      <<roundtrip::unsigned-integer-size(128)>> = SpanContext.trace_id_bytes(ctx)
+      assert roundtrip == @valid_trace_id
+    end
+  end
+
+  describe "span_id_bytes/1" do
+    test "returns 8-byte binary" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      bytes = SpanContext.span_id_bytes(ctx)
+      assert byte_size(bytes) == 8
+    end
+
+    test "zero span_id returns 8 zero bytes" do
+      ctx = SpanContext.new(@valid_trace_id, @zero_span_id)
+      assert SpanContext.span_id_bytes(ctx) == <<0::64>>
+    end
+
+    test "roundtrips with integer" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      <<roundtrip::unsigned-integer-size(64)>> = SpanContext.span_id_bytes(ctx)
+      assert roundtrip == @valid_span_id
+    end
+  end
+
   describe "struct defaults" do
     test "default struct has all zeros and is invalid" do
       ctx = %SpanContext{}
       assert ctx.trace_id == 0
       assert ctx.span_id == 0
       assert ctx.trace_flags == 0
-      assert ctx.tracestate == []
+      assert ctx.tracestate == %TraceState{}
       assert ctx.is_remote == false
       assert SpanContext.valid?(ctx) == false
     end

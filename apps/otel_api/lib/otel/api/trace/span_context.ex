@@ -7,30 +7,31 @@ defmodule Otel.API.Trace.SpanContext do
   IDs are stored as non-negative integers, matching opentelemetry-erlang.
   """
 
+  alias Otel.API.Trace.TraceState
+
   @type trace_id :: non_neg_integer()
   @type span_id :: non_neg_integer()
   @type trace_flags :: non_neg_integer()
-  @type tracestate :: [{String.t(), String.t()}]
 
   @type t :: %__MODULE__{
           trace_id: trace_id(),
           span_id: span_id(),
           trace_flags: trace_flags(),
-          tracestate: tracestate(),
+          tracestate: TraceState.t(),
           is_remote: boolean()
         }
 
   defstruct trace_id: 0,
             span_id: 0,
             trace_flags: 0,
-            tracestate: [],
+            tracestate: %TraceState{},
             is_remote: false
 
   @doc """
   Creates a new SpanContext.
   """
-  @spec new(trace_id(), span_id(), trace_flags(), tracestate()) :: t()
-  def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ []) do
+  @spec new(trace_id(), span_id(), trace_flags(), TraceState.t()) :: t()
+  def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ %TraceState{}) do
     %__MODULE__{
       trace_id: trace_id,
       span_id: span_id,
@@ -81,5 +82,21 @@ defmodule Otel.API.Trace.SpanContext do
     |> Integer.to_string(16)
     |> String.downcase()
     |> String.pad_leading(16, "0")
+  end
+
+  @doc """
+  Returns the trace_id as a 16-byte binary.
+  """
+  @spec trace_id_bytes(t()) :: <<_::128>>
+  def trace_id_bytes(%__MODULE__{trace_id: trace_id}) do
+    <<trace_id::unsigned-integer-size(128)>>
+  end
+
+  @doc """
+  Returns the span_id as an 8-byte binary.
+  """
+  @spec span_id_bytes(t()) :: <<_::64>>
+  def span_id_bytes(%__MODULE__{span_id: span_id}) do
+    <<span_id::unsigned-integer-size(64)>>
   end
 end

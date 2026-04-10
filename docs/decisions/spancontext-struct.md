@@ -44,6 +44,8 @@ Zero values (0) represent invalid/empty IDs.
 | `sampled?/1` | Lowest bit of trace_flags is 1 |
 | `trace_id_hex/1` | 32-char lowercase hex string |
 | `span_id_hex/1` | 16-char lowercase hex string |
+| `trace_id_bytes/1` | 16-byte binary |
+| `span_id_bytes/1` | 8-byte binary |
 
 ### Module: `Otel.API.Trace.SpanContext`
 
