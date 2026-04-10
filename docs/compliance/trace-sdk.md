@@ -4,15 +4,15 @@
 
 ### TracerProvider — Tracer Creation
 
-- [ ] It SHOULD only be possible to create Tracer instances through a TracerProvider — [L95](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L95)
-- [ ] TracerProvider MUST implement the Get a Tracer API — [L98](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L98)
-- [ ] The input provided by the user MUST be used to create an InstrumentationScope instance stored on the Tracer — [L100](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L100)
+- [x] It SHOULD only be possible to create Tracer instances through a TracerProvider — [L95](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L95)
+- [x] TracerProvider MUST implement the Get a Tracer API — [L98](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L98)
+- [x] The input provided by the user MUST be used to create an InstrumentationScope instance stored on the Tracer — [L100](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L100)
 
 ### TracerProvider — Configuration
 
-- [ ] Configuration (SpanProcessors, IdGenerator, SpanLimits, Sampler) MUST be owned by the TracerProvider — [L113](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L113)
-- [ ] If configuration is updated, the updated configuration MUST also apply to all already returned Tracers — [L119](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L119)
-- [ ] It MUST NOT matter whether a Tracer was obtained before or after the configuration change — [L120](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L120)
+- [x] Configuration (SpanProcessors, IdGenerator, SpanLimits, Sampler) MUST be owned by the TracerProvider — [L113](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L113)
+- [x] If configuration is updated, the updated configuration MUST also apply to all already returned Tracers — [L119](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L119)
+- [x] It MUST NOT matter whether a Tracer was obtained before or after the configuration change — [L120](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L120)
 
 ### TracerProvider — Shutdown
 
