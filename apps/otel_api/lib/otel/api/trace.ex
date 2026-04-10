@@ -12,6 +12,7 @@ defmodule Otel.API.Trace do
   @typedoc "Options for span creation. See `Otel.API.Trace.Span.start_opts/0`."
   @type start_opts :: Span.start_opts()
 
+  @span_key "otel.trace.span"
   @span_pt_key {__MODULE__, :span_key}
 
   @doc false
@@ -19,7 +20,7 @@ defmodule Otel.API.Trace do
   def span_key do
     case :persistent_term.get(@span_pt_key, nil) do
       nil ->
-        key = Ctx.create_key("otel.trace.span")
+        key = Ctx.create_key(@span_key)
         :persistent_term.put(@span_pt_key, key)
         key
 
