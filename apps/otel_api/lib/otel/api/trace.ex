@@ -108,11 +108,20 @@ defmodule Otel.API.Trace do
 
     try do
       fun.(span_ctx)
-    rescue
-      e ->
-        Span.record_exception(span_ctx, e, __STACKTRACE__)
-        Span.set_status(span_ctx, :error, Exception.message(e))
-        reraise e, __STACKTRACE__
+    catch
+      kind, reason ->
+        stacktrace = __STACKTRACE__
+
+        case kind do
+          :error ->
+            Span.record_exception(span_ctx, reason, stacktrace)
+            Span.set_status(span_ctx, :error, Exception.format(kind, reason))
+
+          _ ->
+            Span.set_status(span_ctx, :error, Exception.format(kind, reason))
+        end
+
+        :erlang.raise(kind, reason, stacktrace)
     after
       Span.end_span(span_ctx)
       Ctx.detach(token)

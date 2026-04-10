@@ -154,6 +154,32 @@ defmodule Otel.API.TraceTest do
       assert Trace.current_span() == @valid_span_ctx
     end
 
+    test "restores context and re-throws on throw" do
+      Trace.set_current_span(@valid_span_ctx)
+      tracer = {Tracer.Noop, []}
+
+      assert catch_throw(
+               Trace.with_span(tracer, "test_span", [], fn _span_ctx ->
+                 throw(:bail)
+               end)
+             ) == :bail
+
+      assert Trace.current_span() == @valid_span_ctx
+    end
+
+    test "restores context and re-exits on exit" do
+      Trace.set_current_span(@valid_span_ctx)
+      tracer = {Tracer.Noop, []}
+
+      assert catch_exit(
+               Trace.with_span(tracer, "test_span", [], fn _span_ctx ->
+                 exit(:shutdown)
+               end)
+             ) == :shutdown
+
+      assert Trace.current_span() == @valid_span_ctx
+    end
+
     test "accepts opts with default empty list" do
       tracer = {Tracer.Noop, []}
       result = Trace.with_span(tracer, "test_span", fn _span_ctx -> :ok end)
