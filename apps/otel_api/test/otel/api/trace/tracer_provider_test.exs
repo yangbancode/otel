@@ -67,7 +67,9 @@ defmodule Otel.API.Trace.TracerProviderTest do
   describe "scope/1,2,3" do
     test "creates InstrumentationScope with name" do
       scope = TracerProvider.scope("my_lib")
-      assert %InstrumentationScope{name: "my_lib", version: "", schema_url: nil, attributes: %{}} == scope
+
+      assert %InstrumentationScope{name: "my_lib", version: "", schema_url: nil, attributes: %{}} ==
+               scope
     end
 
     test "creates InstrumentationScope with all fields" do

@@ -67,7 +67,8 @@ defmodule Otel.API.Trace.TracerProvider do
   end
 
   defp validate_name(nil) do
-    :logger.warning("TracerProvider: invalid tracer name nil, using empty string",
+    :logger.warning(
+      "TracerProvider: invalid tracer name nil, using empty string",
       %{domain: [:otel]}
     )
 
@@ -75,7 +76,8 @@ defmodule Otel.API.Trace.TracerProvider do
   end
 
   defp validate_name("") do
-    :logger.warning("TracerProvider: invalid tracer name (empty string)",
+    :logger.warning(
+      "TracerProvider: invalid tracer name (empty string)",
       %{domain: [:otel]}
     )
 
