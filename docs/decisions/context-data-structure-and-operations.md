@@ -1,12 +1,47 @@
-# Context Data Structure & Operations
+# Context
 
 ## Question
 
-What data structure represents OTel Context on BEAM? How to implement CreateKey, GetValue, SetValue as immutable operations?
+How to implement OTel Context on BEAM? What data structure, how to store per-process, how to pass across processes?
 
 ## Decision
 
-TBD
+### Data Structure
+
+Context is a plain map. Same as opentelemetry-erlang.
+
+### Process-Local Storage
+
+Current context is stored in the process dictionary under a private key. `attach/1` sets it, `get_current/0` reads it, `detach/1` restores a previous context.
+
+### Cross-Process Passing
+
+No automatic propagation. BEAM processes share nothing. Users pass context explicitly:
+
+```elixir
+ctx = Otel.API.Ctx.get_current()
+Task.async(fn ->
+  Otel.API.Ctx.attach(ctx)
+  # ...
+end)
+```
+
+### Module: `Otel.API.Ctx`
+
+Location: `apps/otel_api/lib/otel/api/ctx.ex`
+
+Follows the same API shape as `otel_ctx` in opentelemetry-erlang:
+
+| Function | Description |
+|---|---|
+| `new/0` | Returns an empty context (`%{}`) |
+| `get_value/1,2,3` | Get value by key (implicit or explicit context) |
+| `set_value/2,3` | Set value by key (implicit or explicit context) |
+| `remove/1,2` | Remove key (implicit or explicit context) |
+| `clear/0,1` | Clear all keys (implicit or explicit context) |
+| `get_current/0` | Get current process context |
+| `attach/1` | Set current process context, return token |
+| `detach/1` | Restore context from token |
 
 ## Compliance
 
@@ -15,3 +50,4 @@ TBD
   * Create a Key — L65, L65, L67
   * Get Value — L74, L79
   * Set Value — L86, L92
+  * Optional Global Operations — L98, L103, L109, L113, L133
