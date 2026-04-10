@@ -24,8 +24,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Resource Detection & Environment Variables](decisions/resource-detection-and-environment-variables.md)
 
 ### Trace API
-- [ ] [SpanContext Struct](decisions/spancontext-struct.md)
-- [ ] [SpanContext Validation & Remote](decisions/spancontext-validation-and-remote.md)
+- [x] [SpanContext](decisions/spancontext-struct.md)
 - [ ] [TraceState](decisions/tracestate.md)
 - [ ] [TracerProvider API](decisions/tracerprovider-api.md)
 - [ ] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)

@@ -33,28 +33,28 @@
 
 ### SpanContext
 
-- [ ] API MUST implement methods to create a SpanContext — [L252](../references/opentelemetry-specification/v1.55.0/trace/api.md#L252)
-- [ ] SpanContext creation functionality MUST be fully implemented in the API — [L253](../references/opentelemetry-specification/v1.55.0/trace/api.md#L253)
-- [ ] SpanContext creation SHOULD NOT be overridable — [L253](../references/opentelemetry-specification/v1.55.0/trace/api.md#L253)
+- [x] API MUST implement methods to create a SpanContext — [L252](../references/opentelemetry-specification/v1.55.0/trace/api.md#L252)
+- [x] SpanContext creation functionality MUST be fully implemented in the API — [L253](../references/opentelemetry-specification/v1.55.0/trace/api.md#L253)
+- [x] SpanContext creation SHOULD NOT be overridable — [L253](../references/opentelemetry-specification/v1.55.0/trace/api.md#L253)
 
 ### Retrieving the TraceId and SpanId
 
-- [ ] API MUST allow retrieving the TraceId and SpanId in Hex and Binary forms — [L258](../references/opentelemetry-specification/v1.55.0/trace/api.md#L258)
-- [ ] Hex TraceId MUST be a 32-hex-character lowercase string — [L261](../references/opentelemetry-specification/v1.55.0/trace/api.md#L261)
-- [ ] Hex SpanId MUST be a 16-hex-character lowercase string — [L262](../references/opentelemetry-specification/v1.55.0/trace/api.md#L262)
-- [ ] Binary TraceId MUST be a 16-byte array — [L263](../references/opentelemetry-specification/v1.55.0/trace/api.md#L263)
-- [ ] Binary SpanId MUST be an 8-byte array — [L264](../references/opentelemetry-specification/v1.55.0/trace/api.md#L264)
-- [ ] API SHOULD NOT expose details about how TraceId/SpanId are internally stored — [L266](../references/opentelemetry-specification/v1.55.0/trace/api.md#L266)
+- [x] API MUST allow retrieving the TraceId and SpanId in Hex and Binary forms — [L258](../references/opentelemetry-specification/v1.55.0/trace/api.md#L258)
+- [x] Hex TraceId MUST be a 32-hex-character lowercase string — [L261](../references/opentelemetry-specification/v1.55.0/trace/api.md#L261)
+- [x] Hex SpanId MUST be a 16-hex-character lowercase string — [L262](../references/opentelemetry-specification/v1.55.0/trace/api.md#L262)
+- [x] Binary TraceId MUST be a 16-byte array — [L263](../references/opentelemetry-specification/v1.55.0/trace/api.md#L263)
+- [x] Binary SpanId MUST be an 8-byte array — [L264](../references/opentelemetry-specification/v1.55.0/trace/api.md#L264)
+- [x] API SHOULD NOT expose details about how TraceId/SpanId are internally stored — [L266](../references/opentelemetry-specification/v1.55.0/trace/api.md#L266)
 
 ### IsValid
 
-- [ ] An API called IsValid MUST be provided that returns true if SpanContext has a non-zero TraceID and non-zero SpanID — [L270](../references/opentelemetry-specification/v1.55.0/trace/api.md#L270)
+- [x] An API called IsValid MUST be provided that returns true if SpanContext has a non-zero TraceID and non-zero SpanID — [L270](../references/opentelemetry-specification/v1.55.0/trace/api.md#L270)
 
 ### IsRemote
 
-- [ ] An API called IsRemote MUST be provided that returns true if SpanContext was propagated from a remote parent — [L275](../references/opentelemetry-specification/v1.55.0/trace/api.md#L275)
+- [x] An API called IsRemote MUST be provided that returns true if SpanContext was propagated from a remote parent — [L275](../references/opentelemetry-specification/v1.55.0/trace/api.md#L275)
 - [ ] When extracting SpanContext through Propagators API, IsRemote MUST return true — [L278](../references/opentelemetry-specification/v1.55.0/trace/api.md#L278)
-- [ ] For SpanContext of any child spans, IsRemote MUST return false — [L278](../references/opentelemetry-specification/v1.55.0/trace/api.md#L278)
+- [x] For SpanContext of any child spans, IsRemote MUST return false — [L278](../references/opentelemetry-specification/v1.55.0/trace/api.md#L278)
 
 ### TraceState
 
