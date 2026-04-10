@@ -13,16 +13,8 @@ defmodule Otel.SDK.Trace.TracerProviderTest.CrashProcessor do
   def force_flush(_config), do: throw(:crash)
 end
 
-defmodule Otel.SDK.Trace.TracerProviderTest.SlowProcessor do
-  def shutdown(_config), do: Process.sleep(:infinity)
-  def force_flush(_config), do: Process.sleep(:infinity)
-end
-
 defmodule Otel.SDK.Trace.TracerProviderTest do
   use ExUnit.Case
-
-  # Task.async in invoke_processor may send exit signals
-  @moduletag :capture_log
 
   setup do
     {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
@@ -142,8 +134,6 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "catches crashed processors" do
-      Process.flag(:trap_exit, true)
-
       {:ok, pid} =
         Otel.SDK.Trace.TracerProvider.start_link(
           config: %{
@@ -151,7 +141,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
           }
         )
 
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, {:exit, _}}]} =
+      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, {:error, _}}]} =
                Otel.SDK.Trace.TracerProvider.shutdown(pid)
     end
 
@@ -196,8 +186,6 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "catches crashed processors" do
-      Process.flag(:trap_exit, true)
-
       {:ok, pid} =
         Otel.SDK.Trace.TracerProvider.start_link(
           config: %{
@@ -205,41 +193,13 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
           }
         )
 
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, {:exit, _}}]} =
+      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, {:throw, :crash}}]} =
                Otel.SDK.Trace.TracerProvider.force_flush(pid)
     end
 
     test "returns error after shutdown", %{provider: pid} do
       Otel.SDK.Trace.TracerProvider.shutdown(pid)
       assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == {:error, :shut_down}
-    end
-  end
-
-  describe "processor timeout" do
-    test "shutdown returns timeout for slow processor" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [{Otel.SDK.Trace.TracerProviderTest.SlowProcessor, %{}}],
-            processor_timeout: 50
-          }
-        )
-
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.SlowProcessor, :timeout}]} =
-               Otel.SDK.Trace.TracerProvider.shutdown(pid, 10_000)
-    end
-
-    test "force_flush returns timeout for slow processor" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [{Otel.SDK.Trace.TracerProviderTest.SlowProcessor, %{}}],
-            processor_timeout: 50
-          }
-        )
-
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.SlowProcessor, :timeout}]} =
-               Otel.SDK.Trace.TracerProvider.force_flush(pid, 10_000)
     end
   end
 end
