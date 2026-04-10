@@ -18,16 +18,14 @@ defmodule Otel.API.Trace.SpanContext do
           span_id: span_id(),
           trace_flags: trace_flags(),
           tracestate: TraceState.t(),
-          is_remote: boolean(),
-          is_recording: boolean()
+          is_remote: boolean()
         }
 
   defstruct trace_id: 0,
             span_id: 0,
             trace_flags: 0,
             tracestate: %TraceState{},
-            is_remote: false,
-            is_recording: false
+            is_remote: false
 
   @doc """
   Creates a new SpanContext.
