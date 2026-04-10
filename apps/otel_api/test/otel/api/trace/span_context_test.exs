@@ -2,6 +2,7 @@ defmodule Otel.API.Trace.SpanContextTest do
   use ExUnit.Case, async: true
 
   alias Otel.API.Trace.SpanContext
+  alias Otel.API.Trace.TraceState
 
   @valid_trace_id 0xFF000000000000000000000000000001
   @valid_span_id 0xFF00000000000001
@@ -14,14 +15,15 @@ defmodule Otel.API.Trace.SpanContextTest do
       assert ctx.trace_id == @valid_trace_id
       assert ctx.span_id == @valid_span_id
       assert ctx.trace_flags == 0
-      assert ctx.tracestate == []
+      assert ctx.tracestate == %TraceState{}
       assert ctx.is_remote == false
     end
 
     test "accepts trace_flags and tracestate" do
-      ctx = SpanContext.new(@valid_trace_id, @valid_span_id, 1, [{"vendor", "value"}])
+      ts = TraceState.new([{"vendor", "value"}])
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
       assert ctx.trace_flags == 1
-      assert ctx.tracestate == [{"vendor", "value"}]
+      assert ctx.tracestate == ts
     end
   end
 
@@ -123,7 +125,7 @@ defmodule Otel.API.Trace.SpanContextTest do
       assert ctx.trace_id == 0
       assert ctx.span_id == 0
       assert ctx.trace_flags == 0
-      assert ctx.tracestate == []
+      assert ctx.tracestate == %TraceState{}
       assert ctx.is_remote == false
       assert SpanContext.valid?(ctx) == false
     end
