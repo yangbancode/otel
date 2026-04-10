@@ -36,7 +36,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [TracerProvider SDK: Configuration](decisions/tracerprovider-sdk-configuration.md)
 - [x] [TracerProvider SDK: Shutdown & ForceFlush](decisions/tracerprovider-sdk-shutdown-and-forceflush.md)
 - [x] [Span Limits](decisions/span-limits.md)
-- [ ] [ID Generation](decisions/id-generation.md)
+- [x] [ID Generation](decisions/id-generation.md)
 - [ ] [Sampler Interface & ShouldSample](decisions/sampler-interface-and-shouldsample.md)
 - [ ] [Built-in Samplers](decisions/built-in-samplers.md)
 - [ ] [Span Storage & ETS Design](decisions/span-storage-and-ets-design.md)
