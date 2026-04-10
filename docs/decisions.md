@@ -13,9 +13,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
 
 ### Context
-- [ ] [Context Data Structure & Operations](decisions/context-data-structure-and-operations.md)
-- [ ] [Context Attach/Detach & Process-Local Storage](decisions/context-attach-detach-and-process-local-storage.md)
-- [ ] [Cross-Process Context Passing](decisions/cross-process-context-passing.md)
+- [x] [Context](decisions/context-data-structure-and-operations.md)
 
 ### Semantic Conventions
 - [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
