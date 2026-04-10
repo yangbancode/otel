@@ -12,6 +12,7 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
   # 2^63 - 1
   @max_value 9_223_372_036_854_775_807
 
+  @spec setup(opts :: Otel.SDK.Trace.Sampler.opts()) :: Otel.SDK.Trace.Sampler.config()
   @impl true
   def setup(probability)
       when is_float(probability) and probability >= 0.0 and probability <= 1.0 do
@@ -25,11 +26,22 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
     %{probability: probability, id_upper_bound: id_upper_bound}
   end
 
+  @spec description(config :: Otel.SDK.Trace.Sampler.config()) ::
+          Otel.SDK.Trace.Sampler.description()
   @impl true
   def description(%{probability: probability}) do
     "TraceIdRatioBased{#{:erlang.float_to_binary(probability, decimals: 6)}}"
   end
 
+  @spec should_sample(
+          ctx :: Otel.API.Ctx.t(),
+          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
+          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          name :: String.t(),
+          kind :: Otel.API.Trace.SpanKind.t(),
+          attributes :: map(),
+          config :: Otel.SDK.Trace.Sampler.config()
+        ) :: Otel.SDK.Trace.Sampler.sampling_result()
   @impl true
   def should_sample(ctx, trace_id, _links, _name, _kind, _attributes, %{
         id_upper_bound: id_upper_bound

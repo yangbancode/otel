@@ -8,6 +8,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
 
   @behaviour Otel.SDK.Trace.Sampler
 
+  @spec setup(opts :: Otel.SDK.Trace.Sampler.opts()) :: Otel.SDK.Trace.Sampler.config()
   @impl true
   def setup(%{root: root_spec} = opts) do
     %{
@@ -31,6 +32,8 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
     }
   end
 
+  @spec description(config :: Otel.SDK.Trace.Sampler.config()) ::
+          Otel.SDK.Trace.Sampler.description()
   @impl true
   def description(config) do
     "ParentBased{root:#{Otel.SDK.Trace.Sampler.description(config.root)}" <>
@@ -40,6 +43,15 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
       ",localParentNotSampled:#{Otel.SDK.Trace.Sampler.description(config.local_parent_not_sampled)}}"
   end
 
+  @spec should_sample(
+          ctx :: Otel.API.Ctx.t(),
+          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
+          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          name :: String.t(),
+          kind :: Otel.API.Trace.SpanKind.t(),
+          attributes :: map(),
+          config :: Otel.SDK.Trace.Sampler.config()
+        ) :: Otel.SDK.Trace.Sampler.sampling_result()
   @impl true
   def should_sample(ctx, trace_id, links, name, kind, attributes, config) do
     parent_span_ctx = Otel.API.Trace.current_span(ctx)
