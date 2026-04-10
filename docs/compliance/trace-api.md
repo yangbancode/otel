@@ -80,24 +80,24 @@
 
 ### Span Creation
 
-- [ ] There MUST NOT be any API for creating a Span other than with a Tracer — [L380](../references/opentelemetry-specification/v1.55.0/trace/api.md#L380)
-- [ ] Span creation MUST NOT set the newly created Span as active Span in current Context by default (for languages with implicit Context propagation) — [L382](../references/opentelemetry-specification/v1.55.0/trace/api.md#L382)
-- [ ] API MUST accept: span name (required) — [L387](../references/opentelemetry-specification/v1.55.0/trace/api.md#L387)
-- [ ] API MUST accept: parent Context or indication of root Span — [L390](../references/opentelemetry-specification/v1.55.0/trace/api.md#L390)
-- [ ] API MUST NOT accept a Span or SpanContext as parent, only a full Context — [L393](../references/opentelemetry-specification/v1.55.0/trace/api.md#L393)
-- [ ] The semantic parent of the Span MUST be determined according to the rules in Determining the Parent Span from a Context — [L395](../references/opentelemetry-specification/v1.55.0/trace/api.md#L395)
-- [ ] API documentation MUST state that adding attributes at span creation is preferred to calling SetAttribute later — [L403](../references/opentelemetry-specification/v1.55.0/trace/api.md#L403)
-- [ ] Start timestamp SHOULD only be set when span creation time has already passed — [L408](../references/opentelemetry-specification/v1.55.0/trace/api.md#L408)
-- [ ] If API is called at moment of Span logical start, user MUST NOT explicitly set start timestamp — [L410](../references/opentelemetry-specification/v1.55.0/trace/api.md#L410)
-- [ ] Implementations MUST provide an option to create a Span as a root span — [L416](../references/opentelemetry-specification/v1.55.0/trace/api.md#L416)
+- [x] There MUST NOT be any API for creating a Span other than with a Tracer — [L380](../references/opentelemetry-specification/v1.55.0/trace/api.md#L380)
+- [x] Span creation MUST NOT set the newly created Span as active Span in current Context by default (for languages with implicit Context propagation) — [L382](../references/opentelemetry-specification/v1.55.0/trace/api.md#L382)
+- [x] API MUST accept: span name (required) — [L387](../references/opentelemetry-specification/v1.55.0/trace/api.md#L387)
+- [x] API MUST accept: parent Context or indication of root Span — [L390](../references/opentelemetry-specification/v1.55.0/trace/api.md#L390)
+- [x] API MUST NOT accept a Span or SpanContext as parent, only a full Context — [L393](../references/opentelemetry-specification/v1.55.0/trace/api.md#L393)
+- [x] The semantic parent of the Span MUST be determined according to the rules in Determining the Parent Span from a Context — [L395](../references/opentelemetry-specification/v1.55.0/trace/api.md#L395)
+- [x] API documentation MUST state that adding attributes at span creation is preferred to calling SetAttribute later — [L403](../references/opentelemetry-specification/v1.55.0/trace/api.md#L403)
+- [x] Start timestamp SHOULD only be set when span creation time has already passed — [L408](../references/opentelemetry-specification/v1.55.0/trace/api.md#L408)
+- [x] If API is called at moment of Span logical start, user MUST NOT explicitly set start timestamp — [L410](../references/opentelemetry-specification/v1.55.0/trace/api.md#L410)
+- [x] Implementations MUST provide an option to create a Span as a root span — [L416](../references/opentelemetry-specification/v1.55.0/trace/api.md#L416)
 - [ ] Implementations MUST generate a new TraceId for each root span created — [L417](../references/opentelemetry-specification/v1.55.0/trace/api.md#L417)
 - [ ] For a Span with a parent, TraceId MUST be the same as the parent — [L418](../references/opentelemetry-specification/v1.55.0/trace/api.md#L418)
 - [ ] Child span MUST inherit all TraceState values of its parent by default — [L419](../references/opentelemetry-specification/v1.55.0/trace/api.md#L419)
-- [ ] Any span that is created MUST also be ended — [L426](../references/opentelemetry-specification/v1.55.0/trace/api.md#L426)
+- [x] Any span that is created MUST also be ended — [L426](../references/opentelemetry-specification/v1.55.0/trace/api.md#L426)
 
 ### Specifying Links
 
-- [ ] During Span creation, a user MUST have the ability to record links to other Spans — [L444](../references/opentelemetry-specification/v1.55.0/trace/api.md#L444)
+- [x] During Span creation, a user MUST have the ability to record links to other Spans — [L444](../references/opentelemetry-specification/v1.55.0/trace/api.md#L444)
 
 ### Span Operations — Get Context
 

@@ -1,6 +1,7 @@
-defmodule Otel.API.Trace.Tracer.Tracer.NoopTest do
+defmodule Otel.API.Trace.Tracer.NoopTest do
   use ExUnit.Case, async: true
 
+  alias Otel.API.{Ctx, Trace}
   alias Otel.API.Trace.{SpanContext, Tracer}
 
   @valid_parent %SpanContext{
@@ -12,20 +13,21 @@ defmodule Otel.API.Trace.Tracer.Tracer.NoopTest do
 
   describe "start_span/4" do
     test "returns parent SpanContext when parent exists in context" do
-      ctx = %{span: @valid_parent}
+      ctx = Trace.set_current_span(Ctx.new(), @valid_parent)
       result = Tracer.Noop.start_span(ctx, {Tracer.Noop, []}, "test_span", [])
       assert result == @valid_parent
     end
 
     test "returns invalid SpanContext when no parent in context" do
-      ctx = %{}
+      ctx = Ctx.new()
       result = Tracer.Noop.start_span(ctx, {Tracer.Noop, []}, "test_span", [])
       assert result == %SpanContext{}
       assert SpanContext.valid?(result) == false
     end
 
     test "returns invalid SpanContext when parent has zero trace_id" do
-      ctx = %{span: %SpanContext{trace_id: 0, span_id: 1}}
+      parent = %SpanContext{trace_id: 0, span_id: 1}
+      ctx = Trace.set_current_span(Ctx.new(), parent)
       result = Tracer.Noop.start_span(ctx, {Tracer.Noop, []}, "test_span", [])
       assert result == %SpanContext{}
     end
