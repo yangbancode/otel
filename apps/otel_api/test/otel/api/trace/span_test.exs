@@ -31,16 +31,28 @@ defmodule Otel.API.Trace.SpanTest do
   end
 
   describe "no-op operations on API level" do
-    test "set_attribute returns :ok" do
+    test "set_attribute with string key returns :ok" do
       assert Span.set_attribute(@valid_ctx, "key", "value") == :ok
     end
 
-    test "set_attributes returns :ok" do
+    test "set_attribute with atom key returns :ok" do
+      assert Span.set_attribute(@valid_ctx, :key, "value") == :ok
+    end
+
+    test "set_attributes with map returns :ok" do
       assert Span.set_attributes(@valid_ctx, %{key: "value"}) == :ok
     end
 
-    test "add_event returns :ok" do
+    test "set_attributes with keyword list returns :ok" do
+      assert Span.set_attributes(@valid_ctx, key: "value", other: 42) == :ok
+    end
+
+    test "add_event with string name returns :ok" do
       assert Span.add_event(@valid_ctx, "event_name") == :ok
+    end
+
+    test "add_event with atom name returns :ok" do
+      assert Span.add_event(@valid_ctx, :event_name) == :ok
     end
 
     test "add_event with opts returns :ok" do
@@ -58,12 +70,20 @@ defmodule Otel.API.Trace.SpanTest do
       assert Span.add_link(@valid_ctx, other, %{key: "val"}) == :ok
     end
 
-    test "set_status returns :ok" do
+    test "set_status :ok returns :ok" do
       assert Span.set_status(@valid_ctx, :ok) == :ok
     end
 
-    test "set_status with description returns :ok" do
+    test "set_status :error with description returns :ok" do
       assert Span.set_status(@valid_ctx, :error, "something failed") == :ok
+    end
+
+    test "set_status :error without description returns :ok" do
+      assert Span.set_status(@valid_ctx, :error) == :ok
+    end
+
+    test "set_status :unset returns :ok" do
+      assert Span.set_status(@valid_ctx, :unset) == :ok
     end
 
     test "update_name returns :ok" do
@@ -97,6 +117,28 @@ defmodule Otel.API.Trace.SpanTest do
                [{__MODULE__, :test, 0, []}],
                %{extra: "info"}
              ) == :ok
+    end
+  end
+
+  describe "operations on invalid span" do
+    test "set_attribute on invalid span returns :ok" do
+      assert Span.set_attribute(@invalid_ctx, "key", "value") == :ok
+    end
+
+    test "add_event on invalid span returns :ok" do
+      assert Span.add_event(@invalid_ctx, "event") == :ok
+    end
+
+    test "set_status on invalid span returns :ok" do
+      assert Span.set_status(@invalid_ctx, :error, "fail") == :ok
+    end
+
+    test "end_span on invalid span returns :ok" do
+      assert Span.end_span(@invalid_ctx) == :ok
+    end
+
+    test "record_exception on invalid span returns :ok" do
+      assert Span.record_exception(@invalid_ctx, %RuntimeError{message: "oops"}) == :ok
     end
   end
 end
