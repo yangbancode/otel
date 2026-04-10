@@ -88,10 +88,10 @@
 
 ### Id Generators
 
-- [ ] SDK MUST by default randomly generate both the TraceId and the SpanId — [L880](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L880)
-- [ ] SDK MUST provide a mechanism for customizing the way IDs are generated — [L882](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L882)
-- [ ] Method names MUST be consistent with SpanContext (retrieving TraceId and SpanId) — [L887](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L887)
-- [ ] Additional IdGenerator for vendor-specific protocols MUST NOT be maintained in Core OpenTelemetry repositories — [L899](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L899)
+- [x] SDK MUST by default randomly generate both the TraceId and the SpanId — [L880](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L880)
+- [x] SDK MUST provide a mechanism for customizing the way IDs are generated — [L882](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L882)
+- [x] Method names MUST be consistent with SpanContext (retrieving TraceId and SpanId) — [L887](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L887)
+- [x] Additional IdGenerator for vendor-specific protocols MUST NOT be maintained in Core OpenTelemetry repositories — [L899](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L899)
 
 ### Span Processor — Interface Definition
 
