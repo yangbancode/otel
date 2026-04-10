@@ -11,11 +11,6 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### Foundation
 - [x] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
 - [x] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
-- [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
-- [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
-- [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
-- [ ] [Supervision Tree Structure](decisions/supervision-tree-structure.md)
-- [ ] [Application Boot Order](decisions/application-boot-order.md)
 
 ### Common
 - [ ] [AnyValue Type System](decisions/anyvalue-type-system.md)
@@ -75,7 +70,6 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
 
 ## Phase 2: OTLP HTTP Exporter
-- [ ] [Exporter Packaging Strategy](decisions/exporter-packaging-strategy.md)
 - [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
@@ -111,5 +105,3 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### OTLP gRPC Exporter
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
 
-## Release
-- [ ] [Hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
