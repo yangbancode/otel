@@ -11,7 +11,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### Foundation
 - [x] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
 - [x] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
-- [ ] [Error Handling Strategy](decisions/error-handling-strategy.md)
+- [x] [Error Handling Strategy](decisions/error-handling-strategy.md)
 - [ ] [SDK Internal Logging Strategy](decisions/sdk-internal-logging-strategy.md)
 - [ ] [Configuration & Environment Variable System](decisions/configuration-and-environment-variable-system.md)
 - [ ] [Supervision Tree Structure](decisions/supervision-tree-structure.md)
