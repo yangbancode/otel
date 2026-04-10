@@ -14,7 +14,7 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
 
   @impl true
   def setup(probability)
-      when is_number(probability) and probability >= 0.0 and probability <= 1.0 do
+      when is_float(probability) and probability >= 0.0 and probability <= 1.0 do
     id_upper_bound =
       cond do
         probability == 0.0 -> 0
@@ -22,7 +22,7 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
         true -> trunc(probability * @max_value)
       end
 
-    %{probability: probability / 1.0, id_upper_bound: id_upper_bound}
+    %{probability: probability, id_upper_bound: id_upper_bound}
   end
 
   @impl true
