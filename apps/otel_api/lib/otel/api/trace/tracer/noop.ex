@@ -8,13 +8,14 @@ defmodule Otel.API.Trace.Tracer.Noop do
 
   @behaviour Otel.API.Trace.Tracer
 
+  alias Otel.API.Trace
   alias Otel.API.Trace.SpanContext
 
   @invalid_ctx %SpanContext{}
 
   @impl true
   def start_span(ctx, _tracer, _name, _opts) do
-    case Map.get(ctx, :span, nil) do
+    case Trace.current_span(ctx) do
       %SpanContext{trace_id: trace_id} = parent when trace_id != 0 ->
         parent
 

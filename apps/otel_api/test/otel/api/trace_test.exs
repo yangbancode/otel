@@ -2,7 +2,7 @@ defmodule Otel.API.TraceTest do
   use ExUnit.Case
 
   alias Otel.API.{Ctx, Trace}
-  alias Otel.API.Trace.SpanContext
+  alias Otel.API.Trace.{SpanContext, Tracer}
 
   @valid_span_ctx %SpanContext{
     trace_id: 0xFF000000000000000000000000000001,
@@ -65,6 +65,114 @@ defmodule Otel.API.TraceTest do
     test "returns span set in process context" do
       Trace.set_current_span(@valid_span_ctx)
       assert Trace.current_span() == @valid_span_ctx
+    end
+  end
+
+  describe "start_span/2,3 (implicit context)" do
+    setup do
+      Ctx.clear()
+      :ok
+    end
+
+    test "returns SpanContext from noop tracer" do
+      tracer = {Tracer.Noop, []}
+      span_ctx = Trace.start_span(tracer, "test_span")
+      assert %SpanContext{} = span_ctx
+    end
+
+    test "does NOT set new span as current span" do
+      tracer = {Tracer.Noop, []}
+      _span_ctx = Trace.start_span(tracer, "test_span")
+      assert Trace.current_span() == %SpanContext{}
+    end
+
+    test "accepts opts" do
+      tracer = {Tracer.Noop, []}
+      span_ctx = Trace.start_span(tracer, "test_span", kind: :server, attributes: %{key: "val"})
+      assert %SpanContext{} = span_ctx
+    end
+  end
+
+  describe "start_span/4 (explicit context)" do
+    test "uses provided context" do
+      tracer = {Tracer.Noop, []}
+      ctx = Trace.set_current_span(Ctx.new(), @valid_span_ctx)
+      span_ctx = Trace.start_span(ctx, tracer, "child_span", [])
+      # noop returns parent when valid parent exists
+      assert span_ctx == @valid_span_ctx
+    end
+
+    test "returns invalid SpanContext when no parent in context" do
+      tracer = {Tracer.Noop, []}
+      ctx = Ctx.new()
+      span_ctx = Trace.start_span(ctx, tracer, "root_span", [])
+      assert span_ctx == %SpanContext{}
+    end
+  end
+
+  describe "with_span/3,4" do
+    setup do
+      Ctx.clear()
+      :ok
+    end
+
+    test "runs function and returns its result" do
+      tracer = {Tracer.Noop, []}
+      result = Trace.with_span(tracer, "test_span", [], fn _span_ctx -> :hello end)
+      assert result == :hello
+    end
+
+    test "sets span as current during function execution" do
+      Trace.set_current_span(@valid_span_ctx)
+      tracer = {Tracer.Noop, []}
+
+      Trace.with_span(tracer, "test_span", [], fn span_ctx ->
+        # noop returns parent, so current span should be the parent
+        assert Trace.current_span() == span_ctx
+      end)
+    end
+
+    test "restores previous context after function returns" do
+      Trace.set_current_span(@valid_span_ctx)
+      tracer = {Tracer.Noop, []}
+
+      Trace.with_span(tracer, "test_span", [], fn _span_ctx -> :ok end)
+
+      assert Trace.current_span() == @valid_span_ctx
+    end
+
+    test "restores context and re-raises on exception" do
+      Trace.set_current_span(@valid_span_ctx)
+      tracer = {Tracer.Noop, []}
+
+      assert_raise RuntimeError, "boom", fn ->
+        Trace.with_span(tracer, "test_span", [], fn _span_ctx ->
+          raise "boom"
+        end)
+      end
+
+      assert Trace.current_span() == @valid_span_ctx
+    end
+
+    test "accepts opts with default empty list" do
+      tracer = {Tracer.Noop, []}
+      result = Trace.with_span(tracer, "test_span", fn _span_ctx -> :ok end)
+      assert result == :ok
+    end
+  end
+
+  describe "with_span/5 (explicit context)" do
+    test "uses provided context" do
+      tracer = {Tracer.Noop, []}
+      ctx = Trace.set_current_span(Ctx.new(), @valid_span_ctx)
+
+      result =
+        Trace.with_span(ctx, tracer, "child_span", [], fn span_ctx ->
+          assert span_ctx == @valid_span_ctx
+          :from_explicit
+        end)
+
+      assert result == :from_explicit
     end
   end
 end
