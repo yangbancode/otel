@@ -8,7 +8,10 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
 
   describe "root span (no parent)" do
     test "delegates to root sampler (default AlwaysOn)" do
-      sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.ParentBased, %{}})
+      sampler =
+        Otel.SDK.Trace.Sampler.new(
+          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+        )
 
       {decision, _, _} =
         Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, 123, [], "span", :internal, %{})
@@ -19,7 +22,11 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
     test "treats span_id 0 as root" do
       parent = %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 0}
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-      sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.ParentBased, %{}})
+
+      sampler =
+        Otel.SDK.Trace.Sampler.new(
+          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+        )
 
       {decision, _, _} =
         Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
@@ -50,7 +57,11 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
       }
 
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-      sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.ParentBased, %{}})
+
+      sampler =
+        Otel.SDK.Trace.Sampler.new(
+          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+        )
 
       {decision, _, _} =
         Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
@@ -69,7 +80,11 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
       }
 
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-      sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.ParentBased, %{}})
+
+      sampler =
+        Otel.SDK.Trace.Sampler.new(
+          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+        )
 
       {decision, _, _} =
         Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
@@ -88,7 +103,11 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
       }
 
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-      sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.ParentBased, %{}})
+
+      sampler =
+        Otel.SDK.Trace.Sampler.new(
+          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+        )
 
       {decision, _, _} =
         Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
@@ -107,7 +126,11 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
       }
 
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-      sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.ParentBased, %{}})
+
+      sampler =
+        Otel.SDK.Trace.Sampler.new(
+          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+        )
 
       {decision, _, _} =
         Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
@@ -118,7 +141,11 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
 
   describe "description" do
     test "includes all sub-sampler descriptions" do
-      sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.ParentBased, %{}})
+      sampler =
+        Otel.SDK.Trace.Sampler.new(
+          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+        )
+
       desc = Otel.SDK.Trace.Sampler.description(sampler)
       assert desc =~ "ParentBased{"
       assert desc =~ "root:AlwaysOnSampler"

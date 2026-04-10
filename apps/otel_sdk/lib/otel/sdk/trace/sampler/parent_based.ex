@@ -9,9 +9,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
   @behaviour Otel.SDK.Trace.Sampler
 
   @impl true
-  def setup(opts) do
-    root_spec = Map.get(opts, :root, {Otel.SDK.Trace.Sampler.AlwaysOn, %{}})
-
+  def setup(%{root: root_spec} = opts) do
     %{
       root: Otel.SDK.Trace.Sampler.new(root_spec),
       remote_parent_sampled:
