@@ -12,7 +12,7 @@ defmodule Otel.API.Ctx do
   """
 
   @type t :: map()
-  @opaque key :: {String.t() | atom(), reference()}
+  @opaque key :: {term(), reference()}
   @type value :: term()
   @opaque token :: t()
 
@@ -25,8 +25,8 @@ defmodule Otel.API.Ctx do
   The name exists for debugging purposes and does not uniquely
   identify the key (L65). Uniqueness is guaranteed by `make_ref/0`.
   """
-  @spec create_key(String.t() | atom()) :: key()
-  def create_key(name) when is_binary(name) or is_atom(name), do: {name, make_ref()}
+  @spec create_key(term()) :: key()
+  def create_key(name), do: {name, make_ref()}
 
   @doc """
   Returns an empty context.
