@@ -30,11 +30,6 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)
 - [x] [Span Interface & Lifecycle](decisions/span-interface-and-lifecycle.md)
 - [x] [Span Creation](decisions/span-creation.md)
-- [ ] [Span Operations: Attributes & Events](decisions/span-operations-attributes-and-events.md)
-- [ ] [Span Operations: Links, Status, End](decisions/span-operations-links-status-end.md)
-- [ ] [Span Operations: RecordException](decisions/span-operations-record-exception.md)
-- [ ] [NonRecordingSpan & No-SDK Behavior](decisions/nonrecordingspan-and-no-sdk-behavior.md)
-- [ ] [Trace Context Interaction](decisions/trace-context-interaction.md)
 
 ### Trace SDK
 - [ ] [TracerProvider SDK: Configuration](decisions/tracerprovider-sdk-configuration.md)
