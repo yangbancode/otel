@@ -15,6 +15,8 @@
 - [x] If invalid name (null or empty string), a working Tracer MUST be returned as fallback rather than returning null or throwing an exception — [L126](../references/opentelemetry-specification/v1.55.0/trace/api.md#L126)
 - [x] If invalid name, Tracer's `name` property SHOULD be set to an empty string — [L128](../references/opentelemetry-specification/v1.55.0/trace/api.md#L128)
 - [x] If invalid name, a message reporting that the specified value is invalid SHOULD be logged — [L129](../references/opentelemetry-specification/v1.55.0/trace/api.md#L129)
+- [x] Get a Tracer API MUST accept optional `version` parameter — [L135](../references/opentelemetry-specification/v1.55.0/trace/api.md#L135)
+- [x] Get a Tracer API MUST accept optional `schema_url` parameter (since 1.4.0) — [L137](../references/opentelemetry-specification/v1.55.0/trace/api.md#L137)
 - [x] Get a Tracer API SHOULD accept `attributes` parameter (since 1.13.0) — [L139](../references/opentelemetry-specification/v1.55.0/trace/api.md#L139)
 - [x] Implementations MUST NOT require users to repeatedly obtain a Tracer with the same identity to pick up configuration changes — [L146](../references/opentelemetry-specification/v1.55.0/trace/api.md#L146)
 
@@ -89,6 +91,9 @@
 - [x] API documentation MUST state that adding attributes at span creation is preferred to calling SetAttribute later — [L403](../references/opentelemetry-specification/v1.55.0/trace/api.md#L403)
 - [x] Start timestamp SHOULD only be set when span creation time has already passed — [L408](../references/opentelemetry-specification/v1.55.0/trace/api.md#L408)
 - [x] If API is called at moment of Span logical start, user MUST NOT explicitly set start timestamp — [L410](../references/opentelemetry-specification/v1.55.0/trace/api.md#L410)
+- [x] API MUST accept: SpanKind, default to Internal — [L397](../references/opentelemetry-specification/v1.55.0/trace/api.md#L397)
+- [x] API MUST accept: Attributes — [L398](../references/opentelemetry-specification/v1.55.0/trace/api.md#L398)
+- [x] API MUST accept: Links — [L407](../references/opentelemetry-specification/v1.55.0/trace/api.md#L407)
 - [x] Implementations MUST provide an option to create a Span as a root span — [L416](../references/opentelemetry-specification/v1.55.0/trace/api.md#L416)
 - [ ] Implementations MUST generate a new TraceId for each root span created — [L417](../references/opentelemetry-specification/v1.55.0/trace/api.md#L417)
 - [ ] For a Span with a parent, TraceId MUST be the same as the parent — [L418](../references/opentelemetry-specification/v1.55.0/trace/api.md#L418)
@@ -139,6 +144,10 @@
 - [ ] Instrumentation Libraries SHOULD leave status code as Unset unless there is an error — [L614](../references/opentelemetry-specification/v1.55.0/trace/api.md#L614)
 - [ ] When span status is set to Ok it SHOULD be considered final and any further attempts to change it SHOULD be ignored — [L619](../references/opentelemetry-specification/v1.55.0/trace/api.md#L619)
 - [ ] Analysis tools SHOULD respond to an Ok status by suppressing any errors they would otherwise generate — [L622](../references/opentelemetry-specification/v1.55.0/trace/api.md#L622)
+
+### Span Operations — UpdateName
+
+- [x] Span interface MUST provide an API to update the Span name — [L633](../references/opentelemetry-specification/v1.55.0/trace/api.md#L633)
 
 ### Span Operations — End
 
