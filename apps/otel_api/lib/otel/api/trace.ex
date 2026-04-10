@@ -9,6 +9,9 @@ defmodule Otel.API.Trace do
   alias Otel.API.Ctx
   alias Otel.API.Trace.{Span, SpanContext, Tracer, TracerProvider}
 
+  @typedoc "Options for span creation. See `Otel.API.Trace.Span.start_opts/0`."
+  @type start_opts :: Span.start_opts()
+
   @span_key :"__otel.trace.span__"
 
   @doc """
@@ -63,7 +66,7 @@ defmodule Otel.API.Trace do
   `Span.set_attribute/3` later, as samplers can only consider
   information already present during creation (L403).
   """
-  @spec start_span(Tracer.t(), String.t(), keyword()) :: SpanContext.t()
+  @spec start_span(Tracer.t(), String.t(), start_opts()) :: SpanContext.t()
   def start_span(tracer, name, opts \\ []) do
     start_span(Ctx.get_current(), tracer, name, opts)
   end
@@ -73,7 +76,7 @@ defmodule Otel.API.Trace do
 
   The new span is NOT automatically set as the current span (L382).
   """
-  @spec start_span(Ctx.t(), Tracer.t(), String.t(), keyword()) :: SpanContext.t()
+  @spec start_span(Ctx.t(), Tracer.t(), String.t(), start_opts()) :: SpanContext.t()
   def start_span(ctx, {module, _config} = tracer, name, opts) do
     module.start_span(ctx, tracer, name, opts)
   end
@@ -87,7 +90,7 @@ defmodule Otel.API.Trace do
 
   Returns the function's return value.
   """
-  @spec with_span(Tracer.t(), String.t(), keyword(), (SpanContext.t() -> result)) :: result
+  @spec with_span(Tracer.t(), String.t(), start_opts(), (SpanContext.t() -> result)) :: result
         when result: term()
   def with_span(tracer, name, opts \\ [], fun) do
     with_span(Ctx.get_current(), tracer, name, opts, fun)
@@ -97,7 +100,7 @@ defmodule Otel.API.Trace do
   Starts a span using an explicit context, sets it as current, runs
   a function, then ends the span.
   """
-  @spec with_span(Ctx.t(), Tracer.t(), String.t(), keyword(), (SpanContext.t() -> result)) ::
+  @spec with_span(Ctx.t(), Tracer.t(), String.t(), start_opts(), (SpanContext.t() -> result)) ::
           result
         when result: term()
   def with_span(ctx, tracer, name, opts, fun) do
