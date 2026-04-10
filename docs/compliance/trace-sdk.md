@@ -59,7 +59,7 @@
 
 ### Sampler — GetDescription
 
-- [ ] Callers SHOULD NOT cache the returned value of GetDescription — [L416](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L416)
+- [x] Callers SHOULD NOT cache the returned value of GetDescription — [L416](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L416)
 
 ### Built-in Samplers — AlwaysOn
 
