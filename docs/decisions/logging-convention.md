@@ -10,12 +10,17 @@ How does the SDK emit its own diagnostic messages? How to allow users to filter 
 
 Only log when the OTel spec explicitly requires it (SHOULD/MUST log). Do not add discretionary logs. Known spec-required log points:
 
-| Spec location | Trigger |
-|---|---|
-| trace/api.md L129 | Invalid tracer name |
-| error-handling.md L52 | Suppressed error |
-| trace/sdk.md L873 | Attribute truncation/discard due to limits |
-| sdk-environment-variables.md L72 | Invalid environment variable value |
+| Spec location | Trigger | Strength | Domain |
+|---|---|---|---|
+| error-handling.md L52 | Suppressed error | SHOULD | varies |
+| common/README.md L284 | Attribute truncated/discarded (max 1x per record) | MAY | varies |
+| trace/api.md L129 | Invalid tracer name | SHOULD | `[:otel, :trace]` |
+| trace/sdk.md L873 | Span limit exceeded (max 1x per span) | SHOULD | `[:otel, :trace]` |
+| metrics/sdk.md L130 | Invalid meter name | SHOULD | `[:otel, :metrics]` |
+| logs/sdk.md L78 | Invalid logger name | SHOULD | `[:otel, :logs]` |
+| logs/sdk.md L345 | LogRecord limit exceeded (max 1x per record) | SHOULD | `[:otel, :logs]` |
+| sdk-environment-variables.md L72 | Invalid boolean environment variable | SHOULD | `[:otel, :config]` |
+| sdk-environment-variables.md L120 | Invalid OTEL_TRACES_SAMPLER_ARG | MUST | `[:otel, :config]` |
 
 ### Use Erlang `:logger` with domain metadata
 
