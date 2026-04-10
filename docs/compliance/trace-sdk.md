@@ -16,17 +16,17 @@
 
 ### TracerProvider — Shutdown
 
-- [ ] Shutdown MUST be called only once for each TracerProvider instance — [L161](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L161)
-- [ ] After Shutdown, SDKs SHOULD return a valid no-op Tracer for subsequent get-Tracer calls — [L163](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L163)
-- [ ] Shutdown SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L165](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L165)
-- [ ] Shutdown SHOULD complete or abort within some timeout — [L168](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L168)
-- [ ] Shutdown MUST be implemented at least by invoking Shutdown within all internal processors — [L173](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L173)
+- [x] Shutdown MUST be called only once for each TracerProvider instance — [L161](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L161)
+- [x] After Shutdown, SDKs SHOULD return a valid no-op Tracer for subsequent get-Tracer calls — [L163](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L163)
+- [x] Shutdown SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L165](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L165)
+- [x] Shutdown SHOULD complete or abort within some timeout — [L168](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L168)
+- [x] Shutdown MUST be implemented at least by invoking Shutdown within all internal processors — [L173](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L173)
 
 ### TracerProvider — ForceFlush
 
-- [ ] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L179](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L179)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L182](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L182)
-- [ ] ForceFlush MUST invoke ForceFlush on all registered SpanProcessors — [L187](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L187)
+- [x] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L179](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L179)
+- [x] ForceFlush SHOULD complete or abort within some timeout — [L182](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L182)
+- [x] ForceFlush MUST invoke ForceFlush on all registered SpanProcessors — [L187](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L187)
 
 ### Additional Span Interfaces
 
