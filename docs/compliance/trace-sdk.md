@@ -79,10 +79,10 @@
 
 ### Span Limits
 
-- [ ] Span attributes MUST adhere to the common rules of attribute limits — [L836](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L836)
-- [ ] If SDK implements span limits, it MUST provide a way to change these limits via TracerProvider configuration — [L841](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L841)
-- [ ] The name of the configuration options SHOULD be EventCountLimit and LinkCountLimit — [L845](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L845)
-- [ ] Options class SHOULD be called SpanLimits — [L846](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L846)
+- [x] Span attributes MUST adhere to the common rules of attribute limits — [L836](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L836)
+- [x] If SDK implements span limits, it MUST provide a way to change these limits via TracerProvider configuration — [L841](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L841)
+- [x] The name of the configuration options SHOULD be EventCountLimit and LinkCountLimit — [L845](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L845)
+- [x] Options class SHOULD be called SpanLimits — [L846](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L846)
 - [ ] There SHOULD be a message printed in the SDK's log when attribute/event/link is discarded due to limit — [L873](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L873)
 - [ ] Discard message MUST be printed at most once per span — [L875](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L875)
 
