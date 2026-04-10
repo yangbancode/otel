@@ -27,7 +27,7 @@ defmodule Otel.API.Trace.TraceState do
 
   Invalid pairs are silently dropped.
   """
-  @spec new([{String.t(), String.t()}]) :: t()
+  @spec new(list :: [{String.t(), String.t()}]) :: t()
   def new(list) when is_list(list) do
     members =
       list
@@ -40,7 +40,7 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   Returns the value for `key`, or `""` if not found.
   """
-  @spec get(t(), String.t()) :: String.t()
+  @spec get(trace_state :: t(), key :: String.t()) :: String.t()
   def get(%__MODULE__{members: members}, key) do
     case List.keyfind(members, key, 0) do
       {_, value} -> value
@@ -53,7 +53,7 @@ defmodule Otel.API.Trace.TraceState do
 
   Returns the TraceState unchanged if key or value is invalid.
   """
-  @spec add(t(), String.t(), String.t()) :: t()
+  @spec add(trace_state :: t(), key :: String.t(), value :: String.t()) :: t()
   def add(%__MODULE__{members: members} = ts, key, value) do
     if valid_key?(key) and valid_value?(value) and length(members) < @max_members do
       %__MODULE__{ts | members: [{key, value} | members]}
@@ -68,7 +68,7 @@ defmodule Otel.API.Trace.TraceState do
   Returns the TraceState unchanged if the key does not exist
   or if key/value is invalid.
   """
-  @spec update(t(), String.t(), String.t()) :: t()
+  @spec update(trace_state :: t(), key :: String.t(), value :: String.t()) :: t()
   def update(%__MODULE__{members: members} = ts, key, value) do
     if valid_key?(key) and valid_value?(value) and List.keymember?(members, key, 0) do
       %__MODULE__{ts | members: [{key, value} | List.keydelete(members, key, 0)]}
@@ -80,7 +80,7 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   Removes the entry for `key`.
   """
-  @spec delete(t(), String.t()) :: t()
+  @spec delete(trace_state :: t(), key :: String.t()) :: t()
   def delete(%__MODULE__{members: members} = ts, key) do
     %__MODULE__{ts | members: List.keydelete(members, key, 0)}
   end
@@ -90,7 +90,7 @@ defmodule Otel.API.Trace.TraceState do
 
   Returns `""` for an empty TraceState.
   """
-  @spec encode(t()) :: String.t()
+  @spec encode(trace_state :: t()) :: String.t()
   def encode(%__MODULE__{members: []}), do: ""
 
   def encode(%__MODULE__{members: members}) do
@@ -103,7 +103,7 @@ defmodule Otel.API.Trace.TraceState do
   Invalid entries cause the entire header to be rejected (returns
   empty TraceState), per W3C spec.
   """
-  @spec decode(String.t()) :: t()
+  @spec decode(header :: String.t()) :: t()
   def decode(header) when is_binary(header) do
     pairs =
       header

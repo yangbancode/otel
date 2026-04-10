@@ -11,7 +11,12 @@ defmodule Otel.API.Trace.Tracer do
   @doc """
   Starts a new span. Returns the SpanContext of the created span.
   """
-  @callback start_span(Otel.API.Ctx.t(), t(), String.t(), keyword()) ::
+  @callback start_span(
+              ctx :: Otel.API.Ctx.t(),
+              tracer :: t(),
+              name :: String.t(),
+              opts :: keyword()
+            ) ::
               Otel.API.Trace.SpanContext.t()
 
   @doc """
@@ -21,5 +26,5 @@ defmodule Otel.API.Trace.Tracer do
   (L209: "the API MUST be structured in a way for parameters to
   be added").
   """
-  @callback enabled?(t(), keyword()) :: boolean()
+  @callback enabled?(tracer :: t(), opts :: keyword()) :: boolean()
 end
