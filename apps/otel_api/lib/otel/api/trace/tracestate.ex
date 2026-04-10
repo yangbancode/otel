@@ -121,18 +121,21 @@ defmodule Otel.API.Trace.TraceState do
 
   defp parse_pairs(raw_pairs) do
     Enum.reduce_while(raw_pairs, [], fn pair, acc ->
-      case String.split(pair, "=", parts: 2) do
-        [key, value] when value != "" ->
-          if valid_key?(key) and valid_value?(value) do
-            {:cont, List.keystore(acc, key, 0, {key, value})}
-          else
-            {:halt, :error}
-          end
-
-        _ ->
-          {:halt, :error}
+      case parse_pair(pair) do
+        {:ok, key, value} -> {:cont, List.keystore(acc, key, 0, {key, value})}
+        :error -> {:halt, :error}
       end
     end)
+  end
+
+  defp parse_pair(pair) do
+    case String.split(pair, "=", parts: 2) do
+      [key, value] when value != "" ->
+        if valid_key?(key) and valid_value?(value), do: {:ok, key, value}, else: :error
+
+      _ ->
+        :error
+    end
   end
 
   defp valid_key?(key) when is_binary(key), do: Regex.match?(@key_pattern, key)
