@@ -12,7 +12,7 @@ defmodule Otel.API.Ctx do
   """
 
   @type t :: map()
-  @opaque key :: {term(), reference()}
+  @type key :: term()
   @type value :: term()
   @opaque token :: t()
 
