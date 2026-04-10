@@ -9,28 +9,13 @@ defmodule Otel.API.Trace.SpanContextTest do
   @zero_span_id 0
 
   describe "new/2,3,4" do
-    test "creates valid context with non-zero IDs" do
+    test "creates context with non-zero IDs" do
       ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
       assert ctx.trace_id == @valid_trace_id
       assert ctx.span_id == @valid_span_id
       assert ctx.trace_flags == 0
       assert ctx.tracestate == []
-      assert ctx.is_valid == true
-    end
-
-    test "creates invalid context with zero trace_id" do
-      ctx = SpanContext.new(@zero_trace_id, @valid_span_id)
-      assert ctx.is_valid == false
-    end
-
-    test "creates invalid context with zero span_id" do
-      ctx = SpanContext.new(@valid_trace_id, @zero_span_id)
-      assert ctx.is_valid == false
-    end
-
-    test "creates invalid context with both zero" do
-      ctx = SpanContext.new(@zero_trace_id, @zero_span_id)
-      assert ctx.is_valid == false
+      assert ctx.is_remote == false
     end
 
     test "accepts trace_flags and tracestate" do
@@ -46,7 +31,17 @@ defmodule Otel.API.Trace.SpanContextTest do
       assert SpanContext.valid?(ctx) == true
     end
 
-    test "returns false for invalid context" do
+    test "returns false when trace_id is zero" do
+      ctx = SpanContext.new(@zero_trace_id, @valid_span_id)
+      assert SpanContext.valid?(ctx) == false
+    end
+
+    test "returns false when span_id is zero" do
+      ctx = SpanContext.new(@valid_trace_id, @zero_span_id)
+      assert SpanContext.valid?(ctx) == false
+    end
+
+    test "returns false when both are zero" do
       ctx = SpanContext.new(@zero_trace_id, @zero_span_id)
       assert SpanContext.valid?(ctx) == false
     end
@@ -123,15 +118,14 @@ defmodule Otel.API.Trace.SpanContextTest do
   end
 
   describe "struct defaults" do
-    test "default struct is invalid with all zeros" do
+    test "default struct has all zeros and is invalid" do
       ctx = %SpanContext{}
       assert ctx.trace_id == 0
       assert ctx.span_id == 0
       assert ctx.trace_flags == 0
       assert ctx.tracestate == []
-      assert ctx.is_valid == false
       assert ctx.is_remote == false
-      assert ctx.is_recording == false
+      assert SpanContext.valid?(ctx) == false
     end
   end
 end

@@ -16,27 +16,17 @@ defmodule Otel.API.Trace.SpanContext do
           span_id: span_id(),
           trace_flags: trace_flags(),
           tracestate: :otel_tracestate.t(),
-          is_valid: boolean(),
-          is_remote: boolean(),
-          is_recording: boolean()
+          is_remote: boolean()
         }
 
   defstruct trace_id: 0,
             span_id: 0,
             trace_flags: 0,
             tracestate: [],
-            is_valid: false,
-            is_remote: false,
-            is_recording: false
-
-  @invalid_trace_id 0
-  @invalid_span_id 0
+            is_remote: false
 
   @doc """
   Creates a new SpanContext.
-
-  `is_valid` is automatically set based on whether both trace_id and
-  span_id are non-zero.
   """
   @spec new(trace_id(), span_id(), trace_flags(), :otel_tracestate.t()) :: t()
   def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ []) do
@@ -44,8 +34,7 @@ defmodule Otel.API.Trace.SpanContext do
       trace_id: trace_id,
       span_id: span_id,
       trace_flags: trace_flags,
-      tracestate: tracestate,
-      is_valid: trace_id != @invalid_trace_id and span_id != @invalid_span_id
+      tracestate: tracestate
     }
   end
 
@@ -53,7 +42,9 @@ defmodule Otel.API.Trace.SpanContext do
   Returns `true` if the SpanContext has a non-zero trace_id and span_id.
   """
   @spec valid?(t()) :: boolean()
-  def valid?(%__MODULE__{is_valid: is_valid}), do: is_valid
+  def valid?(%__MODULE__{trace_id: trace_id, span_id: span_id}) do
+    trace_id != 0 and span_id != 0
+  end
 
   @doc """
   Returns `true` if the SpanContext was propagated from a remote parent.

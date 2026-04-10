@@ -16,11 +16,11 @@ defstruct [
   :span_id,
   trace_flags: 0,
   tracestate: [],
-  is_valid: false,
-  is_remote: false,
-  is_recording: false
+  is_remote: false
 ]
 ```
+
+Only spec-defined fields are stored. `IsValid` is a function that computes from trace_id and span_id, not a cached field. `is_recording` belongs to Span, not SpanContext.
 
 ### ID Representation
 
