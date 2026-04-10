@@ -3,6 +3,35 @@ defmodule Otel.API.CtxTest do
 
   alias Otel.API.Ctx
 
+  describe "create_key/1" do
+    test "returns a reference" do
+      key = Ctx.create_key("test")
+      assert is_reference(key)
+    end
+
+    test "same name returns different keys" do
+      key1 = Ctx.create_key("span")
+      key2 = Ctx.create_key("span")
+      assert key1 != key2
+    end
+
+    test "keys work with get_value/set_value" do
+      key = Ctx.create_key("my_key")
+      ctx = Ctx.set_value(Ctx.new(), key, "hello")
+      assert Ctx.get_value(ctx, key, nil) == "hello"
+    end
+
+    test "different keys with same name do not collide" do
+      key1 = Ctx.create_key("data")
+      key2 = Ctx.create_key("data")
+      ctx = Ctx.new()
+      ctx = Ctx.set_value(ctx, key1, "from_a")
+      ctx = Ctx.set_value(ctx, key2, "from_b")
+      assert Ctx.get_value(ctx, key1, nil) == "from_a"
+      assert Ctx.get_value(ctx, key2, nil) == "from_b"
+    end
+  end
+
   describe "new/0" do
     test "returns empty map" do
       assert Ctx.new() == %{}

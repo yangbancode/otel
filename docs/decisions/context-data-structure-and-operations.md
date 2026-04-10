@@ -34,6 +34,7 @@ Follows the same API shape as `otel_ctx` in opentelemetry-erlang:
 
 | Function | Description |
 |---|---|
+| `create_key/1` | Creates an opaque context key via `make_ref/0` |
 | `new/0` | Returns an empty context (`%{}`) |
 | `get_value/1,2,3` | Get value by key (implicit or explicit context) |
 | `set_value/2,3` | Set value by key (implicit or explicit context) |
