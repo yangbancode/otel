@@ -49,16 +49,29 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  Adds or updates a key/value pair.
+  Adds a new key/value pair to the front of the list.
 
-  The pair is moved to the front of the list per W3C spec.
   Returns the TraceState unchanged if key or value is invalid.
   """
-  @spec put(t(), String.t(), String.t()) :: t()
-  def put(%__MODULE__{members: members} = ts, key, value) do
-    if valid_key?(key) and valid_value?(value) do
-      new_members = [{key, value} | List.keydelete(members, key, 0)]
-      %__MODULE__{ts | members: Enum.take(new_members, @max_members)}
+  @spec add(t(), String.t(), String.t()) :: t()
+  def add(%__MODULE__{members: members} = ts, key, value) do
+    if valid_key?(key) and valid_value?(value) and length(members) < @max_members do
+      %__MODULE__{ts | members: [{key, value} | members]}
+    else
+      ts
+    end
+  end
+
+  @doc """
+  Updates an existing key's value and moves it to the front.
+
+  Returns the TraceState unchanged if the key does not exist
+  or if key/value is invalid.
+  """
+  @spec update(t(), String.t(), String.t()) :: t()
+  def update(%__MODULE__{members: members} = ts, key, value) do
+    if valid_key?(key) and valid_value?(value) and List.keymember?(members, key, 0) do
+      %__MODULE__{ts | members: [{key, value} | List.keydelete(members, key, 0)]}
     else
       ts
     end
@@ -101,7 +114,8 @@ defmodule Otel.API.Trace.TraceState do
 
     case pairs do
       :error -> new()
-      members -> %__MODULE__{members: Enum.take(members, @max_members)}
+      members when length(members) > @max_members -> new()
+      members -> %__MODULE__{members: members}
     end
   end
 

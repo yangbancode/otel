@@ -46,37 +46,57 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
   end
 
-  describe "put/3" do
+  describe "add/3" do
     test "adds new key/value pair to front" do
       ts = TraceState.new([{"existing", "data"}])
-      ts = TraceState.put(ts, "new", "value")
+      ts = TraceState.add(ts, "new", "value")
       assert ts.members == [{"new", "value"}, {"existing", "data"}]
-    end
-
-    test "updates existing key and moves to front" do
-      ts = TraceState.new([{"a", "1"}, {"b", "2"}, {"c", "3"}])
-      ts = TraceState.put(ts, "b", "updated")
-      assert ts.members == [{"b", "updated"}, {"a", "1"}, {"c", "3"}]
     end
 
     test "returns unchanged on invalid key" do
       ts = TraceState.new([{"valid", "data"}])
-      ts2 = TraceState.put(ts, "INVALID", "value")
+      ts2 = TraceState.add(ts, "INVALID", "value")
       assert ts2 == ts
     end
 
     test "returns unchanged on invalid value" do
       ts = TraceState.new([{"valid", "data"}])
-      ts2 = TraceState.put(ts, "key", "")
+      ts2 = TraceState.add(ts, "key", "")
       assert ts2 == ts
     end
 
-    test "enforces max 32 members on put" do
+    test "returns unchanged when at max 32 members" do
       pairs = for i <- 1..32, do: {"key#{i}", "val#{i}"}
       ts = TraceState.new(pairs)
-      ts = TraceState.put(ts, "extra", "value")
-      assert length(ts.members) == 32
-      assert TraceState.get(ts, "extra") == "value"
+      ts2 = TraceState.add(ts, "extra", "value")
+      assert length(ts2.members) == 32
+      assert TraceState.get(ts2, "extra") == ""
+    end
+  end
+
+  describe "update/3" do
+    test "updates existing key and moves to front" do
+      ts = TraceState.new([{"a", "1"}, {"b", "2"}, {"c", "3"}])
+      ts = TraceState.update(ts, "b", "updated")
+      assert ts.members == [{"b", "updated"}, {"a", "1"}, {"c", "3"}]
+    end
+
+    test "returns unchanged when key does not exist" do
+      ts = TraceState.new([{"a", "1"}])
+      ts2 = TraceState.update(ts, "missing", "value")
+      assert ts2 == ts
+    end
+
+    test "returns unchanged on invalid key" do
+      ts = TraceState.new([{"valid", "data"}])
+      ts2 = TraceState.update(ts, "INVALID", "value")
+      assert ts2 == ts
+    end
+
+    test "returns unchanged on invalid value" do
+      ts = TraceState.new([{"valid", "data"}])
+      ts2 = TraceState.update(ts, "valid", "")
+      assert ts2 == ts
     end
   end
 
@@ -131,10 +151,10 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert ts.members == []
     end
 
-    test "limits to 32 members" do
+    test "rejects header with more than 32 members" do
       header = Enum.map_join(1..40, ",", fn i -> "key#{i}=val#{i}" end)
       ts = TraceState.decode(header)
-      assert length(ts.members) == 32
+      assert ts.members == []
     end
 
     test "deduplicates keys keeping last occurrence" do
@@ -145,45 +165,45 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "key validation" do
     test "accepts simple key" do
-      ts = TraceState.put(TraceState.new(), "vendor", "val")
+      ts = TraceState.add(TraceState.new(), "vendor", "val")
       assert TraceState.get(ts, "vendor") == "val"
     end
 
     test "accepts key with allowed chars" do
-      ts = TraceState.put(TraceState.new(), "my-vendor_key/1*2", "val")
+      ts = TraceState.add(TraceState.new(), "my-vendor_key/1*2", "val")
       assert TraceState.get(ts, "my-vendor_key/1*2") == "val"
     end
 
     test "accepts multi-tenant key" do
-      ts = TraceState.put(TraceState.new(), "1tenant@vendor", "val")
+      ts = TraceState.add(TraceState.new(), "1tenant@vendor", "val")
       assert TraceState.get(ts, "1tenant@vendor") == "val"
     end
 
     test "rejects uppercase key" do
-      ts = TraceState.put(TraceState.new(), "Vendor", "val")
+      ts = TraceState.add(TraceState.new(), "Vendor", "val")
       assert ts.members == []
     end
 
     test "rejects empty key" do
-      ts = TraceState.put(TraceState.new(), "", "val")
+      ts = TraceState.add(TraceState.new(), "", "val")
       assert ts.members == []
     end
 
     test "rejects non-binary key" do
-      ts = TraceState.put(TraceState.new(), :atom_key, "val")
+      ts = TraceState.add(TraceState.new(), :atom_key, "val")
       assert ts.members == []
     end
 
     test "rejects non-binary value" do
-      ts = TraceState.put(TraceState.new(), "key", 123)
+      ts = TraceState.add(TraceState.new(), "key", 123)
       assert ts.members == []
     end
   end
 
   describe "immutability" do
-    test "put returns new tracestate" do
+    test "add returns new tracestate" do
       ts1 = TraceState.new([{"a", "1"}])
-      ts2 = TraceState.put(ts1, "b", "2")
+      ts2 = TraceState.add(ts1, "b", "2")
       assert ts1.members == [{"a", "1"}]
       assert ts2.members == [{"b", "2"}, {"a", "1"}]
     end

@@ -119,6 +119,44 @@ defmodule Otel.API.Trace.SpanContextTest do
     end
   end
 
+  describe "trace_id_bytes/1" do
+    test "returns 16-byte binary" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      bytes = SpanContext.trace_id_bytes(ctx)
+      assert byte_size(bytes) == 16
+    end
+
+    test "zero trace_id returns 16 zero bytes" do
+      ctx = SpanContext.new(@zero_trace_id, @valid_span_id)
+      assert SpanContext.trace_id_bytes(ctx) == <<0::128>>
+    end
+
+    test "roundtrips with integer" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      <<roundtrip::unsigned-integer-size(128)>> = SpanContext.trace_id_bytes(ctx)
+      assert roundtrip == @valid_trace_id
+    end
+  end
+
+  describe "span_id_bytes/1" do
+    test "returns 8-byte binary" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      bytes = SpanContext.span_id_bytes(ctx)
+      assert byte_size(bytes) == 8
+    end
+
+    test "zero span_id returns 8 zero bytes" do
+      ctx = SpanContext.new(@valid_trace_id, @zero_span_id)
+      assert SpanContext.span_id_bytes(ctx) == <<0::64>>
+    end
+
+    test "roundtrips with integer" do
+      ctx = SpanContext.new(@valid_trace_id, @valid_span_id)
+      <<roundtrip::unsigned-integer-size(64)>> = SpanContext.span_id_bytes(ctx)
+      assert roundtrip == @valid_span_id
+    end
+  end
+
   describe "struct defaults" do
     test "default struct has all zeros and is invalid" do
       ctx = %SpanContext{}

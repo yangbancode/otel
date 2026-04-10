@@ -83,4 +83,20 @@ defmodule Otel.API.Trace.SpanContext do
     |> String.downcase()
     |> String.pad_leading(16, "0")
   end
+
+  @doc """
+  Returns the trace_id as a 16-byte binary.
+  """
+  @spec trace_id_bytes(t()) :: <<_::128>>
+  def trace_id_bytes(%__MODULE__{trace_id: trace_id}) do
+    <<trace_id::unsigned-integer-size(128)>>
+  end
+
+  @doc """
+  Returns the span_id as an 8-byte binary.
+  """
+  @spec span_id_bytes(t()) :: <<_::64>>
+  def span_id_bytes(%__MODULE__{span_id: span_id}) do
+    <<span_id::unsigned-integer-size(64)>>
+  end
 end
