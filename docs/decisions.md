@@ -11,6 +11,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### Foundation
 - [x] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
 - [x] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
+- [x] [Logging Convention](decisions/logging-convention.md)
 - [x] [GitHub Actions CI](decisions/github-actions-ci.md)
 
 ### Context
