@@ -10,6 +10,12 @@ defmodule Otel.API.CtxTest do
       assert is_reference(ref)
     end
 
+    test "accepts atom name" do
+      {name, ref} = Ctx.create_key(:span)
+      assert name == :span
+      assert is_reference(ref)
+    end
+
     test "same name returns different keys" do
       key1 = Ctx.create_key("span")
       key2 = Ctx.create_key("span")
