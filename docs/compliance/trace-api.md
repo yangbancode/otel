@@ -165,33 +165,33 @@
 
 ### Wrapping a SpanContext in a Span
 
-- [ ] API MUST provide an operation for wrapping a SpanContext with an object implementing the Span interface — [L720](../references/opentelemetry-specification/v1.55.0/trace/api.md#L720)
-- [ ] If a new type is required, it SHOULD NOT be exposed publicly if possible — [L724](../references/opentelemetry-specification/v1.55.0/trace/api.md#L724)
-- [ ] If a new type must be publicly exposed, it SHOULD be named NonRecordingSpan — [L727](../references/opentelemetry-specification/v1.55.0/trace/api.md#L727)
-- [ ] GetContext MUST return the wrapped SpanContext — [L731](../references/opentelemetry-specification/v1.55.0/trace/api.md#L731)
-- [ ] IsRecording MUST return false — [L732](../references/opentelemetry-specification/v1.55.0/trace/api.md#L732)
-- [ ] The remaining functionality of Span MUST be defined as no-op operations — [L735](../references/opentelemetry-specification/v1.55.0/trace/api.md#L735)
-- [ ] Wrapping functionality MUST be fully implemented in the API — [L739](../references/opentelemetry-specification/v1.55.0/trace/api.md#L739)
-- [ ] Wrapping functionality SHOULD NOT be overridable — [L739](../references/opentelemetry-specification/v1.55.0/trace/api.md#L739)
+- [x] API MUST provide an operation for wrapping a SpanContext with an object implementing the Span interface — [L720](../references/opentelemetry-specification/v1.55.0/trace/api.md#L720)
+- [x] If a new type is required, it SHOULD NOT be exposed publicly if possible — [L724](../references/opentelemetry-specification/v1.55.0/trace/api.md#L724)
+- [x] If a new type must be publicly exposed, it SHOULD be named NonRecordingSpan — [L727](../references/opentelemetry-specification/v1.55.0/trace/api.md#L727)
+- [x] GetContext MUST return the wrapped SpanContext — [L731](../references/opentelemetry-specification/v1.55.0/trace/api.md#L731)
+- [x] IsRecording MUST return false — [L732](../references/opentelemetry-specification/v1.55.0/trace/api.md#L732)
+- [x] The remaining functionality of Span MUST be defined as no-op operations — [L735](../references/opentelemetry-specification/v1.55.0/trace/api.md#L735)
+- [x] Wrapping functionality MUST be fully implemented in the API — [L739](../references/opentelemetry-specification/v1.55.0/trace/api.md#L739)
+- [x] Wrapping functionality SHOULD NOT be overridable — [L739](../references/opentelemetry-specification/v1.55.0/trace/api.md#L739)
 
 ### Link
 
-- [ ] A user MUST have the ability to record links to other SpanContexts — [L805](../references/opentelemetry-specification/v1.55.0/trace/api.md#L805)
-- [ ] API MUST provide an API to record a single Link — [L815](../references/opentelemetry-specification/v1.55.0/trace/api.md#L815)
+- [x] A user MUST have the ability to record links to other SpanContexts — [L805](../references/opentelemetry-specification/v1.55.0/trace/api.md#L805)
+- [x] API MUST provide an API to record a single Link — [L815](../references/opentelemetry-specification/v1.55.0/trace/api.md#L815)
 - [ ] Implementations SHOULD record links containing SpanContext with empty TraceId or SpanId as long as either attribute set or TraceState is non-empty — [L821](../references/opentelemetry-specification/v1.55.0/trace/api.md#L821)
 - [ ] Span SHOULD preserve the order in which Links are set — [L830](../references/opentelemetry-specification/v1.55.0/trace/api.md#L830)
-- [ ] API documentation MUST state that adding links at span creation is preferred to calling AddLink later — [L832](../references/opentelemetry-specification/v1.55.0/trace/api.md#L832)
+- [x] API documentation MUST state that adding links at span creation is preferred to calling AddLink later — [L832](../references/opentelemetry-specification/v1.55.0/trace/api.md#L832)
 
 ### Concurrency Requirements
 
-- [ ] TracerProvider — all methods MUST be safe for concurrent use — [L842](../references/opentelemetry-specification/v1.55.0/trace/api.md#L842)
-- [ ] Tracer — all methods MUST be safe for concurrent use — [L845](../references/opentelemetry-specification/v1.55.0/trace/api.md#L845)
-- [ ] Span — all methods MUST be safe for concurrent use — [L848](../references/opentelemetry-specification/v1.55.0/trace/api.md#L848)
-- [ ] Event — Events are immutable and MUST be safe for concurrent use — [L851](../references/opentelemetry-specification/v1.55.0/trace/api.md#L851)
-- [ ] Link — Links are immutable and SHOULD be safe for concurrent use — [L853](../references/opentelemetry-specification/v1.55.0/trace/api.md#L853)
+- [x] TracerProvider — all methods MUST be safe for concurrent use — [L842](../references/opentelemetry-specification/v1.55.0/trace/api.md#L842)
+- [x] Tracer — all methods MUST be safe for concurrent use — [L845](../references/opentelemetry-specification/v1.55.0/trace/api.md#L845)
+- [x] Span — all methods MUST be safe for concurrent use — [L848](../references/opentelemetry-specification/v1.55.0/trace/api.md#L848)
+- [x] Event — Events are immutable and MUST be safe for concurrent use — [L851](../references/opentelemetry-specification/v1.55.0/trace/api.md#L851)
+- [x] Link — Links are immutable and SHOULD be safe for concurrent use — [L853](../references/opentelemetry-specification/v1.55.0/trace/api.md#L853)
 
 ### Behavior of the API in the absence of an installed SDK
 
-- [ ] API MUST return a non-recording Span with the SpanContext in the parent Context — [L865](../references/opentelemetry-specification/v1.55.0/trace/api.md#L865)
-- [ ] If the Span in the parent Context is already non-recording, it SHOULD be returned directly without instantiating a new Span — [L867](../references/opentelemetry-specification/v1.55.0/trace/api.md#L867)
-- [ ] If parent Context contains no Span, an empty non-recording Span MUST be returned (all-zero Span and Trace IDs, empty Tracestate, unsampled TraceFlags) — [L869](../references/opentelemetry-specification/v1.55.0/trace/api.md#L869)
+- [x] API MUST return a non-recording Span with the SpanContext in the parent Context — [L865](../references/opentelemetry-specification/v1.55.0/trace/api.md#L865)
+- [x] If the Span in the parent Context is already non-recording, it SHOULD be returned directly without instantiating a new Span — [L867](../references/opentelemetry-specification/v1.55.0/trace/api.md#L867)
+- [x] If parent Context contains no Span, an empty non-recording Span MUST be returned (all-zero Span and Trace IDs, empty Tracestate, unsampled TraceFlags) — [L869](../references/opentelemetry-specification/v1.55.0/trace/api.md#L869)
