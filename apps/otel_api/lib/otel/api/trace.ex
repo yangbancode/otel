@@ -13,6 +13,21 @@ defmodule Otel.API.Trace do
   @type start_opts :: Span.start_opts()
 
   @span_key :"__otel.trace.span__"
+  @span_pt_key {__MODULE__, :span_key}
+
+  @doc false
+  @spec span_key() :: Ctx.key()
+  def span_key do
+    case :persistent_term.get(@span_pt_key, nil) do
+      nil ->
+        key = Ctx.create_key(@span_key)
+        :persistent_term.put(@span_pt_key, key)
+        key
+
+      key ->
+        key
+    end
+  end
 
   @doc """
   Returns a Tracer for the given instrumentation scope.
@@ -27,7 +42,7 @@ defmodule Otel.API.Trace do
   """
   @spec current_span(Ctx.t()) :: SpanContext.t()
   def current_span(ctx) do
-    Ctx.get_value(ctx, @span_key, %SpanContext{})
+    Ctx.get_value(ctx, span_key(), %SpanContext{})
   end
 
   @doc """
@@ -35,7 +50,7 @@ defmodule Otel.API.Trace do
   """
   @spec set_current_span(Ctx.t(), SpanContext.t()) :: Ctx.t()
   def set_current_span(ctx, span_ctx) do
-    Ctx.set_value(ctx, @span_key, span_ctx)
+    Ctx.set_value(ctx, span_key(), span_ctx)
   end
 
   @doc """
@@ -43,7 +58,7 @@ defmodule Otel.API.Trace do
   """
   @spec current_span() :: SpanContext.t()
   def current_span do
-    Ctx.get_value(@span_key, %SpanContext{})
+    Ctx.get_value(span_key(), %SpanContext{})
   end
 
   @doc """
@@ -51,7 +66,7 @@ defmodule Otel.API.Trace do
   """
   @spec set_current_span(SpanContext.t()) :: :ok
   def set_current_span(span_ctx) do
-    Ctx.set_value(@span_key, span_ctx)
+    Ctx.set_value(span_key(), span_ctx)
   end
 
   # --- Span Creation ---

@@ -34,6 +34,7 @@ Follows the same API shape as `otel_ctx` in opentelemetry-erlang:
 
 | Function | Description |
 |---|---|
+| `create_key/1` | Creates an opaque context key via `make_ref/0` |
 | `new/0` | Returns an empty context (`%{}`) |
 | `get_value/1,2,3` | Get value by key (implicit or explicit context) |
 | `set_value/2,3` | Set value by key (implicit or explicit context) |
@@ -42,6 +43,10 @@ Follows the same API shape as `otel_ctx` in opentelemetry-erlang:
 | `get_current/0` | Get current process context |
 | `attach/1` | Set current process context, return token |
 | `detach/1` | Restore context from token |
+
+### Note on CreateKey and BEAM
+
+The spec's `CreateKey` exists to prevent key collisions when multiple libraries share a single Context object (common in Java, Python, Go). On BEAM this problem does not exist: processes are isolated, module attributes are private, and OTel is the sole Context user. Erlang's opentelemetry-erlang does not implement `CreateKey` for this reason. We implement it for spec compliance, but it is effectively ceremony on BEAM.
 
 ## Compliance
 

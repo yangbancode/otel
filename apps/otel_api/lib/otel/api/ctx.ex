@@ -12,11 +12,21 @@ defmodule Otel.API.Ctx do
   """
 
   @type t :: map()
-  @type key :: term()
+  @opaque key :: {term(), reference()}
   @type value :: term()
   @opaque token :: t()
 
-  @ctx_key :"$__current_otel_ctx"
+  @ctx_key :"__otel.ctx__"
+
+  @doc """
+  Creates a new opaque context key.
+
+  Multiple calls with the same name return different keys (L65).
+  The name exists for debugging purposes and does not uniquely
+  identify the key (L65). Uniqueness is guaranteed by `make_ref/0`.
+  """
+  @spec create_key(term()) :: key()
+  def create_key(name), do: {name, make_ref()}
 
   @doc """
   Returns an empty context.
