@@ -10,12 +10,13 @@ defmodule Otel.API.Trace.SpanContext do
   @type trace_id :: non_neg_integer()
   @type span_id :: non_neg_integer()
   @type trace_flags :: non_neg_integer()
+  @type tracestate :: [{String.t(), String.t()}]
 
   @type t :: %__MODULE__{
           trace_id: trace_id(),
           span_id: span_id(),
           trace_flags: trace_flags(),
-          tracestate: :otel_tracestate.t(),
+          tracestate: tracestate(),
           is_remote: boolean()
         }
 
@@ -28,7 +29,7 @@ defmodule Otel.API.Trace.SpanContext do
   @doc """
   Creates a new SpanContext.
   """
-  @spec new(trace_id(), span_id(), trace_flags(), :otel_tracestate.t()) :: t()
+  @spec new(trace_id(), span_id(), trace_flags(), tracestate()) :: t()
   def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ []) do
     %__MODULE__{
       trace_id: trace_id,
