@@ -14,7 +14,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
           processors: [{module(), map()}],
           id_generator: module(),
           resource: map(),
-          span_limits: map()
+          span_limits: Otel.SDK.Trace.SpanLimits.t()
         }
 
   @default_config %{
@@ -22,13 +22,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
     processors: [],
     id_generator: Otel.SDK.Trace.IdGenerator.Default,
     resource: %{},
-    span_limits: %{
-      attribute_count_limit: 128,
-      event_count_limit: 128,
-      link_count_limit: 128,
-      attribute_per_event_count_limit: 128,
-      attribute_per_link_count_limit: 128
-    }
+    span_limits: %Otel.SDK.Trace.SpanLimits{}
   }
 
   # --- Client API ---
