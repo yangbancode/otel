@@ -28,7 +28,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
       link_count_limit: 128,
       attribute_per_event_count_limit: 128,
       attribute_per_link_count_limit: 128
-    }
+    },
+    processor_timeout: 5000
   }
 
   # --- Client API ---
@@ -120,7 +121,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   end
 
   def handle_call(:shutdown, _from, config) do
-    result = invoke_all_processors(config.processors, :shutdown)
+    result = invoke_all_processors(config.processors, :shutdown, config.processor_timeout)
     {:reply, result, %{config | shut_down: true}}
   end
 
@@ -129,7 +130,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   end
 
   def handle_call(:force_flush, _from, config) do
-    result = invoke_all_processors(config.processors, :force_flush)
+    result = invoke_all_processors(config.processors, :force_flush, config.processor_timeout)
     {:reply, result, config}
   end
 
@@ -141,22 +142,47 @@ defmodule Otel.SDK.Trace.TracerProvider do
     {:reply, config, config}
   end
 
-  defp invoke_all_processors(processors, function) do
+  defp invoke_all_processors(processors, function, timeout) do
     results =
       Enum.reduce(processors, [], fn {processor, processor_config}, errors ->
-        try do
-          case apply(processor, function, [processor_config]) do
-            :ok -> errors
-            {:error, reason} -> [{processor, reason} | errors]
-          end
-        catch
-          kind, reason -> [{processor, {kind, reason}} | errors]
+        case invoke_processor(processor, function, processor_config, timeout) do
+          :ok -> errors
+          {:error, reason} -> [{processor, reason} | errors]
         end
       end)
 
     case results do
       [] -> :ok
       errors -> {:error, Enum.reverse(errors)}
+    end
+  end
+
+  defp invoke_processor(processor, function, processor_config, timeout) do
+    caller = self()
+    ref = make_ref()
+
+    {pid, monitor_ref} =
+      spawn_monitor(fn ->
+        result = apply(processor, function, [processor_config])
+        send(caller, {ref, result})
+      end)
+
+    receive do
+      {^ref, :ok} ->
+        Process.demonitor(monitor_ref, [:flush])
+        :ok
+
+      {^ref, {:error, reason}} ->
+        Process.demonitor(monitor_ref, [:flush])
+        {:error, reason}
+
+      {:DOWN, ^monitor_ref, :process, ^pid, reason} ->
+        {:error, {:exit, reason}}
+    after
+      timeout ->
+        Process.demonitor(monitor_ref, [:flush])
+        Process.exit(pid, :kill)
+        {:error, :timeout}
     end
   end
 end
