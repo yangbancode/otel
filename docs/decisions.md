@@ -12,11 +12,6 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
 - [x] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
 
-### Common
-- [ ] [AnyValue Type System](decisions/anyvalue-type-system.md)
-- [ ] [Attribute & Attribute Collections](decisions/attribute-and-attribute-collections.md)
-- [ ] [Attribute Limits](decisions/attribute-limits.md)
-
 ### Context
 - [ ] [Context Data Structure & Operations](decisions/context-data-structure-and-operations.md)
 - [ ] [Context Attach/Detach & Process-Local Storage](decisions/context-attach-detach-and-process-local-storage.md)
