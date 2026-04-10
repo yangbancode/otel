@@ -4,32 +4,35 @@
 
 ### TracerProvider
 
-- [ ] API SHOULD provide a way to set/register and access a global default TracerProvider — [L96](../references/opentelemetry-specification/v1.55.0/trace/api.md#L96)
-- [ ] Implementations of TracerProvider SHOULD allow creating an arbitrary number of TracerProvider instances — [L104](../references/opentelemetry-specification/v1.55.0/trace/api.md#L104)
-- [ ] TracerProvider MUST provide the function: Get a Tracer — [L109](../references/opentelemetry-specification/v1.55.0/trace/api.md#L109)
+- [x] API SHOULD provide a way to set/register and access a global default TracerProvider — [L96](../references/opentelemetry-specification/v1.55.0/trace/api.md#L96)
+- [x] Implementations of TracerProvider SHOULD allow creating an arbitrary number of TracerProvider instances — [L104](../references/opentelemetry-specification/v1.55.0/trace/api.md#L104)
+- [x] TracerProvider MUST provide the function: Get a Tracer — [L109](../references/opentelemetry-specification/v1.55.0/trace/api.md#L109)
 
 ### Get a Tracer
 
-- [ ] Get a Tracer API MUST accept `name` parameter — [L115](../references/opentelemetry-specification/v1.55.0/trace/api.md#L115)
-- [ ] `name` SHOULD uniquely identify the instrumentation scope — [L117](../references/opentelemetry-specification/v1.55.0/trace/api.md#L117)
-- [ ] If invalid name (null or empty string), a working Tracer MUST be returned as fallback rather than returning null or throwing an exception — [L126](../references/opentelemetry-specification/v1.55.0/trace/api.md#L126)
-- [ ] If invalid name, Tracer's `name` property SHOULD be set to an empty string — [L128](../references/opentelemetry-specification/v1.55.0/trace/api.md#L128)
-- [ ] If invalid name, a message reporting that the specified value is invalid SHOULD be logged — [L129](../references/opentelemetry-specification/v1.55.0/trace/api.md#L129)
-- [ ] Implementations MUST NOT require users to repeatedly obtain a Tracer with the same identity to pick up configuration changes — [L146](../references/opentelemetry-specification/v1.55.0/trace/api.md#L146)
+- [x] Get a Tracer API MUST accept `name` parameter — [L115](../references/opentelemetry-specification/v1.55.0/trace/api.md#L115)
+- [x] `name` SHOULD uniquely identify the instrumentation scope — [L117](../references/opentelemetry-specification/v1.55.0/trace/api.md#L117)
+- [x] If invalid name (null or empty string), a working Tracer MUST be returned as fallback rather than returning null or throwing an exception — [L126](../references/opentelemetry-specification/v1.55.0/trace/api.md#L126)
+- [x] If invalid name, Tracer's `name` property SHOULD be set to an empty string — [L128](../references/opentelemetry-specification/v1.55.0/trace/api.md#L128)
+- [x] If invalid name, a message reporting that the specified value is invalid SHOULD be logged — [L129](../references/opentelemetry-specification/v1.55.0/trace/api.md#L129)
+- [x] Get a Tracer API SHOULD accept `attributes` parameter (since 1.13.0) — [L139](../references/opentelemetry-specification/v1.55.0/trace/api.md#L139)
+- [x] Implementations MUST NOT require users to repeatedly obtain a Tracer with the same identity to pick up configuration changes — [L146](../references/opentelemetry-specification/v1.55.0/trace/api.md#L146)
 
 ### Context Interaction
 
-- [ ] API MUST provide functionality to extract the Span from a Context instance — [L164](../references/opentelemetry-specification/v1.55.0/trace/api.md#L164)
-- [ ] API MUST provide functionality to combine the Span with a Context instance, creating a new Context instance — [L164](../references/opentelemetry-specification/v1.55.0/trace/api.md#L164)
-- [ ] API users SHOULD NOT have access to the Context Key used by the Tracing API implementation — [L170](../references/opentelemetry-specification/v1.55.0/trace/api.md#L170)
-- [ ] If language has implicit Context propagation, API SHOULD provide get currently active span from implicit context — [L174](../references/opentelemetry-specification/v1.55.0/trace/api.md#L174)
-- [ ] If language has implicit Context propagation, API SHOULD provide set currently active span into implicit context — [L174](../references/opentelemetry-specification/v1.55.0/trace/api.md#L174)
-- [ ] Context interaction functionality SHOULD be fully implemented in the API when possible — [L182](../references/opentelemetry-specification/v1.55.0/trace/api.md#L182)
+- [x] API MUST provide functionality to extract the Span from a Context instance — [L164](../references/opentelemetry-specification/v1.55.0/trace/api.md#L164)
+- [x] API MUST provide functionality to combine the Span with a Context instance, creating a new Context instance — [L164](../references/opentelemetry-specification/v1.55.0/trace/api.md#L164)
+- [x] API users SHOULD NOT have access to the Context Key used by the Tracing API implementation — [L170](../references/opentelemetry-specification/v1.55.0/trace/api.md#L170)
+- [x] If language has implicit Context propagation, API SHOULD provide get currently active span from implicit context — [L174](../references/opentelemetry-specification/v1.55.0/trace/api.md#L174)
+- [x] If language has implicit Context propagation, API SHOULD provide set currently active span into implicit context — [L174](../references/opentelemetry-specification/v1.55.0/trace/api.md#L174)
+- [x] Context interaction functionality SHOULD be fully implemented in the API when possible — [L182](../references/opentelemetry-specification/v1.55.0/trace/api.md#L182)
 
 ### Tracer
 
-- [ ] Tracer MUST provide function to create a new Span — [L193](../references/opentelemetry-specification/v1.55.0/trace/api.md#L193)
-- [ ] Tracer SHOULD provide function to report if Tracer is Enabled — [L197](../references/opentelemetry-specification/v1.55.0/trace/api.md#L197)
+- [x] Tracer MUST provide function to create a new Span — [L193](../references/opentelemetry-specification/v1.55.0/trace/api.md#L193)
+- [x] Tracer SHOULD provide function to report if Tracer is Enabled — [L197](../references/opentelemetry-specification/v1.55.0/trace/api.md#L197)
+- [x] Enabled API MUST be structured in a way for parameters to be added — [L209](../references/opentelemetry-specification/v1.55.0/trace/api.md#L209)
+- [x] Enabled API MUST return a language idiomatic boolean type — [L212](../references/opentelemetry-specification/v1.55.0/trace/api.md#L212)
 
 ### SpanContext
 
