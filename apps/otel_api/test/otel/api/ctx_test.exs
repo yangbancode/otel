@@ -82,6 +82,10 @@ defmodule Otel.API.CtxTest do
       assert Ctx.get_value(:key) == nil
     end
 
+    test "remove/1 is safe when no context exists" do
+      assert Ctx.remove(:key) == :ok
+    end
+
     test "clear/0 removes all values" do
       Ctx.set_value(:a, 1)
       Ctx.set_value(:b, 2)
