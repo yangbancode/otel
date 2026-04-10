@@ -6,9 +6,7 @@ defmodule Otel.API.Trace.TracerProvider do
   When no SDK is installed, all operations return no-op tracers.
   """
 
-  alias Otel.API.Trace.{InstrumentationScope, Tracer}
-
-  @default_tracer {Tracer.Noop, []}
+  @default_tracer {Otel.API.Trace.Tracer.Noop, []}
 
   @provider_key {__MODULE__, :global}
   @tracer_key_prefix {__MODULE__, :tracer}
@@ -36,7 +34,7 @@ defmodule Otel.API.Trace.TracerProvider do
   Invalid name (nil or empty) returns a working Tracer with empty
   name and logs a warning. Tracers are cached in `persistent_term`.
   """
-  @spec get_tracer(String.t(), String.t(), String.t() | nil, map()) :: Tracer.t()
+  @spec get_tracer(String.t(), String.t(), String.t() | nil, map()) :: Otel.API.Trace.Tracer.t()
   def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
     key = {@tracer_key_prefix, {name, version, schema_url}}
@@ -56,9 +54,10 @@ defmodule Otel.API.Trace.TracerProvider do
   Returns the InstrumentationScope for a tracer obtained with the
   given parameters.
   """
-  @spec scope(String.t(), String.t(), String.t() | nil, map()) :: InstrumentationScope.t()
+  @spec scope(String.t(), String.t(), String.t() | nil, map()) ::
+          Otel.API.Trace.InstrumentationScope.t()
   def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    %InstrumentationScope{
+    %Otel.API.Trace.InstrumentationScope{
       name: name,
       version: version,
       schema_url: schema_url,

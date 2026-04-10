@@ -9,12 +9,10 @@ defmodule Otel.SDK.Trace.Tracer do
 
   @behaviour Otel.API.Trace.Tracer
 
-  alias Otel.API.Trace.SpanContext
-
   @impl true
   def start_span(_ctx, _tracer, _name, _opts) do
     # Stub — full implementation in SDK Span Creation Flow decision
-    %SpanContext{}
+    %Otel.API.Trace.SpanContext{}
   end
 
   @impl true
