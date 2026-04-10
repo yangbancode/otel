@@ -15,6 +15,7 @@
 - [x] If invalid name (null or empty string), a working Tracer MUST be returned as fallback rather than returning null or throwing an exception — [L126](../references/opentelemetry-specification/v1.55.0/trace/api.md#L126)
 - [x] If invalid name, Tracer's `name` property SHOULD be set to an empty string — [L128](../references/opentelemetry-specification/v1.55.0/trace/api.md#L128)
 - [x] If invalid name, a message reporting that the specified value is invalid SHOULD be logged — [L129](../references/opentelemetry-specification/v1.55.0/trace/api.md#L129)
+- [x] Get a Tracer API SHOULD accept `attributes` parameter (since 1.13.0) — [L139](../references/opentelemetry-specification/v1.55.0/trace/api.md#L139)
 - [x] Implementations MUST NOT require users to repeatedly obtain a Tracer with the same identity to pick up configuration changes — [L146](../references/opentelemetry-specification/v1.55.0/trace/api.md#L146)
 
 ### Context Interaction

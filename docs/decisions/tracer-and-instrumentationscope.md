@@ -12,7 +12,7 @@ A `{module, config}` tuple, same as opentelemetry-erlang. The module implements 
 
 ### InstrumentationScope
 
-A simple struct with name, version, and schema_url. Identifies the instrumentation library that produced telemetry.
+A simple struct with name, version, schema_url, and attributes (since spec v1.13.0). Identifies the instrumentation library that produced telemetry.
 
 ### Modules
 
