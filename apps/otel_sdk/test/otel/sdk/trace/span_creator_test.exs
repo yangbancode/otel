@@ -49,6 +49,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
                        )
   @always_off_sampler Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.AlwaysOff, %{}})
   @id_generator Otel.SDK.Trace.IdGenerator.Default
+  @span_limits %Otel.SDK.Trace.SpanLimits{}
 
   describe "root span creation" do
     test "generates new trace_id and span_id" do
@@ -60,6 +61,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "root_span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -81,6 +83,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "root_span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -97,6 +100,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "root_span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -113,6 +117,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "forced_root",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           is_root: true
         )
 
@@ -132,6 +137,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "child_span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -151,6 +157,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "child_span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -169,6 +176,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "sampled",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -187,6 +195,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "record_only",
           @record_only_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -205,6 +214,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "dropped",
           @always_off_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -221,6 +231,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "dropped",
           @always_off_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
@@ -238,6 +249,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "server_span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           kind: :server
         )
 
@@ -253,6 +265,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           attributes: %{key: "val"}
         )
 
@@ -269,6 +282,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           start_time: ts
         )
 
@@ -285,12 +299,107 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           "span",
           @always_on_sampler,
           @id_generator,
+          @span_limits,
           []
         )
 
       after_time = System.system_time(:nanosecond)
       assert span.start_time >= before
       assert span.start_time <= after_time
+    end
+  end
+
+  describe "span limits" do
+    test "enforces attribute_count_limit" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2}
+      attrs = %{a: 1, b: 2, c: 3, d: 4}
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          attributes: attrs
+        )
+
+      assert map_size(span.attributes) <= 2
+    end
+
+    test "enforces attribute_value_length_limit" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 5}
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          attributes: %{key: "hello world"}
+        )
+
+      assert String.length(span.attributes.key) <= 5
+    end
+
+    test "infinity value length limit does not truncate" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: :infinity}
+      long_value = String.duplicate("a", 10_000)
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          attributes: %{key: long_value}
+        )
+
+      assert span.attributes.key == long_value
+    end
+
+    test "non-string values are not truncated" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 1}
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          attributes: %{num: 12345}
+        )
+
+      assert span.attributes.num == 12345
+    end
+
+    test "enforces link_count_limit" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{link_count_limit: 1}
+
+      links = [
+        {Otel.API.Trace.SpanContext.new(1, 1), %{}},
+        {Otel.API.Trace.SpanContext.new(2, 2), %{}}
+      ]
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          links: links
+        )
+
+      assert length(span.links) == 1
     end
   end
 end

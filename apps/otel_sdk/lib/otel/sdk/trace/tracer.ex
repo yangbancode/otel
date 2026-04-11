@@ -9,6 +9,8 @@ defmodule Otel.SDK.Trace.Tracer do
 
   @behaviour Otel.API.Trace.Tracer
 
+  @noop_ctx %Otel.API.Trace.SpanContext{}
+
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
@@ -23,15 +25,24 @@ defmodule Otel.SDK.Trace.Tracer do
         name,
         config.sampler,
         config.id_generator,
+        config.span_limits,
         opts
       )
 
-    if span do
-      span = %{span | instrumentation_scope: config.scope}
-      Otel.SDK.Trace.SpanStorage.insert(span)
-    end
+    case span do
+      nil ->
+        span_ctx
 
-    span_ctx
+      span ->
+        span = %{span | instrumentation_scope: config.scope}
+
+        try do
+          Otel.SDK.Trace.SpanStorage.insert(span)
+          span_ctx
+        rescue
+          ArgumentError -> @noop_ctx
+        end
+    end
   end
 
   @spec enabled?(tracer :: Otel.API.Trace.Tracer.t(), opts :: keyword()) :: boolean()
