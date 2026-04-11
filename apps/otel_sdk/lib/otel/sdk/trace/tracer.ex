@@ -2,8 +2,9 @@ defmodule Otel.SDK.Trace.Tracer do
   @moduledoc """
   SDK tracer implementation.
 
-  Reads configuration from TracerProvider and delegates span creation
-  to SpanCreator. Recording spans are stored in SpanStorage.
+  All configuration (sampler, id_generator, span_limits, scope) is
+  stored in the tracer tuple at creation time. No GenServer calls
+  during span creation for performance.
   """
 
   @behaviour Otel.API.Trace.Tracer
@@ -15,21 +16,18 @@ defmodule Otel.SDK.Trace.Tracer do
           opts :: keyword()
         ) :: Otel.API.Trace.SpanContext.t()
   @impl true
-  def start_span(ctx, {__MODULE__, %{provider: provider, scope: scope}}, name, opts) do
-    config = Otel.SDK.Trace.TracerProvider.config(provider)
-    sampler = Otel.SDK.Trace.Sampler.new(config.sampler)
-
+  def start_span(ctx, {__MODULE__, config}, name, opts) do
     {span_ctx, span} =
       Otel.SDK.Trace.SpanCreator.start_span(
         ctx,
         name,
-        sampler,
+        config.sampler,
         config.id_generator,
         opts
       )
 
     if span do
-      span = %{span | instrumentation_scope: scope}
+      span = %{span | instrumentation_scope: config.scope}
       Otel.SDK.Trace.SpanStorage.insert(span)
     end
 

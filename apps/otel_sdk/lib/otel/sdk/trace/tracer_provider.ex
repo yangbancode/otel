@@ -111,7 +111,16 @@ defmodule Otel.SDK.Trace.TracerProvider do
       schema_url: schema_url
     }
 
-    tracer = {Otel.SDK.Trace.Tracer, %{provider: self(), scope: scope}}
+    sampler = Otel.SDK.Trace.Sampler.new(config.sampler)
+
+    tracer_config = %{
+      sampler: sampler,
+      id_generator: config.id_generator,
+      span_limits: config.span_limits,
+      scope: scope
+    }
+
+    tracer = {Otel.SDK.Trace.Tracer, tracer_config}
     {:reply, tracer, config}
   end
 
