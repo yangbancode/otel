@@ -39,6 +39,14 @@ Location: `apps/otel_sdk/lib/otel/sdk/trace/span_creator.ex`
 
 Pure function module (no GenServer) that orchestrates the creation flow. Same role as opentelemetry-erlang's `otel_span_utils`.
 
+### Pending for next decisions
+
+Items identified during code review that will be addressed in upcoming decisions:
+
+- **SpanStorage span operations** (set_attribute, add_event, set_status, update_name, end_span) — SpanProcessor Interface decision
+- **Processor on_start/on_end notification** — SpanProcessor Interface decision
+- **event_count_limit / attribute_per_event_limit / attribute_per_link_limit enforcement** — when events/links are added via span operations
+
 ## Compliance
 
 - [Trace SDK](../compliance/trace-sdk.md)
