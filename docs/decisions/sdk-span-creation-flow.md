@@ -9,21 +9,22 @@ What is the full span creation sequence in the SDK? How do sampling, ID generati
 ### Flow (per spec L339)
 
 ```
-1. Determine trace_id
-   - Valid parent → use parent's trace_id
-   - No valid parent → generate new trace_id (IdGenerator)
+1. Determine trace_id and generate span_id
+   - Valid parent → use parent's trace_id, generate new span_id
+   - No valid parent → generate new trace_id + span_id (IdGenerator)
+   - span_id is always generated, even if dropped (for logs/exceptions)
+   Note: spec says "act as if" this order — erlang also generates
+   both IDs together before sampling for efficiency.
 
 2. Query Sampler.should_sample
    - Input: ctx, trace_id, links, name, kind, attributes
    - Output: {decision, sampler_attributes, tracestate}
 
-3. Generate new span_id (IdGenerator)
-   - Always generated, even if dropped (for logs/exceptions)
-
-4. Create span based on decision
-   - :record_and_sample → is_recording=true, trace_flags=1, insert ETS, notify processors
-   - :record_only → is_recording=true, trace_flags=0, insert ETS, notify processors
-   - :drop → return non-recording SpanContext
+3. Create span based on decision
+   - :record_and_sample → is_recording=true, trace_flags=1, insert ETS
+   - :record_only → is_recording=true, trace_flags=0, insert ETS
+   - :drop → return non-recording SpanContext (nil span)
+   Processor on_start notification will be added in SpanProcessor decision.
 ```
 
 ### SDK Tracer Implementation
