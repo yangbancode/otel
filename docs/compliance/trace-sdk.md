@@ -163,7 +163,7 @@
 
 ### Concurrency requirements
 
-- [ ] Tracer Provider: Tracer creation, ForceFlush and Shutdown MUST be safe to be called concurrently — [L1281](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1281)
-- [ ] Sampler: ShouldSample and GetDescription MUST be safe to be called concurrently — [L1284](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1284)
+- [x] Tracer Provider: Tracer creation, ForceFlush and Shutdown MUST be safe to be called concurrently — [L1281](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1281)
+- [x] Sampler: ShouldSample and GetDescription MUST be safe to be called concurrently — [L1284](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1284)
 - [ ] Span processor: all methods MUST be safe to be called concurrently — [L1287](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1287)
 - [ ] Span Exporter: ForceFlush and Shutdown MUST be safe to be called concurrently — [L1289](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1289)
