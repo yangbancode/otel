@@ -63,14 +63,19 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       assert provider == pid
       # config is accessed via provider, not copied
       assert Otel.SDK.Trace.TracerProvider.config(provider).sampler ==
-               {Otel.SDK.Trace.Sampler.AlwaysOn, []}
+               {Otel.SDK.Trace.Sampler.ParentBased,
+                %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
     end
   end
 
   describe "config/1" do
     test "returns merged config with defaults", %{provider: pid} do
       config = Otel.SDK.Trace.TracerProvider.config(pid)
-      assert config.sampler == {Otel.SDK.Trace.Sampler.AlwaysOn, []}
+
+      assert config.sampler ==
+               {Otel.SDK.Trace.Sampler.ParentBased,
+                %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+
       assert config.processors == []
       assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
       assert config.span_limits.attribute_count_limit == 128

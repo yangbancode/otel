@@ -18,7 +18,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
         }
 
   @default_config %{
-    sampler: {Otel.SDK.Trace.Sampler.AlwaysOn, []},
+    sampler:
+      {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}},
     processors: [],
     id_generator: Otel.SDK.Trace.IdGenerator.Default,
     resource: %{},
