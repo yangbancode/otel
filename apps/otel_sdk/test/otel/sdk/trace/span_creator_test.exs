@@ -374,10 +374,27 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{num: 12345}
+          attributes: %{num: 12_345}
         )
 
-      assert span.attributes.num == 12345
+      assert span.attributes.num == 12_345
+    end
+
+    test "truncates strings inside arrays" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          attributes: %{tags: ["hello", "world"]}
+        )
+
+      assert span.attributes.tags == ["hel", "wor"]
     end
 
     test "enforces link_count_limit" do

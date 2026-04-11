@@ -30,8 +30,10 @@ What is the full span creation sequence in the SDK? How do sampling, ID generati
 ### SDK Tracer Implementation
 
 `Otel.SDK.Trace.Tracer.start_span/4` implements this flow by:
-1. Reading config from TracerProvider (via provider pid)
-2. Calling `Otel.SDK.Trace.SpanCreator.start_span/5` with config
+1. Using pre-cached config from tracer tuple (sampler, id_generator, span_limits, scope)
+2. Calling `Otel.SDK.Trace.SpanCreator.start_span/6` with config
+3. Applying SpanLimits (attribute count/value length, link count)
+4. Storing recording span in ETS, returning noop SpanContext on insert failure
 
 ### Module: `Otel.SDK.Trace.SpanCreator`
 
@@ -46,6 +48,7 @@ Items identified during code review that will be addressed in upcoming decisions
 - **SpanStorage span operations** (set_attribute, add_event, set_status, update_name, end_span) — SpanProcessor Interface decision
 - **Processor on_start/on_end notification** — SpanProcessor Interface decision
 - **event_count_limit / attribute_per_event_limit / attribute_per_link_limit enforcement** — when events/links are added via span operations
+- **Link internal attribute limit** (AttributePerLinkCountLimit) — applied when links are processed in span operations
 
 ## Compliance
 

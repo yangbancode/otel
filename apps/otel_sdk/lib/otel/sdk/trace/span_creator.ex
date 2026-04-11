@@ -84,6 +84,10 @@ defmodule Otel.SDK.Trace.SpanCreator do
     String.slice(value, 0, limit)
   end
 
+  defp truncate_value(value, limit) when is_list(value) do
+    Enum.map(value, &truncate_value(&1, limit))
+  end
+
   defp truncate_value(value, _limit), do: value
 
   defp new_span_ctx(ctx, id_generator, opts) do
