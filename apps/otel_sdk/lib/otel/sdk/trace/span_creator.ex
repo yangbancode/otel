@@ -69,6 +69,8 @@ defmodule Otel.SDK.Trace.SpanCreator do
     end
   end
 
+  @spec apply_attribute_limits(attributes :: map(), span_limits :: Otel.SDK.Trace.SpanLimits.t()) ::
+          map()
   defp apply_attribute_limits(attributes, span_limits) do
     attributes
     |> Enum.take(span_limits.attribute_count_limit)
@@ -78,6 +80,7 @@ defmodule Otel.SDK.Trace.SpanCreator do
     |> Map.new()
   end
 
+  @spec truncate_value(value :: term(), limit :: pos_integer() | :infinity) :: term()
   defp truncate_value(value, :infinity), do: value
 
   defp truncate_value(value, limit) when is_binary(value) and byte_size(value) > limit do
@@ -90,6 +93,11 @@ defmodule Otel.SDK.Trace.SpanCreator do
 
   defp truncate_value(value, _limit), do: value
 
+  @spec new_span_ctx(
+          ctx :: Otel.API.Ctx.t(),
+          id_generator :: module(),
+          opts :: keyword()
+        ) :: {Otel.API.Trace.SpanContext.t(), non_neg_integer() | nil, boolean() | nil}
   defp new_span_ctx(ctx, id_generator, opts) do
     parent = Otel.API.Trace.current_span(ctx)
     is_root = Keyword.get(opts, :is_root, false)
@@ -120,6 +128,8 @@ defmodule Otel.SDK.Trace.SpanCreator do
     end
   end
 
+  @spec root_span_ctx(id_generator :: module()) ::
+          {Otel.API.Trace.SpanContext.t(), nil, nil}
   defp root_span_ctx(id_generator) do
     trace_id = id_generator.generate_trace_id()
     span_id = id_generator.generate_span_id()
@@ -135,6 +145,15 @@ defmodule Otel.SDK.Trace.SpanCreator do
     }
   end
 
+  @spec sample(
+          ctx :: Otel.API.Ctx.t(),
+          sampler :: Otel.SDK.Trace.Sampler.t(),
+          trace_id :: non_neg_integer(),
+          links :: list(),
+          name :: String.t(),
+          kind :: Otel.API.Trace.SpanKind.t(),
+          attributes :: map()
+        ) :: {non_neg_integer(), boolean(), map(), Otel.API.Trace.TraceState.t()}
   defp sample(ctx, sampler, trace_id, links, name, kind, attributes) do
     {decision, new_attributes, tracestate} =
       Otel.SDK.Trace.Sampler.should_sample(

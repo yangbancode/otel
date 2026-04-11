@@ -150,6 +150,10 @@ defmodule Otel.SDK.Trace.TracerProvider do
     {:reply, config, config}
   end
 
+  @spec invoke_all_processors(
+          processors :: [{module(), map()}],
+          function :: :shutdown | :force_flush
+        ) :: :ok | {:error, [{module(), term()}]}
   defp invoke_all_processors(processors, function) do
     results =
       Enum.reduce(processors, [], fn {processor, processor_config}, errors ->

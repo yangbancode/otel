@@ -55,6 +55,8 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
     {decision, %{}, tracestate}
   end
 
+  @spec decide(trace_id :: non_neg_integer(), id_upper_bound :: non_neg_integer()) ::
+          :record_and_sample | :drop
   defp decide(trace_id, _id_upper_bound) when trace_id == 0, do: :drop
 
   defp decide(trace_id, id_upper_bound) do

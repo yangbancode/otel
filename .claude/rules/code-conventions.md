@@ -33,4 +33,5 @@ Always include parameter names in `@spec` and `@callback`.
 @callback should_sample(ctx :: Otel.API.Ctx.t(), trace_id :: non_neg_integer()) :: result()
 ```
 
-This does not apply to `@type` — struct field names serve as documentation.
+This applies to both public (`def`) and private (`defp`) functions.
+Does not apply to `@type` — struct field names serve as documentation.

@@ -119,6 +119,7 @@ defmodule Otel.API.Trace.TraceState do
     end
   end
 
+  @spec parse_pairs(raw_pairs :: [String.t()]) :: [{String.t(), String.t()}] | :error
   defp parse_pairs(raw_pairs) do
     Enum.reduce_while(raw_pairs, [], fn pair, acc ->
       case parse_pair(pair) do
@@ -128,6 +129,7 @@ defmodule Otel.API.Trace.TraceState do
     end)
   end
 
+  @spec parse_pair(pair :: String.t()) :: {:ok, String.t(), String.t()} | :error
   defp parse_pair(pair) do
     case String.split(pair, "=", parts: 2) do
       [key, value] when value != "" ->
@@ -138,9 +140,11 @@ defmodule Otel.API.Trace.TraceState do
     end
   end
 
+  @spec valid_key?(key :: term()) :: boolean()
   defp valid_key?(key) when is_binary(key), do: Regex.match?(@key_pattern, key)
   defp valid_key?(_), do: false
 
+  @spec valid_value?(value :: term()) :: boolean()
   defp valid_value?(value) when is_binary(value), do: Regex.match?(@value_pattern, value)
   defp valid_value?(_), do: false
 end
