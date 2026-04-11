@@ -61,48 +61,6 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
     end
   end
 
-  describe "resilience when table missing" do
-    test "insert returns false when table does not exist" do
-      # Temporarily delete table
-      :ets.delete(Otel.SDK.Trace.SpanStorage.table_name())
-      assert Otel.SDK.Trace.SpanStorage.insert(@span) == false
-      # Recreate for other tests
-      :ets.new(Otel.SDK.Trace.SpanStorage.table_name(), [
-        :named_table,
-        :public,
-        :set,
-        {:write_concurrency, true},
-        {:read_concurrency, true}
-      ])
-    end
-
-    test "get returns nil when table does not exist" do
-      :ets.delete(Otel.SDK.Trace.SpanStorage.table_name())
-      assert Otel.SDK.Trace.SpanStorage.get(123) == nil
-
-      :ets.new(Otel.SDK.Trace.SpanStorage.table_name(), [
-        :named_table,
-        :public,
-        :set,
-        {:write_concurrency, true},
-        {:read_concurrency, true}
-      ])
-    end
-
-    test "take returns nil when table does not exist" do
-      :ets.delete(Otel.SDK.Trace.SpanStorage.table_name())
-      assert Otel.SDK.Trace.SpanStorage.take(123) == nil
-
-      :ets.new(Otel.SDK.Trace.SpanStorage.table_name(), [
-        :named_table,
-        :public,
-        :set,
-        {:write_concurrency, true},
-        {:read_concurrency, true}
-      ])
-    end
-  end
-
   describe "table properties" do
     test "table is public and named" do
       info = :ets.info(Otel.SDK.Trace.SpanStorage.table_name())

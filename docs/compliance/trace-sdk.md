@@ -48,7 +48,7 @@
 
 ### SDK Span Creation
 
-- [ ] When asked to create a Span, the SDK MUST act as if doing the following in order (generate/use trace ID, query sampler, generate span ID, create span) — [L339](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L339)
+- [x] When asked to create a Span, the SDK MUST act as if doing the following in order (generate/use trace ID, query sampler, generate span ID, create span) — [L339](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L339)
 
 ### Sampler — ShouldSample
 
