@@ -3,8 +3,8 @@ defmodule Otel.SDK.Trace.SpanStorage do
   ETS-backed storage for active spans.
 
   A GenServer that owns the ETS table. The table is `public` with
-  `write_concurrency: true` so any process can read/write spans
-  without going through this server.
+  `write_concurrency` and `read_concurrency` so any process can
+  read/write spans without going through this server.
   """
 
   use GenServer
@@ -13,7 +13,7 @@ defmodule Otel.SDK.Trace.SpanStorage do
 
   # --- Client API ---
 
-  @spec start_link(keyword()) :: GenServer.on_start()
+  @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
@@ -21,11 +21,9 @@ defmodule Otel.SDK.Trace.SpanStorage do
   @doc """
   Inserts a span into the table.
   """
-  @spec insert(span :: Otel.SDK.Trace.Span.t()) :: boolean()
+  @spec insert(span :: Otel.SDK.Trace.Span.t()) :: true
   def insert(span) do
     :ets.insert(@table_name, {span.span_id, span})
-  rescue
-    ArgumentError -> false
   end
 
   @doc """
@@ -37,8 +35,6 @@ defmodule Otel.SDK.Trace.SpanStorage do
       [{^span_id, span}] -> span
       [] -> nil
     end
-  rescue
-    ArgumentError -> nil
   end
 
   @doc """
@@ -50,8 +46,6 @@ defmodule Otel.SDK.Trace.SpanStorage do
       [{^span_id, span}] -> span
       [] -> nil
     end
-  rescue
-    ArgumentError -> nil
   end
 
   @doc """

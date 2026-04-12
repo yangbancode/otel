@@ -111,7 +111,16 @@ defmodule Otel.SDK.Trace.TracerProvider do
       schema_url: schema_url
     }
 
-    tracer = {Otel.SDK.Trace.Tracer, %{provider: self(), scope: scope}}
+    sampler = Otel.SDK.Trace.Sampler.new(config.sampler)
+
+    tracer_config = %{
+      sampler: sampler,
+      id_generator: config.id_generator,
+      span_limits: config.span_limits,
+      scope: scope
+    }
+
+    tracer = {Otel.SDK.Trace.Tracer, tracer_config}
     {:reply, tracer, config}
   end
 
@@ -141,6 +150,10 @@ defmodule Otel.SDK.Trace.TracerProvider do
     {:reply, config, config}
   end
 
+  @spec invoke_all_processors(
+          processors :: [{module(), map()}],
+          function :: :shutdown | :force_flush
+        ) :: :ok | {:error, [{module(), term()}]}
   defp invoke_all_processors(processors, function) do
     results =
       Enum.reduce(processors, [], fn {processor, processor_config}, errors ->

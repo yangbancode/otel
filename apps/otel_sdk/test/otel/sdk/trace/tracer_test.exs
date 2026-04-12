@@ -1,23 +1,52 @@
 defmodule Otel.SDK.Trace.TracerTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
+
+  setup do
+    case Otel.SDK.Trace.SpanStorage.start_link() do
+      {:ok, _} -> :ok
+      {:error, {:already_started, _}} -> :ok
+    end
+
+    {:ok, provider} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
+    {_module, tracer_config} = Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
+
+    Otel.API.Ctx.clear()
+    %{tracer: {Otel.SDK.Trace.Tracer, tracer_config}}
+  end
 
   describe "start_span/4" do
-    test "returns SpanContext (stub)" do
+    test "returns valid SpanContext", %{tracer: tracer} do
       ctx = Otel.API.Ctx.new()
-      tracer = {Otel.SDK.Trace.Tracer, %{config: %{}, scope: %{}}}
-      result = Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "test_span", [])
-      assert %Otel.API.Trace.SpanContext{} = result
+      span_ctx = Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "test_span", [])
+
+      assert %Otel.API.Trace.SpanContext{} = span_ctx
+      assert Otel.API.Trace.SpanContext.valid?(span_ctx)
+    end
+
+    test "stores span in ETS", %{tracer: tracer} do
+      ctx = Otel.API.Ctx.new()
+      span_ctx = Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "stored_span", [])
+
+      span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
+      assert span != nil
+      assert span.name == "stored_span"
+    end
+
+    test "sets instrumentation scope on span", %{tracer: tracer} do
+      ctx = Otel.API.Ctx.new()
+      span_ctx = Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "scoped_span", [])
+
+      span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
+      assert span.instrumentation_scope.name == "test_lib"
     end
   end
 
   describe "enabled?/2" do
-    test "returns true" do
-      tracer = {Otel.SDK.Trace.Tracer, %{}}
+    test "returns true", %{tracer: tracer} do
       assert Otel.SDK.Trace.Tracer.enabled?(tracer) == true
     end
 
-    test "returns true with opts" do
-      tracer = {Otel.SDK.Trace.Tracer, %{}}
+    test "returns true with opts", %{tracer: tracer} do
       assert Otel.SDK.Trace.Tracer.enabled?(tracer, span_name: "test") == true
     end
   end

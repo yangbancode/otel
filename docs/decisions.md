@@ -40,7 +40,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Sampler Interface & ShouldSample](decisions/sampler-interface-and-shouldsample.md)
 - [x] [Built-in Samplers](decisions/built-in-samplers.md)
 - [x] [Span Storage & ETS Design](decisions/span-storage-and-ets-design.md)
-- [ ] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
+- [x] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
 
 ### Span Processors & Exporters
 - [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)

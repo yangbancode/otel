@@ -75,6 +75,7 @@ defmodule Otel.API.Trace.TracerProvider do
     }
   end
 
+  @spec validate_name(name :: String.t() | nil) :: String.t()
   defp validate_name(nil) do
     :logger.warning(
       "TracerProvider: invalid tracer name nil, using empty string",
@@ -95,6 +96,12 @@ defmodule Otel.API.Trace.TracerProvider do
 
   defp validate_name(name) when is_binary(name), do: name
 
+  @spec fetch_or_default(
+          name :: String.t(),
+          version :: String.t(),
+          schema_url :: String.t() | nil,
+          attributes :: map()
+        ) :: Otel.API.Trace.Tracer.t()
   defp fetch_or_default(_name, _version, _schema_url, _attributes) do
     @default_tracer
   end

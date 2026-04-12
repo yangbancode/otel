@@ -60,6 +60,12 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
     Otel.SDK.Trace.Sampler.should_sample(delegate, ctx, trace_id, links, name, kind, attributes)
   end
 
+  @spec select_sampler(span_ctx :: Otel.API.Trace.SpanContext.t()) ::
+          :root
+          | :remote_parent_sampled
+          | :remote_parent_not_sampled
+          | :local_parent_sampled
+          | :local_parent_not_sampled
   defp select_sampler(%Otel.API.Trace.SpanContext{trace_id: 0}), do: :root
   defp select_sampler(%Otel.API.Trace.SpanContext{span_id: 0}), do: :root
 

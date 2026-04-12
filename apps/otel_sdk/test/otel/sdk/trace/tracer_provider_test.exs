@@ -44,7 +44,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     test "returns SDK tracer tuple", %{provider: pid} do
       {module, tracer_config} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
       assert module == Otel.SDK.Trace.Tracer
-      assert %{provider: ^pid, scope: _} = tracer_config
+      assert %{sampler: _, id_generator: _, span_limits: _, scope: _} = tracer_config
     end
 
     test "tracer includes instrumentation scope", %{provider: pid} do
@@ -58,13 +58,16 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
              } = scope
     end
 
-    test "tracer holds provider reference, not config copy", %{provider: pid} do
-      {_module, %{provider: provider}} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
-      assert provider == pid
-      # config is accessed via provider, not copied
-      assert Otel.SDK.Trace.TracerProvider.config(provider).sampler ==
-               {Otel.SDK.Trace.Sampler.ParentBased,
-                %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+    test "tracer includes initialized sampler", %{provider: pid} do
+      {_module, %{sampler: sampler}} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
+      # sampler is already initialized {module, description, config} tuple
+      assert {Otel.SDK.Trace.Sampler.ParentBased, _desc, _config} = sampler
+    end
+
+    test "tracer includes id_generator and span_limits", %{provider: pid} do
+      {_module, config} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
+      assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
+      assert %Otel.SDK.Trace.SpanLimits{} = config.span_limits
     end
   end
 
