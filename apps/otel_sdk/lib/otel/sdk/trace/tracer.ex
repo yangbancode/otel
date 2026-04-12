@@ -9,8 +9,6 @@ defmodule Otel.SDK.Trace.Tracer do
 
   @behaviour Otel.API.Trace.Tracer
 
-  @noop_ctx %Otel.API.Trace.SpanContext{}
-
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
@@ -36,13 +34,8 @@ defmodule Otel.SDK.Trace.Tracer do
       span ->
         span = %{span | instrumentation_scope: config.scope}
         span = run_on_start(ctx, span, config.processors)
-
-        try do
-          Otel.SDK.Trace.SpanStorage.insert(span)
-          span_ctx
-        rescue
-          ArgumentError -> @noop_ctx
-        end
+        Otel.SDK.Trace.SpanStorage.insert(span)
+        span_ctx
     end
   end
 
@@ -57,11 +50,7 @@ defmodule Otel.SDK.Trace.Tracer do
         ) :: Otel.SDK.Trace.Span.t()
   defp run_on_start(ctx, span, processors) do
     Enum.reduce(processors, span, fn {processor, processor_config}, acc ->
-      try do
-        processor.on_start(ctx, acc, processor_config)
-      catch
-        _, _ -> acc
-      end
+      processor.on_start(ctx, acc, processor_config)
     end)
   end
 end

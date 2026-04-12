@@ -74,7 +74,7 @@
 
 - [ ] Span name SHOULD be the most general string that identifies a (statistically) interesting class of Spans — [L329](../references/opentelemetry-specification/v1.55.0/trace/api.md#L329)
 - [ ] Generality SHOULD be prioritized over human-readability — [L333](../references/opentelemetry-specification/v1.55.0/trace/api.md#L333)
-- [ ] Span's start time SHOULD be set to current time on span creation — [L365](../references/opentelemetry-specification/v1.55.0/trace/api.md#L365)
+- [x] Span's start time SHOULD be set to current time on span creation — [L365](../references/opentelemetry-specification/v1.55.0/trace/api.md#L365)
 - [x] After Span is created, it SHOULD be possible to change its name, set Attributes, add Events, and set Status — [L366](../references/opentelemetry-specification/v1.55.0/trace/api.md#L366)
 - [x] Name, Attributes, Events, Status MUST NOT be changed after the Span's end time has been set — [L368](../references/opentelemetry-specification/v1.55.0/trace/api.md#L368)
 - [x] Implementations SHOULD NOT provide access to a Span's attributes besides its SpanContext — [L371](../references/opentelemetry-specification/v1.55.0/trace/api.md#L371)
@@ -95,9 +95,9 @@
 - [x] API MUST accept: Attributes — [L398](../references/opentelemetry-specification/v1.55.0/trace/api.md#L398)
 - [x] API MUST accept: Links — [L407](../references/opentelemetry-specification/v1.55.0/trace/api.md#L407)
 - [x] Implementations MUST provide an option to create a Span as a root span — [L416](../references/opentelemetry-specification/v1.55.0/trace/api.md#L416)
-- [ ] Implementations MUST generate a new TraceId for each root span created — [L417](../references/opentelemetry-specification/v1.55.0/trace/api.md#L417)
-- [ ] For a Span with a parent, TraceId MUST be the same as the parent — [L418](../references/opentelemetry-specification/v1.55.0/trace/api.md#L418)
-- [ ] Child span MUST inherit all TraceState values of its parent by default — [L419](../references/opentelemetry-specification/v1.55.0/trace/api.md#L419)
+- [x] Implementations MUST generate a new TraceId for each root span created — [L417](../references/opentelemetry-specification/v1.55.0/trace/api.md#L417)
+- [x] For a Span with a parent, TraceId MUST be the same as the parent — [L418](../references/opentelemetry-specification/v1.55.0/trace/api.md#L418)
+- [x] Child span MUST inherit all TraceState values of its parent by default — [L419](../references/opentelemetry-specification/v1.55.0/trace/api.md#L419)
 - [x] Any span that is created MUST also be ended — [L426](../references/opentelemetry-specification/v1.55.0/trace/api.md#L426)
 
 ### Specifying Links

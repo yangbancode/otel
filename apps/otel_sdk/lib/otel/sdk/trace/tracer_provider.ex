@@ -158,13 +158,9 @@ defmodule Otel.SDK.Trace.TracerProvider do
   defp invoke_all_processors(processors, function) do
     results =
       Enum.reduce(processors, [], fn {processor, processor_config}, errors ->
-        try do
-          case apply(processor, function, [processor_config]) do
-            :ok -> errors
-            {:error, reason} -> [{processor, reason} | errors]
-          end
-        catch
-          kind, reason -> [{processor, {kind, reason}} | errors]
+        case apply(processor, function, [processor_config]) do
+          :ok -> errors
+          {:error, reason} -> [{processor, reason} | errors]
         end
       end)
 
