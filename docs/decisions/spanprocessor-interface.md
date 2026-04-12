@@ -6,7 +6,30 @@ How to define the SpanProcessor behaviour on BEAM? OnStart, OnEnd, Shutdown, For
 
 ## Decision
 
-TBD
+### Behaviour
+
+Same pattern as opentelemetry-erlang's `otel_span_processor`:
+
+| Callback | Parameters | Return |
+|---|---|---|
+| `on_start(ctx, span, config)` | context, read/write span, processor config | span |
+| `on_end(span, config)` | readable span | `:ok \| :dropped \| {:error, term()}` |
+| `shutdown(config)` | processor config | `:ok \| {:error, term()}` |
+| `force_flush(config)` | processor config | `:ok \| {:error, term()}` |
+
+`on_start` and `on_end` are called synchronously — they MUST NOT block or throw.
+
+### Integration with TracerProvider
+
+TracerProvider's `shutdown/1` and `force_flush/1` already cascade to all processors via `invoke_all_processors/2`. SpanProcessor registration happens through TracerProvider config `processors: [{module, config}]`.
+
+### Integration with SDK Tracer
+
+SDK Tracer calls `on_start` after span creation and `on_end` after span end. This is added to the existing `Otel.SDK.Trace.Tracer.start_span/4`.
+
+### Module: `Otel.SDK.Trace.SpanProcessor`
+
+Location: `apps/otel_sdk/lib/otel/sdk/trace/span_processor.ex`
 
 ## Compliance
 

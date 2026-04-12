@@ -104,12 +104,12 @@
 
 ### Span Processor — Interface Definition
 
-- [ ] SpanProcessor interface MUST declare OnStart, OnEnd, Shutdown, and ForceFlush methods — [L952](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L952)
+- [x] SpanProcessor interface MUST declare OnStart, OnEnd, Shutdown, and ForceFlush methods — [L952](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L952)
 - [ ] SpanProcessor interface SHOULD declare OnEnding method — [L959](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L959)
 
 ### Span Processor — OnStart
 
-- [ ] OnStart `span` parameter: it SHOULD be possible to keep a reference to the span object and updates SHOULD be reflected in it — [L973](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L973)
+- [x] OnStart `span` parameter: it SHOULD be possible to keep a reference to the span object and updates SHOULD be reflected in it — [L973](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L973)
 
 ### Span Processor — OnEnd
 
