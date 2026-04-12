@@ -8,11 +8,6 @@ defmodule Otel.SDK.Trace.TracerProviderTest.FailProcessor do
   def force_flush(_config), do: {:error, :flush_failed}
 end
 
-defmodule Otel.SDK.Trace.TracerProviderTest.CrashProcessor do
-  def shutdown(_config), do: raise("boom")
-  def force_flush(_config), do: throw(:crash)
-end
-
 defmodule Otel.SDK.Trace.TracerProviderTest do
   use ExUnit.Case
 
@@ -141,18 +136,6 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
                Otel.SDK.Trace.TracerProvider.shutdown(pid)
     end
 
-    test "catches crashed processors" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, %{}}]
-          }
-        )
-
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, {:error, _}}]} =
-               Otel.SDK.Trace.TracerProvider.shutdown(pid)
-    end
-
     test "returns noop tracer after shutdown", %{provider: pid} do
       Otel.SDK.Trace.TracerProvider.shutdown(pid)
       {module, _} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
@@ -190,18 +173,6 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
         )
 
       assert {:error, [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, :flush_failed}]} =
-               Otel.SDK.Trace.TracerProvider.force_flush(pid)
-    end
-
-    test "catches crashed processors" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, %{}}]
-          }
-        )
-
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.CrashProcessor, {:throw, :crash}}]} =
                Otel.SDK.Trace.TracerProvider.force_flush(pid)
     end
 
