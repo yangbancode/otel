@@ -43,10 +43,10 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [SDK Span Creation Flow](decisions/sdk-span-creation-flow.md)
 
 ### Span Processors & Exporters
-- [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)
-- [ ] [Console (stdout) Exporter](decisions/console-stdout-exporter.md)
 - [ ] [SpanProcessor Interface](decisions/spanprocessor-interface.md)
+- [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)
 - [ ] [SimpleSpanProcessor](decisions/simplespanprocessor.md)
+- [ ] [Console Exporter](decisions/console-exporter.md)
 - [ ] [BatchSpanProcessor](decisions/batchspanprocessor.md)
 
 ### Propagators

@@ -22,9 +22,8 @@ Reasons for umbrella over single Mix project:
 otel/
 ├── apps/
 │   ├── otel_api/                    # Otel.API
-│   ├── otel_sdk/                    # Otel.SDK
+│   ├── otel_sdk/                    # Otel.SDK (includes Console Exporter)
 │   ├── otel_semantic_conventions/   # Otel.SemConv
-│   ├── otel_exporter_stdout/        # Otel.Exporter.Stdout
 │   ├── otel_exporter_otlp/         # Otel.Exporter.OTLP
 │   └── otel_logger_handler/        # Otel.Logger.Handler
 ```
@@ -65,11 +64,9 @@ Otel.SemConv.HTTP              # Stable
 Otel.SemConv.Incubating.DB     # Incubating
 ```
 
-#### `otel_exporter_stdout` — Otel.Exporter.Stdout
+#### Console Exporter (in `otel_sdk`)
 
-Console exporter for debugging/development. Outputs human-readable telemetry data to stdout. No external dependencies beyond `otel_sdk`.
-
-Separated from SDK (unlike `opentelemetry-erlang` convention) to keep all exporters under the unified `Otel.Exporter.*` namespace.
+Console exporter for debugging/development lives inside `otel_sdk` as `Otel.SDK.Trace.Exporter.Console`. Built-in to SDK — no separate app needed for development use.
 
 #### `otel_exporter_otlp` — Otel.Exporter.OTLP
 
@@ -94,7 +91,6 @@ Depends on `otel_api` (Logs API).
 ### Dependency Graph
 
 ```
-otel_exporter_stdout ──→ otel_sdk ──→ otel_api
 otel_exporter_otlp ────→ otel_sdk ──→ otel_api
 otel_logger_handler ─────────────────→ otel_api
 otel_semantic_conventions              (standalone)
@@ -107,9 +103,8 @@ Dependencies are strictly unidirectional. No circular dependencies.
 | App | Phase |
 |-----|-------|
 | `otel_api` | Phase 1: Traces |
-| `otel_sdk` | Phase 1: Traces |
+| `otel_sdk` | Phase 1: Traces (includes Console Exporter) |
 | `otel_semantic_conventions` | Phase 1: Traces |
-| `otel_exporter_stdout` | Phase 1: Traces |
 | `otel_exporter_otlp` | Phase 2: OTLP HTTP, Phase 4: gRPC |
 | `otel_logger_handler` | Phase 4: Logs |
 
@@ -122,7 +117,6 @@ Dependencies are strictly unidirectional. No circular dependencies.
 | `otel_api` | `Otel.API` |
 | `otel_sdk` | `Otel.SDK` |
 | `otel_semantic_conventions` | `Otel.SemConv` |
-| `otel_exporter_stdout` | `Otel.Exporter.Stdout` |
 | `otel_exporter_otlp` | `Otel.Exporter.OTLP` |
 | `otel_logger_handler` | `Otel.Logger.Handler` |
 
