@@ -1,12 +1,14 @@
-# Console (stdout) Exporter
+# Console Exporter
 
 ## Question
 
-How to implement the console exporter for all signals (traces, metrics, logs)?
+How to implement the console exporter for development/debugging? Outputs to stdout.
 
 ## Decision
 
 TBD
+
+Module: `Otel.SDK.Trace.Exporter.Console` (inside `otel_sdk` app)
 
 ## Compliance
 
