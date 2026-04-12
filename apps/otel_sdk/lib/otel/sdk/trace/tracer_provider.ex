@@ -117,6 +117,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
       sampler: sampler,
       id_generator: config.id_generator,
       span_limits: config.span_limits,
+      processors: config.processors,
       scope: scope
     }
 
