@@ -33,7 +33,7 @@ What is the full span creation sequence in the SDK? How do sampling, ID generati
 1. Using pre-cached config from tracer tuple (sampler, id_generator, span_limits, scope)
 2. Calling `Otel.SDK.Trace.SpanCreator.start_span/6` with config
 3. Applying SpanLimits (attribute count/value length, link count)
-4. Storing recording span in ETS, returning noop SpanContext on insert failure
+4. Running on_start processors, storing recording span in ETS
 
 ### Module: `Otel.SDK.Trace.SpanCreator`
 

@@ -35,3 +35,13 @@ Always include parameter names in `@spec` and `@callback`.
 
 This applies to both public (`def`) and private (`defp`) functions.
 Does not apply to `@type` — struct field names serve as documentation.
+
+### Happy path only
+
+Write code for the success path only. Do not add `try/catch/rescue` for error handling.
+
+Error handling will be applied as a single pass in the Finalization phase
+(see `docs/decisions/error-handling.md`).
+
+Exception: `Trace.with_span` uses `catch` for span lifecycle management
+(recording exceptions on spans and re-raising) — this is not error handling.
