@@ -94,3 +94,6 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### OTLP gRPC Exporter
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
 
+## Finalization
+- [ ] [Error Handling](decisions/error-handling.md)
+
