@@ -147,8 +147,8 @@
 
 ### Span Exporter — Interface Definition
 
-- [ ] Each exporter implementation MUST document the concurrency characteristics the SDK requires — [L1130](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1130)
-- [ ] Exporter MUST support three functions: Export, Shutdown, and ForceFlush — [L1135](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1135)
+- [x] Each exporter implementation MUST document the concurrency characteristics the SDK requires — [L1130](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1130)
+- [x] Exporter MUST support three functions: Export, Shutdown, and ForceFlush — [L1135](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1135)
 
 ### Span Exporter — Export
 

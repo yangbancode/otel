@@ -44,7 +44,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ### Span Processors & Exporters
 - [x] [SpanProcessor Interface](decisions/spanprocessor-interface.md)
-- [ ] [SpanExporter Interface](decisions/spanexporter-interface.md)
+- [x] [SpanExporter Interface](decisions/spanexporter-interface.md)
 - [ ] [SimpleSpanProcessor](decisions/simplespanprocessor.md)
 - [ ] [Console Exporter](decisions/console-exporter.md)
 - [ ] [BatchSpanProcessor](decisions/batchspanprocessor.md)
