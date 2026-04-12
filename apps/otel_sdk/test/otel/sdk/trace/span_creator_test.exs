@@ -39,6 +39,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       {:error, {:already_started, _}} -> :ok
     end
 
+    :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
     Otel.API.Ctx.clear()
     :ok
   end

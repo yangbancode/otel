@@ -7,6 +7,8 @@ defmodule Otel.SDK.Trace.TracerTest do
       {:error, {:already_started, _}} -> :ok
     end
 
+    :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
+
     {:ok, provider} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
     {_module, tracer_config} = Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
 
