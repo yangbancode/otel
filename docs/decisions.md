@@ -52,9 +52,9 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Span Operations](decisions/span-operations.md)
 
 ### Propagators
-- [ ] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)
-- [ ] [Composite Propagator & Global Registration](decisions/composite-propagator-and-global-registration.md)
-- [ ] [W3C TraceContext Propagator](decisions/w3c-tracecontext-propagator.md)
+- [x] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)
+- [x] [Composite Propagator & Global Registration](decisions/composite-propagator-and-global-registration.md)
+- [x] [W3C TraceContext Propagator](decisions/w3c-tracecontext-propagator.md)
 
 ### Baggage
 - [ ] [Baggage API](decisions/baggage-api.md)
