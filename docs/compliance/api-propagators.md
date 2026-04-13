@@ -35,7 +35,7 @@
 - [x] Set Global Propagator: method MUST exist for each supported type — [L342](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L342)
 
 ### Propagators Distribution
-- [ ] W3C TraceContext and W3C Baggage MUST be maintained and distributed — [L352](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L352)
+- [x] W3C TraceContext and W3C Baggage MUST be maintained and distributed — [L352](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L352)
 
 ### W3C Trace Context Requirements
 - [x] MUST parse and validate `traceparent` and `tracestate` per W3C Trace Context Level 2 — [L383](../references/opentelemetry-specification/v1.55.0/context/api-propagators.md#L383)
