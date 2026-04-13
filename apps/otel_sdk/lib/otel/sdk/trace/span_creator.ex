@@ -107,8 +107,8 @@ defmodule Otel.SDK.Trace.SpanCreator do
   @spec truncate_value(value :: term(), limit :: pos_integer() | :infinity) :: term()
   defp truncate_value(value, :infinity), do: value
 
-  defp truncate_value(value, limit) when is_binary(value) and byte_size(value) > limit do
-    String.slice(value, 0, limit)
+  defp truncate_value(value, limit) when is_binary(value) do
+    if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
   defp truncate_value(value, limit) when is_list(value) do

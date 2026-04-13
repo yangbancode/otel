@@ -16,7 +16,7 @@ The API module `Otel.API.Trace.Span` dispatches to a registered SDK module via `
 
 ### SDK Module: `Otel.SDK.Trace.SpanOperations`
 
-Location: `apps/otel_sdk/lib/otel/sdk/trace/span_ops.ex`
+Location: `apps/otel_sdk/lib/otel/sdk/trace/span_operations.ex`
 
 All operations follow the pattern:
 1. `SpanStorage.get(span_id)` — if nil (ended or dropped), silently return `:ok`
