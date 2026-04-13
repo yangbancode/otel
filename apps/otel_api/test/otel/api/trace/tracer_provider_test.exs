@@ -2,13 +2,7 @@ defmodule Otel.API.Trace.TracerProviderTest do
   use ExUnit.Case
 
   setup do
-    # Clean up persistent_term keys between tests
-    :persistent_term.get()
-    |> Enum.filter(fn {key, _} ->
-      match?({Otel.API.Trace.TracerProvider, _}, key)
-    end)
-    |> Enum.each(fn {key, _} -> :persistent_term.erase(key) end)
-
+    :persistent_term.erase({Otel.API.Trace.TracerProvider, :global})
     :ok
   end
 

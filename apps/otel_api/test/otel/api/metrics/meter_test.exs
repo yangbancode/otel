@@ -2,12 +2,6 @@ defmodule Otel.API.Metrics.MeterTest do
   use ExUnit.Case
 
   setup do
-    :persistent_term.get()
-    |> Enum.filter(fn {key, _} ->
-      match?({Otel.API.Metrics.MeterProvider, _}, key)
-    end)
-    |> Enum.each(fn {key, _} -> :persistent_term.erase(key) end)
-
     meter = Otel.API.Metrics.MeterProvider.get_meter("test_lib")
     %{meter: meter}
   end
