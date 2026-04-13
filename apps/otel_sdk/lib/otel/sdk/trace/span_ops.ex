@@ -33,14 +33,15 @@ defmodule Otel.SDK.Trace.SpanOps do
         value = truncate_value(value, limits.attribute_value_length_limit)
 
         attributes =
-          if Map.has_key?(span.attributes, key) do
-            Map.put(span.attributes, key, value)
-          else
-            if map_size(span.attributes) < limits.attribute_count_limit do
+          cond do
+            Map.has_key?(span.attributes, key) ->
               Map.put(span.attributes, key, value)
-            else
+
+            map_size(span.attributes) < limits.attribute_count_limit ->
+              Map.put(span.attributes, key, value)
+
+            true ->
               span.attributes
-            end
           end
 
         Otel.SDK.Trace.SpanStorage.insert(%{span | attributes: attributes})
@@ -63,23 +64,7 @@ defmodule Otel.SDK.Trace.SpanOps do
         :ok
 
       span ->
-        limits = span.span_limits
-
-        attributes =
-          Enum.reduce(new_attributes, span.attributes, fn {key, value}, acc ->
-            value = truncate_value(value, limits.attribute_value_length_limit)
-
-            if Map.has_key?(acc, key) do
-              Map.put(acc, key, value)
-            else
-              if map_size(acc) < limits.attribute_count_limit do
-                Map.put(acc, key, value)
-              else
-                acc
-              end
-            end
-          end)
-
+        attributes = merge_attributes(new_attributes, span.attributes, span.span_limits)
         Otel.SDK.Trace.SpanStorage.insert(%{span | attributes: attributes})
         :ok
     end
@@ -234,6 +219,36 @@ defmodule Otel.SDK.Trace.SpanOps do
   end
 
   # --- Private helpers ---
+
+  @spec merge_attributes(
+          new_attributes :: map(),
+          existing :: map(),
+          limits :: Otel.SDK.Trace.SpanLimits.t()
+        ) :: map()
+  defp merge_attributes(new_attributes, existing, limits) do
+    Enum.reduce(new_attributes, existing, fn {key, value}, acc ->
+      put_attribute(
+        acc,
+        key,
+        truncate_value(value, limits.attribute_value_length_limit),
+        limits.attribute_count_limit
+      )
+    end)
+  end
+
+  @spec put_attribute(
+          attributes :: map(),
+          key :: String.t() | atom(),
+          value :: term(),
+          count_limit :: pos_integer()
+        ) :: map()
+  defp put_attribute(attributes, key, value, count_limit) do
+    cond do
+      Map.has_key?(attributes, key) -> Map.put(attributes, key, value)
+      map_size(attributes) < count_limit -> Map.put(attributes, key, value)
+      true -> attributes
+    end
+  end
 
   @spec apply_set_status(
           span :: Otel.SDK.Trace.Span.t(),
