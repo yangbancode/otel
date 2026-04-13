@@ -5,8 +5,11 @@ defmodule Otel.SDK.Trace.TracerTest do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
 
-    {:ok, provider} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
-    {_module, tracer_config} = Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
+    {_module, tracer_config} =
+      Otel.SDK.Trace.TracerProvider.get_tracer(
+        Otel.SDK.Trace.TracerProvider,
+        "test_lib"
+      )
 
     %{tracer: {Otel.SDK.Trace.Tracer, tracer_config}}
   end

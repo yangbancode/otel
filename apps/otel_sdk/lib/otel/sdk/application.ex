@@ -24,7 +24,7 @@ defmodule Otel.SDK.Application do
 
     children = [
       Otel.SDK.Trace.SpanStorage,
-      {Otel.SDK.Trace.TracerProvider, [config: config]}
+      {Otel.SDK.Trace.TracerProvider, [config: config, name: Otel.SDK.Trace.TracerProvider]}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Otel.SDK.Supervisor)
