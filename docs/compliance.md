@@ -510,20 +510,20 @@
 > Ref: [resource/sdk.md](../references/opentelemetry-specification/specification/resource/sdk.md)
 
 ### Resource SDK
-- [ ] SDK MUST allow for creation of Resources and associating them with telemetry — [L22](../references/opentelemetry-specification/specification/resource/sdk.md#L22)
-- [ ] All Spans produced by any Tracer from provider MUST be associated with Resource — [L29](../references/opentelemetry-specification/specification/resource/sdk.md#L29)
+- [x] SDK MUST allow for creation of Resources and associating them with telemetry — [L22](../references/opentelemetry-specification/specification/resource/sdk.md#L22)
+- [x] All Spans produced by any Tracer from provider MUST be associated with Resource — [L29](../references/opentelemetry-specification/specification/resource/sdk.md#L29)
 
 ### SDK-provided Resource Attributes
-- [ ] SDK MUST provide access to Resource with at least SDK-provided default value attributes — [L39](../references/opentelemetry-specification/specification/resource/sdk.md#L39)
-- [ ] This resource MUST be associated with TracerProvider/MeterProvider if no other resource specified — [L41](../references/opentelemetry-specification/specification/resource/sdk.md#L41)
+- [x] SDK MUST provide access to Resource with at least SDK-provided default value attributes — [L39](../references/opentelemetry-specification/specification/resource/sdk.md#L39)
+- [x] This resource MUST be associated with TracerProvider/MeterProvider if no other resource specified — [L41](../references/opentelemetry-specification/specification/resource/sdk.md#L41)
 
 ### Create
-- [ ] Interface MUST provide way to create new resource from Attributes — [L58](../references/opentelemetry-specification/specification/resource/sdk.md#L58)
+- [x] Interface MUST provide way to create new resource from Attributes — [L58](../references/opentelemetry-specification/specification/resource/sdk.md#L58)
 
 ### Merge
-- [ ] Interface MUST provide way to merge old and updating resource into new resource — [L71](../references/opentelemetry-specification/specification/resource/sdk.md#L71)
-- [ ] Resulting resource MUST have all attributes from both input resources — [L78](../references/opentelemetry-specification/specification/resource/sdk.md#L78)
-- [ ] If key exists on both, value of updating resource MUST be picked — [L79](../references/opentelemetry-specification/specification/resource/sdk.md#L79)
+- [x] Interface MUST provide way to merge old and updating resource into new resource — [L71](../references/opentelemetry-specification/specification/resource/sdk.md#L71)
+- [x] Resulting resource MUST have all attributes from both input resources — [L78](../references/opentelemetry-specification/specification/resource/sdk.md#L78)
+- [x] If key exists on both, value of updating resource MUST be picked — [L79](../references/opentelemetry-specification/specification/resource/sdk.md#L79)
 
 ### Detecting Resource Information
 - [ ] Custom resource detectors for generic platforms MUST be implemented as separate packages — [L107](../references/opentelemetry-specification/specification/resource/sdk.md#L107)
@@ -539,8 +539,8 @@
 - [ ] Multiple resource detectors with same name SHOULD report an error — [L156](../references/opentelemetry-specification/specification/resource/sdk.md#L156)
 
 ### Environment Variable Resource
-- [ ] SDK MUST extract info from OTEL_RESOURCE_ATTRIBUTES and merge as secondary resource — [L179](../references/opentelemetry-specification/specification/resource/sdk.md#L179)
-- [ ] All attribute values MUST be considered strings — [L186](../references/opentelemetry-specification/specification/resource/sdk.md#L186)
+- [x] SDK MUST extract info from OTEL_RESOURCE_ATTRIBUTES and merge as secondary resource — [L179](../references/opentelemetry-specification/specification/resource/sdk.md#L179)
+- [x] All attribute values MUST be considered strings — [L186](../references/opentelemetry-specification/specification/resource/sdk.md#L186)
 - [ ] The `,` and `=` characters in keys and values MUST be percent encoded — [L187](../references/opentelemetry-specification/specification/resource/sdk.md#L187)
 
 ---
@@ -570,8 +570,8 @@
 
 ### General SDK Configuration
 - [ ] OTEL_SDK_DISABLED: Disable SDK for all signals, default false — [L113](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L113)
-- [ ] OTEL_RESOURCE_ATTRIBUTES: Key-value pairs for resource attributes — [L115](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L115)
-- [ ] OTEL_SERVICE_NAME: Sets service.name resource attribute — [L116](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L116)
+- [x] OTEL_RESOURCE_ATTRIBUTES: Key-value pairs for resource attributes — [L115](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L115)
+- [x] OTEL_SERVICE_NAME: Sets service.name resource attribute — [L116](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L116)
 - [ ] OTEL_LOG_LEVEL: Log level for SDK internal logger, default "info" — [L117](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L117)
 - [ ] OTEL_PROPAGATORS: Comma-separated propagators, default "tracecontext,baggage" — [L118](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L118)
 - [x] OTEL_TRACES_SAMPLER: Sampler for traces, default "parentbased_always_on" — [L119](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L119)
