@@ -65,7 +65,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ### OTLP
 - [x] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
-- [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
+- [x] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
 
