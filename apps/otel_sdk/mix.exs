@@ -11,10 +11,7 @@ defmodule Otel.SDK.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      test_coverage: [
-        threshold: 100,
-        ignore_modules: [Otel.SDK.Application]
-      ],
+      test_coverage: [threshold: 100],
       elixirc_options: [warnings_as_errors: true]
     ]
   end

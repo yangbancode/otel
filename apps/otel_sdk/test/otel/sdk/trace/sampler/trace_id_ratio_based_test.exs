@@ -6,7 +6,7 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBasedTest do
   describe "setup/1" do
     test "accepts probability 0.0" do
       sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.0})
-      assert {_, _, %{probability: 0.0}} = sampler
+      assert {_, _, %{probability: +0.0}} = sampler
     end
 
     test "accepts probability 1.0" do
