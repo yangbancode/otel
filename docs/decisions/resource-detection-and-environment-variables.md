@@ -10,6 +10,6 @@ TBD
 
 ## Compliance
 
-- [Resource](../compliance/resource.md)
+- [Resource](../compliance.md)
   * Detecting Resource Information — L107, L110, L122, L123, L127, L128, L133
   * Environment Variable Resource — L179, L186, L187, L192

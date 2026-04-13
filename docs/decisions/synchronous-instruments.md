@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics API](../compliance/metrics-api.md)
+- [Metrics API](../compliance.md)
   * Instrument — L194
   * Instrument unit — L225, L223
   * Instrument description — L235, L237, L242

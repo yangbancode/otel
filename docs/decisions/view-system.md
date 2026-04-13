@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics SDK](../compliance/metrics-sdk.md)
+- [Metrics SDK](../compliance.md)
   * Configuration — L144, L150
   * View (Stable) — L252, L253, L257
   * Instrument Selection Criteria — L264, L270, L288, L293, L299, L305, L311, L316, L323, L331

@@ -58,7 +58,7 @@ Added `span_limits` and `processors` fields to `Otel.SDK.Trace.Span` struct. The
 
 ## Compliance
 
-- [Trace API](../compliance/trace-api.md)
+- [Trace API](../compliance.md)
   * Span Operations — Set Attributes — L497, L499, L510
   * Span Operations — Add Events — L522, L533, L544
   * Span Operations — Add Link — L562
@@ -68,5 +68,5 @@ Added `span_limits` and `processors` fields to `Otel.SDK.Trace.Span` struct. The
   * Span Operations — Record Exception — L686, L693, L695, L697, L699
   * Span Operations — IsRecording — L478, L483, L485
   * Span Lifetime — L715
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Span Processor — OnEnd — L1008

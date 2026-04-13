@@ -33,6 +33,6 @@ Functions added to `Otel.SDK.Trace.TracerProvider`.
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * TracerProvider — Shutdown — L161, L163, L165, L168, L173
   * TracerProvider — ForceFlush — L179, L182, L187

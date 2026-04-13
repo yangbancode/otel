@@ -29,5 +29,5 @@ Location: `apps/otel_sdk/lib/otel/sdk/trace/span_limits.ex`
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Span Limits — L836, L841, L845, L846, L873, L875

@@ -32,5 +32,5 @@ Location: `apps/otel_sdk/lib/otel/sdk/trace/tracer_provider.ex`
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * TracerProvider — Configuration — L113, L119, L120

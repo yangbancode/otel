@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Logs SDK](../compliance/logs-sdk.md)
+- [Logs SDK](../compliance.md)
   * LoggerProvider — L55, L59, L60
   * LoggerProvider Creation — L65
   * Logger Creation — L69, L72, L74, L79, L80, L81

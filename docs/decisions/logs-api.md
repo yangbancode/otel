@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Logs API](../compliance/logs-api.md)
+- [Logs API](../compliance.md)
   * LoggerProvider — L59, L64
   * Get a Logger — L70, L85, L88, L92
   * Logger — L103, L107

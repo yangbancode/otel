@@ -31,7 +31,7 @@ All Span operations MUST be safe for concurrent use (L848). On BEAM this is natu
 
 ## Compliance
 
-- [Trace API](../compliance/trace-api.md)
+- [Trace API](../compliance.md)
   * Span — L329, L333, L365, L366, L368, L371, L375
   * Span Operations — Get Context — L457, L460
   * Span Operations — IsRecording — L478, L483, L485

@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [OTLP Protocol](../compliance/otlp-protocol.md)
+- [OTLP Protocol](../compliance.md)
   * General — L87
   * Binary Protobuf Encoding — L400
   * JSON Protobuf Encoding — L409, L418, L426, L443

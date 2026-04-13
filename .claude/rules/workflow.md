@@ -4,7 +4,7 @@ When a user requests a task that involves code changes:
 
 1. **Classify the task** — determine the type (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`) and scope by asking the user if unclear
 2. **Create a branch** — `<type>/<short-description>` from `main` before making any changes
-3. **Research** — read the OTel spec (`docs/references/opentelemetry-specification/`) and the erlang reference (`/tmp/opentelemetry-erlang`) together
+3. **Research** — read the OTel spec (`references/opentelemetry-specification/`) and the erlang reference (`references/opentelemetry-erlang/`) together
 4. **Implement** — write code and tests based on spec + erlang reference. Apply all available config/limits/features from prior decisions immediately — do not defer to "next decision"
 5. **Code conventions** — verify against `.claude/rules/code-conventions.md`:
    - No alias: full module names only

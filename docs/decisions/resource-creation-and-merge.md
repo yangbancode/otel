@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Resource](../compliance/resource.md)
+- [Resource](../compliance.md)
   * Resource SDK — L22, L29
   * SDK-provided Resource Attributes — L39, L41
   * Create — L58

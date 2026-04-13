@@ -10,6 +10,6 @@ TBD
 
 ## Compliance
 
-- [Metrics SDK](../compliance/metrics-sdk.md)
+- [Metrics SDK](../compliance.md)
   * Observations Inside Asynchronous Callbacks (Stable) — L762, L767, L770, L773, L776
   * Cardinality Limits (Stable) — L809, L813, L823, L826, L827, L837, L840, L846, L856, L861, L866

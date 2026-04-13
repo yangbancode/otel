@@ -44,7 +44,7 @@ Uses lower 64 bits of trace_id compared against a threshold derived from the rat
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Built-in Samplers — AlwaysOn — L426
   * Built-in Samplers — AlwaysOff — L431
   * Built-in Samplers — TraceIdRatioBased — L447, L450, L453, L462, L467

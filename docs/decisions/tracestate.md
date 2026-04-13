@@ -39,5 +39,5 @@ Location: `apps/otel_api/lib/otel/api/trace/tracestate.ex`
 
 ## Compliance
 
-- [Trace API](../compliance/trace-api.md)
+- [Trace API](../compliance.md)
   * TraceState — L284, L291, L292, L293, L294, L295

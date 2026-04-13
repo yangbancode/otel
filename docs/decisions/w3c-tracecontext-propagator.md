@@ -49,5 +49,5 @@ The `_rest::binary` allows forward compatibility with future versions that may a
 
 ## Compliance
 
-- [API Propagators](../compliance/api-propagators.md)
+- [API Propagators](../compliance.md)
   * W3C Trace Context Requirements — L383, L383, L383

@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics SDK](../compliance/metrics-sdk.md)
+- [Metrics SDK](../compliance.md)
   * General — L103
   * MeterProvider (Stable) — L109, L110
   * MeterProvider Creation — L117
