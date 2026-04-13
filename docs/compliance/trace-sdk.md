@@ -113,7 +113,7 @@
 
 ### Span Processor — OnEnd
 
-- [ ] OnEnd MUST be called synchronously within the Span.End() API — [L1008](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1008)
+- [x] OnEnd MUST be called synchronously within the Span.End() API — [L1008](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1008)
 
 ### Span Processor — Shutdown
 

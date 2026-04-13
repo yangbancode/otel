@@ -45,7 +45,17 @@ defmodule Otel.SDK.Trace.SpanCreator do
         |> Map.merge(sampler_attributes)
         |> apply_attribute_limits(span_limits)
 
-      limited_links = Enum.take(links, span_limits.link_count_limit)
+      limited_links =
+        links
+        |> Enum.take(span_limits.link_count_limit)
+        |> Enum.map(fn {ctx, attrs} ->
+          {ctx,
+           apply_link_attribute_limits(
+             attrs,
+             span_limits.attribute_per_link_limit,
+             span_limits.attribute_value_length_limit
+           )}
+        end)
 
       span = %Otel.SDK.Trace.Span{
         trace_id: trace_id,
@@ -80,11 +90,25 @@ defmodule Otel.SDK.Trace.SpanCreator do
     |> Map.new()
   end
 
+  @spec apply_link_attribute_limits(
+          attributes :: map(),
+          count_limit :: pos_integer(),
+          value_length_limit :: pos_integer() | :infinity
+        ) :: map()
+  defp apply_link_attribute_limits(attributes, count_limit, value_length_limit) do
+    attributes
+    |> Enum.take(count_limit)
+    |> Enum.map(fn {key, value} ->
+      {key, truncate_value(value, value_length_limit)}
+    end)
+    |> Map.new()
+  end
+
   @spec truncate_value(value :: term(), limit :: pos_integer() | :infinity) :: term()
   defp truncate_value(value, :infinity), do: value
 
-  defp truncate_value(value, limit) when is_binary(value) and byte_size(value) > limit do
-    String.slice(value, 0, limit)
+  defp truncate_value(value, limit) when is_binary(value) do
+    if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
   defp truncate_value(value, limit) when is_list(value) do

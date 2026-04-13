@@ -119,13 +119,13 @@
 
 - [x] Span MUST have the ability to set Attributes — [L497](../references/opentelemetry-specification/v1.55.0/trace/api.md#L497)
 - [x] Span interface MUST provide an API to set a single Attribute — [L499](../references/opentelemetry-specification/v1.55.0/trace/api.md#L499)
-- [ ] Setting an attribute with the same key as an existing attribute SHOULD overwrite the existing attribute's value — [L510](../references/opentelemetry-specification/v1.55.0/trace/api.md#L510)
+- [x] Setting an attribute with the same key as an existing attribute SHOULD overwrite the existing attribute's value — [L510](../references/opentelemetry-specification/v1.55.0/trace/api.md#L510)
 
 ### Span Operations — Add Events
 
 - [x] Span MUST have the ability to add events — [L522](../references/opentelemetry-specification/v1.55.0/trace/api.md#L522)
 - [x] Span interface MUST provide an API to record a single Event — [L533](../references/opentelemetry-specification/v1.55.0/trace/api.md#L533)
-- [ ] Events SHOULD preserve the order in which they are recorded — [L544](../references/opentelemetry-specification/v1.55.0/trace/api.md#L544)
+- [x] Events SHOULD preserve the order in which they are recorded — [L544](../references/opentelemetry-specification/v1.55.0/trace/api.md#L544)
 
 ### Span Operations — Add Link
 
@@ -133,16 +133,16 @@
 
 ### Span Operations — Set Status
 
-- [ ] Description MUST only be used with the Error StatusCode value — [L574](../references/opentelemetry-specification/v1.55.0/trace/api.md#L574)
+- [x] Description MUST only be used with the Error StatusCode value — [L574](../references/opentelemetry-specification/v1.55.0/trace/api.md#L574)
 - [x] Span interface MUST provide an API to set the Status — [L594](../references/opentelemetry-specification/v1.55.0/trace/api.md#L594)
-- [ ] Description MUST be IGNORED for StatusCode Ok & Unset values — [L599](../references/opentelemetry-specification/v1.55.0/trace/api.md#L599)
+- [x] Description MUST be IGNORED for StatusCode Ok & Unset values — [L599](../references/opentelemetry-specification/v1.55.0/trace/api.md#L599)
 - [ ] Status code SHOULD remain unset except in specific circumstances — [L602](../references/opentelemetry-specification/v1.55.0/trace/api.md#L602)
-- [ ] Attempt to set value Unset SHOULD be ignored — [L603](../references/opentelemetry-specification/v1.55.0/trace/api.md#L603)
+- [x] Attempt to set value Unset SHOULD be ignored — [L603](../references/opentelemetry-specification/v1.55.0/trace/api.md#L603)
 - [ ] When status is set to Error by instrumentation libraries, the Description SHOULD be documented and predictable — [L606](../references/opentelemetry-specification/v1.55.0/trace/api.md#L606)
 - [ ] Instrumentation Libraries SHOULD publish their own conventions for status descriptions not covered by semantic conventions — [L609](../references/opentelemetry-specification/v1.55.0/trace/api.md#L609)
 - [ ] Instrumentation Libraries SHOULD NOT set status code to Ok unless explicitly configured to do so — [L613](../references/opentelemetry-specification/v1.55.0/trace/api.md#L613)
 - [ ] Instrumentation Libraries SHOULD leave status code as Unset unless there is an error — [L614](../references/opentelemetry-specification/v1.55.0/trace/api.md#L614)
-- [ ] When span status is set to Ok it SHOULD be considered final and any further attempts to change it SHOULD be ignored — [L619](../references/opentelemetry-specification/v1.55.0/trace/api.md#L619)
+- [x] When span status is set to Ok it SHOULD be considered final and any further attempts to change it SHOULD be ignored — [L619](../references/opentelemetry-specification/v1.55.0/trace/api.md#L619)
 - [ ] Analysis tools SHOULD respond to an Ok status by suppressing any errors they would otherwise generate — [L622](../references/opentelemetry-specification/v1.55.0/trace/api.md#L622)
 
 ### Span Operations — UpdateName
@@ -152,11 +152,11 @@
 ### Span Operations — End
 
 - [x] Implementations SHOULD ignore all subsequent calls to End and any other Span methods after Span is finished — [L652](../references/opentelemetry-specification/v1.55.0/trace/api.md#L652)
-- [ ] All API implementations of language-specific end methods MUST internally call the End method — [L659](../references/opentelemetry-specification/v1.55.0/trace/api.md#L659)
-- [ ] End MUST NOT have any effects on child spans — [L662](../references/opentelemetry-specification/v1.55.0/trace/api.md#L662)
-- [ ] End MUST NOT inactivate the Span in any Context it is active in — [L665](../references/opentelemetry-specification/v1.55.0/trace/api.md#L665)
-- [ ] It MUST still be possible to use an ended span as parent via a Context it is contained in — [L666](../references/opentelemetry-specification/v1.55.0/trace/api.md#L666)
-- [ ] If end timestamp is omitted, this MUST be treated equivalent to passing the current time — [L673](../references/opentelemetry-specification/v1.55.0/trace/api.md#L673)
+- [x] All API implementations of language-specific end methods MUST internally call the End method — [L659](../references/opentelemetry-specification/v1.55.0/trace/api.md#L659)
+- [x] End MUST NOT have any effects on child spans — [L662](../references/opentelemetry-specification/v1.55.0/trace/api.md#L662)
+- [x] End MUST NOT inactivate the Span in any Context it is active in — [L665](../references/opentelemetry-specification/v1.55.0/trace/api.md#L665)
+- [x] It MUST still be possible to use an ended span as parent via a Context it is contained in — [L666](../references/opentelemetry-specification/v1.55.0/trace/api.md#L666)
+- [x] If end timestamp is omitted, this MUST be treated equivalent to passing the current time — [L673](../references/opentelemetry-specification/v1.55.0/trace/api.md#L673)
 - [x] End operation itself MUST NOT perform blocking I/O on the calling thread — [L677](../references/opentelemetry-specification/v1.55.0/trace/api.md#L677)
 - [ ] Any locking used SHOULD be minimized and SHOULD be removed entirely if possible — [L678](../references/opentelemetry-specification/v1.55.0/trace/api.md#L678)
 
@@ -166,11 +166,11 @@
 - [x] RecordException MUST record an exception as an Event with the conventions outlined in the exceptions document — [L693](../references/opentelemetry-specification/v1.55.0/trace/api.md#L693)
 - [x] The minimum required argument SHOULD be no more than only an exception object — [L695](../references/opentelemetry-specification/v1.55.0/trace/api.md#L695)
 - [x] If RecordException is provided, the method MUST accept an optional parameter to provide additional event attributes — [L697](../references/opentelemetry-specification/v1.55.0/trace/api.md#L697)
-- [ ] Additional event attributes SHOULD be done in the same way as for the AddEvent method — [L699](../references/opentelemetry-specification/v1.55.0/trace/api.md#L699)
+- [x] Additional event attributes SHOULD be done in the same way as for the AddEvent method — [L699](../references/opentelemetry-specification/v1.55.0/trace/api.md#L699)
 
 ### Span Lifetime
 
-- [ ] Start and end time as well as Event's timestamps MUST be recorded at a time of calling of corresponding API — [L715](../references/opentelemetry-specification/v1.55.0/trace/api.md#L715)
+- [x] Start and end time as well as Event's timestamps MUST be recorded at a time of calling of corresponding API — [L715](../references/opentelemetry-specification/v1.55.0/trace/api.md#L715)
 
 ### Wrapping a SpanContext in a Span
 

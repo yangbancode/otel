@@ -1,5 +1,58 @@
+defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
+  @spec recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
+  def recording?(_span_ctx), do: true
+
+  @spec set_attribute(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          key :: String.t() | atom(),
+          value :: term()
+        ) :: :ok
+  def set_attribute(_span_ctx, _key, _value), do: :ok
+
+  @spec set_attributes(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          attributes :: map() | [{String.t() | atom(), term()}]
+        ) :: :ok
+  def set_attributes(_span_ctx, _attributes), do: :ok
+
+  @spec add_event(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          name :: String.t() | atom(),
+          opts :: keyword()
+        ) :: :ok
+  def add_event(_span_ctx, _name, _opts), do: :ok
+
+  @spec add_link(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          linked_ctx :: Otel.API.Trace.SpanContext.t(),
+          attributes :: map()
+        ) :: :ok
+  def add_link(_span_ctx, _linked_ctx, _attributes), do: :ok
+
+  @spec set_status(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          code :: Otel.API.Trace.Span.status_code(),
+          description :: String.t()
+        ) :: :ok
+  def set_status(_span_ctx, _code, _description), do: :ok
+
+  @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
+  def update_name(_span_ctx, _name), do: :ok
+
+  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer() | nil) :: :ok
+  def end_span(_span_ctx, _timestamp), do: :ok
+
+  @spec record_exception(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          exception :: Exception.t(),
+          stacktrace :: list(),
+          attributes :: map()
+        ) :: :ok
+  def record_exception(_span_ctx, _exception, _stacktrace, _attributes), do: :ok
+end
+
 defmodule Otel.API.Trace.SpanTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   @valid_ctx Otel.API.Trace.SpanContext.new(
                0xFF000000000000000000000000000001,
@@ -141,6 +194,60 @@ defmodule Otel.API.Trace.SpanTest do
 
     test "record_exception on invalid span returns :ok" do
       assert Otel.API.Trace.Span.record_exception(@invalid_ctx, %RuntimeError{message: "oops"}) ==
+               :ok
+    end
+  end
+
+  describe "dispatch to registered module" do
+    setup do
+      Otel.API.Trace.Span.set_span_module(Otel.API.Trace.SpanTest.FakeSpanOperations)
+
+      on_exit(fn ->
+        :persistent_term.erase({Otel.API.Trace.Span, :module})
+      end)
+
+      :ok
+    end
+
+    test "get_span_module returns registered module" do
+      assert Otel.API.Trace.Span.get_span_module() == Otel.API.Trace.SpanTest.FakeSpanOperations
+    end
+
+    test "recording? dispatches to module" do
+      assert Otel.API.Trace.Span.recording?(@valid_ctx) == true
+    end
+
+    test "set_attribute dispatches to module" do
+      assert Otel.API.Trace.Span.set_attribute(@valid_ctx, :key, "val") == :ok
+    end
+
+    test "set_attributes dispatches to module" do
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{key: "val"}) == :ok
+    end
+
+    test "add_event dispatches to module" do
+      assert Otel.API.Trace.Span.add_event(@valid_ctx, "event") == :ok
+    end
+
+    test "add_link dispatches to module" do
+      other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
+      assert Otel.API.Trace.Span.add_link(@valid_ctx, other) == :ok
+    end
+
+    test "set_status dispatches to module" do
+      assert Otel.API.Trace.Span.set_status(@valid_ctx, :error, "fail") == :ok
+    end
+
+    test "update_name dispatches to module" do
+      assert Otel.API.Trace.Span.update_name(@valid_ctx, "new") == :ok
+    end
+
+    test "end_span dispatches to module" do
+      assert Otel.API.Trace.Span.end_span(@valid_ctx) == :ok
+    end
+
+    test "record_exception dispatches to module" do
+      assert Otel.API.Trace.Span.record_exception(@valid_ctx, %RuntimeError{message: "oops"}) ==
                :ok
     end
   end

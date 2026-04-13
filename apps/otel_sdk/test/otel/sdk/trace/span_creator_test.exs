@@ -414,5 +414,49 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
       assert length(span.links) == 1
     end
+
+    test "enforces attribute_per_link_limit at creation" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1}
+
+      links = [
+        {Otel.API.Trace.SpanContext.new(1, 1), %{a: 1, b: 2, c: 3}}
+      ]
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          links: links
+        )
+
+      {_ctx, attrs} = hd(span.links)
+      assert map_size(attrs) == 1
+    end
+
+    test "truncates link attribute values at creation" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
+
+      links = [
+        {Otel.API.Trace.SpanContext.new(1, 1), %{key: "hello world"}}
+      ]
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.SpanCreator.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          links: links
+        )
+
+      {_ctx, attrs} = hd(span.links)
+      assert attrs.key == "hel"
+    end
   end
 end
