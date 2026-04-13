@@ -13,7 +13,7 @@ When a user requests a task that involves code changes:
 7. **Quality checks** — run in order:
    - `mix format --check-formatted`
    - `mix compile --warnings-as-errors`
-   - `mix test --cover` (100% threshold)
+   - `mix test --warnings-as-errors --cover` (100% threshold)
    - `mix credo --strict`
    - `mix dialyzer`
 8. **Update docs** — update Decision document, Compliance checkboxes, and `decisions.md` checkboxes
