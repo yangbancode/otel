@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Trace.SpanOps do
+defmodule Otel.SDK.Trace.SpanOperations do
   @moduledoc """
   SDK implementation of span operations.
 

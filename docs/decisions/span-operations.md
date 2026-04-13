@@ -11,10 +11,10 @@ How to implement SDK-level span operations (set_attribute, add_event, set_status
 The API module `Otel.API.Trace.Span` dispatches to a registered SDK module via `persistent_term`, following the same pattern as `TracerProvider`.
 
 - `Otel.API.Trace.Span.set_span_module/1` / `get_span_module/0` — register/lookup
-- SDK registers `Otel.SDK.Trace.SpanOps` in `Otel.SDK.Application.start/2`
+- SDK registers `Otel.SDK.Trace.SpanOperations` in `Otel.SDK.Application.start/2`
 - Without SDK, all operations are no-ops (return `:ok`)
 
-### SDK Module: `Otel.SDK.Trace.SpanOps`
+### SDK Module: `Otel.SDK.Trace.SpanOperations`
 
 Location: `apps/otel_sdk/lib/otel/sdk/trace/span_ops.ex`
 
