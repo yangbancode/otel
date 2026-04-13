@@ -856,20 +856,20 @@
 
 ### MeterProvider
 
-- [ ] API SHOULD provide a way to set/register and access a global default MeterProvider — [L111](../references/opentelemetry-specification/specification/metrics/api.md#L111)
-- [ ] MeterProvider MUST provide the function: Get a Meter — [L116](../references/opentelemetry-specification/specification/metrics/api.md#L116)
+- [x] API SHOULD provide a way to set/register and access a global default MeterProvider — [L111](../references/opentelemetry-specification/specification/metrics/api.md#L111)
+- [x] MeterProvider MUST provide the function: Get a Meter — [L116](../references/opentelemetry-specification/specification/metrics/api.md#L116)
 
 ### Get a Meter
 
-- [ ] Get a Meter API MUST accept `name` parameter — [L122](../references/opentelemetry-specification/specification/metrics/api.md#L122)
-- [ ] Get a Meter API MUST NOT obligate a user to provide `version` — [L138](../references/opentelemetry-specification/specification/metrics/api.md#L138)
-- [ ] Get a Meter API MUST NOT obligate a user to provide `schema_url` — [L144](../references/opentelemetry-specification/specification/metrics/api.md#L144)
-- [ ] Get a Meter API MUST be structured to accept a variable number of `attributes`, including none — [L150](../references/opentelemetry-specification/specification/metrics/api.md#L150)
+- [x] Get a Meter API MUST accept `name` parameter — [L122](../references/opentelemetry-specification/specification/metrics/api.md#L122)
+- [x] Get a Meter API MUST NOT obligate a user to provide `version` — [L138](../references/opentelemetry-specification/specification/metrics/api.md#L138)
+- [x] Get a Meter API MUST NOT obligate a user to provide `schema_url` — [L144](../references/opentelemetry-specification/specification/metrics/api.md#L144)
+- [x] Get a Meter API MUST be structured to accept a variable number of `attributes`, including none — [L150](../references/opentelemetry-specification/specification/metrics/api.md#L150)
 
 ### Meter
 
-- [ ] Meter SHOULD NOT be responsible for the configuration — [L161](../references/opentelemetry-specification/specification/metrics/api.md#L161)
-- [ ] Meter MUST provide functions to create new Instruments (Counter, Async Counter, Histogram, Gauge, Async Gauge, UpDownCounter, Async UpDownCounter) — [L166](../references/opentelemetry-specification/specification/metrics/api.md#L166)
+- [x] Meter SHOULD NOT be responsible for the configuration — [L161](../references/opentelemetry-specification/specification/metrics/api.md#L161)
+- [x] Meter MUST provide functions to create new Instruments (Counter, Async Counter, Histogram, Gauge, Async Gauge, UpDownCounter, Async UpDownCounter) — [L166](../references/opentelemetry-specification/specification/metrics/api.md#L166)
 
 ### Instrument
 
@@ -1016,14 +1016,14 @@
 
 ### Compatibility requirements
 
-- [ ] All metrics components SHOULD allow new APIs to be added without breaking changes — [L1334](../references/opentelemetry-specification/specification/metrics/api.md#L1334)
-- [ ] All metrics APIs SHOULD allow optional parameters to be added without breaking changes — [L1337](../references/opentelemetry-specification/specification/metrics/api.md#L1337)
+- [x] All metrics components SHOULD allow new APIs to be added without breaking changes — [L1334](../references/opentelemetry-specification/specification/metrics/api.md#L1334)
+- [x] All metrics APIs SHOULD allow optional parameters to be added without breaking changes — [L1337](../references/opentelemetry-specification/specification/metrics/api.md#L1337)
 
 ### Concurrency requirements
 
-- [ ] MeterProvider: all methods MUST be documented as safe for concurrent use — [L1345](../references/opentelemetry-specification/specification/metrics/api.md#L1345)
-- [ ] Meter: all methods MUST be documented as safe for concurrent use — [L1348](../references/opentelemetry-specification/specification/metrics/api.md#L1348)
-- [ ] Instrument: all methods MUST be documented as safe for concurrent use — [L1351](../references/opentelemetry-specification/specification/metrics/api.md#L1351)
+- [x] MeterProvider: all methods MUST be documented as safe for concurrent use — [L1345](../references/opentelemetry-specification/specification/metrics/api.md#L1345)
+- [x] Meter: all methods MUST be documented as safe for concurrent use — [L1348](../references/opentelemetry-specification/specification/metrics/api.md#L1348)
+- [x] Instrument: all methods MUST be documented as safe for concurrent use — [L1351](../references/opentelemetry-specification/specification/metrics/api.md#L1351)
 
 ---
 
