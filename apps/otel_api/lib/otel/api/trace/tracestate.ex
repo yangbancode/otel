@@ -38,6 +38,12 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
+  Returns the number of entries in the TraceState.
+  """
+  @spec size(trace_state :: t()) :: non_neg_integer()
+  def size(%__MODULE__{members: members}), do: length(members)
+
+  @doc """
   Returns the value for `key`, or `""` if not found.
   """
   @spec get(trace_state :: t(), key :: String.t()) :: String.t()
