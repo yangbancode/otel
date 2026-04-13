@@ -873,18 +873,18 @@
 
 ### Instrument
 
-- [ ] Language-level features such as integer vs floating point SHOULD be considered as identifying — [L194](../references/opentelemetry-specification/specification/metrics/api.md#L194)
+- [x] Language-level features such as integer vs floating point SHOULD be considered as identifying — [L194](../references/opentelemetry-specification/specification/metrics/api.md#L194)
 
 ### Instrument unit
 
-- [ ] Unit MUST be case-sensitive, ASCII string — [L225](../references/opentelemetry-specification/specification/metrics/api.md#L225)
-- [ ] API SHOULD treat unit as an opaque string — [L223](../references/opentelemetry-specification/specification/metrics/api.md#L223)
+- [x] Unit MUST be case-sensitive, ASCII string — [L225](../references/opentelemetry-specification/specification/metrics/api.md#L225)
+- [x] API SHOULD treat unit as an opaque string — [L223](../references/opentelemetry-specification/specification/metrics/api.md#L223)
 
 ### Instrument description
 
-- [ ] API MUST treat description as an opaque string — [L235](../references/opentelemetry-specification/specification/metrics/api.md#L235)
-- [ ] Description MUST support BMP (Unicode Plane 0) — [L237](../references/opentelemetry-specification/specification/metrics/api.md#L237)
-- [ ] Description MUST support at least 1023 characters — [L242](../references/opentelemetry-specification/specification/metrics/api.md#L242)
+- [x] API MUST treat description as an opaque string — [L235](../references/opentelemetry-specification/specification/metrics/api.md#L235)
+- [x] Description MUST support BMP (Unicode Plane 0) — [L237](../references/opentelemetry-specification/specification/metrics/api.md#L237)
+- [x] Description MUST support at least 1023 characters — [L242](../references/opentelemetry-specification/specification/metrics/api.md#L242)
 
 ### Instrument advisory parameters (Mixed top-level, sub-sections checked individually)
 
@@ -894,18 +894,18 @@
 
 ### Synchronous Instrument API
 
-- [ ] API to construct synchronous instruments MUST accept `name` parameter — [L304](../references/opentelemetry-specification/specification/metrics/api.md#L304)
-- [ ] API SHOULD be structured so a user is obligated to provide `name` — [L308](../references/opentelemetry-specification/specification/metrics/api.md#L308)
-- [ ] If not structurally enforced, API MUST be documented to communicate `name` is needed — [L310](../references/opentelemetry-specification/specification/metrics/api.md#L310)
-- [ ] API SHOULD be documented that `name` needs to conform to instrument name syntax — [L313](../references/opentelemetry-specification/specification/metrics/api.md#L313)
-- [ ] API SHOULD NOT validate the `name` — [L315](../references/opentelemetry-specification/specification/metrics/api.md#L315)
-- [ ] API MUST NOT obligate a user to provide `unit` — [L320](../references/opentelemetry-specification/specification/metrics/api.md#L320)
-- [ ] API MUST accept a case-sensitive string for `unit` that supports ASCII and at least 63 characters — [L324](../references/opentelemetry-specification/specification/metrics/api.md#L324)
-- [ ] API SHOULD NOT validate the `unit` — [L326](../references/opentelemetry-specification/specification/metrics/api.md#L326)
-- [ ] API MUST NOT obligate a user to provide `description` — [L331](../references/opentelemetry-specification/specification/metrics/api.md#L331)
-- [ ] API MUST accept a string for `description` that supports BMP and at least 1023 characters — [L334](../references/opentelemetry-specification/specification/metrics/api.md#L334)
-- [ ] API MUST NOT obligate the user to provide `advisory` parameters — [L343](../references/opentelemetry-specification/specification/metrics/api.md#L343)
-- [ ] API SHOULD NOT validate `advisory` parameters — [L348](../references/opentelemetry-specification/specification/metrics/api.md#L348)
+- [x] API to construct synchronous instruments MUST accept `name` parameter — [L304](../references/opentelemetry-specification/specification/metrics/api.md#L304)
+- [x] API SHOULD be structured so a user is obligated to provide `name` — [L308](../references/opentelemetry-specification/specification/metrics/api.md#L308)
+- [x] If not structurally enforced, API MUST be documented to communicate `name` is needed — [L310](../references/opentelemetry-specification/specification/metrics/api.md#L310)
+- [x] API SHOULD be documented that `name` needs to conform to instrument name syntax — [L313](../references/opentelemetry-specification/specification/metrics/api.md#L313)
+- [x] API SHOULD NOT validate the `name` — [L315](../references/opentelemetry-specification/specification/metrics/api.md#L315)
+- [x] API MUST NOT obligate a user to provide `unit` — [L320](../references/opentelemetry-specification/specification/metrics/api.md#L320)
+- [x] API MUST accept a case-sensitive string for `unit` that supports ASCII and at least 63 characters — [L324](../references/opentelemetry-specification/specification/metrics/api.md#L324)
+- [x] API SHOULD NOT validate the `unit` — [L326](../references/opentelemetry-specification/specification/metrics/api.md#L326)
+- [x] API MUST NOT obligate a user to provide `description` — [L331](../references/opentelemetry-specification/specification/metrics/api.md#L331)
+- [x] API MUST accept a string for `description` that supports BMP and at least 1023 characters — [L334](../references/opentelemetry-specification/specification/metrics/api.md#L334)
+- [x] API MUST NOT obligate the user to provide `advisory` parameters — [L343](../references/opentelemetry-specification/specification/metrics/api.md#L343)
+- [x] API SHOULD NOT validate `advisory` parameters — [L348](../references/opentelemetry-specification/specification/metrics/api.md#L348)
 
 ### Asynchronous Instrument API
 
@@ -937,25 +937,25 @@
 
 ### General operations (Enabled)
 
-- [ ] All synchronous instruments SHOULD provide function to report if instrument is Enabled — [L475](../references/opentelemetry-specification/specification/metrics/api.md#L475)
-- [ ] Enabled API MUST be structured in a way for parameters to be added — [L487](../references/opentelemetry-specification/specification/metrics/api.md#L487)
-- [ ] Enabled API MUST return a language idiomatic boolean type — [L489](../references/opentelemetry-specification/specification/metrics/api.md#L489)
-- [ ] Enabled API SHOULD be documented that authors need to call it each time they record a measurement — [L494](../references/opentelemetry-specification/specification/metrics/api.md#L494)
+- [x] All synchronous instruments SHOULD provide function to report if instrument is Enabled — [L475](../references/opentelemetry-specification/specification/metrics/api.md#L475)
+- [x] Enabled API MUST be structured in a way for parameters to be added — [L487](../references/opentelemetry-specification/specification/metrics/api.md#L487)
+- [x] Enabled API MUST return a language idiomatic boolean type — [L489](../references/opentelemetry-specification/specification/metrics/api.md#L489)
+- [x] Enabled API SHOULD be documented that authors need to call it each time they record a measurement — [L494](../references/opentelemetry-specification/specification/metrics/api.md#L494)
 
 ### Counter
 
-- [ ] There MUST NOT be any API for creating a Counter other than with a Meter — [L512](../references/opentelemetry-specification/specification/metrics/api.md#L512)
+- [x] There MUST NOT be any API for creating a Counter other than with a Meter — [L512](../references/opentelemetry-specification/specification/metrics/api.md#L512)
 
 #### Counter Add
 
-- [ ] Add API SHOULD NOT return a value — [L549](../references/opentelemetry-specification/specification/metrics/api.md#L549)
-- [ ] Add API MUST accept a numeric increment value — [L552](../references/opentelemetry-specification/specification/metrics/api.md#L552)
-- [ ] Add API SHOULD be structured so user is obligated to provide increment value — [L557](../references/opentelemetry-specification/specification/metrics/api.md#L557)
-- [ ] If not structurally enforced, Add API MUST be documented to communicate increment is needed — [L558](../references/opentelemetry-specification/specification/metrics/api.md#L558)
-- [ ] Increment value SHOULD be documented as expected to be non-negative — [L562](../references/opentelemetry-specification/specification/metrics/api.md#L562)
-- [ ] Add API SHOULD NOT validate increment value — [L563](../references/opentelemetry-specification/specification/metrics/api.md#L563)
-- [ ] Add API MUST be structured to accept a variable number of attributes, including none — [L569](../references/opentelemetry-specification/specification/metrics/api.md#L569)
-- [ ] API MUST allow callers to provide flexible attributes at invocation time — [L577](../references/opentelemetry-specification/specification/metrics/api.md#L577)
+- [x] Add API SHOULD NOT return a value — [L549](../references/opentelemetry-specification/specification/metrics/api.md#L549)
+- [x] Add API MUST accept a numeric increment value — [L552](../references/opentelemetry-specification/specification/metrics/api.md#L552)
+- [x] Add API SHOULD be structured so user is obligated to provide increment value — [L557](../references/opentelemetry-specification/specification/metrics/api.md#L557)
+- [x] If not structurally enforced, Add API MUST be documented to communicate increment is needed — [L558](../references/opentelemetry-specification/specification/metrics/api.md#L558)
+- [x] Increment value SHOULD be documented as expected to be non-negative — [L562](../references/opentelemetry-specification/specification/metrics/api.md#L562)
+- [x] Add API SHOULD NOT validate increment value — [L563](../references/opentelemetry-specification/specification/metrics/api.md#L563)
+- [x] Add API MUST be structured to accept a variable number of attributes, including none — [L569](../references/opentelemetry-specification/specification/metrics/api.md#L569)
+- [x] API MUST allow callers to provide flexible attributes at invocation time — [L577](../references/opentelemetry-specification/specification/metrics/api.md#L577)
 
 ### Asynchronous Counter
 
@@ -965,30 +965,30 @@
 
 ### Histogram
 
-- [ ] There MUST NOT be any API for creating a Histogram other than with a Meter — [L748](../references/opentelemetry-specification/specification/metrics/api.md#L748)
+- [x] There MUST NOT be any API for creating a Histogram other than with a Meter — [L748](../references/opentelemetry-specification/specification/metrics/api.md#L748)
 
 #### Histogram Record
 
-- [ ] Record API SHOULD NOT return a value — [L785](../references/opentelemetry-specification/specification/metrics/api.md#L785)
-- [ ] Record API MUST accept a numeric value to record — [L788](../references/opentelemetry-specification/specification/metrics/api.md#L788)
-- [ ] Record API SHOULD be structured so user is obligated to provide value — [L792](../references/opentelemetry-specification/specification/metrics/api.md#L792)
-- [ ] If not structurally enforced, Record API MUST be documented to communicate value is needed — [L794](../references/opentelemetry-specification/specification/metrics/api.md#L794)
-- [ ] Record value SHOULD be documented as expected to be non-negative — [L797](../references/opentelemetry-specification/specification/metrics/api.md#L797)
-- [ ] Record API SHOULD NOT validate value — [L799](../references/opentelemetry-specification/specification/metrics/api.md#L799)
-- [ ] Record API MUST be structured to accept a variable number of attributes, including none — [L804](../references/opentelemetry-specification/specification/metrics/api.md#L804)
+- [x] Record API SHOULD NOT return a value — [L785](../references/opentelemetry-specification/specification/metrics/api.md#L785)
+- [x] Record API MUST accept a numeric value to record — [L788](../references/opentelemetry-specification/specification/metrics/api.md#L788)
+- [x] Record API SHOULD be structured so user is obligated to provide value — [L792](../references/opentelemetry-specification/specification/metrics/api.md#L792)
+- [x] If not structurally enforced, Record API MUST be documented to communicate value is needed — [L794](../references/opentelemetry-specification/specification/metrics/api.md#L794)
+- [x] Record value SHOULD be documented as expected to be non-negative — [L797](../references/opentelemetry-specification/specification/metrics/api.md#L797)
+- [x] Record API SHOULD NOT validate value — [L799](../references/opentelemetry-specification/specification/metrics/api.md#L799)
+- [x] Record API MUST be structured to accept a variable number of attributes, including none — [L804](../references/opentelemetry-specification/specification/metrics/api.md#L804)
 
 ### Gauge
 
-- [ ] There MUST NOT be any API for creating a Gauge other than with a Meter — [L854](../references/opentelemetry-specification/specification/metrics/api.md#L854)
+- [x] There MUST NOT be any API for creating a Gauge other than with a Meter — [L854](../references/opentelemetry-specification/specification/metrics/api.md#L854)
 
 #### Gauge Record
 
-- [ ] Record API SHOULD NOT return a value — [L880](../references/opentelemetry-specification/specification/metrics/api.md#L880)
-- [ ] Record API MUST accept a numeric value (current absolute value) — [L883](../references/opentelemetry-specification/specification/metrics/api.md#L883)
-- [ ] Record API SHOULD be structured so user is obligated to provide value — [L888](../references/opentelemetry-specification/specification/metrics/api.md#L888)
-- [ ] If not structurally enforced, Record API MUST be documented to communicate value is needed — [L889](../references/opentelemetry-specification/specification/metrics/api.md#L889)
-- [ ] Record API MUST be structured to accept a variable number of attributes, including none — [L894](../references/opentelemetry-specification/specification/metrics/api.md#L894)
-- [ ] API MUST allow callers to provide flexible attributes at invocation time — [L902](../references/opentelemetry-specification/specification/metrics/api.md#L902)
+- [x] Record API SHOULD NOT return a value — [L880](../references/opentelemetry-specification/specification/metrics/api.md#L880)
+- [x] Record API MUST accept a numeric value (current absolute value) — [L883](../references/opentelemetry-specification/specification/metrics/api.md#L883)
+- [x] Record API SHOULD be structured so user is obligated to provide value — [L888](../references/opentelemetry-specification/specification/metrics/api.md#L888)
+- [x] If not structurally enforced, Record API MUST be documented to communicate value is needed — [L889](../references/opentelemetry-specification/specification/metrics/api.md#L889)
+- [x] Record API MUST be structured to accept a variable number of attributes, including none — [L894](../references/opentelemetry-specification/specification/metrics/api.md#L894)
+- [x] API MUST allow callers to provide flexible attributes at invocation time — [L902](../references/opentelemetry-specification/specification/metrics/api.md#L902)
 
 ### Asynchronous Gauge
 
@@ -996,15 +996,15 @@
 
 ### UpDownCounter
 
-- [ ] There MUST NOT be any API for creating an UpDownCounter other than with a Meter — [L1086](../references/opentelemetry-specification/specification/metrics/api.md#L1086)
+- [x] There MUST NOT be any API for creating an UpDownCounter other than with a Meter — [L1086](../references/opentelemetry-specification/specification/metrics/api.md#L1086)
 
 #### UpDownCounter Add
 
-- [ ] Add API SHOULD NOT return a value — [L1122](../references/opentelemetry-specification/specification/metrics/api.md#L1122)
-- [ ] Add API MUST accept a numeric value to add — [L1125](../references/opentelemetry-specification/specification/metrics/api.md#L1125)
-- [ ] Add API SHOULD be structured so user is obligated to provide value — [L1129](../references/opentelemetry-specification/specification/metrics/api.md#L1129)
-- [ ] If not structurally enforced, Add API MUST be documented to communicate value is needed — [L1131](../references/opentelemetry-specification/specification/metrics/api.md#L1131)
-- [ ] Add API MUST be structured to accept a variable number of attributes, including none — [L1136](../references/opentelemetry-specification/specification/metrics/api.md#L1136)
+- [x] Add API SHOULD NOT return a value — [L1122](../references/opentelemetry-specification/specification/metrics/api.md#L1122)
+- [x] Add API MUST accept a numeric value to add — [L1125](../references/opentelemetry-specification/specification/metrics/api.md#L1125)
+- [x] Add API SHOULD be structured so user is obligated to provide value — [L1129](../references/opentelemetry-specification/specification/metrics/api.md#L1129)
+- [x] If not structurally enforced, Add API MUST be documented to communicate value is needed — [L1131](../references/opentelemetry-specification/specification/metrics/api.md#L1131)
+- [x] Add API MUST be structured to accept a variable number of attributes, including none — [L1136](../references/opentelemetry-specification/specification/metrics/api.md#L1136)
 
 ### Asynchronous UpDownCounter
 

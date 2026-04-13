@@ -32,6 +32,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
   def create_observable_updown_counter(_meter, _name, _opts), do: :ok
 
   @impl true
+  def record(_meter, _name, _value, _attributes), do: :ok
+
+  @impl true
   def register_callback(_meter, _instruments, _callback, _callback_args, _opts), do: :ok
 
   @impl true

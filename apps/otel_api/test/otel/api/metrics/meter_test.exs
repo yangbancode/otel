@@ -94,6 +94,14 @@ defmodule Otel.API.Metrics.MeterTest do
                )
     end
 
+    test "record returns :ok", %{meter: meter} do
+      assert :ok == Otel.API.Metrics.Meter.record(meter, "my_counter", 1)
+    end
+
+    test "record accepts attributes", %{meter: meter} do
+      assert :ok == Otel.API.Metrics.Meter.record(meter, "my_counter", 1, %{"key" => "val"})
+    end
+
     test "register_callback returns :ok", %{meter: meter} do
       callback = fn _args -> [] end
       assert :ok == Otel.API.Metrics.Meter.register_callback(meter, [], callback, nil)
