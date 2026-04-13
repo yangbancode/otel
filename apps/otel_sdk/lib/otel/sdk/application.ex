@@ -22,6 +22,8 @@ defmodule Otel.SDK.Application do
 
     config = Map.merge(@default_config, user_config)
 
+    Otel.API.Trace.Span.set_span_module(Otel.SDK.Trace.SpanOps)
+
     children = [
       Otel.SDK.Trace.SpanStorage,
       {Otel.SDK.Trace.TracerProvider, [config: config, name: Otel.SDK.Trace.TracerProvider]}

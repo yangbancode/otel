@@ -32,7 +32,13 @@ defmodule Otel.SDK.Trace.Tracer do
         span_ctx
 
       span ->
-        span = %{span | instrumentation_scope: config.scope}
+        span = %{
+          span
+          | instrumentation_scope: config.scope,
+            span_limits: config.span_limits,
+            processors: config.processors
+        }
+
         span = run_on_start(ctx, span, config.processors)
         Otel.SDK.Trace.SpanStorage.insert(span)
         span_ctx

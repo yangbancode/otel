@@ -7,7 +7,8 @@ defmodule Otel.API.Trace.Span do
   non-recording spans are silently ignored.
 
   At the API level (without SDK), all operations are no-ops.
-  The SDK overrides these via the tracer module dispatch.
+  When an SDK is installed, it registers a span module via
+  `set_span_module/1` and operations are dispatched to it.
   """
 
   @type status_code :: :unset | :ok | :error
@@ -19,6 +20,25 @@ defmodule Otel.API.Trace.Span do
           start_time: integer(),
           is_root: boolean()
         ]
+
+  @span_module_key {__MODULE__, :module}
+
+  @doc """
+  Registers the SDK span operations module.
+  """
+  @spec set_span_module(module :: module()) :: :ok
+  def set_span_module(module) when is_atom(module) do
+    :persistent_term.put(@span_module_key, module)
+    :ok
+  end
+
+  @doc """
+  Returns the registered SDK span operations module, or `nil`.
+  """
+  @spec get_span_module() :: module() | nil
+  def get_span_module do
+    :persistent_term.get(@span_module_key, nil)
+  end
 
   @doc """
   Returns the SpanContext for the given span.
@@ -32,11 +52,16 @@ defmodule Otel.API.Trace.Span do
   Returns whether the span is recording.
 
   IsRecording is independent of the sampled flag in trace_flags (L465-476).
-  Without SDK, always returns false. The SDK sets the actual recording
-  state based on sampler decisions.
+  Without SDK, always returns false. The SDK checks recording state
+  via span storage.
   """
   @spec recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
-  def recording?(%Otel.API.Trace.SpanContext{}), do: false
+  def recording?(%Otel.API.Trace.SpanContext{} = span_ctx) do
+    case get_span_module() do
+      nil -> false
+      module -> module.recording?(span_ctx)
+    end
+  end
 
   @doc """
   Sets a single attribute on the span.
@@ -49,7 +74,12 @@ defmodule Otel.API.Trace.Span do
           key :: String.t() | atom(),
           value :: term()
         ) :: :ok
-  def set_attribute(%Otel.API.Trace.SpanContext{}, _key, _value), do: :ok
+  def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.set_attribute(span_ctx, key, value)
+    end
+  end
 
   @doc """
   Sets multiple attributes on the span.
@@ -59,7 +89,12 @@ defmodule Otel.API.Trace.Span do
           attributes :: map() | [{String.t() | atom(), term()}]
         ) ::
           :ok
-  def set_attributes(%Otel.API.Trace.SpanContext{}, _attributes), do: :ok
+  def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.set_attributes(span_ctx, attributes)
+    end
+  end
 
   @doc """
   Adds an event to the span.
@@ -77,7 +112,12 @@ defmodule Otel.API.Trace.Span do
           name :: String.t() | atom(),
           opts :: keyword()
         ) :: :ok
-  def add_event(%Otel.API.Trace.SpanContext{}, _name, _opts \\ []), do: :ok
+  def add_event(%Otel.API.Trace.SpanContext{} = span_ctx, name, opts \\ []) do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.add_event(span_ctx, name, opts)
+    end
+  end
 
   @doc """
   Adds a link to another span after creation.
@@ -89,7 +129,12 @@ defmodule Otel.API.Trace.Span do
           linked_ctx :: Otel.API.Trace.SpanContext.t(),
           attributes :: map()
         ) :: :ok
-  def add_link(%Otel.API.Trace.SpanContext{}, _linked_ctx, _attributes \\ %{}), do: :ok
+  def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, linked_ctx, attributes \\ %{}) do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.add_link(span_ctx, linked_ctx, attributes)
+    end
+  end
 
   @doc """
   Sets the status of the span.
@@ -107,13 +152,23 @@ defmodule Otel.API.Trace.Span do
           code :: status_code(),
           description :: String.t()
         ) :: :ok
-  def set_status(%Otel.API.Trace.SpanContext{}, _code, _description \\ ""), do: :ok
+  def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, code, description \\ "") do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.set_status(span_ctx, code, description)
+    end
+  end
 
   @doc """
   Updates the name of the span.
   """
   @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
-  def update_name(%Otel.API.Trace.SpanContext{}, _name), do: :ok
+  def update_name(%Otel.API.Trace.SpanContext{} = span_ctx, name) do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.update_name(span_ctx, name)
+    end
+  end
 
   @doc """
   Ends the span.
@@ -125,7 +180,12 @@ defmodule Otel.API.Trace.Span do
   This operation MUST NOT perform blocking I/O (L677).
   """
   @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer() | nil) :: :ok
-  def end_span(%Otel.API.Trace.SpanContext{}, _timestamp \\ nil), do: :ok
+  def end_span(%Otel.API.Trace.SpanContext{} = span_ctx, timestamp \\ nil) do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.end_span(span_ctx, timestamp)
+    end
+  end
 
   @doc """
   Records an exception as an event on the span.
@@ -145,10 +205,14 @@ defmodule Otel.API.Trace.Span do
           attributes :: map()
         ) :: :ok
   def record_exception(
-        %Otel.API.Trace.SpanContext{},
-        _exception,
-        _stacktrace \\ [],
-        _attributes \\ %{}
-      ),
-      do: :ok
+        %Otel.API.Trace.SpanContext{} = span_ctx,
+        exception,
+        stacktrace \\ [],
+        attributes \\ %{}
+      ) do
+    case get_span_module() do
+      nil -> :ok
+      module -> module.record_exception(span_ctx, exception, stacktrace, attributes)
+    end
+  end
 end
