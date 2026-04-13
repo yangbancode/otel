@@ -37,7 +37,6 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
-    Otel.API.Ctx.clear()
     :ok
   end
 

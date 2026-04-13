@@ -8,7 +8,6 @@ defmodule Otel.SDK.Trace.TracerTest do
     {:ok, provider} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
     {_module, tracer_config} = Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
 
-    Otel.API.Ctx.clear()
     %{tracer: {Otel.SDK.Trace.Tracer, tracer_config}}
   end
 
