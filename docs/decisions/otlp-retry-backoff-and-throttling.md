@@ -6,7 +6,9 @@ How to implement shared retry strategy for OTLP exporters? Exponential backoff w
 
 ## Decision
 
-TBD
+Deferred. The spec recommends (SHOULD) retry with exponential backoff for transient failures (429, 502, 503, 504), but opentelemetry-erlang does not implement retry either. The current exporter returns `:error` on failure and relies on the batch processor to handle data loss.
+
+Will revisit when production usage requires retry reliability.
 
 ## Compliance
 
