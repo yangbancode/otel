@@ -12,7 +12,15 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
   use ExUnit.Case
 
   setup do
+    Application.stop(:otel_sdk)
+    Application.ensure_all_started(:otel_sdk)
+
     {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
+
+    on_exit(fn ->
+      if Process.alive?(pid), do: GenServer.stop(pid)
+    end)
+
     %{provider: pid}
   end
 
