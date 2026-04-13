@@ -6,15 +6,28 @@ How to implement the console exporter for development/debugging? Outputs to stdo
 
 ## Decision
 
-TBD
+### Output format
 
-Module: `Otel.SDK.Trace.Exporter.Console` (inside `otel_sdk` app)
+Unspecified per spec — implementation-specific. Uses `IO.puts` with
+custom formatting for human-readable output. Not intended for production use.
+
+### SpanExporter behaviour
+
+Implements `Otel.SDK.Trace.SpanExporter`:
+
+| Callback | Behaviour |
+|---|---|
+| `init(config)` | Returns `{:ok, config}` |
+| `export(spans, resource, state)` | Prints each span to stdout via `IO.puts` |
+| `shutdown(state)` | No-op, returns `:ok` |
+
+### Module: `Otel.SDK.Trace.Exporter.Console`
+
+Location: `apps/otel_sdk/lib/otel/sdk/trace/exporter/console.ex`
+
+Lives inside `otel_sdk` app (no separate app needed).
 
 ## Compliance
 
 - [Trace Exporters](../compliance/trace-exporters.md)
   * Console (stdout) — L14, L34
-- [Metrics Exporters](../compliance/metrics-exporters.md)
-  * Console (stdout) — L14, L30, L33, L37, L44
-- [Logs Exporters](../compliance/logs-exporters.md)
-  * Console (stdout) — L13, L33
