@@ -219,7 +219,7 @@
 - [x] A user MUST have the ability to record links to other SpanContexts — [L805](../references/opentelemetry-specification/specification/trace/api.md#L805)
 - [x] API MUST provide an API to record a single Link — [L815](../references/opentelemetry-specification/specification/trace/api.md#L815)
 - [ ] Implementations SHOULD record links containing SpanContext with empty TraceId or SpanId as long as either attribute set or TraceState is non-empty — [L821](../references/opentelemetry-specification/specification/trace/api.md#L821)
-- [ ] Span SHOULD preserve the order in which Links are set — [L830](../references/opentelemetry-specification/specification/trace/api.md#L830)
+- [x] Span SHOULD preserve the order in which Links are set — [L830](../references/opentelemetry-specification/specification/trace/api.md#L830)
 - [x] API documentation MUST state that adding links at span creation is preferred to calling AddLink later — [L832](../references/opentelemetry-specification/specification/trace/api.md#L832)
 
 ### Concurrency Requirements
@@ -233,8 +233,8 @@
 ### Behavior of the API in the absence of an installed SDK
 
 - [x] API MUST return a non-recording Span with the SpanContext in the parent Context — [L865](../references/opentelemetry-specification/specification/trace/api.md#L865)
-- [ ] If the Span in the parent Context is already non-recording, it SHOULD be returned directly without instantiating a new Span — [L867](../references/opentelemetry-specification/specification/trace/api.md#L867)
-- [ ] If parent Context contains no Span, an empty non-recording Span MUST be returned (all-zero Span and Trace IDs, empty Tracestate, unsampled TraceFlags) — [L869](../references/opentelemetry-specification/specification/trace/api.md#L869)
+- [x] If the Span in the parent Context is already non-recording, it SHOULD be returned directly without instantiating a new Span — [L867](../references/opentelemetry-specification/specification/trace/api.md#L867)
+- [x] If parent Context contains no Span, an empty non-recording Span MUST be returned (all-zero Span and Trace IDs, empty Tracestate, unsampled TraceFlags) — [L869](../references/opentelemetry-specification/specification/trace/api.md#L869)
 
 ---
 
@@ -270,21 +270,21 @@
 
 ### Additional Span Interfaces
 
-- [ ] Readable span: function MUST be able to access all information that was added to the span — [L242](../references/opentelemetry-specification/specification/trace/sdk.md#L242)
-- [ ] Readable span: function MUST be able to access the InstrumentationScope and Resource information — [L249](../references/opentelemetry-specification/specification/trace/sdk.md#L249)
-- [ ] Readable span: function MUST also be able to access the InstrumentationLibrary (deprecated) — [L251](../references/opentelemetry-specification/specification/trace/sdk.md#L251)
-- [ ] Readable span: function MUST be able to reliably determine whether the Span has ended — [L255](../references/opentelemetry-specification/specification/trace/sdk.md#L255)
+- [x] Readable span: function MUST be able to access all information that was added to the span — [L242](../references/opentelemetry-specification/specification/trace/sdk.md#L242)
+- [x] Readable span: function MUST be able to access the InstrumentationScope and Resource information — [L249](../references/opentelemetry-specification/specification/trace/sdk.md#L249)
+- [x] Readable span: function MUST also be able to access the InstrumentationLibrary (deprecated) — [L251](../references/opentelemetry-specification/specification/trace/sdk.md#L251)
+- [x] Readable span: function MUST be able to reliably determine whether the Span has ended — [L255](../references/opentelemetry-specification/specification/trace/sdk.md#L255)
 - [ ] Readable span: counts for dropped attributes, events and links MUST be available for exporters — [L260](../references/opentelemetry-specification/specification/trace/sdk.md#L260)
-- [ ] Readable span: implementations MUST expose at least the full parent SpanContext — [L266](../references/opentelemetry-specification/specification/trace/sdk.md#L266)
-- [ ] Read/write span: it MUST be possible to obtain the same Span instance that the span creation API returned to the user — [L283](../references/opentelemetry-specification/specification/trace/sdk.md#L283)
+- [x] Readable span: implementations MUST expose at least the full parent SpanContext — [L266](../references/opentelemetry-specification/specification/trace/sdk.md#L266)
+- [x] Read/write span: it MUST be possible to obtain the same Span instance that the span creation API returned to the user — [L283](../references/opentelemetry-specification/specification/trace/sdk.md#L283)
 
 ### Sampling
 
-- [ ] Span Processor MUST receive only spans which have IsRecording set to true — [L304](../references/opentelemetry-specification/specification/trace/sdk.md#L304)
-- [ ] Span Exporter SHOULD NOT receive spans unless the Sampled flag was also set — [L305](../references/opentelemetry-specification/specification/trace/sdk.md#L305)
-- [ ] Span Exporters MUST receive spans which have Sampled flag set to true — [L310](../references/opentelemetry-specification/specification/trace/sdk.md#L310)
-- [ ] Span Exporters SHOULD NOT receive spans that do not have Sampled flag set — [L311](../references/opentelemetry-specification/specification/trace/sdk.md#L311)
-- [ ] SDK MUST NOT allow combination of SampledFlag == true and IsRecording == false — [L320](../references/opentelemetry-specification/specification/trace/sdk.md#L320)
+- [x] Span Processor MUST receive only spans which have IsRecording set to true — [L304](../references/opentelemetry-specification/specification/trace/sdk.md#L304)
+- [x] Span Exporter SHOULD NOT receive spans unless the Sampled flag was also set — [L305](../references/opentelemetry-specification/specification/trace/sdk.md#L305)
+- [x] Span Exporters MUST receive spans which have Sampled flag set to true — [L310](../references/opentelemetry-specification/specification/trace/sdk.md#L310)
+- [x] Span Exporters SHOULD NOT receive spans that do not have Sampled flag set — [L311](../references/opentelemetry-specification/specification/trace/sdk.md#L311)
+- [x] SDK MUST NOT allow combination of SampledFlag == true and IsRecording == false — [L320](../references/opentelemetry-specification/specification/trace/sdk.md#L320)
 
 ### SDK Span Creation
 
@@ -292,10 +292,10 @@
 
 ### Sampler — ShouldSample
 
-- [ ] If parent SpanContext contains a valid TraceId, it MUST always match the TraceId argument — [L380](../references/opentelemetry-specification/specification/trace/sdk.md#L380)
-- [ ] RECORD_ONLY decision: Sampled flag MUST NOT be set — [L398](../references/opentelemetry-specification/specification/trace/sdk.md#L398)
-- [ ] RECORD_AND_SAMPLE decision: Sampled flag MUST be set — [L399](../references/opentelemetry-specification/specification/trace/sdk.md#L399)
-- [ ] Samplers SHOULD normally return the passed-in Tracestate if they do not intend to change it — [L405](../references/opentelemetry-specification/specification/trace/sdk.md#L405)
+- [x] If parent SpanContext contains a valid TraceId, it MUST always match the TraceId argument — [L380](../references/opentelemetry-specification/specification/trace/sdk.md#L380)
+- [x] RECORD_ONLY decision: Sampled flag MUST NOT be set — [L398](../references/opentelemetry-specification/specification/trace/sdk.md#L398)
+- [x] RECORD_AND_SAMPLE decision: Sampled flag MUST be set — [L399](../references/opentelemetry-specification/specification/trace/sdk.md#L399)
+- [x] Samplers SHOULD normally return the passed-in Tracestate if they do not intend to change it — [L405](../references/opentelemetry-specification/specification/trace/sdk.md#L405)
 
 ### Sampler — GetDescription
 
@@ -440,14 +440,14 @@
 - [x] Getter Keys: MUST return list of all keys in carrier — [L209](../references/opentelemetry-specification/specification/context/api-propagators.md#L209)
 - [x] Getter Get: MUST return first value of given key or null — [L223](../references/opentelemetry-specification/specification/context/api-propagators.md#L223)
 - [x] Getter Get: MUST be case insensitive for HTTP requests — [L230](../references/opentelemetry-specification/specification/context/api-propagators.md#L230)
-- [ ] GetAll (if implemented): MUST return all values of given propagation key — [L240](../references/opentelemetry-specification/specification/context/api-propagators.md#L240)
-- [ ] GetAll: SHOULD return values in same order as carrier — [L241](../references/opentelemetry-specification/specification/context/api-propagators.md#L241)
-- [ ] GetAll: SHOULD return empty collection if key doesn't exist — [L242](../references/opentelemetry-specification/specification/context/api-propagators.md#L242)
-- [ ] GetAll: MUST be case insensitive for HTTP requests — [L249](../references/opentelemetry-specification/specification/context/api-propagators.md#L249)
+- [x] GetAll (if implemented): MUST return all values of given propagation key — [L240](../references/opentelemetry-specification/specification/context/api-propagators.md#L240)
+- [x] GetAll: SHOULD return values in same order as carrier — [L241](../references/opentelemetry-specification/specification/context/api-propagators.md#L241)
+- [x] GetAll: SHOULD return empty collection if key doesn't exist — [L242](../references/opentelemetry-specification/specification/context/api-propagators.md#L242)
+- [x] GetAll: MUST be case insensitive for HTTP requests — [L249](../references/opentelemetry-specification/specification/context/api-propagators.md#L249)
 
 ### Composite Propagator
 - [x] Implementations MUST offer facility to group multiple Propagators as single entity — [L261](../references/opentelemetry-specification/specification/context/api-propagators.md#L261)
-- [ ] Composite Propagator MUST invoke Propagators in the order they were specified — [L266](../references/opentelemetry-specification/specification/context/api-propagators.md#L266)
+- [x] Composite Propagator MUST invoke Propagators in the order they were specified — [L266](../references/opentelemetry-specification/specification/context/api-propagators.md#L266)
 - [x] There MUST be functions for: create, extract, inject on composite propagator — [L272](../references/opentelemetry-specification/specification/context/api-propagators.md#L272)
 
 ### Global Propagators
@@ -485,7 +485,7 @@
 - [x] Get Value: MUST provide function that takes name and returns value or null — [L92](../references/opentelemetry-specification/specification/baggage/api.md#L92)
 - [x] Get All Values: order MUST NOT be significant — [L102](../references/opentelemetry-specification/specification/baggage/api.md#L102)
 - [x] Set Value: MUST provide function taking name and value, returns new Baggage — [L108](../references/opentelemetry-specification/specification/baggage/api.md#L108)
-- [ ] Set Value: SHOULD accept optional Metadata parameter — [L122](../references/opentelemetry-specification/specification/baggage/api.md#L122)
+- [x] Set Value: SHOULD accept optional Metadata parameter — [L122](../references/opentelemetry-specification/specification/baggage/api.md#L122)
 - [x] Remove Value: MUST provide function taking name, returns new Baggage — [L128](../references/opentelemetry-specification/specification/baggage/api.md#L128)
 
 ### Context Interaction
