@@ -7,7 +7,7 @@
 - [x] Context MUST be immutable, write operations MUST result in new Context — [L37](../references/opentelemetry-specification/specification/context/README.md#L37)
 
 ### Create a Key
-- [x] API MUST accept the key name parameter — [L65](../references/opentelemetry-specification/specification/context/README.md#L65)
+- [x] API MUST accept the key name parameter — [L63](../references/opentelemetry-specification/specification/context/README.md#L63)
 - [x] Multiple calls to CreateKey with same name SHOULD NOT return same value — [L65](../references/opentelemetry-specification/specification/context/README.md#L65)
 - [x] API MUST return an opaque object representing the newly created key — [L67](../references/opentelemetry-specification/specification/context/README.md#L67)
 
@@ -24,7 +24,7 @@
 - [x] Get current Context: API MUST return the Context associated with caller's current execution unit — [L103](../references/opentelemetry-specification/specification/context/README.md#L103)
 - [x] Attach Context: API MUST accept the Context parameter — [L109](../references/opentelemetry-specification/specification/context/README.md#L109)
 - [x] Attach Context: API MUST return a value that can be used as Token — [L113](../references/opentelemetry-specification/specification/context/README.md#L113)
-- [x] Detach Context: API MUST accept a Token parameter — [L133](../references/opentelemetry-specification/specification/context/README.md#L133)
+- [x] Detach Context: API MUST accept a Token parameter — [L131](../references/opentelemetry-specification/specification/context/README.md#L131)
 
 ---
 
@@ -65,6 +65,7 @@
 - [x] Tracer SHOULD provide function to report if Tracer is Enabled — [L197](../references/opentelemetry-specification/specification/trace/api.md#L197)
 - [x] Enabled API MUST be structured in a way for parameters to be added — [L209](../references/opentelemetry-specification/specification/trace/api.md#L209)
 - [x] Enabled API MUST return a language idiomatic boolean type — [L212](../references/opentelemetry-specification/specification/trace/api.md#L212)
+- [ ] Enabled API SHOULD be documented that authors need to call each time they create a new Span — [L217](../references/opentelemetry-specification/specification/trace/api.md#L217)
 
 ### SpanContext
 
@@ -88,7 +89,7 @@
 ### IsRemote
 
 - [x] An API called IsRemote MUST be provided that returns true if SpanContext was propagated from a remote parent — [L275](../references/opentelemetry-specification/specification/trace/api.md#L275)
-- [ ] When extracting SpanContext through Propagators API, IsRemote MUST return true — [L278](../references/opentelemetry-specification/specification/trace/api.md#L278)
+- [x] When extracting SpanContext through Propagators API, IsRemote MUST return true — [L278](../references/opentelemetry-specification/specification/trace/api.md#L278)
 - [x] For SpanContext of any child spans, IsRemote MUST return false — [L278](../references/opentelemetry-specification/specification/trace/api.md#L278)
 
 ### TraceState
@@ -118,12 +119,12 @@
 - [x] API MUST accept: parent Context or indication of root Span — [L390](../references/opentelemetry-specification/specification/trace/api.md#L390)
 - [x] API MUST NOT accept a Span or SpanContext as parent, only a full Context — [L393](../references/opentelemetry-specification/specification/trace/api.md#L393)
 - [x] The semantic parent of the Span MUST be determined according to the rules in Determining the Parent Span from a Context — [L395](../references/opentelemetry-specification/specification/trace/api.md#L395)
-- [x] API documentation MUST state that adding attributes at span creation is preferred to calling SetAttribute later — [L403](../references/opentelemetry-specification/specification/trace/api.md#L403)
-- [x] Start timestamp SHOULD only be set when span creation time has already passed — [L408](../references/opentelemetry-specification/specification/trace/api.md#L408)
-- [x] If API is called at moment of Span logical start, user MUST NOT explicitly set start timestamp — [L410](../references/opentelemetry-specification/specification/trace/api.md#L410)
 - [x] API MUST accept: SpanKind, default to Internal — [L397](../references/opentelemetry-specification/specification/trace/api.md#L397)
 - [x] API MUST accept: Attributes — [L398](../references/opentelemetry-specification/specification/trace/api.md#L398)
+- [x] API documentation MUST state that adding attributes at span creation is preferred to calling SetAttribute later — [L403](../references/opentelemetry-specification/specification/trace/api.md#L403)
 - [x] API MUST accept: Links — [L407](../references/opentelemetry-specification/specification/trace/api.md#L407)
+- [x] Start timestamp SHOULD only be set when span creation time has already passed — [L408](../references/opentelemetry-specification/specification/trace/api.md#L408)
+- [x] If API is called at moment of Span logical start, user MUST NOT explicitly set start timestamp — [L410](../references/opentelemetry-specification/specification/trace/api.md#L410)
 - [x] Implementations MUST provide an option to create a Span as a root span — [L416](../references/opentelemetry-specification/specification/trace/api.md#L416)
 - [x] Implementations MUST generate a new TraceId for each root span created — [L417](../references/opentelemetry-specification/specification/trace/api.md#L417)
 - [x] For a Span with a parent, TraceId MUST be the same as the parent — [L418](../references/opentelemetry-specification/specification/trace/api.md#L418)
@@ -232,8 +233,8 @@
 ### Behavior of the API in the absence of an installed SDK
 
 - [x] API MUST return a non-recording Span with the SpanContext in the parent Context — [L865](../references/opentelemetry-specification/specification/trace/api.md#L865)
-- [x] If the Span in the parent Context is already non-recording, it SHOULD be returned directly without instantiating a new Span — [L867](../references/opentelemetry-specification/specification/trace/api.md#L867)
-- [x] If parent Context contains no Span, an empty non-recording Span MUST be returned (all-zero Span and Trace IDs, empty Tracestate, unsampled TraceFlags) — [L869](../references/opentelemetry-specification/specification/trace/api.md#L869)
+- [ ] If the Span in the parent Context is already non-recording, it SHOULD be returned directly without instantiating a new Span — [L867](../references/opentelemetry-specification/specification/trace/api.md#L867)
+- [ ] If parent Context contains no Span, an empty non-recording Span MUST be returned (all-zero Span and Trace IDs, empty Tracestate, unsampled TraceFlags) — [L869](../references/opentelemetry-specification/specification/trace/api.md#L869)
 
 ---
 
@@ -250,7 +251,7 @@
 ### TracerProvider — Configuration
 
 - [x] Configuration (SpanProcessors, IdGenerator, SpanLimits, Sampler) MUST be owned by the TracerProvider — [L113](../references/opentelemetry-specification/specification/trace/sdk.md#L113)
-- [x] If configuration is updated, the updated configuration MUST also apply to all already returned Tracers — [L119](../references/opentelemetry-specification/specification/trace/sdk.md#L119) (tracer holds provider pid reference; GenServer state changes are visible)
+- [x] If configuration is updated, the updated configuration MUST also apply to all already returned Tracers — [L119](../references/opentelemetry-specification/specification/trace/sdk.md#L119)
 - [x] It MUST NOT matter whether a Tracer was obtained before or after the configuration change — [L120](../references/opentelemetry-specification/specification/trace/sdk.md#L120)
 
 ### TracerProvider — Shutdown
@@ -434,6 +435,7 @@
 ### TextMap Propagator
 - [x] Key/value pairs MUST only consist of US-ASCII characters valid for HTTP header fields (RFC 9110) — [L122](../references/opentelemetry-specification/specification/context/api-propagators.md#L122)
 - [x] Getter and Setter MUST be stateless and allowed to be saved as constants — [L130](../references/opentelemetry-specification/specification/context/api-propagators.md#L130)
+- [x] Fields operation MUST return list of fields that will be used by TextMapPropagator — [L149](../references/opentelemetry-specification/specification/context/api-propagators.md#L149)
 - [x] Setter Set: implementation SHOULD preserve casing if protocol is case insensitive, otherwise MUST preserve casing — [L183](../references/opentelemetry-specification/specification/context/api-propagators.md#L183)
 - [x] Getter Keys: MUST return list of all keys in carrier — [L209](../references/opentelemetry-specification/specification/context/api-propagators.md#L209)
 - [x] Getter Get: MUST return first value of given key or null — [L223](../references/opentelemetry-specification/specification/context/api-propagators.md#L223)
@@ -445,6 +447,7 @@
 
 ### Composite Propagator
 - [x] Implementations MUST offer facility to group multiple Propagators as single entity — [L261](../references/opentelemetry-specification/specification/context/api-propagators.md#L261)
+- [ ] Composite Propagator MUST invoke Propagators in the order they were specified — [L266](../references/opentelemetry-specification/specification/context/api-propagators.md#L266)
 - [x] There MUST be functions for: create, extract, inject on composite propagator — [L272](../references/opentelemetry-specification/specification/context/api-propagators.md#L272)
 
 ### Global Propagators
@@ -482,6 +485,7 @@
 - [x] Get Value: MUST provide function that takes name and returns value or null — [L92](../references/opentelemetry-specification/specification/baggage/api.md#L92)
 - [x] Get All Values: order MUST NOT be significant — [L102](../references/opentelemetry-specification/specification/baggage/api.md#L102)
 - [x] Set Value: MUST provide function taking name and value, returns new Baggage — [L108](../references/opentelemetry-specification/specification/baggage/api.md#L108)
+- [ ] Set Value: SHOULD accept optional Metadata parameter — [L122](../references/opentelemetry-specification/specification/baggage/api.md#L122)
 - [x] Remove Value: MUST provide function taking name, returns new Baggage — [L128](../references/opentelemetry-specification/specification/baggage/api.md#L128)
 
 ### Context Interaction
@@ -527,14 +531,17 @@
 - [ ] Failure to detect resource info MUST NOT be considered an error — [L122](../references/opentelemetry-specification/specification/resource/sdk.md#L122)
 - [ ] Error during detection attempt SHOULD be considered an error — [L123](../references/opentelemetry-specification/specification/resource/sdk.md#L123)
 - [ ] Detectors populating semconv attributes MUST ensure Schema URL matches — [L127](../references/opentelemetry-specification/specification/resource/sdk.md#L127)
-- [ ] Empty Schema URL SHOULD be used if detector doesn't populate known semconv attributes — [L128](../references/opentelemetry-specification/specification/resource/sdk.md#L128)
-- [ ] Multiple detectors with different non-empty Schema URLs MUST be an error — [L133](../references/opentelemetry-specification/specification/resource/sdk.md#L133)
+
+### Resource Detector Names
+- [ ] Resource detectors SHOULD have a unique name for reference in configuration — [L141](../references/opentelemetry-specification/specification/resource/sdk.md#L141)
+- [ ] Names SHOULD be snake case with lowercase alphanumeric and underscore characters — [L144](../references/opentelemetry-specification/specification/resource/sdk.md#L144)
+- [ ] Resource detector names SHOULD reflect the root namespace of attributes they populate — [L149](../references/opentelemetry-specification/specification/resource/sdk.md#L149)
+- [ ] Multiple resource detectors with same name SHOULD report an error — [L156](../references/opentelemetry-specification/specification/resource/sdk.md#L156)
 
 ### Environment Variable Resource
 - [ ] SDK MUST extract info from OTEL_RESOURCE_ATTRIBUTES and merge as secondary resource — [L179](../references/opentelemetry-specification/specification/resource/sdk.md#L179)
 - [ ] All attribute values MUST be considered strings — [L186](../references/opentelemetry-specification/specification/resource/sdk.md#L186)
 - [ ] The `,` and `=` characters in keys and values MUST be percent encoded — [L187](../references/opentelemetry-specification/specification/resource/sdk.md#L187)
-- [ ] On decoding error, entire value SHOULD be discarded and error SHOULD be reported — [L192](../references/opentelemetry-specification/specification/resource/sdk.md#L192)
 
 ---
 
@@ -544,19 +551,15 @@
 
 ### Implementation Guidelines
 - [ ] If env vars are implemented, they SHOULD use the names and parsing behavior specified — [L49](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L49)
-- [ ] They SHOULD also follow common configuration specification — [L50](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L50)
 - [ ] Environment-based configuration MUST have a direct code configuration equivalent — [L56](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L56)
 
 ### Parsing Empty Value
 - [ ] SDK MUST interpret empty value of env var same as when variable is unset — [L60](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L60)
 
 ### Boolean
-- [ ] Boolean MUST be set to true only by case-insensitive `"true"` — [L67](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L67)
-- [ ] Implementation MUST NOT extend this definition with additional true values — [L68](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L68)
+- [ ] Boolean MUST be set to true only by case-insensitive `"true"` — [L66](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L66)
 - [ ] Any value not explicitly defined as true MUST be interpreted as false — [L70](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L70)
-- [ ] If value other than true/false/empty/unset used, warning SHOULD be logged — [L72](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L72)
 - [ ] All Boolean env vars SHOULD be named such that false is the expected safe default — [L73](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L73)
-- [ ] Renaming or changing default MUST NOT happen without major version upgrade — [L75](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L75)
 
 ### Numeric
 - [ ] If user provides unparseable numeric value, implementation SHOULD warn and treat as not set — [L89](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L89)
@@ -566,19 +569,37 @@
 - [ ] If unrecognized enum value, implementation MUST generate warning and gracefully ignore — [L106](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L106)
 
 ### General SDK Configuration
-- [ ] OTEL_PROPAGATORS values MUST be deduplicated — [L118](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L118)
-- [ ] Invalid or unrecognized OTEL_TRACES_SAMPLER_ARG MUST be logged and MUST be otherwise ignored — [L120](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L120)
+- [ ] OTEL_SDK_DISABLED: Disable SDK for all signals, default false — [L113](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L113)
+- [ ] OTEL_RESOURCE_ATTRIBUTES: Key-value pairs for resource attributes — [L115](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L115)
+- [ ] OTEL_SERVICE_NAME: Sets service.name resource attribute — [L116](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L116)
+- [ ] OTEL_LOG_LEVEL: Log level for SDK internal logger, default "info" — [L117](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L117)
+- [ ] OTEL_PROPAGATORS: Comma-separated propagators, default "tracecontext,baggage" — [L118](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L118)
+- [ ] OTEL_TRACES_SAMPLER: Sampler for traces, default "parentbased_always_on" — [L119](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L119)
+- [ ] OTEL_TRACES_SAMPLER_ARG: Value for sampler argument — [L120](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L120)
+
+### Batch Span Processor
+- [ ] OTEL_BSP_SCHEDULE_DELAY default 5000 ms — [L158](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L158)
+- [ ] OTEL_BSP_EXPORT_TIMEOUT default 30000 ms — [L159](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L159)
+- [ ] OTEL_BSP_MAX_QUEUE_SIZE default 2048 — [L160](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L160)
+- [ ] OTEL_BSP_MAX_EXPORT_BATCH_SIZE default 512, must be <= MAX_QUEUE_SIZE — [L161](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L161)
 
 ### Batch LogRecord Processor
-- [ ] OTEL_BLRP_SCHEDULE_DELAY default 1000 — [L167](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L167)
-- [ ] OTEL_BLRP_EXPORT_TIMEOUT default 30000 — [L168](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L168)
+- [ ] OTEL_BLRP_SCHEDULE_DELAY default 1000 ms — [L167](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L167)
+- [ ] OTEL_BLRP_EXPORT_TIMEOUT default 30000 ms — [L168](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L168)
 - [ ] OTEL_BLRP_MAX_QUEUE_SIZE default 2048 — [L169](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L169)
 - [ ] OTEL_BLRP_MAX_EXPORT_BATCH_SIZE default 512, must be <= MAX_QUEUE_SIZE — [L170](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L170)
 
 ### Attribute Limits
-- [ ] Implementations SHOULD only offer env vars for attribute types where SDK implements truncation — [L174](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L174)
 - [ ] OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT default no limit — [L181](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L181)
 - [ ] OTEL_ATTRIBUTE_COUNT_LIMIT default 128 — [L182](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L182)
+
+### Span Limits
+- [ ] OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT default no limit — [L190](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L190)
+- [ ] OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT default 128 — [L191](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L191)
+- [ ] OTEL_SPAN_EVENT_COUNT_LIMIT default 128 — [L192](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L192)
+- [ ] OTEL_SPAN_LINK_COUNT_LIMIT default 128 — [L193](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L193)
+- [ ] OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT default 128 — [L194](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L194)
+- [ ] OTEL_LINK_ATTRIBUTE_COUNT_LIMIT default 128 — [L195](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L195)
 
 ### LogRecord Limits
 - [ ] OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT default no limit — [L203](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L203)
@@ -588,7 +609,14 @@
 - [ ] OTEL_TRACES_EXPORTER default `otlp` — [L243](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L243)
 - [ ] OTEL_METRICS_EXPORTER default `otlp` — [L244](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L244)
 - [ ] OTEL_LOGS_EXPORTER default `otlp` — [L245](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L245)
-- [ ] `logging` exporter value SHOULD NOT be supported by new implementations — [L254](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L254)
+
+### Metrics SDK Configuration
+- [ ] OTEL_METRICS_EXEMPLAR_FILTER default `"trace_based"` — [L299](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L299)
+- [ ] OTEL_METRIC_EXPORT_INTERVAL default 60000 ms — [L314](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L314)
+- [ ] OTEL_METRIC_EXPORT_TIMEOUT default 30000 ms — [L315](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L315)
+
+### Declarative Configuration
+- [ ] When OTEL_CONFIG_FILE is set, all other env vars MUST be ignored — [L335](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L335)
 
 ### Language Specific
 - [ ] Language specific env vars SHOULD follow `OTEL_{LANGUAGE}_{FEATURE}` convention — [L359](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L359)
