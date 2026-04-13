@@ -2,7 +2,8 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
   use ExUnit.Case
 
   setup do
-    :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
+    Application.stop(:otel_sdk)
+    Application.ensure_all_started(:otel_sdk)
     %{storage: Process.whereis(Otel.SDK.Trace.SpanStorage)}
   end
 

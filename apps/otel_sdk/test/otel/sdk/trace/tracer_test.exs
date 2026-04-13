@@ -2,7 +2,8 @@ defmodule Otel.SDK.Trace.TracerTest do
   use ExUnit.Case
 
   setup do
-    :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
+    Application.stop(:otel_sdk)
+    Application.ensure_all_started(:otel_sdk)
 
     {:ok, provider} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
     {_module, tracer_config} = Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")

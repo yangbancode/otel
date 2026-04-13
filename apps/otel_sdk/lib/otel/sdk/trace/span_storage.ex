@@ -14,7 +14,7 @@ defmodule Otel.SDK.Trace.SpanStorage do
   # --- Client API ---
 
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
-  def start_link(opts \\ []) do
+  def start_link(opts) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 

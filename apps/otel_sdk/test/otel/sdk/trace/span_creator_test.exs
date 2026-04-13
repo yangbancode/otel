@@ -34,7 +34,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
   use ExUnit.Case
 
   setup do
-    :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
+    Application.stop(:otel_sdk)
+    Application.ensure_all_started(:otel_sdk)
     Otel.API.Ctx.clear()
     :ok
   end
