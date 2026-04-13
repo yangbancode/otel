@@ -75,7 +75,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ## Phase 3: Metrics
 
 ### Metrics API
-- [ ] [MeterProvider & Meter API](decisions/meterprovider-and-meter-api.md)
+- [x] [MeterProvider & Meter API](decisions/meterprovider-and-meter-api.md)
 - [ ] [Synchronous Instruments](decisions/synchronous-instruments.md)
 - [ ] [Asynchronous Instruments & Callbacks](decisions/asynchronous-instruments-and-callbacks.md)
 
