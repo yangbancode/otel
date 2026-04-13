@@ -6,7 +6,13 @@ How to implement the OTLP gRPC exporter on BEAM? gRPC client library choice, una
 
 ## Decision
 
-TBD
+Deferred. HTTP protobuf is the most widely used OTLP transport and is already implemented. gRPC adds significant dependencies (grpcbox or grpc-elixir) for marginal benefit in most deployments.
+
+Candidate libraries when needed:
+- `grpcbox` — Erlang, 5 dependencies, same as opentelemetry-erlang
+- `grpc` — Elixir, 10 dependencies, native Elixir API
+
+Will revisit when high-throughput gRPC use cases arise.
 
 ## Compliance
 
