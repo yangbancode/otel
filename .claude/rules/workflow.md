@@ -10,7 +10,7 @@ When a user requests a task that involves code changes:
    - No alias: full module names only
    - `@spec` with parameter names on all `def` and `defp`
 6. **Spec verification** — run parallel AI Agents to verify implementation against the official OTel spec. Fix any gaps found
-7. **Quality checks** — run in order:
+7. **Quality checks** — run `mix clean` first to clear compile cache, then run in order:
    - `mix format --check-formatted`
    - `mix compile --warnings-as-errors`
    - `mix test --warnings-as-errors --cover` (100% threshold)

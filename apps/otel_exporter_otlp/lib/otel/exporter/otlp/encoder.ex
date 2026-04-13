@@ -79,14 +79,14 @@ defmodule Otel.Exporter.OTLP.Encoder do
       trace_id: encode_id(span.trace_id, 16),
       span_id: encode_id(span.span_id, 8),
       parent_span_id: encode_parent_span_id(span.parent_span_id),
-      trace_state: encode_tracestate(span.tracestate),
+      trace_state: Otel.API.Trace.TraceState.encode(span.tracestate),
       name: span.name,
       kind: encode_span_kind(span.kind),
       start_time_unix_nano: span.start_time,
       end_time_unix_nano: span.end_time || 0,
-      attributes: encode_attributes(span.attributes),
-      events: Enum.map(span.events, &encode_event/1),
-      links: Enum.map(span.links, &encode_link/1),
+      attributes: encode_attributes(span.attributes || %{}),
+      events: Enum.map(span.events || [], &encode_event/1),
+      links: Enum.map(span.links || [], &encode_link/1),
       status: encode_status(span.status),
       flags: span.trace_flags
     }
@@ -94,12 +94,13 @@ defmodule Otel.Exporter.OTLP.Encoder do
 
   # --- Event ---
 
-  @spec encode_event(event :: map()) :: Opentelemetry.Proto.Trace.V1.Span.Event.t()
+  @spec encode_event(event :: %{name: term(), time: integer(), attributes: map()}) ::
+          Opentelemetry.Proto.Trace.V1.Span.Event.t()
   defp encode_event(event) do
     %Opentelemetry.Proto.Trace.V1.Span.Event{
       time_unix_nano: event.time,
       name: to_string(event.name),
-      attributes: encode_attributes(event.attributes)
+      attributes: encode_attributes(event.attributes || %{})
     }
   end
 
@@ -112,7 +113,7 @@ defmodule Otel.Exporter.OTLP.Encoder do
       trace_id: encode_id(span_ctx.trace_id, 16),
       span_id: encode_id(span_ctx.span_id, 8),
       trace_state: Otel.API.Trace.TraceState.encode(span_ctx.tracestate),
-      attributes: encode_attributes(attrs)
+      attributes: encode_attributes(attrs || %{})
     }
   end
 
@@ -123,17 +124,11 @@ defmodule Otel.Exporter.OTLP.Encoder do
   defp encode_status(nil), do: nil
 
   defp encode_status({:ok, _message}) do
-    %Opentelemetry.Proto.Trace.V1.Status{
-      code: :STATUS_CODE_OK,
-      message: ""
-    }
+    %Opentelemetry.Proto.Trace.V1.Status{code: :STATUS_CODE_OK, message: ""}
   end
 
   defp encode_status({:error, message}) do
-    %Opentelemetry.Proto.Trace.V1.Status{
-      code: :STATUS_CODE_ERROR,
-      message: message
-    }
+    %Opentelemetry.Proto.Trace.V1.Status{code: :STATUS_CODE_ERROR, message: message}
   end
 
   # --- Attributes ---
@@ -193,16 +188,11 @@ defmodule Otel.Exporter.OTLP.Encoder do
   defp encode_parent_span_id(0), do: <<>>
   defp encode_parent_span_id(span_id), do: encode_id(span_id, 8)
 
-  @spec encode_tracestate(tracestate :: Otel.API.Trace.TraceState.t()) :: String.t()
-  defp encode_tracestate(tracestate) do
-    Otel.API.Trace.TraceState.encode(tracestate)
-  end
-
   @spec encode_span_kind(kind :: atom()) :: Opentelemetry.Proto.Trace.V1.Span.SpanKind.t()
   defp encode_span_kind(:internal), do: :SPAN_KIND_INTERNAL
   defp encode_span_kind(:server), do: :SPAN_KIND_SERVER
   defp encode_span_kind(:client), do: :SPAN_KIND_CLIENT
   defp encode_span_kind(:producer), do: :SPAN_KIND_PRODUCER
   defp encode_span_kind(:consumer), do: :SPAN_KIND_CONSUMER
-  defp encode_span_kind(_), do: :SPAN_KIND_UNSPECIFIED
+  defp encode_span_kind(_kind), do: :SPAN_KIND_UNSPECIFIED
 end
