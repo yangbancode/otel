@@ -64,7 +64,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Resource Detection & Environment Variables](decisions/resource-detection-and-environment-variables.md)
 
 ### OTLP
-- [ ] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
+- [x] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
 - [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)

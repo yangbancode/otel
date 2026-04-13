@@ -24,7 +24,8 @@ defmodule Otel.Exporter.OTLP.MixProject do
 
   defp deps do
     [
-      {:otel_sdk, in_umbrella: true}
+      {:otel_sdk, in_umbrella: true},
+      {:protobuf, "~> 0.16.0"}
     ]
   end
 end
