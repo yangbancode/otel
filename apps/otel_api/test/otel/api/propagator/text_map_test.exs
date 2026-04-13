@@ -28,6 +28,32 @@ defmodule Otel.API.Propagator.TextMapTest do
     end
   end
 
+  describe "default_get_all/2" do
+    test "returns all values for matching key" do
+      carrier = [{"baggage", "a=1"}, {"other", "x"}, {"baggage", "b=2"}]
+      assert Otel.API.Propagator.TextMap.default_get_all(carrier, "baggage") == ["a=1", "b=2"]
+    end
+
+    test "case-insensitive lookup" do
+      carrier = [{"Baggage", "a=1"}, {"BAGGAGE", "b=2"}]
+      assert Otel.API.Propagator.TextMap.default_get_all(carrier, "baggage") == ["a=1", "b=2"]
+    end
+
+    test "returns empty list for missing key" do
+      assert Otel.API.Propagator.TextMap.default_get_all([], "baggage") == []
+    end
+
+    test "preserves carrier order" do
+      carrier = [{"key", "third"}, {"other", "x"}, {"key", "first"}, {"key", "second"}]
+
+      assert Otel.API.Propagator.TextMap.default_get_all(carrier, "key") == [
+               "third",
+               "first",
+               "second"
+             ]
+    end
+  end
+
   describe "default_setter/3" do
     test "appends new key" do
       carrier = [{"existing", "value"}]

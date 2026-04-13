@@ -57,6 +57,18 @@ defmodule Otel.API.Propagator.TextMap do
   end
 
   @doc """
+  Default get_all for `[{String.t(), String.t()}]` carriers.
+
+  Returns all values for the given key (case-insensitive), in carrier order.
+  Returns empty list if key is not found.
+  """
+  @spec default_get_all(carrier :: [{String.t(), String.t()}], key :: String.t()) :: [String.t()]
+  def default_get_all(carrier, key) when is_list(carrier) do
+    lower_key = String.downcase(key)
+    for {k, v} <- carrier, String.downcase(k) == lower_key, do: v
+  end
+
+  @doc """
   Default setter for `[{String.t(), String.t()}]` carriers.
 
   Replaces existing key (case-insensitive) or appends.
