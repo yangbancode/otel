@@ -36,10 +36,13 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "starts with custom config" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(config: %{resource: %{service: "test"}})
+      custom_resource = Otel.SDK.Resource.create(%{"service.name" => "test"})
 
-      assert Otel.SDK.Trace.TracerProvider.resource(pid) == %{service: "test"}
+      {:ok, pid} =
+        Otel.SDK.Trace.TracerProvider.start_link(config: %{resource: custom_resource})
+
+      resource = Otel.SDK.Trace.TracerProvider.resource(pid)
+      assert resource.attributes["service.name"] == "test"
     end
   end
 
@@ -88,25 +91,30 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "custom config overrides defaults" do
+      custom_resource = Otel.SDK.Resource.create(%{"service.name" => "custom"})
+
       {:ok, pid} =
         Otel.SDK.Trace.TracerProvider.start_link(
           config: %{
             sampler: {Otel.SDK.Trace.Sampler.AlwaysOff, []},
-            resource: %{service: "custom"}
+            resource: custom_resource
           }
         )
 
       config = Otel.SDK.Trace.TracerProvider.config(pid)
       assert config.sampler == {Otel.SDK.Trace.Sampler.AlwaysOff, []}
-      assert config.resource == %{service: "custom"}
+      assert config.resource.attributes["service.name"] == "custom"
       # defaults preserved for unset keys
       assert config.processors == []
     end
   end
 
   describe "resource/1" do
-    test "returns empty resource by default", %{provider: pid} do
-      assert Otel.SDK.Trace.TracerProvider.resource(pid) == %{}
+    test "returns SDK default resource", %{provider: pid} do
+      resource = Otel.SDK.Trace.TracerProvider.resource(pid)
+      assert %Otel.SDK.Resource{} = resource
+      assert resource.attributes["telemetry.sdk.name"] == "otel"
+      assert resource.attributes["telemetry.sdk.language"] == "elixir"
     end
   end
 

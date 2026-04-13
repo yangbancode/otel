@@ -13,7 +13,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
           sampler: {module(), term()},
           processors: [{module(), map()}],
           id_generator: module(),
-          resource: map(),
+          resource: Otel.SDK.Resource.t(),
           span_limits: Otel.SDK.Trace.SpanLimits.t()
         }
 
@@ -45,7 +45,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @doc """
   Returns the resource associated with this provider.
   """
-  @spec resource(server :: GenServer.server()) :: map()
+  @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
   def resource(server) do
     GenServer.call(server, :resource)
   end

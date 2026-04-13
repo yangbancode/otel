@@ -60,8 +60,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ## Phase 2: OTLP Exporters
 
 ### Resource
-- [ ] [Resource Creation & Merge](decisions/resource-creation-and-merge.md)
-- [ ] [Resource Detection & Environment Variables](decisions/resource-detection-and-environment-variables.md)
+- [x] [Resource Creation & Merge](decisions/resource-creation-and-merge.md)
+- [x] [Resource Detection & Environment Variables](decisions/resource-detection-and-environment-variables.md)
 
 ### OTLP
 - [ ] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)

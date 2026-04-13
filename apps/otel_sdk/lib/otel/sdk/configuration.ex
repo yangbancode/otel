@@ -13,7 +13,7 @@ defmodule Otel.SDK.Configuration do
         {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}},
       processors: [],
       id_generator: Otel.SDK.Trace.IdGenerator.Default,
-      resource: %{},
+      resource: build_resource(),
       span_limits: %Otel.SDK.Trace.SpanLimits{}
     }
   end
@@ -31,6 +31,11 @@ defmodule Otel.SDK.Configuration do
     default_config()
     |> Map.merge(app_config)
     |> Map.merge(env_config)
+  end
+
+  @spec build_resource() :: Otel.SDK.Resource.t()
+  defp build_resource do
+    Otel.SDK.Resource.merge(Otel.SDK.Resource.default(), Otel.SDK.Resource.from_env())
   end
 
   @spec read_env_vars() :: map()
