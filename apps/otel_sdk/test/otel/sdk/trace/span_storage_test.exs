@@ -4,7 +4,7 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
-    %{storage: Process.whereis(Otel.SDK.Trace.SpanStorage)}
+    :ok
   end
 
   @span %Otel.SDK.Trace.Span{
