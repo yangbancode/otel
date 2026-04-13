@@ -57,8 +57,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [W3C TraceContext Propagator](decisions/w3c-tracecontext-propagator.md)
 
 ### Baggage
-- [ ] [Baggage API](decisions/baggage-api.md)
-- [ ] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
+- [x] [Baggage API](decisions/baggage-api.md)
+- [x] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
 
 ## Phase 2: OTLP HTTP Exporter
 - [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
