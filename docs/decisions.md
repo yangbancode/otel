@@ -70,7 +70,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
 
 ### Environment Variables
-- [ ] [OTLP Environment Variables](decisions/otlp-environment-variables.md)
+- [x] [OTLP Environment Variables](decisions/otlp-environment-variables.md)
 
 ## Phase 3: Metrics
 
