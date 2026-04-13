@@ -16,13 +16,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ## Phase 1: Traces
 
-### Shared
+### Context
 - [x] [Context](decisions/context-data-structure-and-operations.md)
-- [x] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)
-- [x] [Composite Propagator & Global Registration](decisions/composite-propagator-and-global-registration.md)
-- [x] [W3C TraceContext Propagator](decisions/w3c-tracecontext-propagator.md)
-- [x] [Baggage API](decisions/baggage-api.md)
-- [x] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
 
 ### Trace API
 - [x] [SpanContext](decisions/spancontext-struct.md)
@@ -50,23 +45,34 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [BatchSpanProcessor](decisions/batchspanprocessor.md)
 - [x] [Span Operations](decisions/span-operations.md)
 
-## Phase 2: OTLP Exporters
+### Propagators
+- [x] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)
+- [x] [Composite Propagator & Global Registration](decisions/composite-propagator-and-global-registration.md)
+- [x] [W3C TraceContext Propagator](decisions/w3c-tracecontext-propagator.md)
 
-### Shared
-- [ ] [Resource Creation & Merge](decisions/resource-creation-and-merge.md)
-- [ ] [Resource Detection & Environment Variables](decisions/resource-detection-and-environment-variables.md)
+### Baggage
+- [x] [Baggage API](decisions/baggage-api.md)
+- [x] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
+
+### Environment Variables
 - [ ] [Trace Environment Variables](decisions/trace-environment-variables.md)
 
+## Phase 2: OTLP Exporters
+
+### Resource
+- [ ] [Resource Creation & Merge](decisions/resource-creation-and-merge.md)
+- [ ] [Resource Detection & Environment Variables](decisions/resource-detection-and-environment-variables.md)
+
 ### OTLP
-- [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [Protobuf Encoding & Code Generation](decisions/protobuf-encoding-and-code-generation.md)
+- [ ] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
 
-## Phase 3: Metrics
+### Environment Variables
+- [ ] [OTLP Environment Variables](decisions/otlp-environment-variables.md)
 
-### Shared
-- [ ] [Metrics Environment Variables](decisions/metrics-environment-variables.md)
+## Phase 3: Metrics
 
 ### Metrics API
 - [ ] [MeterProvider & Meter API](decisions/meterprovider-and-meter-api.md)
@@ -83,10 +89,10 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [MetricReader & Periodic Exporting](decisions/metricreader-and-periodic-exporting.md)
 - [ ] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
 
-## Phase 4: Logs
+### Environment Variables
+- [ ] [Metrics Environment Variables](decisions/metrics-environment-variables.md)
 
-### Shared
-- [ ] [Logs Environment Variables](decisions/logs-environment-variables.md)
+## Phase 4: Logs
 
 ### Logs API
 - [ ] [Logs API](decisions/logs-api.md)
@@ -96,6 +102,9 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ### :logger Integration
 - [ ] [:logger Integration](decisions/logger-integration.md)
+
+### Environment Variables
+- [ ] [Logs Environment Variables](decisions/logs-environment-variables.md)
 
 ## Phase 5: Semantic Conventions
 - [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
