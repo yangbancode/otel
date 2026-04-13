@@ -23,9 +23,30 @@ defmodule Otel.API.Metrics.Meter do
 
   @callback create_observable_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
               term()
+  @callback create_observable_counter(
+              meter :: t(),
+              name :: String.t(),
+              callback :: function(),
+              callback_args :: term(),
+              opts :: keyword()
+            ) :: term()
   @callback create_observable_gauge(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @callback create_observable_gauge(
+              meter :: t(),
+              name :: String.t(),
+              callback :: function(),
+              callback_args :: term(),
+              opts :: keyword()
+            ) :: term()
   @callback create_observable_updown_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
               term()
+  @callback create_observable_updown_counter(
+              meter :: t(),
+              name :: String.t(),
+              callback :: function(),
+              callback_args :: term(),
+              opts :: keyword()
+            ) :: term()
 
   # --- Callback Registration ---
 
@@ -93,11 +114,39 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
+  Creates an observable Counter with an inline callback.
+  """
+  @spec create_observable_counter(
+          meter :: t(),
+          name :: String.t(),
+          callback :: function(),
+          callback_args :: term(),
+          opts :: keyword()
+        ) :: term()
+  def create_observable_counter({module, _} = meter, name, callback, callback_args, opts) do
+    module.create_observable_counter(meter, name, callback, callback_args, opts)
+  end
+
+  @doc """
   Creates an observable (asynchronous) Gauge instrument.
   """
   @spec create_observable_gauge(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
   def create_observable_gauge({module, _} = meter, name, opts \\ []) do
     module.create_observable_gauge(meter, name, opts)
+  end
+
+  @doc """
+  Creates an observable Gauge with an inline callback.
+  """
+  @spec create_observable_gauge(
+          meter :: t(),
+          name :: String.t(),
+          callback :: function(),
+          callback_args :: term(),
+          opts :: keyword()
+        ) :: term()
+  def create_observable_gauge({module, _} = meter, name, callback, callback_args, opts) do
+    module.create_observable_gauge(meter, name, callback, callback_args, opts)
   end
 
   @doc """
@@ -107,6 +156,20 @@ defmodule Otel.API.Metrics.Meter do
           term()
   def create_observable_updown_counter({module, _} = meter, name, opts \\ []) do
     module.create_observable_updown_counter(meter, name, opts)
+  end
+
+  @doc """
+  Creates an observable UpDownCounter with an inline callback.
+  """
+  @spec create_observable_updown_counter(
+          meter :: t(),
+          name :: String.t(),
+          callback :: function(),
+          callback_args :: term(),
+          opts :: keyword()
+        ) :: term()
+  def create_observable_updown_counter({module, _} = meter, name, callback, callback_args, opts) do
+    module.create_observable_updown_counter(meter, name, callback, callback_args, opts)
   end
 
   @doc """

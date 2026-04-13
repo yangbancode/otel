@@ -77,7 +77,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### Metrics API
 - [x] [MeterProvider & Meter API](decisions/meterprovider-and-meter-api.md)
 - [x] [Synchronous Instruments](decisions/synchronous-instruments.md)
-- [ ] [Asynchronous Instruments & Callbacks](decisions/asynchronous-instruments-and-callbacks.md)
+- [x] [Asynchronous Instruments & Callbacks](decisions/asynchronous-instruments-and-callbacks.md)
 
 ### Metrics SDK
 - [ ] [MeterProvider SDK](decisions/meterprovider-sdk.md)

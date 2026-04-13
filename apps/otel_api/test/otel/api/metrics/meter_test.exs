@@ -66,6 +66,19 @@ defmodule Otel.API.Metrics.MeterTest do
                )
     end
 
+    test "create_observable_counter with inline callback", %{meter: meter} do
+      callback = fn _args -> [{1, %{}}] end
+
+      assert :ok ==
+               Otel.API.Metrics.Meter.create_observable_counter(
+                 meter,
+                 "my_obs_counter",
+                 callback,
+                 nil,
+                 []
+               )
+    end
+
     test "create_observable_gauge returns :ok", %{meter: meter} do
       assert :ok == Otel.API.Metrics.Meter.create_observable_gauge(meter, "my_obs_gauge")
     end
@@ -74,6 +87,19 @@ defmodule Otel.API.Metrics.MeterTest do
       assert :ok ==
                Otel.API.Metrics.Meter.create_observable_gauge(meter, "my_obs_gauge",
                  description: "An observable gauge"
+               )
+    end
+
+    test "create_observable_gauge with inline callback", %{meter: meter} do
+      callback = fn _args -> [{1, %{}}] end
+
+      assert :ok ==
+               Otel.API.Metrics.Meter.create_observable_gauge(
+                 meter,
+                 "my_obs_gauge",
+                 callback,
+                 nil,
+                 []
                )
     end
 
@@ -91,6 +117,19 @@ defmodule Otel.API.Metrics.MeterTest do
                  meter,
                  "my_obs_updown",
                  description: "An observable updown counter"
+               )
+    end
+
+    test "create_observable_updown_counter with inline callback", %{meter: meter} do
+      callback = fn _args -> [{1, %{}}] end
+
+      assert :ok ==
+               Otel.API.Metrics.Meter.create_observable_updown_counter(
+                 meter,
+                 "my_obs_updown",
+                 callback,
+                 nil,
+                 []
                )
     end
 
