@@ -11,14 +11,19 @@ defmodule Otel.Exporter.OTLP.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      test_coverage: [threshold: 100],
+      test_coverage: [
+        threshold: 100,
+        ignore_modules: [
+          ~r/^Opentelemetry\.Proto\./
+        ]
+      ],
       elixirc_options: [warnings_as_errors: true]
     ]
   end
 
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger, :inets, :ssl, :public_key]
     ]
   end
 
