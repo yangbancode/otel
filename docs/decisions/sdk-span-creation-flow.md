@@ -45,10 +45,10 @@ Pure function module (no GenServer) that orchestrates the creation flow. Same ro
 
 Items identified during code review that will be addressed in upcoming decisions:
 
-- **SpanStorage span operations** (set_attribute, add_event, set_status, update_name, end_span) — SpanProcessor Interface decision
-- **Processor on_start/on_end notification** — SpanProcessor Interface decision
-- **event_count_limit / attribute_per_event_limit / attribute_per_link_limit enforcement** — when events/links are added via span operations
-- **Link internal attribute limit** (AttributePerLinkCountLimit) — applied when links are processed in span operations
+- ~~**Processor on_start/on_end notification** — SpanProcessor Interface decision~~ ✅ Done
+- **SpanStorage span operations** (set_attribute, add_event, set_status, update_name, end_span) — Span Operations decision
+- **event_count_limit / attribute_per_event_limit / attribute_per_link_limit enforcement** — Span Operations decision
+- **Link internal attribute limit** (AttributePerLinkCountLimit) — Span Operations decision
 
 ## Compliance
 
