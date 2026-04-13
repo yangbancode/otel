@@ -35,11 +35,6 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
   use ExUnit.Case
 
   setup do
-    case Otel.SDK.Trace.SpanStorage.start_link() do
-      {:ok, _} -> :ok
-      {:error, {:already_started, _}} -> :ok
-    end
-
     :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
     Otel.API.Ctx.clear()
     :ok

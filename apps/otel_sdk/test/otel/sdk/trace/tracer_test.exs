@@ -2,11 +2,6 @@ defmodule Otel.SDK.Trace.TracerTest do
   use ExUnit.Case
 
   setup do
-    case Otel.SDK.Trace.SpanStorage.start_link() do
-      {:ok, _} -> :ok
-      {:error, {:already_started, _}} -> :ok
-    end
-
     :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
 
     {:ok, provider} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
