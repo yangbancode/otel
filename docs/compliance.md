@@ -551,10 +551,10 @@
 
 ### Implementation Guidelines
 - [ ] If env vars are implemented, they SHOULD use the names and parsing behavior specified — [L49](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L49)
-- [ ] Environment-based configuration MUST have a direct code configuration equivalent — [L56](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L56)
+- [x] Environment-based configuration MUST have a direct code configuration equivalent — [L56](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L56)
 
 ### Parsing Empty Value
-- [ ] SDK MUST interpret empty value of env var same as when variable is unset — [L60](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L60)
+- [x] SDK MUST interpret empty value of env var same as when variable is unset — [L60](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L60)
 
 ### Boolean
 - [ ] Boolean MUST be set to true only by case-insensitive `"true"` — [L66](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L66)
@@ -565,7 +565,7 @@
 - [ ] If user provides unparseable numeric value, implementation SHOULD warn and treat as not set — [L89](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L89)
 
 ### Enum
-- [ ] Enum values SHOULD be interpreted in a case-insensitive manner — [L103](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L103)
+- [x] Enum values SHOULD be interpreted in a case-insensitive manner — [L103](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L103)
 - [ ] If unrecognized enum value, implementation MUST generate warning and gracefully ignore — [L106](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L106)
 
 ### General SDK Configuration
@@ -574,14 +574,14 @@
 - [ ] OTEL_SERVICE_NAME: Sets service.name resource attribute — [L116](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L116)
 - [ ] OTEL_LOG_LEVEL: Log level for SDK internal logger, default "info" — [L117](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L117)
 - [ ] OTEL_PROPAGATORS: Comma-separated propagators, default "tracecontext,baggage" — [L118](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L118)
-- [ ] OTEL_TRACES_SAMPLER: Sampler for traces, default "parentbased_always_on" — [L119](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L119)
-- [ ] OTEL_TRACES_SAMPLER_ARG: Value for sampler argument — [L120](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L120)
+- [x] OTEL_TRACES_SAMPLER: Sampler for traces, default "parentbased_always_on" — [L119](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L119)
+- [x] OTEL_TRACES_SAMPLER_ARG: Value for sampler argument — [L120](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L120)
 
 ### Batch Span Processor
-- [ ] OTEL_BSP_SCHEDULE_DELAY default 5000 ms — [L158](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L158)
-- [ ] OTEL_BSP_EXPORT_TIMEOUT default 30000 ms — [L159](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L159)
-- [ ] OTEL_BSP_MAX_QUEUE_SIZE default 2048 — [L160](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L160)
-- [ ] OTEL_BSP_MAX_EXPORT_BATCH_SIZE default 512, must be <= MAX_QUEUE_SIZE — [L161](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L161)
+- [x] OTEL_BSP_SCHEDULE_DELAY default 5000 ms — [L158](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L158)
+- [x] OTEL_BSP_EXPORT_TIMEOUT default 30000 ms — [L159](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L159)
+- [x] OTEL_BSP_MAX_QUEUE_SIZE default 2048 — [L160](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L160)
+- [x] OTEL_BSP_MAX_EXPORT_BATCH_SIZE default 512, must be <= MAX_QUEUE_SIZE — [L161](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L161)
 
 ### Batch LogRecord Processor
 - [ ] OTEL_BLRP_SCHEDULE_DELAY default 1000 ms — [L167](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L167)
@@ -594,12 +594,12 @@
 - [ ] OTEL_ATTRIBUTE_COUNT_LIMIT default 128 — [L182](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L182)
 
 ### Span Limits
-- [ ] OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT default no limit — [L190](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L190)
-- [ ] OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT default 128 — [L191](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L191)
-- [ ] OTEL_SPAN_EVENT_COUNT_LIMIT default 128 — [L192](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L192)
-- [ ] OTEL_SPAN_LINK_COUNT_LIMIT default 128 — [L193](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L193)
-- [ ] OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT default 128 — [L194](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L194)
-- [ ] OTEL_LINK_ATTRIBUTE_COUNT_LIMIT default 128 — [L195](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L195)
+- [x] OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT default no limit — [L190](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L190)
+- [x] OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT default 128 — [L191](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L191)
+- [x] OTEL_SPAN_EVENT_COUNT_LIMIT default 128 — [L192](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L192)
+- [x] OTEL_SPAN_LINK_COUNT_LIMIT default 128 — [L193](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L193)
+- [x] OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT default 128 — [L194](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L194)
+- [x] OTEL_LINK_ATTRIBUTE_COUNT_LIMIT default 128 — [L195](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L195)
 
 ### LogRecord Limits
 - [ ] OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT default no limit — [L203](../references/opentelemetry-specification/specification/configuration/sdk-environment-variables.md#L203)

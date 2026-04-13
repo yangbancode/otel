@@ -55,7 +55,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [W3C Baggage Propagator](decisions/w3c-baggage-propagator.md)
 
 ### Environment Variables
-- [ ] [Trace Environment Variables](decisions/trace-environment-variables.md)
+- [x] [Trace Environment Variables](decisions/trace-environment-variables.md)
 
 ## Phase 2: OTLP Exporters
 
