@@ -47,7 +47,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [SpanExporter Interface](decisions/spanexporter-interface.md)
 - [x] [SimpleSpanProcessor](decisions/simplespanprocessor.md)
 - [x] [Console Exporter](decisions/console-exporter.md)
-- [ ] [BatchSpanProcessor](decisions/batchspanprocessor.md)
+- [x] [BatchSpanProcessor](decisions/batchspanprocessor.md)
 
 ### Propagators
 - [ ] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)
