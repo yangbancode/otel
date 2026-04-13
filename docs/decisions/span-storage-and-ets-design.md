@@ -54,5 +54,5 @@ Spans are typically modified only by the process that created them (through the 
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Concurrency requirements — L1281, L1284, L1287, L1289

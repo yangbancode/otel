@@ -45,5 +45,5 @@ Vendor-specific generators (AWS X-Ray, etc.) MUST NOT be part of this repository
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Id Generators — L880, L882, L887, L899

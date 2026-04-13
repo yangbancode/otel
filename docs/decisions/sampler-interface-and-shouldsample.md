@@ -42,7 +42,7 @@ sampler = Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.Sampler.AlwaysOn, %{}})
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Sampling — L304, L305, L310, L311, L320
   * Sampler — ShouldSample — L380, L398, L399, L405
   * Sampler — GetDescription — L416

@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics SDK](../compliance/metrics-sdk.md)
+- [Metrics SDK](../compliance.md)
   * Exemplar (Stable) — L1100, L1103, L1104, L1106, L1110
   * ExemplarFilter — L1117, L1122, L1123, L1124, L1126
   * ExemplarReservoir — L1148, L1151, L1155, L1164, L1172, L1179, L1181, L1186, L1192

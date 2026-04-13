@@ -22,7 +22,7 @@ A simple struct with name, version, schema_url, and attributes (since spec v1.13
 
 ## Compliance
 
-- [Trace API](../compliance/trace-api.md)
+- [Trace API](../compliance.md)
   * Tracer — L193, L197
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * TracerProvider — Tracer Creation — L95, L98, L100

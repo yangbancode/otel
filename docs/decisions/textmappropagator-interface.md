@@ -42,6 +42,6 @@ When a propagator is stored as `{module, opts}` (e.g., Composite), dispatch call
 
 ## Compliance
 
-- [API Propagators](../compliance/api-propagators.md)
+- [API Propagators](../compliance.md)
   * Operations — L83, L84, L93, L102, L102
   * TextMap Propagator — L122, L130, L183, L209, L223, L230, L240, L241, L242, L249

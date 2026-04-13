@@ -43,7 +43,7 @@ baggage: key1=value1;metadata1,key2=value2
 
 ## Compliance
 
-- [Baggage](../compliance/baggage.md)
+- [Baggage](../compliance.md)
   * Propagation — L184
-- [API Propagators](../compliance/api-propagators.md)
+- [API Propagators](../compliance.md)
   * Propagators Distribution — L352

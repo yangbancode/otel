@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics SDK](../compliance/metrics-sdk.md)
+- [Metrics SDK](../compliance.md)
   * Aggregation (Stable) — L567, L577
   * Histogram Aggregations — L646
   * Explicit Bucket Histogram Aggregation — L661

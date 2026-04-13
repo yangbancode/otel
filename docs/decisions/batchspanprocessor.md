@@ -37,6 +37,6 @@ Location: `apps/otel_sdk/lib/otel/sdk/trace/batch_processor.ex`
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Built-in Span Processors — L1066
   * Built-in Span Processors — Batching Processor — L1089, L1092

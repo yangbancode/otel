@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [OTLP Protocol](../compliance/otlp-protocol.md)
+- [OTLP Protocol](../compliance.md)
   * OTLP/gRPC Concurrent Requests — L129, L130, L137, L151, L155
   * OTLP/gRPC Response — L160
   * Full Success (gRPC) — L170, L172, L178
@@ -18,7 +18,7 @@ TBD
   * Failures (gRPC) — L217, L222, L226, L228, L269, L291, L295
   * OTLP/gRPC Throttling — L309, L310, L312, L344, L365
   * OTLP/gRPC Default Port — L381
-- [OTLP Exporter Configuration](../compliance/otlp-exporter.md)
+- [OTLP Exporter Configuration](../compliance.md)
   * Configuration Options — L13, L14, L17, L26, L71, L77, L83
   * Specify Protocol — L169, L170, L173
   * User Agent — L205, L211

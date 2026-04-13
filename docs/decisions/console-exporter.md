@@ -29,5 +29,5 @@ Lives inside `otel_sdk` app (no separate app needed).
 
 ## Compliance
 
-- [Trace Exporters](../compliance/trace-exporters.md)
+- [Trace Exporters](../compliance.md)
   * Console (stdout) — L14, L34

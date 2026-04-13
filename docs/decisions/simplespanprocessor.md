@@ -31,6 +31,6 @@ Location: `apps/otel_sdk/lib/otel/sdk/trace/simple_processor.ex`
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Built-in Span Processors — L1066
   * Built-in Span Processors — Simple Processor — L1076

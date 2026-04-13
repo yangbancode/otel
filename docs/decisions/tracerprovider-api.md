@@ -39,7 +39,7 @@ When no SDK is installed:
 
 ## Compliance
 
-- [Trace API](../compliance/trace-api.md)
+- [Trace API](../compliance.md)
   * TracerProvider — L96, L104, L109
   * Get a Tracer — L115, L117, L126, L128, L129, L139, L146
   * Tracer — L193, L197

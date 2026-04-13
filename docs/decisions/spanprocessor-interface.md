@@ -33,7 +33,7 @@ Location: `apps/otel_sdk/lib/otel/sdk/trace/span_processor.ex`
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Span Processor — Interface Definition — L952, L959
   * Span Processor — OnStart — L973
   * Span Processor — OnEnd — L1008

@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics API](../compliance/metrics-api.md)
+- [Metrics API](../compliance.md)
   * Instrument — L194
   * Asynchronous Instrument API — L357, L361, L363, L366, L368, L373, L377, L379, L383, L387, L395, L400, L405, L408, L415, L419, L422, L428, L430, L431, L446, L452, L455, L462, L467
   * Counter — L512

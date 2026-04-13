@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [OTLP Protocol](../compliance/otlp-protocol.md)
+- [OTLP Protocol](../compliance.md)
   * OTLP/HTTP — L390, L392
   * Binary Protobuf Encoding — L400
   * JSON Protobuf Encoding — L409, L418, L426, L443
@@ -27,7 +27,7 @@ TBD
   * OTLP/HTTP Default Port — L636
   * Implementation Recommendations — L648, L650, L669
   * Future Versions and Interoperability — L695, L723
-- [OTLP Exporter Configuration](../compliance/otlp-exporter.md)
+- [OTLP Exporter Configuration](../compliance.md)
   * Configuration Options — L13, L14, L17, L26, L71, L77, L83
   * Endpoint URLs for OTLP/HTTP — L101, L105, L115
   * Specify Protocol — L169, L170, L173

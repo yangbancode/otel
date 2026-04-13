@@ -53,7 +53,7 @@ Location: `apps/otel_api/lib/otel/api/trace/span_context.ex`
 
 ## Compliance
 
-- [Trace API](../compliance/trace-api.md)
+- [Trace API](../compliance.md)
   * SpanContext — L252, L253, L253
   * Retrieving the TraceId and SpanId — L258, L261, L262, L263, L264, L266
   * IsValid — L270

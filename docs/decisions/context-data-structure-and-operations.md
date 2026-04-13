@@ -50,7 +50,7 @@ The spec's `CreateKey` exists to prevent key collisions when multiple libraries 
 
 ## Compliance
 
-- [Context](../compliance/context.md)
+- [Context](../compliance.md)
   * Overview — L37
   * Create a Key — L65, L65, L67
   * Get Value — L74, L79

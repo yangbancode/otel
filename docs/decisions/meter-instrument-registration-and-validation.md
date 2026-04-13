@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics SDK](../compliance/metrics-sdk.md)
+- [Metrics SDK](../compliance.md)
   * Meter (Stable) — L872
   * Duplicate Instrument Registration — L912, L919, L923, L926, L928, L942
   * Name Conflict — L950

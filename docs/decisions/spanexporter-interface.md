@@ -35,7 +35,7 @@ Location: `apps/otel_sdk/lib/otel/sdk/trace/span_exporter.ex`
 
 ## Compliance
 
-- [Trace SDK](../compliance/trace-sdk.md)
+- [Trace SDK](../compliance.md)
   * Span Exporter — Interface Definition — L1130, L1135
   * Span Exporter — Export — L1156, L1160
   * Span Exporter — ForceFlush — L1208, L1211, L1215

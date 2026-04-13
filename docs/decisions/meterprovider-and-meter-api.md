@@ -10,7 +10,7 @@ TBD
 
 ## Compliance
 
-- [Metrics API](../compliance/metrics-api.md)
+- [Metrics API](../compliance.md)
   * MeterProvider — L111, L116
   * Get a Meter — L122, L138, L144, L150
   * Meter — L161, L166
