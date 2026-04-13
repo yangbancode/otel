@@ -138,7 +138,7 @@
 
 ### Built-in Span Processors — Simple Processor
 
-- [ ] Simple processor MUST synchronize calls to Span Exporter's Export to avoid concurrent invocations — [L1076](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1076)
+- [x] Simple processor MUST synchronize calls to Span Exporter's Export to avoid concurrent invocations — [L1076](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1076)
 
 ### Built-in Span Processors — Batching Processor
 
