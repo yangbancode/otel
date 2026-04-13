@@ -3,15 +3,6 @@ defmodule Otel.SDK.Application do
 
   use Application
 
-  @default_config %{
-    sampler:
-      {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}},
-    processors: [],
-    id_generator: Otel.SDK.Trace.IdGenerator.Default,
-    resource: %{},
-    span_limits: %Otel.SDK.Trace.SpanLimits{}
-  }
-
   @impl true
   @spec start(type :: Application.start_type(), args :: term()) :: {:ok, pid()}
   def start(_type, _args) do
@@ -20,7 +11,7 @@ defmodule Otel.SDK.Application do
       |> Application.get_all_env()
       |> Map.new()
 
-    config = Otel.SDK.Configuration.merge(@default_config, app_config)
+    config = Otel.SDK.Configuration.merge(app_config)
 
     Otel.API.Trace.Span.set_span_module(Otel.SDK.Trace.SpanOperations)
 

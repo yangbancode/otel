@@ -2,16 +2,33 @@ defmodule Otel.SDK.Configuration do
   @moduledoc false
 
   @doc """
+  Returns the default SDK configuration.
+
+  Single source of truth — used by Application and TracerProvider.
+  """
+  @spec default_config() :: map()
+  def default_config do
+    %{
+      sampler:
+        {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}},
+      processors: [],
+      id_generator: Otel.SDK.Trace.IdGenerator.Default,
+      resource: %{},
+      span_limits: %Otel.SDK.Trace.SpanLimits{}
+    }
+  end
+
+  @doc """
   Merges default config, Application env, and OS environment variables.
 
   Priority: OS env vars > Application config > defaults.
   Empty env var values are treated as unset.
   """
-  @spec merge(default_config :: map(), app_config :: map()) :: map()
-  def merge(default_config, app_config) do
+  @spec merge(app_config :: map()) :: map()
+  def merge(app_config) do
     env_config = read_env_vars()
 
-    default_config
+    default_config()
     |> Map.merge(app_config)
     |> Map.merge(env_config)
   end
@@ -21,7 +38,6 @@ defmodule Otel.SDK.Configuration do
     %{}
     |> maybe_put_sampler()
     |> maybe_put_span_limits()
-    |> maybe_put_bsp()
   end
 
   # --- Sampler ---
@@ -86,23 +102,6 @@ defmodule Otel.SDK.Configuration do
     if map_size(limits) > 0 do
       default_limits = Map.get(config, :span_limits, %Otel.SDK.Trace.SpanLimits{})
       Map.put(config, :span_limits, struct(default_limits, limits))
-    else
-      config
-    end
-  end
-
-  # --- Batch Span Processor ---
-
-  @spec maybe_put_bsp(config :: map()) :: map()
-  defp maybe_put_bsp(config) do
-    bsp = %{}
-    bsp = maybe_put_int(bsp, :scheduled_delay_ms, "OTEL_BSP_SCHEDULE_DELAY")
-    bsp = maybe_put_int(bsp, :export_timeout_ms, "OTEL_BSP_EXPORT_TIMEOUT")
-    bsp = maybe_put_int(bsp, :max_queue_size, "OTEL_BSP_MAX_QUEUE_SIZE")
-    bsp = maybe_put_int(bsp, :max_export_batch_size, "OTEL_BSP_MAX_EXPORT_BATCH_SIZE")
-
-    if map_size(bsp) > 0 do
-      Map.put(config, :bsp_config, bsp)
     else
       config
     end
