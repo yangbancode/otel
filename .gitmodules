@@ -1,0 +1,12 @@
+[submodule "references/opentelemetry-specification"]
+	path = references/opentelemetry-specification
+	url = https://github.com/open-telemetry/opentelemetry-specification.git
+[submodule "references/opentelemetry-erlang"]
+	path = references/opentelemetry-erlang
+	url = https://github.com/open-telemetry/opentelemetry-erlang.git
+[submodule "references/opentelemetry-proto"]
+	path = references/opentelemetry-proto
+	url = https://github.com/open-telemetry/opentelemetry-proto.git
+[submodule "references/semantic-conventions"]
+	path = references/semantic-conventions
+	url = https://github.com/open-telemetry/semantic-conventions.git
