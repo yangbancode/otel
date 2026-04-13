@@ -37,6 +37,15 @@ defmodule Otel.API.Metrics.Meter do
               opts :: keyword()
             ) :: :ok
 
+  # --- Recording ---
+
+  @callback record(
+              meter :: t(),
+              name :: String.t(),
+              value :: number(),
+              attributes :: map()
+            ) :: :ok
+
   # --- Enabled ---
 
   @callback enabled?(meter :: t(), opts :: keyword()) :: boolean()
@@ -98,6 +107,18 @@ defmodule Otel.API.Metrics.Meter do
           term()
   def create_observable_updown_counter({module, _} = meter, name, opts \\ []) do
     module.create_observable_updown_counter(meter, name, opts)
+  end
+
+  @doc """
+  Records a measurement for the named instrument.
+
+  All synchronous instrument recording operations (Counter.add,
+  Histogram.record, Gauge.record, UpDownCounter.add) route through
+  this function.
+  """
+  @spec record(meter :: t(), name :: String.t(), value :: number(), attributes :: map()) :: :ok
+  def record({module, _} = meter, name, value, attributes \\ %{}) do
+    module.record(meter, name, value, attributes)
   end
 
   @doc """
