@@ -138,7 +138,7 @@ apps/otel_exporter_otlp/lib/otel/exporter/otlp.ex → defmodule Otel.Exporter.OT
 # Examples (concrete module names decided in individual decisions)
 Otel.API.Trace.Tracer
 Otel.SDK.Trace.SpanProcessor
-Otel.Exporter.Stdout.Trace
+Otel.SDK.Trace.Exporter.Console
 Otel.Exporter.OTLP.Trace
 ```
 
