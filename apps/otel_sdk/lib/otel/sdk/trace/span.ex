@@ -22,7 +22,7 @@ defmodule Otel.SDK.Trace.Span do
           status: {Otel.API.Trace.Span.status_code(), String.t()} | nil,
           trace_flags: non_neg_integer(),
           is_recording: boolean(),
-          instrumentation_scope: Otel.API.Trace.InstrumentationScope.t() | nil,
+          instrumentation_scope: Otel.API.InstrumentationScope.t() | nil,
           span_limits: Otel.SDK.Trace.SpanLimits.t(),
           processors: [{module(), term()}]
         }

@@ -96,7 +96,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   end
 
   def handle_call({:get_tracer, name, version, schema_url}, _from, config) do
-    scope = %Otel.API.Trace.InstrumentationScope{
+    scope = %Otel.API.InstrumentationScope{
       name: name,
       version: version,
       schema_url: schema_url

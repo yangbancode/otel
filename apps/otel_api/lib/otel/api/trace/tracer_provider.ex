@@ -65,9 +65,9 @@ defmodule Otel.API.Trace.TracerProvider do
           schema_url :: String.t() | nil,
           attributes :: map()
         ) ::
-          Otel.API.Trace.InstrumentationScope.t()
+          Otel.API.InstrumentationScope.t()
   def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    %Otel.API.Trace.InstrumentationScope{
+    %Otel.API.InstrumentationScope{
       name: name,
       version: version,
       schema_url: schema_url,

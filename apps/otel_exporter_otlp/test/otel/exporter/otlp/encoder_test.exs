@@ -18,7 +18,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     status: {:ok, ""},
     trace_flags: 1,
     is_recording: false,
-    instrumentation_scope: %Otel.API.Trace.InstrumentationScope{
+    instrumentation_scope: %Otel.API.InstrumentationScope{
       name: "test_lib",
       version: "1.0.0"
     }
@@ -188,8 +188,8 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "groups spans by instrumentation scope" do
-      scope_a = %Otel.API.Trace.InstrumentationScope{name: "lib_a"}
-      scope_b = %Otel.API.Trace.InstrumentationScope{name: "lib_b"}
+      scope_a = %Otel.API.InstrumentationScope{name: "lib_a"}
+      scope_b = %Otel.API.InstrumentationScope{name: "lib_b"}
       span_a = %{@span | instrumentation_scope: scope_a}
       span_b = %{@span | instrumentation_scope: scope_b}
 

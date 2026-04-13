@@ -59,7 +59,7 @@ defmodule Otel.Exporter.OTLP.Encoder do
 
   # --- Scope ---
 
-  @spec encode_scope(scope :: Otel.API.Trace.InstrumentationScope.t() | nil) ::
+  @spec encode_scope(scope :: Otel.API.InstrumentationScope.t() | nil) ::
           Opentelemetry.Proto.Common.V1.InstrumentationScope.t() | nil
   defp encode_scope(nil), do: nil
 

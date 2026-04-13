@@ -66,7 +66,7 @@ defmodule Otel.API.Trace.TracerProviderTest do
     test "creates InstrumentationScope with name" do
       scope = Otel.API.Trace.TracerProvider.scope("my_lib")
 
-      assert %Otel.API.Trace.InstrumentationScope{
+      assert %Otel.API.InstrumentationScope{
                name: "my_lib",
                version: "",
                schema_url: nil,
@@ -81,7 +81,7 @@ defmodule Otel.API.Trace.TracerProviderTest do
           key: "val"
         })
 
-      assert %Otel.API.Trace.InstrumentationScope{
+      assert %Otel.API.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com",
