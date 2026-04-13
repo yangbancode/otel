@@ -18,7 +18,8 @@ defmodule Otel.SDK.MixProject do
 
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger],
+      mod: {Otel.SDK.Application, []}
     ]
   end
 

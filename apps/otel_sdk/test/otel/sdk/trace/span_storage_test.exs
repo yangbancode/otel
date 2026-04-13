@@ -2,14 +2,9 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
   use ExUnit.Case
 
   setup do
-    pid =
-      case Otel.SDK.Trace.SpanStorage.start_link() do
-        {:ok, pid} -> pid
-        {:error, {:already_started, pid}} -> pid
-      end
-
-    :ets.delete_all_objects(Otel.SDK.Trace.SpanStorage.table_name())
-    %{storage: pid}
+    Application.stop(:otel_sdk)
+    Application.ensure_all_started(:otel_sdk)
+    :ok
   end
 
   @span %Otel.SDK.Trace.Span{

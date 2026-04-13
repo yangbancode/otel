@@ -13,6 +13,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Minimum Elixir Version](decisions/minimum-elixir-version.md)
 - [x] [Logging Convention](decisions/logging-convention.md)
 - [x] [GitHub Actions CI](decisions/github-actions-ci.md)
+- [x] [Application & Supervision Tree](decisions/application-and-supervision.md)
 
 ### Context
 - [x] [Context](decisions/context-data-structure-and-operations.md)
@@ -47,7 +48,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [SpanExporter Interface](decisions/spanexporter-interface.md)
 - [x] [SimpleSpanProcessor](decisions/simplespanprocessor.md)
 - [x] [Console Exporter](decisions/console-exporter.md)
-- [ ] [BatchSpanProcessor](decisions/batchspanprocessor.md)
+- [x] [BatchSpanProcessor](decisions/batchspanprocessor.md)
 
 ### Propagators
 - [ ] [TextMapPropagator Interface](decisions/textmappropagator-interface.md)

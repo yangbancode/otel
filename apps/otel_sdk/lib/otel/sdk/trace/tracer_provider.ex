@@ -32,7 +32,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   Starts the TracerProvider with the given configuration.
   """
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
-  def start_link(opts \\ []) do
+  def start_link(opts) do
     {config, server_opts} = Keyword.pop(opts, :config, %{})
     GenServer.start_link(__MODULE__, config, server_opts)
   end

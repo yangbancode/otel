@@ -134,7 +134,7 @@
 
 ### Built-in Span Processors
 
-- [ ] Standard SDK MUST implement both simple and batch processors — [L1066](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1066)
+- [x] Standard SDK MUST implement both simple and batch processors — [L1066](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1066)
 
 ### Built-in Span Processors — Simple Processor
 
@@ -142,8 +142,8 @@
 
 ### Built-in Span Processors — Batching Processor
 
-- [ ] Batching processor MUST synchronize calls to Span Exporter's Export to avoid concurrent invocations — [L1089](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1089)
-- [ ] Processor SHOULD export a batch when scheduledDelay expires, queue reaches maxExportBatchSize, or ForceFlush is called — [L1092](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1092)
+- [x] Batching processor MUST synchronize calls to Span Exporter's Export to avoid concurrent invocations — [L1089](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1089)
+- [x] Processor SHOULD export a batch when scheduledDelay expires, queue reaches maxExportBatchSize, or ForceFlush is called — [L1092](../references/opentelemetry-specification/v1.55.0/trace/sdk.md#L1092)
 
 ### Span Exporter — Interface Definition
 

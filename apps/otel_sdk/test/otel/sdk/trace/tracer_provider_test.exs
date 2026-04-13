@@ -12,18 +12,26 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
   use ExUnit.Case
 
   setup do
+    Application.stop(:otel_sdk)
+    Application.ensure_all_started(:otel_sdk)
+
     {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
+
+    on_exit(fn ->
+      if Process.alive?(pid), do: GenServer.stop(pid)
+    end)
+
     %{provider: pid}
   end
 
   describe "start_link/1" do
     test "starts with default config" do
-      {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link()
+      {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
       assert Process.alive?(pid)
     end
 
     test "registers as global provider on start" do
-      {:ok, _pid} = Otel.SDK.Trace.TracerProvider.start_link()
+      {:ok, _pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
       assert Otel.API.Trace.TracerProvider.get_provider() == Otel.SDK.Trace.TracerProvider
     end
 

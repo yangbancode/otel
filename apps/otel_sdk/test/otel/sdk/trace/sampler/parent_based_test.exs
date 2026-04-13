@@ -1,11 +1,6 @@
 defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
   use ExUnit.Case
 
-  setup do
-    Otel.API.Ctx.clear()
-    :ok
-  end
-
   describe "root span (no parent)" do
     test "delegates to root sampler (default AlwaysOn)" do
       sampler =
