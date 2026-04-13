@@ -17,7 +17,7 @@ A simple struct with name, version, schema_url, and attributes (since spec v1.13
 ### Modules
 
 - `Otel.API.Trace.Tracer` — behaviour definition
-- `Otel.API.Trace.InstrumentationScope` — struct
+- `Otel.API.InstrumentationScope` — struct (shared across signals)
 - `Otel.API.Trace.Tracer.Noop` — no-op tracer implementation
 
 ## Compliance

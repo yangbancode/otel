@@ -35,7 +35,7 @@ When no SDK is installed:
 | `Otel.API.Trace.TracerProvider` | `apps/otel_api/lib/otel/api/trace/tracer_provider.ex` | TracerProvider behaviour |
 | `Otel.API.Trace.Tracer` | `apps/otel_api/lib/otel/api/trace/tracer.ex` | Tracer behaviour |
 | `Otel.API.Trace.Tracer.Noop` | `apps/otel_api/lib/otel/api/trace/tracer/noop.ex` | No-op tracer implementation |
-| `Otel.API.Trace.InstrumentationScope` | `apps/otel_api/lib/otel/api/trace/instrumentation_scope.ex` | Scope struct |
+| `Otel.API.InstrumentationScope` | `apps/otel_api/lib/otel/api/instrumentation_scope.ex` | Scope struct (shared across signals) |
 
 ## Compliance
 

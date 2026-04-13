@@ -57,7 +57,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       {_module, %{scope: scope}} =
         Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib", "1.0.0", "https://example.com")
 
-      assert %Otel.API.Trace.InstrumentationScope{
+      assert %Otel.API.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com"

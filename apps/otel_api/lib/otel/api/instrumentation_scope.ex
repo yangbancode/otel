@@ -1,4 +1,4 @@
-defmodule Otel.API.Trace.InstrumentationScope do
+defmodule Otel.API.InstrumentationScope do
   @moduledoc """
   Identifies the instrumentation library that produced telemetry.
   """
