@@ -81,7 +81,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ### Metrics SDK
 - [x] [MeterProvider SDK](decisions/meterprovider-sdk.md)
-- [ ] [Meter: Instrument Registration & Validation](decisions/meter-instrument-registration-and-validation.md)
+- [x] [Meter: Instrument Registration & Validation](decisions/meter-instrument-registration-and-validation.md)
 - [ ] [View System](decisions/view-system.md)
 - [ ] [Aggregation Types](decisions/aggregation-types.md)
 - [ ] [Async Observations & Cardinality Limits](decisions/async-observations-and-cardinality-limits.md)

@@ -2,9 +2,10 @@ defmodule Otel.SDK.Metrics.Meter do
   @moduledoc """
   SDK implementation of the Meter behaviour.
 
-  Placeholder that returns `:ok` for all operations. Actual instrument
-  registration, measurement recording, and view processing will be
-  added in subsequent decisions.
+  Handles instrument creation with name validation, duplicate
+  detection (case-insensitive), and advisory parameter validation.
+  Instruments are stored in a shared ETS table owned by the
+  MeterProvider.
 
   All functions are safe for concurrent use.
   """
@@ -14,36 +15,56 @@ defmodule Otel.SDK.Metrics.Meter do
   # --- Synchronous Instruments ---
 
   @impl true
-  def create_counter(_meter, _name, _opts), do: :ok
+  def create_counter(meter, name, opts) do
+    register_instrument(meter, name, :counter, opts)
+  end
 
   @impl true
-  def create_histogram(_meter, _name, _opts), do: :ok
+  def create_histogram(meter, name, opts) do
+    register_instrument(meter, name, :histogram, opts)
+  end
 
   @impl true
-  def create_gauge(_meter, _name, _opts), do: :ok
+  def create_gauge(meter, name, opts) do
+    register_instrument(meter, name, :gauge, opts)
+  end
 
   @impl true
-  def create_updown_counter(_meter, _name, _opts), do: :ok
+  def create_updown_counter(meter, name, opts) do
+    register_instrument(meter, name, :updown_counter, opts)
+  end
 
   # --- Asynchronous Instruments ---
 
   @impl true
-  def create_observable_counter(_meter, _name, _opts), do: :ok
+  def create_observable_counter(meter, name, opts) do
+    register_instrument(meter, name, :observable_counter, opts)
+  end
 
   @impl true
-  def create_observable_counter(_meter, _name, _callback, _callback_args, _opts), do: :ok
+  def create_observable_counter(meter, name, _callback, _callback_args, opts) do
+    register_instrument(meter, name, :observable_counter, opts)
+  end
 
   @impl true
-  def create_observable_gauge(_meter, _name, _opts), do: :ok
+  def create_observable_gauge(meter, name, opts) do
+    register_instrument(meter, name, :observable_gauge, opts)
+  end
 
   @impl true
-  def create_observable_gauge(_meter, _name, _callback, _callback_args, _opts), do: :ok
+  def create_observable_gauge(meter, name, _callback, _callback_args, opts) do
+    register_instrument(meter, name, :observable_gauge, opts)
+  end
 
   @impl true
-  def create_observable_updown_counter(_meter, _name, _opts), do: :ok
+  def create_observable_updown_counter(meter, name, opts) do
+    register_instrument(meter, name, :observable_updown_counter, opts)
+  end
 
   @impl true
-  def create_observable_updown_counter(_meter, _name, _callback, _callback_args, _opts), do: :ok
+  def create_observable_updown_counter(meter, name, _callback, _callback_args, opts) do
+    register_instrument(meter, name, :observable_updown_counter, opts)
+  end
 
   # --- Recording ---
 
@@ -59,4 +80,66 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @impl true
   def enabled?(_meter, _opts), do: true
+
+  # --- Private ---
+
+  @spec register_instrument(
+          meter :: Otel.API.Metrics.Meter.t(),
+          name :: String.t(),
+          kind :: Otel.SDK.Metrics.Instrument.kind(),
+          opts :: keyword()
+        ) :: Otel.SDK.Metrics.Instrument.t()
+  defp register_instrument({_module, config}, name, kind, opts) do
+    case Otel.SDK.Metrics.Instrument.validate_name(name) do
+      {:ok, validated_name} ->
+        do_register(config, validated_name, kind, opts)
+
+      {:error, reason} ->
+        :logger.warning(reason, %{domain: [:otel, :metrics]})
+        do_register(config, name || "", kind, opts)
+    end
+  end
+
+  @spec do_register(
+          config :: map(),
+          name :: String.t(),
+          kind :: Otel.SDK.Metrics.Instrument.kind(),
+          opts :: keyword()
+        ) :: Otel.SDK.Metrics.Instrument.t()
+  defp do_register(config, name, kind, opts) do
+    unit = Keyword.get(opts, :unit, "") || ""
+    description = Keyword.get(opts, :description, "") || ""
+
+    advisory =
+      Otel.SDK.Metrics.Instrument.validate_advisory(kind, Keyword.get(opts, :advisory, []))
+
+    instrument = %Otel.SDK.Metrics.Instrument{
+      name: name,
+      kind: kind,
+      unit: unit,
+      description: description,
+      advisory: advisory,
+      scope: config.scope
+    }
+
+    key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(name)}
+
+    case :ets.insert_new(config.instruments_tab, {key, instrument}) do
+      true ->
+        instrument
+
+      false ->
+        [{^key, existing}] = :ets.lookup(config.instruments_tab, key)
+
+        if not Otel.SDK.Metrics.Instrument.identical?(existing, instrument) do
+          :logger.warning(
+            "duplicate instrument registration for #{inspect(name)} " <>
+              "with different identifying fields, using first-seen",
+            %{domain: [:otel, :metrics]}
+          )
+        end
+
+        existing
+    end
+  end
 end

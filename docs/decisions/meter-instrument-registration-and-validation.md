@@ -6,7 +6,46 @@ How does the SDK Meter handle instrument creation, name validation, duplicate re
 
 ## Decision
 
-TBD
+### Instrument Storage
+
+ETS table owned by MeterProvider, shared across all Meters from the same provider. Instruments are keyed by `{scope, downcased_name}` — scope provides namespace isolation between distinct Meters, downcased name handles case-insensitive matching.
+
+### Name Validation
+
+Meter validates instrument name against the ABNF syntax:
+- First character must be alphabetic
+- Subsequent: alphanumeric, `_`, `.`, `-`, `/`
+- Max 255 characters
+- Not null or empty
+
+Invalid names log a warning but still register (non-fatal, per erlang reference).
+
+### Duplicate Detection
+
+On `create_*`, the SDK checks if an instrument with the same downcased name exists for the same Meter scope:
+- **First registration**: inserts into ETS, returns instrument reference
+- **Identical instrument** (same kind, unit, description): returns existing instrument, no warning
+- **Duplicate with conflicts** (different kind/unit/description): returns existing instrument, logs warning
+
+First-seen wins for name casing and advisory parameters.
+
+### Advisory Parameter Validation
+
+- `explicit_bucket_boundaries`: only valid for Histogram, must be sorted list of numbers
+- Invalid advisory params: log warning, proceed without them
+
+### Unit and Description
+
+- Null/missing unit treated as empty string `""`
+- Null/missing description treated as empty string `""`
+- No validation on either (SHOULD NOT validate)
+
+### Modules
+
+| Module | Location | Description |
+|---|---|---|
+| `Otel.SDK.Metrics.Meter` | `apps/otel_sdk/lib/otel/sdk/metrics/meter.ex` | SDK Meter with registration |
+| `Otel.SDK.Metrics.Instrument` | `apps/otel_sdk/lib/otel/sdk/metrics/instrument.ex` | Instrument struct and helpers |
 
 ## Compliance
 

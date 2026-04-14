@@ -16,73 +16,162 @@ defmodule Otel.SDK.Metrics.MeterTest do
     %{meter: meter}
   end
 
-  describe "instrument creation" do
-    test "create_counter returns :ok", %{meter: meter} do
-      assert :ok == Otel.SDK.Metrics.Meter.create_counter(meter, "counter", [])
+  describe "instrument creation returns struct" do
+    test "create_counter returns instrument struct", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "my_counter", [])
+      assert %Otel.SDK.Metrics.Instrument{name: "my_counter", kind: :counter} = result
     end
 
-    test "create_histogram returns :ok", %{meter: meter} do
-      assert :ok == Otel.SDK.Metrics.Meter.create_histogram(meter, "histogram", [])
+    test "create_histogram returns instrument struct", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_histogram(meter, "my_histogram", [])
+      assert %Otel.SDK.Metrics.Instrument{name: "my_histogram", kind: :histogram} = result
     end
 
-    test "create_gauge returns :ok", %{meter: meter} do
-      assert :ok == Otel.SDK.Metrics.Meter.create_gauge(meter, "gauge", [])
+    test "create_gauge returns instrument struct", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_gauge(meter, "my_gauge", [])
+      assert %Otel.SDK.Metrics.Instrument{name: "my_gauge", kind: :gauge} = result
     end
 
-    test "create_updown_counter returns :ok", %{meter: meter} do
-      assert :ok == Otel.SDK.Metrics.Meter.create_updown_counter(meter, "updown", [])
+    test "create_updown_counter returns instrument struct", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_updown_counter(meter, "my_updown", [])
+      assert %Otel.SDK.Metrics.Instrument{name: "my_updown", kind: :updown_counter} = result
     end
 
-    test "create_observable_counter returns :ok", %{meter: meter} do
-      assert :ok == Otel.SDK.Metrics.Meter.create_observable_counter(meter, "obs_counter", [])
+    test "create_observable_counter returns instrument struct", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_observable_counter(meter, "obs_counter", [])
+
+      assert %Otel.SDK.Metrics.Instrument{name: "obs_counter", kind: :observable_counter} =
+               result
     end
 
-    test "create_observable_counter with callback returns :ok", %{meter: meter} do
-      callback = fn _args -> [{1, %{}}] end
+    test "create_observable_counter with callback returns struct", %{meter: meter} do
+      cb = fn _args -> [{1, %{}}] end
 
-      assert :ok ==
-               Otel.SDK.Metrics.Meter.create_observable_counter(
-                 meter,
-                 "obs_counter",
-                 callback,
-                 nil,
-                 []
-               )
+      result =
+        Otel.SDK.Metrics.Meter.create_observable_counter(meter, "obs_counter2", cb, nil, [])
+
+      assert %Otel.SDK.Metrics.Instrument{kind: :observable_counter} = result
     end
 
-    test "create_observable_gauge returns :ok", %{meter: meter} do
-      assert :ok == Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "obs_gauge", [])
+    test "create_observable_gauge returns instrument struct", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "obs_gauge", [])
+      assert %Otel.SDK.Metrics.Instrument{name: "obs_gauge", kind: :observable_gauge} = result
     end
 
-    test "create_observable_gauge with callback returns :ok", %{meter: meter} do
-      callback = fn _args -> [{1, %{}}] end
-
-      assert :ok ==
-               Otel.SDK.Metrics.Meter.create_observable_gauge(
-                 meter,
-                 "obs_gauge",
-                 callback,
-                 nil,
-                 []
-               )
+    test "create_observable_gauge with callback returns struct", %{meter: meter} do
+      cb = fn _args -> [{1, %{}}] end
+      result = Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "obs_gauge2", cb, nil, [])
+      assert %Otel.SDK.Metrics.Instrument{kind: :observable_gauge} = result
     end
 
-    test "create_observable_updown_counter returns :ok", %{meter: meter} do
-      assert :ok ==
-               Otel.SDK.Metrics.Meter.create_observable_updown_counter(meter, "obs_updown", [])
+    test "create_observable_updown_counter returns instrument struct", %{meter: meter} do
+      result =
+        Otel.SDK.Metrics.Meter.create_observable_updown_counter(meter, "obs_updown", [])
+
+      assert %Otel.SDK.Metrics.Instrument{kind: :observable_updown_counter} = result
     end
 
-    test "create_observable_updown_counter with callback returns :ok", %{meter: meter} do
-      callback = fn _args -> [{1, %{}}] end
+    test "create_observable_updown_counter with callback returns struct", %{meter: meter} do
+      cb = fn _args -> [{1, %{}}] end
 
-      assert :ok ==
-               Otel.SDK.Metrics.Meter.create_observable_updown_counter(
-                 meter,
-                 "obs_updown",
-                 callback,
-                 nil,
-                 []
-               )
+      result =
+        Otel.SDK.Metrics.Meter.create_observable_updown_counter(
+          meter,
+          "obs_updown2",
+          cb,
+          nil,
+          []
+        )
+
+      assert %Otel.SDK.Metrics.Instrument{kind: :observable_updown_counter} = result
+    end
+  end
+
+  describe "instrument opts" do
+    test "unit and description stored", %{meter: meter} do
+      result =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "req", unit: "1", description: "Requests")
+
+      assert result.unit == "1"
+      assert result.description == "Requests"
+    end
+
+    test "nil unit treated as empty string", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "req2", unit: nil)
+      assert result.unit == ""
+    end
+
+    test "nil description treated as empty string", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "req3", description: nil)
+      assert result.description == ""
+    end
+
+    test "advisory stored for histogram", %{meter: meter} do
+      result =
+        Otel.SDK.Metrics.Meter.create_histogram(meter, "dur",
+          advisory: [explicit_bucket_boundaries: [1, 5, 10]]
+        )
+
+      assert result.advisory == [explicit_bucket_boundaries: [1, 5, 10]]
+    end
+  end
+
+  describe "name validation" do
+    test "valid name accepted", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "valid_name", [])
+      assert result.name == "valid_name"
+    end
+
+    test "invalid name still registers with warning", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "1invalid", [])
+      assert %Otel.SDK.Metrics.Instrument{name: "1invalid"} = result
+    end
+
+    test "nil name registers with empty string", %{meter: meter} do
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, nil, [])
+      assert %Otel.SDK.Metrics.Instrument{name: ""} = result
+    end
+  end
+
+  describe "duplicate detection" do
+    test "identical instrument returns same struct", %{meter: meter} do
+      first = Otel.SDK.Metrics.Meter.create_counter(meter, "dup_counter", unit: "1")
+      second = Otel.SDK.Metrics.Meter.create_counter(meter, "dup_counter", unit: "1")
+      assert first == second
+    end
+
+    test "case-insensitive duplicate returns first-seen name", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "RequestCount", unit: "1")
+      second = Otel.SDK.Metrics.Meter.create_counter(meter, "requestcount", unit: "1")
+      assert second.name == "RequestCount"
+    end
+
+    test "conflicting duplicate returns first-seen with warning", %{meter: meter} do
+      first =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "conflict", unit: "1", description: "a")
+
+      second =
+        Otel.SDK.Metrics.Meter.create_histogram(meter, "conflict", unit: "ms", description: "b")
+
+      assert second == first
+    end
+
+    test "different scopes are independent namespaces" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      {_, config_a} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib_a")
+      {_, config_b} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib_b")
+      meter_a = {Otel.SDK.Metrics.Meter, config_a}
+      meter_b = {Otel.SDK.Metrics.Meter, config_b}
+
+      inst_a = Otel.SDK.Metrics.Meter.create_counter(meter_a, "requests", [])
+      inst_b = Otel.SDK.Metrics.Meter.create_histogram(meter_b, "requests", [])
+
+      assert inst_a.kind == :counter
+      assert inst_b.kind == :histogram
     end
   end
 

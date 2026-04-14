@@ -81,10 +81,14 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @impl true
   def init(user_config) do
+    instruments_tab =
+      :ets.new(:otel_instruments, [:set, :public, read_concurrency: true])
+
     config =
       default_config()
       |> Map.merge(user_config)
       |> Map.put(:shut_down, false)
+      |> Map.put(:instruments_tab, instruments_tab)
 
     Otel.API.Metrics.MeterProvider.set_provider(__MODULE__)
     {:ok, config}
@@ -104,7 +108,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
     meter_config = %{
       scope: scope,
-      resource: config.resource
+      resource: config.resource,
+      instruments_tab: config.instruments_tab
     }
 
     meter = {Otel.SDK.Metrics.Meter, meter_config}
