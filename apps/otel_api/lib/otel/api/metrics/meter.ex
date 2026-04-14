@@ -56,7 +56,7 @@ defmodule Otel.API.Metrics.Meter do
               callback :: function(),
               callback_args :: term(),
               opts :: keyword()
-            ) :: :ok
+            ) :: term()
 
   # --- Recording ---
 
@@ -196,7 +196,7 @@ defmodule Otel.API.Metrics.Meter do
           callback :: function(),
           callback_args :: term(),
           opts :: keyword()
-        ) :: :ok
+        ) :: term()
   def register_callback({module, _} = meter, instruments, callback, callback_args, opts \\ []) do
     module.register_callback(meter, instruments, callback, callback_args, opts)
   end

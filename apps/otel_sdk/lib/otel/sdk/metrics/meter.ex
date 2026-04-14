@@ -42,8 +42,10 @@ defmodule Otel.SDK.Metrics.Meter do
   end
 
   @impl true
-  def create_observable_counter(meter, name, _callback, _callback_args, opts) do
-    register_instrument(meter, name, :observable_counter, opts)
+  def create_observable_counter({_module, config} = meter, name, callback, callback_args, opts) do
+    instrument = register_instrument(meter, name, :observable_counter, opts)
+    store_callback(config, instrument, callback, callback_args)
+    instrument
   end
 
   @impl true
@@ -52,8 +54,10 @@ defmodule Otel.SDK.Metrics.Meter do
   end
 
   @impl true
-  def create_observable_gauge(meter, name, _callback, _callback_args, opts) do
-    register_instrument(meter, name, :observable_gauge, opts)
+  def create_observable_gauge({_module, config} = meter, name, callback, callback_args, opts) do
+    instrument = register_instrument(meter, name, :observable_gauge, opts)
+    store_callback(config, instrument, callback, callback_args)
+    instrument
   end
 
   @impl true
@@ -62,8 +66,16 @@ defmodule Otel.SDK.Metrics.Meter do
   end
 
   @impl true
-  def create_observable_updown_counter(meter, name, _callback, _callback_args, opts) do
-    register_instrument(meter, name, :observable_updown_counter, opts)
+  def create_observable_updown_counter(
+        {_module, config} = meter,
+        name,
+        callback,
+        callback_args,
+        opts
+      ) do
+    instrument = register_instrument(meter, name, :observable_updown_counter, opts)
+    store_callback(config, instrument, callback, callback_args)
+    instrument
   end
 
   # --- Recording ---
@@ -80,6 +92,7 @@ defmodule Otel.SDK.Metrics.Meter do
         Enum.each(stream_entries, fn {_key, stream} ->
           filtered_attrs = filter_stream_attributes(stream, attributes)
           agg_key = {stream.name, stream.instrument.scope, filtered_attrs}
+          agg_key = maybe_overflow(config.metrics_tab, stream, agg_key)
 
           stream.aggregation.aggregate(
             config.metrics_tab,
@@ -94,7 +107,21 @@ defmodule Otel.SDK.Metrics.Meter do
   # --- Callback Registration ---
 
   @impl true
-  def register_callback(_meter, _instruments, _callback, _callback_args, _opts), do: :ok
+  def register_callback({_module, config}, instruments, callback, callback_args, _opts) do
+    ref = make_ref()
+
+    Enum.each(instruments, fn instrument ->
+      :ets.insert(config.callbacks_tab, {
+        {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(instrument.name)},
+        ref,
+        callback,
+        callback_args,
+        instrument
+      })
+    end)
+
+    {ref, config.callbacks_tab}
+  end
 
   # --- Enabled ---
 
@@ -223,5 +250,122 @@ defmodule Otel.SDK.Metrics.Meter do
       {:exclude, keys} -> Map.drop(attributes, keys)
       nil -> attributes
     end
+  end
+
+  @overflow_attributes %{:"otel.metric.overflow" => true}
+
+  @spec maybe_overflow(
+          metrics_tab :: :ets.table(),
+          stream :: Otel.SDK.Metrics.Stream.t(),
+          agg_key :: term()
+        ) :: term()
+  defp maybe_overflow(metrics_tab, stream, {stream_name, scope, _attrs} = agg_key) do
+    if :ets.member(metrics_tab, agg_key) do
+      agg_key
+    else
+      limit = stream.aggregation_cardinality_limit
+      current = count_stream_keys(metrics_tab, stream_name, scope)
+
+      if current >= limit do
+        {stream_name, scope, @overflow_attributes}
+      else
+        agg_key
+      end
+    end
+  end
+
+  @spec count_stream_keys(
+          metrics_tab :: :ets.table(),
+          stream_name :: String.t(),
+          scope :: Otel.API.InstrumentationScope.t()
+        ) :: non_neg_integer()
+  defp count_stream_keys(metrics_tab, stream_name, scope) do
+    :ets.foldl(
+      fn entry, acc ->
+        case elem(entry, 0) do
+          {^stream_name, ^scope, _} -> acc + 1
+          _ -> acc
+        end
+      end,
+      0,
+      metrics_tab
+    )
+  end
+
+  @spec store_callback(
+          config :: map(),
+          instrument :: Otel.SDK.Metrics.Instrument.t(),
+          callback :: function(),
+          callback_args :: term()
+        ) :: true
+  defp store_callback(config, instrument, callback, callback_args) do
+    key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(instrument.name)}
+    ref = make_ref()
+    :ets.insert(config.callbacks_tab, {key, ref, callback, callback_args, instrument})
+  end
+
+  @doc """
+  Removes a previously registered callback.
+
+  Accepts the `{ref, callbacks_tab}` tuple returned by `register_callback/5`.
+  """
+  @spec unregister_callback(registration :: {reference(), :ets.table()}) :: :ok
+  def unregister_callback({ref, callbacks_tab}) do
+    :ets.match_delete(callbacks_tab, {:_, ref, :_, :_, :_})
+    :ok
+  end
+
+  @doc """
+  Executes all registered callbacks for the given meter config and
+  aggregates the observations into the metrics pipeline.
+
+  Called by MetricReader during collection. Each callback returns
+  a list of `{value, attributes}` tuples.
+  """
+  @spec run_callbacks(config :: map()) :: :ok
+  def run_callbacks(config) do
+    callbacks = :ets.tab2list(config.callbacks_tab)
+
+    callbacks
+    |> Enum.group_by(fn {_key, ref, callback, callback_args, _inst} ->
+      {ref, callback, callback_args}
+    end)
+    |> Enum.each(fn {{_ref, callback, callback_args}, entries} ->
+      observations = callback.(callback_args)
+      apply_observations(config, entries, observations)
+    end)
+  end
+
+  @spec apply_observations(
+          config :: map(),
+          entries :: [tuple()],
+          observations :: [{number(), map()}]
+        ) :: :ok
+  defp apply_observations(config, entries, observations) do
+    streams = lookup_callback_streams(config, entries)
+
+    Enum.each(observations, fn {value, attributes} ->
+      Enum.each(streams, fn stream ->
+        filtered_attrs = filter_stream_attributes(stream, attributes)
+        agg_key = {stream.name, stream.instrument.scope, filtered_attrs}
+
+        stream.aggregation.aggregate(
+          config.metrics_tab,
+          agg_key,
+          value,
+          stream.aggregation_options
+        )
+      end)
+    end)
+  end
+
+  @spec lookup_callback_streams(config :: map(), entries :: [tuple()]) ::
+          [Otel.SDK.Metrics.Stream.t()]
+  defp lookup_callback_streams(config, entries) do
+    Enum.flat_map(entries, fn {instrument_key, _ref, _cb, _args, _instrument} ->
+      config.streams_tab
+      |> :ets.lookup(instrument_key)
+      |> Enum.map(fn {_key, stream} -> stream end)
+    end)
   end
 end

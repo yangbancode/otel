@@ -57,6 +57,8 @@ defmodule Otel.SDK.Metrics.Stream do
     }
   end
 
+  @default_cardinality_limit 2000
+
   @spec resolve(stream :: t()) :: t()
   def resolve(%__MODULE__{} = stream) do
     aggregation =
@@ -66,7 +68,14 @@ defmodule Otel.SDK.Metrics.Stream do
       stream.aggregation_options
       |> merge_advisory_boundaries(stream.instrument)
 
-    %{stream | aggregation: aggregation, aggregation_options: aggregation_options}
+    cardinality_limit = stream.aggregation_cardinality_limit || @default_cardinality_limit
+
+    %{
+      stream
+      | aggregation: aggregation,
+        aggregation_options: aggregation_options,
+        aggregation_cardinality_limit: cardinality_limit
+    }
   end
 
   @spec merge_advisory_boundaries(opts :: map(), instrument :: Otel.SDK.Metrics.Instrument.t()) ::

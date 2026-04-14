@@ -1150,30 +1150,30 @@
 - [ ] Callback functions MUST be invoked for the specific MetricReader performing collection — [L762](../references/opentelemetry-specification/specification/metrics/sdk.md#L762)
 - [ ] Implementation SHOULD disregard async instrument API usage outside of registered callbacks — [L767](../references/opentelemetry-specification/specification/metrics/sdk.md#L767)
 - [ ] Implementation SHOULD use a timeout to prevent indefinite callback execution — [L770](../references/opentelemetry-specification/specification/metrics/sdk.md#L770)
-- [ ] Implementation MUST complete execution of all callbacks for a given instrument before starting a subsequent round of collection — [L773](../references/opentelemetry-specification/specification/metrics/sdk.md#L773)
+- [x] Implementation MUST complete execution of all callbacks for a given instrument before starting a subsequent round of collection — [L773](../references/opentelemetry-specification/specification/metrics/sdk.md#L773)
 - [ ] Implementation SHOULD NOT produce aggregated metric data for a previously-observed attribute set not observed during a successful callback — [L776](../references/opentelemetry-specification/specification/metrics/sdk.md#L776)
 
 ### Cardinality Limits (Stable)
 
-- [ ] SDKs SHOULD support being configured with a cardinality limit — [L809](../references/opentelemetry-specification/specification/metrics/sdk.md#L809)
-- [ ] Cardinality limit enforcement SHOULD occur after attribute filtering — [L813](../references/opentelemetry-specification/specification/metrics/sdk.md#L813)
+- [x] SDKs SHOULD support being configured with a cardinality limit — [L809](../references/opentelemetry-specification/specification/metrics/sdk.md#L809)
+- [x] Cardinality limit enforcement SHOULD occur after attribute filtering — [L813](../references/opentelemetry-specification/specification/metrics/sdk.md#L813)
 
 #### Configuration
 
-- [ ] If view defines `aggregation_cardinality_limit`, that value SHOULD be used — [L823](../references/opentelemetry-specification/specification/metrics/sdk.md#L823)
+- [x] If view defines `aggregation_cardinality_limit`, that value SHOULD be used — [L823](../references/opentelemetry-specification/specification/metrics/sdk.md#L823)
 - [ ] If no matching view but MetricReader defines a default cardinality limit, that value SHOULD be used — [L826](../references/opentelemetry-specification/specification/metrics/sdk.md#L826)
-- [ ] If no values defined, the default value of 2000 SHOULD be used — [L827](../references/opentelemetry-specification/specification/metrics/sdk.md#L827)
+- [x] If no values defined, the default value of 2000 SHOULD be used — [L827](../references/opentelemetry-specification/specification/metrics/sdk.md#L827)
 
 #### Overflow Attribute
 
-- [ ] SDK MUST create an Aggregator with the overflow attribute set prior to reaching the cardinality limit — [L837](../references/opentelemetry-specification/specification/metrics/sdk.md#L837)
-- [ ] SDK MUST provide the guarantee that overflow would not happen if max distinct non-overflow attribute sets is less than or equal to the limit — [L840](../references/opentelemetry-specification/specification/metrics/sdk.md#L840)
+- [x] SDK MUST create an Aggregator with the overflow attribute set prior to reaching the cardinality limit — [L837](../references/opentelemetry-specification/specification/metrics/sdk.md#L837)
+- [x] SDK MUST provide the guarantee that overflow would not happen if max distinct non-overflow attribute sets is less than or equal to the limit — [L840](../references/opentelemetry-specification/specification/metrics/sdk.md#L840)
 
 #### Synchronous Instrument Cardinality Limits
 
 - [ ] Aggregators for synchronous instruments with cumulative temporality MUST continue to export all attribute sets observed prior to overflow — [L846](../references/opentelemetry-specification/specification/metrics/sdk.md#L846)
-- [ ] SDK MUST ensure every Measurement is reflected in exactly one Aggregator — [L856](../references/opentelemetry-specification/specification/metrics/sdk.md#L856)
-- [ ] Measurements MUST NOT be double-counted or dropped during an overflow — [L861](../references/opentelemetry-specification/specification/metrics/sdk.md#L861)
+- [x] SDK MUST ensure every Measurement is reflected in exactly one Aggregator — [L856](../references/opentelemetry-specification/specification/metrics/sdk.md#L856)
+- [x] Measurements MUST NOT be double-counted or dropped during an overflow — [L861](../references/opentelemetry-specification/specification/metrics/sdk.md#L861)
 
 #### Asynchronous Instrument Cardinality Limits
 
