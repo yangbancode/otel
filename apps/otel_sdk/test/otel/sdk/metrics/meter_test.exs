@@ -193,4 +193,93 @@ defmodule Otel.SDK.Metrics.MeterTest do
       assert true == Otel.SDK.Metrics.Meter.enabled?(meter, [])
     end
   end
+
+  describe "match_views/2" do
+    test "no views returns default stream from instrument" do
+      inst = %Otel.SDK.Metrics.Instrument{
+        name: "requests",
+        kind: :counter,
+        unit: "1",
+        description: "Request count",
+        advisory: [],
+        scope: %Otel.API.InstrumentationScope{name: "lib"}
+      }
+
+      streams = Otel.SDK.Metrics.Meter.match_views([], inst)
+      assert [%Otel.SDK.Metrics.Stream{name: "requests"}] = streams
+    end
+
+    test "matching view produces stream with view config" do
+      {:ok, view} =
+        Otel.SDK.Metrics.View.new(
+          %{name: "requests"},
+          %{name: "req_total", description: "Total requests"}
+        )
+
+      inst = %Otel.SDK.Metrics.Instrument{
+        name: "requests",
+        kind: :counter,
+        unit: "1",
+        description: "Request count",
+        advisory: [],
+        scope: %Otel.API.InstrumentationScope{name: "lib"}
+      }
+
+      streams = Otel.SDK.Metrics.Meter.match_views([view], inst)
+
+      assert [%Otel.SDK.Metrics.Stream{name: "req_total", description: "Total requests"}] =
+               streams
+    end
+
+    test "non-matching view falls back to default stream" do
+      {:ok, view} = Otel.SDK.Metrics.View.new(%{name: "other_metric"}, %{name: "renamed"})
+
+      inst = %Otel.SDK.Metrics.Instrument{
+        name: "requests",
+        kind: :counter,
+        unit: "1",
+        description: "Request count",
+        advisory: [],
+        scope: %Otel.API.InstrumentationScope{name: "lib"}
+      }
+
+      streams = Otel.SDK.Metrics.Meter.match_views([view], inst)
+      assert [%Otel.SDK.Metrics.Stream{name: "requests"}] = streams
+    end
+
+    test "multiple matching views produce multiple streams" do
+      {:ok, view1} = Otel.SDK.Metrics.View.new(%{type: :histogram}, %{name: "stream_a"})
+      {:ok, view2} = Otel.SDK.Metrics.View.new(%{unit: "ms"}, %{name: "stream_b"})
+
+      inst = %Otel.SDK.Metrics.Instrument{
+        name: "latency",
+        kind: :histogram,
+        unit: "ms",
+        description: "Latency",
+        advisory: [],
+        scope: %Otel.API.InstrumentationScope{name: "lib"}
+      }
+
+      streams = Otel.SDK.Metrics.Meter.match_views([view1, view2], inst)
+      assert length(streams) == 2
+      assert Enum.map(streams, & &1.name) == ["stream_a", "stream_b"]
+    end
+
+    test "conflicting stream names emit warning" do
+      {:ok, view1} = Otel.SDK.Metrics.View.new(%{type: :counter}, %{name: "same_name"})
+      {:ok, view2} = Otel.SDK.Metrics.View.new(%{unit: "1"}, %{name: "same_name"})
+
+      inst = %Otel.SDK.Metrics.Instrument{
+        name: "requests",
+        kind: :counter,
+        unit: "1",
+        description: "Count",
+        advisory: [],
+        scope: %Otel.API.InstrumentationScope{name: "lib"}
+      }
+
+      streams = Otel.SDK.Metrics.Meter.match_views([view1, view2], inst)
+      assert length(streams) == 2
+    end
+  end
 end

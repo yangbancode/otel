@@ -149,6 +149,50 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     end
   end
 
+  describe "add_view/3" do
+    test "registers a view", %{provider: pid} do
+      assert :ok ==
+               Otel.SDK.Metrics.MeterProvider.add_view(pid, %{name: "requests"}, %{
+                 name: "req_total"
+               })
+
+      config = Otel.SDK.Metrics.MeterProvider.config(pid)
+      assert length(config.views) == 1
+    end
+
+    test "rejects invalid view", %{provider: pid} do
+      assert {:error, _} =
+               Otel.SDK.Metrics.MeterProvider.add_view(pid, %{name: "*"}, %{name: "override"})
+
+      config = Otel.SDK.Metrics.MeterProvider.config(pid)
+      assert config.views == []
+    end
+
+    test "views apply to already returned meters", %{provider: pid} do
+      {_module, config_before} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+
+      :ok =
+        Otel.SDK.Metrics.MeterProvider.add_view(pid, %{name: "requests"}, %{name: "req_total"})
+
+      {_module, config_after} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      assert length(config_after.views) == 1
+      assert config_before.views == []
+    end
+
+    test "multiple views preserved in order", %{provider: pid} do
+      :ok = Otel.SDK.Metrics.MeterProvider.add_view(pid, %{type: :counter}, %{})
+      :ok = Otel.SDK.Metrics.MeterProvider.add_view(pid, %{type: :histogram}, %{})
+      config = Otel.SDK.Metrics.MeterProvider.config(pid)
+      assert length(config.views) == 2
+    end
+
+    test "registers view with default criteria and config", %{provider: pid} do
+      assert :ok == Otel.SDK.Metrics.MeterProvider.add_view(pid)
+      config = Otel.SDK.Metrics.MeterProvider.config(pid)
+      assert length(config.views) == 1
+    end
+  end
+
   describe "force_flush/1" do
     test "returns :ok with no readers", %{provider: pid} do
       assert Otel.SDK.Metrics.MeterProvider.force_flush(pid) == :ok

@@ -142,4 +142,39 @@ defmodule Otel.SDK.Metrics.Meter do
         existing
     end
   end
+
+  @doc false
+  @spec match_views(
+          views :: [Otel.SDK.Metrics.View.t()],
+          instrument :: Otel.SDK.Metrics.Instrument.t()
+        ) :: [Otel.SDK.Metrics.Stream.t()]
+  def match_views(views, instrument) do
+    streams =
+      views
+      |> Enum.filter(&Otel.SDK.Metrics.View.matches?(&1, instrument))
+      |> Enum.map(&Otel.SDK.Metrics.Stream.from_view(&1, instrument))
+
+    case streams do
+      [] ->
+        [Otel.SDK.Metrics.Stream.from_instrument(instrument)]
+
+      matched ->
+        warn_conflicting_streams(matched)
+        matched
+    end
+  end
+
+  @spec warn_conflicting_streams(streams :: [Otel.SDK.Metrics.Stream.t()]) :: :ok
+  defp warn_conflicting_streams(streams) do
+    names = Enum.map(streams, & &1.name)
+
+    if length(names) != length(Enum.uniq(names)) do
+      :logger.warning(
+        "applying Views resulted in conflicting metric stream names",
+        %{domain: [:otel, :metrics]}
+      )
+    end
+
+    :ok
+  end
 end
