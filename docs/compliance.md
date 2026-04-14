@@ -1035,45 +1035,45 @@
 
 ### General
 
-- [ ] All language implementations of OpenTelemetry MUST provide an SDK — [L103](../references/opentelemetry-specification/specification/metrics/sdk.md#L103)
+- [x] All language implementations of OpenTelemetry MUST provide an SDK — [L103](../references/opentelemetry-specification/specification/metrics/sdk.md#L103)
 
 ### MeterProvider (Stable)
 
-- [ ] MeterProvider MUST provide a way to allow a Resource to be specified — [L109](../references/opentelemetry-specification/specification/metrics/sdk.md#L109)
-- [ ] If a Resource is specified, it SHOULD be associated with all metrics produced by any Meter from the MeterProvider — [L110](../references/opentelemetry-specification/specification/metrics/sdk.md#L110)
+- [x] MeterProvider MUST provide a way to allow a Resource to be specified — [L109](../references/opentelemetry-specification/specification/metrics/sdk.md#L109)
+- [x] If a Resource is specified, it SHOULD be associated with all metrics produced by any Meter from the MeterProvider — [L110](../references/opentelemetry-specification/specification/metrics/sdk.md#L110)
 
 #### MeterProvider Creation
 
-- [ ] SDK SHOULD allow the creation of multiple independent MeterProviders — [L117](../references/opentelemetry-specification/specification/metrics/sdk.md#L117)
+- [x] SDK SHOULD allow the creation of multiple independent MeterProviders — [L117](../references/opentelemetry-specification/specification/metrics/sdk.md#L117)
 
 #### Meter Creation
 
-- [ ] It SHOULD only be possible to create Meter instances through a MeterProvider — [L121](../references/opentelemetry-specification/specification/metrics/sdk.md#L121)
-- [ ] MeterProvider MUST implement the Get a Meter API — [L124](../references/opentelemetry-specification/specification/metrics/sdk.md#L124)
-- [ ] The input provided by the user MUST be used to create an InstrumentationScope instance stored on the created Meter — [L126](../references/opentelemetry-specification/specification/metrics/sdk.md#L126)
-- [ ] In the case where an invalid name is specified, a working Meter MUST be returned as a fallback — [L131](../references/opentelemetry-specification/specification/metrics/sdk.md#L131)
-- [ ] Invalid name Meter's name SHOULD keep the original invalid value — [L132](../references/opentelemetry-specification/specification/metrics/sdk.md#L132)
-- [ ] A message reporting that the specified value is invalid SHOULD be logged — [L133](../references/opentelemetry-specification/specification/metrics/sdk.md#L133)
+- [x] It SHOULD only be possible to create Meter instances through a MeterProvider — [L121](../references/opentelemetry-specification/specification/metrics/sdk.md#L121)
+- [x] MeterProvider MUST implement the Get a Meter API — [L124](../references/opentelemetry-specification/specification/metrics/sdk.md#L124)
+- [x] The input provided by the user MUST be used to create an InstrumentationScope instance stored on the created Meter — [L126](../references/opentelemetry-specification/specification/metrics/sdk.md#L126)
+- [x] In the case where an invalid name is specified, a working Meter MUST be returned as a fallback — [L131](../references/opentelemetry-specification/specification/metrics/sdk.md#L131)
+- [x] Invalid name Meter's name SHOULD keep the original invalid value — [L132](../references/opentelemetry-specification/specification/metrics/sdk.md#L132)
+- [x] A message reporting that the specified value is invalid SHOULD be logged — [L133](../references/opentelemetry-specification/specification/metrics/sdk.md#L133)
 
 #### Configuration
 
-- [ ] Configuration (MetricExporters, MetricReaders, Views) MUST be owned by the MeterProvider — [L144](../references/opentelemetry-specification/specification/metrics/sdk.md#L144)
-- [ ] If configuration is updated, the updated configuration MUST also apply to all already returned Meters — [L150](../references/opentelemetry-specification/specification/metrics/sdk.md#L150)
+- [x] Configuration (MetricExporters, MetricReaders, Views) MUST be owned by the MeterProvider — [L144](../references/opentelemetry-specification/specification/metrics/sdk.md#L144)
+- [x] If configuration is updated, the updated configuration MUST also apply to all already returned Meters — [L150](../references/opentelemetry-specification/specification/metrics/sdk.md#L150)
 
 #### Shutdown
 
-- [ ] Shutdown MUST be called only once for each MeterProvider instance — [L191](../references/opentelemetry-specification/specification/metrics/sdk.md#L191)
-- [ ] After Shutdown, SDKs SHOULD return a valid no-op Meter for subsequent Get a Meter calls — [L193](../references/opentelemetry-specification/specification/metrics/sdk.md#L193)
-- [ ] Shutdown SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L196](../references/opentelemetry-specification/specification/metrics/sdk.md#L196)
-- [ ] Shutdown SHOULD complete or abort within some timeout — [L198](../references/opentelemetry-specification/specification/metrics/sdk.md#L198)
-- [ ] Shutdown MUST be implemented at least by invoking Shutdown on all registered MetricReaders and MetricExporters — [L203](../references/opentelemetry-specification/specification/metrics/sdk.md#L203)
+- [x] Shutdown MUST be called only once for each MeterProvider instance — [L191](../references/opentelemetry-specification/specification/metrics/sdk.md#L191)
+- [x] After Shutdown, SDKs SHOULD return a valid no-op Meter for subsequent Get a Meter calls — [L193](../references/opentelemetry-specification/specification/metrics/sdk.md#L193)
+- [x] Shutdown SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L196](../references/opentelemetry-specification/specification/metrics/sdk.md#L196)
+- [x] Shutdown SHOULD complete or abort within some timeout — [L198](../references/opentelemetry-specification/specification/metrics/sdk.md#L198)
+- [x] Shutdown MUST be implemented at least by invoking Shutdown on all registered MetricReaders and MetricExporters — [L203](../references/opentelemetry-specification/specification/metrics/sdk.md#L203)
 
 #### ForceFlush
 
-- [ ] ForceFlush MUST invoke ForceFlush on all registered MetricReader instances that implement ForceFlush — [L216](../references/opentelemetry-specification/specification/metrics/sdk.md#L216)
-- [ ] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L219](../references/opentelemetry-specification/specification/metrics/sdk.md#L219)
-- [ ] ForceFlush SHOULD return ERROR status if there is an error condition — [L220](../references/opentelemetry-specification/specification/metrics/sdk.md#L220)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L225](../references/opentelemetry-specification/specification/metrics/sdk.md#L225)
+- [x] ForceFlush MUST invoke ForceFlush on all registered MetricReader instances that implement ForceFlush — [L216](../references/opentelemetry-specification/specification/metrics/sdk.md#L216)
+- [x] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L219](../references/opentelemetry-specification/specification/metrics/sdk.md#L219)
+- [x] ForceFlush SHOULD return ERROR status if there is an error condition — [L220](../references/opentelemetry-specification/specification/metrics/sdk.md#L220)
+- [x] ForceFlush SHOULD complete or abort within some timeout — [L225](../references/opentelemetry-specification/specification/metrics/sdk.md#L225)
 
 ### View (Stable)
 

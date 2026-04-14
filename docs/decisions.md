@@ -80,7 +80,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Asynchronous Instruments & Callbacks](decisions/asynchronous-instruments-and-callbacks.md)
 
 ### Metrics SDK
-- [ ] [MeterProvider SDK](decisions/meterprovider-sdk.md)
+- [x] [MeterProvider SDK](decisions/meterprovider-sdk.md)
 - [ ] [Meter: Instrument Registration & Validation](decisions/meter-instrument-registration-and-validation.md)
 - [ ] [View System](decisions/view-system.md)
 - [ ] [Aggregation Types](decisions/aggregation-types.md)
