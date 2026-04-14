@@ -177,7 +177,120 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
   describe "recording" do
     test "record returns :ok", %{meter: meter} do
-      assert :ok == Otel.SDK.Metrics.Meter.record(meter, "counter", 1, %{})
+      Otel.SDK.Metrics.Meter.create_counter(meter, "rec_counter", [])
+      assert :ok == Otel.SDK.Metrics.Meter.record(meter, "rec_counter", 1, %{})
+    end
+
+    test "record aggregates counter values", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "agg_counter", [])
+      Otel.SDK.Metrics.Meter.record(meter, "agg_counter", 5, %{method: "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "agg_counter", 3, %{method: "GET"})
+
+      {_module, config} = meter
+      stream_key = {"agg_counter", config.scope}
+
+      [dp] =
+        Otel.SDK.Metrics.Aggregation.Sum.collect(config.metrics_tab, stream_key, %{})
+
+      assert dp.value == 8
+      assert dp.attributes == %{method: "GET"}
+    end
+
+    test "record uses default aggregation for instrument kind", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_gauge(meter, "temp", [])
+      Otel.SDK.Metrics.Meter.record(meter, "temp", 20, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "temp", 25, %{})
+
+      {_module, config} = meter
+      stream_key = {"temp", config.scope}
+
+      [dp] =
+        Otel.SDK.Metrics.Aggregation.LastValue.collect(config.metrics_tab, stream_key, %{})
+
+      assert dp.value == 25
+    end
+
+    test "record with histogram", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_histogram(meter, "latency", [])
+      Otel.SDK.Metrics.Meter.record(meter, "latency", 50, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "latency", 150, %{})
+
+      {_module, config} = meter
+      stream_key = {"latency", config.scope}
+
+      [dp] =
+        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
+          config.metrics_tab,
+          stream_key,
+          %{}
+        )
+
+      assert dp.value.count == 2
+      assert dp.value.sum == 200
+      assert dp.value.min == 50
+      assert dp.value.max == 150
+    end
+
+    test "record for unregistered instrument is no-op", %{meter: meter} do
+      assert :ok == Otel.SDK.Metrics.Meter.record(meter, "nonexistent", 1, %{})
+    end
+
+    test "record with different attributes creates separate datapoints", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "req", [])
+      Otel.SDK.Metrics.Meter.record(meter, "req", 1, %{method: "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "req", 2, %{method: "POST"})
+
+      {_module, config} = meter
+      stream_key = {"req", config.scope}
+
+      dps = Otel.SDK.Metrics.Aggregation.Sum.collect(config.metrics_tab, stream_key, %{})
+      assert length(dps) == 2
+    end
+
+    test "record respects include attribute filter from view" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "filtered"},
+        %{attribute_keys: {:include, [:method]}}
+      )
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "filtered", [])
+      Otel.SDK.Metrics.Meter.record(meter, "filtered", 1, %{method: "GET", path: "/api"})
+
+      stream_key = {"filtered", config.scope}
+      [dp] = Otel.SDK.Metrics.Aggregation.Sum.collect(config.metrics_tab, stream_key, %{})
+      assert dp.attributes == %{method: "GET"}
+    end
+
+    test "record respects exclude attribute filter from view" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "excluded"},
+        %{attribute_keys: {:exclude, [:path]}}
+      )
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "excluded", [])
+      Otel.SDK.Metrics.Meter.record(meter, "excluded", 1, %{method: "GET", path: "/api"})
+
+      stream_key = {"excluded", config.scope}
+      [dp] = Otel.SDK.Metrics.Aggregation.Sum.collect(config.metrics_tab, stream_key, %{})
+      assert dp.attributes == %{method: "GET"}
     end
   end
 

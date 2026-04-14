@@ -116,4 +116,53 @@ defmodule Otel.SDK.Metrics.StreamTest do
       assert stream.instrument == inst
     end
   end
+
+  describe "resolve/1" do
+    test "resolves nil aggregation to default for counter" do
+      inst = instrument(%{kind: :counter})
+      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.Sum
+    end
+
+    test "resolves nil aggregation to default for gauge" do
+      inst = instrument(%{kind: :gauge})
+      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.LastValue
+    end
+
+    test "resolves nil aggregation to default for histogram" do
+      stream = Otel.SDK.Metrics.Stream.from_instrument(instrument())
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram
+    end
+
+    test "preserves explicit aggregation" do
+      {:ok, view} =
+        Otel.SDK.Metrics.View.new(%{}, %{aggregation: Otel.SDK.Metrics.Aggregation.Drop})
+
+      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.Drop
+    end
+
+    test "merges advisory bucket boundaries into opts" do
+      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
+      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation_options.boundaries == [1, 5, 10]
+    end
+
+    test "view aggregation_options take precedence over advisory" do
+      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
+
+      {:ok, view} =
+        Otel.SDK.Metrics.View.new(%{}, %{aggregation_options: %{boundaries: [100, 200]}})
+
+      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation_options.boundaries == [100, 200]
+    end
+  end
 end
