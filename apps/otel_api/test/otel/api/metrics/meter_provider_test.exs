@@ -57,11 +57,10 @@ defmodule Otel.API.Metrics.MeterProviderTest do
       assert meter1 === meter2
     end
 
-    test "different attributes produce distinct cache entries" do
+    test "different attributes share the same cache entry" do
       meter1 = Otel.API.Metrics.MeterProvider.get_meter("lib", "1.0", nil, %{env: "prod"})
       meter2 = Otel.API.Metrics.MeterProvider.get_meter("lib", "1.0", nil, %{env: "staging"})
-      # Both are noop so values are equal, but they occupy separate cache slots
-      assert meter1 == meter2
+      assert meter1 === meter2
     end
   end
 

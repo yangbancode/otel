@@ -44,7 +44,7 @@ defmodule Otel.API.Metrics.MeterProvider do
         ) :: Otel.API.Metrics.Meter.t()
   def get_meter(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
-    key = {@meter_key_prefix, {name, version, schema_url, attributes}}
+    key = {@meter_key_prefix, {name, version, schema_url}}
 
     case :persistent_term.get(key, nil) do
       nil ->
