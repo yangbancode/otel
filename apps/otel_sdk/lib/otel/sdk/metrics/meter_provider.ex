@@ -13,7 +13,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
-          views: [term()],
+          views: [Otel.SDK.Metrics.View.t()],
           readers: [{module(), map()}]
         }
 
@@ -77,6 +77,21 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     GenServer.call(server, :force_flush, timeout)
   end
 
+  @doc """
+  Registers a View with the MeterProvider.
+
+  Returns `{:error, reason}` if the View is invalid (e.g. wildcard
+  name with stream name override).
+  """
+  @spec add_view(
+          server :: GenServer.server(),
+          criteria :: Otel.SDK.Metrics.View.criteria(),
+          config :: Otel.SDK.Metrics.View.config()
+        ) :: :ok | {:error, String.t()}
+  def add_view(server, criteria \\ %{}, config \\ %{}) do
+    GenServer.call(server, {:add_view, criteria, config})
+  end
+
   # --- Server Callbacks ---
 
   @impl true
@@ -109,7 +124,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     meter_config = %{
       scope: scope,
       resource: config.resource,
-      instruments_tab: config.instruments_tab
+      instruments_tab: config.instruments_tab,
+      views: config.views
     }
 
     meter = {Otel.SDK.Metrics.Meter, meter_config}
@@ -140,6 +156,16 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   def handle_call(:config, _from, config) do
     {:reply, config, config}
+  end
+
+  def handle_call({:add_view, criteria, view_config}, _from, config) do
+    case Otel.SDK.Metrics.View.new(criteria, view_config) do
+      {:ok, view} ->
+        {:reply, :ok, %{config | views: config.views ++ [view]}}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, config}
+    end
   end
 
   # --- Private ---
