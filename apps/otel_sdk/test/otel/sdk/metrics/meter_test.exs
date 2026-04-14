@@ -311,7 +311,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
       cb = fn _args -> [{1, %{}}] end
       result = Otel.SDK.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
-      assert {ref, tab} = result
+      assert {ref, _tab} = result
       assert is_reference(ref)
     end
 
