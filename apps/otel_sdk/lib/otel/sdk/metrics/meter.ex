@@ -69,7 +69,27 @@ defmodule Otel.SDK.Metrics.Meter do
   # --- Recording ---
 
   @impl true
-  def record(_meter, _name, _value, _attributes), do: :ok
+  def record({_module, config}, name, value, attributes) do
+    instrument_key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(name)}
+
+    case :ets.lookup(config.streams_tab, instrument_key) do
+      [] ->
+        :ok
+
+      stream_entries ->
+        Enum.each(stream_entries, fn {_key, stream} ->
+          filtered_attrs = filter_stream_attributes(stream, attributes)
+          agg_key = {stream.name, stream.instrument.scope, filtered_attrs}
+
+          stream.aggregation.aggregate(
+            config.metrics_tab,
+            agg_key,
+            value,
+            stream.aggregation_options
+          )
+        end)
+    end
+  end
 
   # --- Callback Registration ---
 
@@ -126,6 +146,7 @@ defmodule Otel.SDK.Metrics.Meter do
 
     case :ets.insert_new(config.instruments_tab, {key, instrument}) do
       true ->
+        create_streams(config, instrument)
         instrument
 
       false ->
@@ -176,5 +197,31 @@ defmodule Otel.SDK.Metrics.Meter do
     end
 
     :ok
+  end
+
+  @spec create_streams(config :: map(), instrument :: Otel.SDK.Metrics.Instrument.t()) :: :ok
+  defp create_streams(config, instrument) do
+    streams =
+      config.views
+      |> match_views(instrument)
+      |> Enum.map(&Otel.SDK.Metrics.Stream.resolve/1)
+
+    instrument_key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(instrument.name)}
+
+    Enum.each(streams, fn stream ->
+      :ets.insert(config.streams_tab, {instrument_key, stream})
+    end)
+  end
+
+  @spec filter_stream_attributes(
+          stream :: Otel.SDK.Metrics.Stream.t(),
+          attributes :: map()
+        ) :: map()
+  defp filter_stream_attributes(stream, attributes) do
+    case stream.attribute_keys do
+      {:include, keys} -> Map.take(attributes, keys)
+      {:exclude, keys} -> Map.drop(attributes, keys)
+      nil -> attributes
+    end
   end
 end

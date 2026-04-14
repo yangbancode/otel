@@ -57,6 +57,30 @@ defmodule Otel.SDK.Metrics.Stream do
     }
   end
 
+  @spec resolve(stream :: t()) :: t()
+  def resolve(%__MODULE__{} = stream) do
+    aggregation =
+      stream.aggregation || Otel.SDK.Metrics.Aggregation.default_module(stream.instrument.kind)
+
+    aggregation_options =
+      stream.aggregation_options
+      |> merge_advisory_boundaries(stream.instrument)
+
+    %{stream | aggregation: aggregation, aggregation_options: aggregation_options}
+  end
+
+  @spec merge_advisory_boundaries(opts :: map(), instrument :: Otel.SDK.Metrics.Instrument.t()) ::
+          map()
+  defp merge_advisory_boundaries(opts, instrument) do
+    case Keyword.get(instrument.advisory, :explicit_bucket_boundaries) do
+      nil ->
+        opts
+
+      boundaries ->
+        Map.put_new(opts, :boundaries, boundaries)
+    end
+  end
+
   @spec advisory_attribute_keys(instrument :: Otel.SDK.Metrics.Instrument.t()) ::
           {:include, [atom()]} | nil
   defp advisory_attribute_keys(instrument) do

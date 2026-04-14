@@ -1126,7 +1126,7 @@
 
 ### Aggregation (Stable)
 
-- [ ] SDK MUST provide Drop, Default, Sum, Last Value, Explicit Bucket Histogram aggregations — [L567](../references/opentelemetry-specification/specification/metrics/sdk.md#L567)
+- [x] SDK MUST provide Drop, Default, Sum, Last Value, Explicit Bucket Histogram aggregations — [L567](../references/opentelemetry-specification/specification/metrics/sdk.md#L567)
 - [ ] SDK SHOULD provide Base2 Exponential Bucket Histogram aggregation — [L577](../references/opentelemetry-specification/specification/metrics/sdk.md#L577)
 
 #### Histogram Aggregations
@@ -1135,7 +1135,7 @@
 
 #### Explicit Bucket Histogram Aggregation
 
-- [ ] SDKs SHOULD use the default boundaries when boundaries are not explicitly provided — [L661](../references/opentelemetry-specification/specification/metrics/sdk.md#L661)
+- [x] SDKs SHOULD use the default boundaries when boundaries are not explicitly provided — [L661](../references/opentelemetry-specification/specification/metrics/sdk.md#L661)
 
 #### Base2 Exponential Bucket Histogram Aggregation
 

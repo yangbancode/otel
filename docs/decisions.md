@@ -83,7 +83,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [MeterProvider SDK](decisions/meterprovider-sdk.md)
 - [x] [Meter: Instrument Registration & Validation](decisions/meter-instrument-registration-and-validation.md)
 - [x] [View System](decisions/view-system.md)
-- [ ] [Aggregation Types](decisions/aggregation-types.md)
+- [x] [Aggregation Types](decisions/aggregation-types.md)
 - [ ] [Async Observations & Cardinality Limits](decisions/async-observations-and-cardinality-limits.md)
 - [ ] [Exemplar System](decisions/exemplar-system.md)
 - [ ] [MetricReader & Periodic Exporting](decisions/metricreader-and-periodic-exporting.md)
@@ -111,4 +111,5 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ## Finalization
 - [ ] [Error Handling](decisions/error-handling.md)
+- [ ] [Metrics ETS Key Optimization](decisions/metrics-ets-key-optimization.md)
 - [ ] [hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
