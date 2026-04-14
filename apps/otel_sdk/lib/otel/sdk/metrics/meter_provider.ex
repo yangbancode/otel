@@ -82,7 +82,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @impl true
   def init(user_config) do
     instruments_tab =
-      :ets.new(:otel_instruments, [:set, :public, read_concurrency: true])
+      :ets.new(:otel_instruments, [:set, :public, read_concurrency: true, write_concurrency: true])
 
     config =
       default_config()
