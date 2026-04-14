@@ -71,6 +71,25 @@ through config.
 - Histogram sum suppression for negative instruments (SHOULD)
 - Temporality handling (MetricReader Decision)
 
+### Future Optimization
+
+The metrics_tab key is `{stream_name, scope, filtered_attributes}`
+where scope is an `%InstrumentationScope{}` struct and attributes
+is a map. This prevents use of `ets:select_replace` for atomic CAS
+operations because ETS match specs do not support map literals in
+patterns.
+
+Current approach uses `ets:update_element` which is atomic per field
+but not per entry. This is acceptable since concurrent races on the
+same key (same stream + same attribute set) are rare in practice.
+
+If performance profiling reveals contention, consider:
+- Convert attributes to `:erlang.term_to_binary(sorted_attrs)` for
+  the key (Erlang reference approach)
+- Replace scope struct with a simple `{name, version}` tuple
+- This would make keys ETS match-spec friendly and enable
+  `ets:select_replace` for true CAS on float sum, min, max
+
 ### Modules
 
 | Module | Location | Description |
