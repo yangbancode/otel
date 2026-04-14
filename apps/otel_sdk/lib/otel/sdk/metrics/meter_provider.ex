@@ -61,8 +61,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @doc """
   Shuts down the MeterProvider.
 
-  Invokes shutdown on all registered readers and exporters. After
-  shutdown, get_meter returns the noop meter. Can only be called once.
+  Invokes shutdown on all registered readers. After shutdown,
+  get_meter returns the noop meter. Can only be called once.
   """
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ 5000) do
@@ -81,10 +81,14 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @impl true
   def init(user_config) do
+    instruments_tab =
+      :ets.new(:otel_instruments, [:set, :public, read_concurrency: true, write_concurrency: true])
+
     config =
       default_config()
       |> Map.merge(user_config)
       |> Map.put(:shut_down, false)
+      |> Map.put(:instruments_tab, instruments_tab)
 
     Otel.API.Metrics.MeterProvider.set_provider(__MODULE__)
     {:ok, config}
@@ -104,7 +108,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
     meter_config = %{
       scope: scope,
-      resource: config.resource
+      resource: config.resource,
+      instruments_tab: config.instruments_tab
     }
 
     meter = {Otel.SDK.Metrics.Meter, meter_config}
@@ -142,8 +147,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @spec default_config() :: map()
   defp default_config do
     %{
-      resource:
-        Otel.SDK.Resource.merge(Otel.SDK.Resource.default(), Otel.SDK.Resource.from_env()),
+      resource: Otel.SDK.Configuration.default_config().resource,
       views: [],
       readers: []
     }

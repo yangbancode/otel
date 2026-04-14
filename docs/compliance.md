@@ -1181,42 +1181,42 @@
 
 ### Meter (Stable)
 
-- [ ] Distinct meters MUST be treated as separate namespaces for duplicate instrument registration — [L872](../references/opentelemetry-specification/specification/metrics/sdk.md#L872)
+- [x] Distinct meters MUST be treated as separate namespaces for duplicate instrument registration — [L872](../references/opentelemetry-specification/specification/metrics/sdk.md#L872)
 
 #### Duplicate Instrument Registration
 
-- [ ] Meter MUST return a functional instrument even for duplicate instrument registrations — [L912](../references/opentelemetry-specification/specification/metrics/sdk.md#L912)
-- [ ] When duplicate instrument registration occurs (not corrected with a View), a warning SHOULD be emitted — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919)
-- [ ] Warning SHOULD include information on how to resolve the conflict — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919)
+- [x] Meter MUST return a functional instrument even for duplicate instrument registrations — [L912](../references/opentelemetry-specification/specification/metrics/sdk.md#L912)
+- [x] When duplicate instrument registration occurs (not corrected with a View), a warning SHOULD be emitted — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919)
+- [x] Warning SHOULD include information on how to resolve the conflict — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919)
 - [ ] If conflict involves multiple `description` properties, setting description through a View SHOULD avoid the warning — [L923](../references/opentelemetry-specification/specification/metrics/sdk.md#L923)
 - [ ] If conflict involves instruments distinguishable by a supported View selector, a renaming View recipe SHOULD be included — [L926](../references/opentelemetry-specification/specification/metrics/sdk.md#L926)
 - [ ] Otherwise, SDK SHOULD pass through data reporting both Metric objects and emit a generic warning — [L928](../references/opentelemetry-specification/specification/metrics/sdk.md#L928)
-- [ ] SDK MUST aggregate data from identical Instruments together in its export pipeline — [L942](../references/opentelemetry-specification/specification/metrics/sdk.md#L942)
+- [x] SDK MUST aggregate data from identical Instruments together in its export pipeline — [L942](../references/opentelemetry-specification/specification/metrics/sdk.md#L942)
 
 #### Name Conflict
 
-- [ ] When duplicate case-insensitive names occur, Meter MUST return an instrument using the first-seen name and log an error — [L950](../references/opentelemetry-specification/specification/metrics/sdk.md#L950)
+- [x] When duplicate case-insensitive names occur, Meter MUST return an instrument using the first-seen name and log an error — [L950](../references/opentelemetry-specification/specification/metrics/sdk.md#L950)
 
 ### Instrument Name
 
-- [ ] Meter SHOULD validate instrument name conforms to syntax — [L962](../references/opentelemetry-specification/specification/metrics/sdk.md#L962)
-- [ ] If instrument name does not conform, Meter SHOULD emit an error — [L965](../references/opentelemetry-specification/specification/metrics/sdk.md#L965)
+- [x] Meter SHOULD validate instrument name conforms to syntax — [L962](../references/opentelemetry-specification/specification/metrics/sdk.md#L962)
+- [x] If instrument name does not conform, Meter SHOULD emit an error — [L965](../references/opentelemetry-specification/specification/metrics/sdk.md#L965)
 
 ### Instrument Unit
 
-- [ ] Meter SHOULD NOT validate instrument unit — [L971](../references/opentelemetry-specification/specification/metrics/sdk.md#L971)
-- [ ] If a unit is not provided or is null, Meter MUST treat it as an empty unit string — [L972](../references/opentelemetry-specification/specification/metrics/sdk.md#L972)
+- [x] Meter SHOULD NOT validate instrument unit — [L971](../references/opentelemetry-specification/specification/metrics/sdk.md#L971)
+- [x] If a unit is not provided or is null, Meter MUST treat it as an empty unit string — [L972](../references/opentelemetry-specification/specification/metrics/sdk.md#L972)
 
 ### Instrument Description
 
-- [ ] Meter SHOULD NOT validate instrument description — [L977](../references/opentelemetry-specification/specification/metrics/sdk.md#L977)
-- [ ] If description is not provided or is null, Meter MUST treat it as an empty description string — [L979](../references/opentelemetry-specification/specification/metrics/sdk.md#L979)
+- [x] Meter SHOULD NOT validate instrument description — [L977](../references/opentelemetry-specification/specification/metrics/sdk.md#L977)
+- [x] If description is not provided or is null, Meter MUST treat it as an empty description string — [L979](../references/opentelemetry-specification/specification/metrics/sdk.md#L979)
 
 ### Instrument Advisory Parameters (Stable)
 
-- [ ] Meter SHOULD validate instrument advisory parameters — [L985](../references/opentelemetry-specification/specification/metrics/sdk.md#L985)
-- [ ] If advisory parameter is not valid, Meter SHOULD emit an error and proceed as if the parameter was not provided — [L986](../references/opentelemetry-specification/specification/metrics/sdk.md#L986)
-- [ ] If multiple identical Instruments have different advisory parameters, Meter MUST return instrument using first-seen advisory parameters and log an error — [L990](../references/opentelemetry-specification/specification/metrics/sdk.md#L990)
+- [x] Meter SHOULD validate instrument advisory parameters — [L985](../references/opentelemetry-specification/specification/metrics/sdk.md#L985)
+- [x] If advisory parameter is not valid, Meter SHOULD emit an error and proceed as if the parameter was not provided — [L986](../references/opentelemetry-specification/specification/metrics/sdk.md#L986)
+- [x] If multiple identical Instruments have different advisory parameters, Meter MUST return instrument using first-seen advisory parameters and log an error — [L990](../references/opentelemetry-specification/specification/metrics/sdk.md#L990)
 - [ ] If View and advisory parameters specify the same aspect, View MUST take precedence — [L996](../references/opentelemetry-specification/specification/metrics/sdk.md#L996)
 
 #### ExplicitBucketBoundaries Advisory Parameter
