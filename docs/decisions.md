@@ -111,4 +111,5 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ## Finalization
 - [ ] [Error Handling](decisions/error-handling.md)
+- [ ] [Metrics ETS Key Optimization](decisions/metrics-ets-key-optimization.md)
 - [ ] [hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
