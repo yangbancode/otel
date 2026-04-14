@@ -909,31 +909,31 @@
 
 ### Asynchronous Instrument API
 
-- [ ] API to construct asynchronous instruments MUST accept `name` parameter — [L357](../references/opentelemetry-specification/specification/metrics/api.md#L357)
-- [ ] API SHOULD be structured so a user is obligated to provide `name` — [L361](../references/opentelemetry-specification/specification/metrics/api.md#L361)
-- [ ] If not structurally enforced, API MUST be documented to communicate `name` is needed — [L363](../references/opentelemetry-specification/specification/metrics/api.md#L363)
-- [ ] API SHOULD be documented that `name` needs to conform to instrument name syntax — [L366](../references/opentelemetry-specification/specification/metrics/api.md#L366)
-- [ ] API SHOULD NOT validate the `name` — [L368](../references/opentelemetry-specification/specification/metrics/api.md#L368)
-- [ ] API MUST NOT obligate a user to provide `unit` — [L373](../references/opentelemetry-specification/specification/metrics/api.md#L373)
-- [ ] API MUST accept a case-sensitive string for `unit` that supports ASCII and at least 63 characters — [L377](../references/opentelemetry-specification/specification/metrics/api.md#L377)
-- [ ] API SHOULD NOT validate the `unit` — [L379](../references/opentelemetry-specification/specification/metrics/api.md#L379)
-- [ ] API MUST NOT obligate a user to provide `description` — [L383](../references/opentelemetry-specification/specification/metrics/api.md#L383)
-- [ ] API MUST accept a string for `description` that supports BMP and at least 1023 characters — [L387](../references/opentelemetry-specification/specification/metrics/api.md#L387)
-- [ ] API MUST NOT obligate the user to provide `advisory` parameters — [L395](../references/opentelemetry-specification/specification/metrics/api.md#L395)
-- [ ] API SHOULD NOT validate `advisory` parameters — [L400](../references/opentelemetry-specification/specification/metrics/api.md#L400)
-- [ ] API MUST be structured to accept a variable number of `callback` functions, including none — [L405](../references/opentelemetry-specification/specification/metrics/api.md#L405)
-- [ ] API MUST support creation of asynchronous instruments by passing zero or more callbacks — [L408](../references/opentelemetry-specification/specification/metrics/api.md#L408)
-- [ ] API SHOULD support registration of callback functions after instrument creation — [L415](../references/opentelemetry-specification/specification/metrics/api.md#L415)
+- [x] API to construct asynchronous instruments MUST accept `name` parameter — [L357](../references/opentelemetry-specification/specification/metrics/api.md#L357)
+- [x] API SHOULD be structured so a user is obligated to provide `name` — [L361](../references/opentelemetry-specification/specification/metrics/api.md#L361)
+- [x] If not structurally enforced, API MUST be documented to communicate `name` is needed — [L363](../references/opentelemetry-specification/specification/metrics/api.md#L363)
+- [x] API SHOULD be documented that `name` needs to conform to instrument name syntax — [L366](../references/opentelemetry-specification/specification/metrics/api.md#L366)
+- [x] API SHOULD NOT validate the `name` — [L368](../references/opentelemetry-specification/specification/metrics/api.md#L368)
+- [x] API MUST NOT obligate a user to provide `unit` — [L373](../references/opentelemetry-specification/specification/metrics/api.md#L373)
+- [x] API MUST accept a case-sensitive string for `unit` that supports ASCII and at least 63 characters — [L377](../references/opentelemetry-specification/specification/metrics/api.md#L377)
+- [x] API SHOULD NOT validate the `unit` — [L379](../references/opentelemetry-specification/specification/metrics/api.md#L379)
+- [x] API MUST NOT obligate a user to provide `description` — [L383](../references/opentelemetry-specification/specification/metrics/api.md#L383)
+- [x] API MUST accept a string for `description` that supports BMP and at least 1023 characters — [L387](../references/opentelemetry-specification/specification/metrics/api.md#L387)
+- [x] API MUST NOT obligate the user to provide `advisory` parameters — [L395](../references/opentelemetry-specification/specification/metrics/api.md#L395)
+- [x] API SHOULD NOT validate `advisory` parameters — [L400](../references/opentelemetry-specification/specification/metrics/api.md#L400)
+- [x] API MUST be structured to accept a variable number of `callback` functions, including none — [L405](../references/opentelemetry-specification/specification/metrics/api.md#L405)
+- [x] API MUST support creation of asynchronous instruments by passing zero or more callbacks — [L408](../references/opentelemetry-specification/specification/metrics/api.md#L408)
+- [x] API SHOULD support registration of callback functions after instrument creation — [L415](../references/opentelemetry-specification/specification/metrics/api.md#L415)
 - [ ] User MUST be able to undo registration of a specific callback after registration — [L419](../references/opentelemetry-specification/specification/metrics/api.md#L419)
 - [ ] Every registered Callback MUST be evaluated exactly once during collection prior to reading data — [L422](../references/opentelemetry-specification/specification/metrics/api.md#L422)
-- [ ] Callback functions MUST be documented: SHOULD be reentrant safe — [L428](../references/opentelemetry-specification/specification/metrics/api.md#L428)
-- [ ] Callback functions MUST be documented: SHOULD NOT take indefinite time — [L430](../references/opentelemetry-specification/specification/metrics/api.md#L430)
-- [ ] Callback functions MUST be documented: SHOULD NOT make duplicate observations — [L431](../references/opentelemetry-specification/specification/metrics/api.md#L431)
-- [ ] Callbacks registered at instrument creation MUST apply to the single instrument under construction — [L446](../references/opentelemetry-specification/specification/metrics/api.md#L446)
-- [ ] Idiomatic APIs for multiple-instrument Callbacks MUST distinguish the instrument associated with each Measurement — [L452](../references/opentelemetry-specification/specification/metrics/api.md#L452)
-- [ ] Multiple-instrument Callbacks MUST be associated with a declared set of async instruments from the same Meter — [L455](../references/opentelemetry-specification/specification/metrics/api.md#L455)
+- [x] Callback functions MUST be documented: SHOULD be reentrant safe — [L428](../references/opentelemetry-specification/specification/metrics/api.md#L428)
+- [x] Callback functions MUST be documented: SHOULD NOT take indefinite time — [L430](../references/opentelemetry-specification/specification/metrics/api.md#L430)
+- [x] Callback functions MUST be documented: SHOULD NOT make duplicate observations — [L431](../references/opentelemetry-specification/specification/metrics/api.md#L431)
+- [x] Callbacks registered at instrument creation MUST apply to the single instrument under construction — [L446](../references/opentelemetry-specification/specification/metrics/api.md#L446)
+- [x] Idiomatic APIs for multiple-instrument Callbacks MUST distinguish the instrument associated with each Measurement — [L452](../references/opentelemetry-specification/specification/metrics/api.md#L452)
+- [x] Multiple-instrument Callbacks MUST be associated with a declared set of async instruments from the same Meter — [L455](../references/opentelemetry-specification/specification/metrics/api.md#L455)
 - [ ] API MUST treat observations from a single Callback as logically at a single instant with identical timestamps — [L462](../references/opentelemetry-specification/specification/metrics/api.md#L462)
-- [ ] API SHOULD provide some way to pass `state` to the callback — [L467](../references/opentelemetry-specification/specification/metrics/api.md#L467)
+- [x] API SHOULD provide some way to pass `state` to the callback — [L467](../references/opentelemetry-specification/specification/metrics/api.md#L467)
 
 ### General operations (Enabled)
 
@@ -959,9 +959,9 @@
 
 ### Asynchronous Counter
 
-- [ ] There MUST NOT be any API for creating an Async Counter other than with a Meter — [L615](../references/opentelemetry-specification/specification/metrics/api.md#L615)
+- [x] There MUST NOT be any API for creating an Async Counter other than with a Meter — [L615](../references/opentelemetry-specification/specification/metrics/api.md#L615)
 - [ ] API MUST treat observations from a single callback as logically at a single instant with identical timestamps — [L652](../references/opentelemetry-specification/specification/metrics/api.md#L652)
-- [ ] API SHOULD provide some way to pass `state` to the callback — [L655](../references/opentelemetry-specification/specification/metrics/api.md#L655)
+- [x] API SHOULD provide some way to pass `state` to the callback — [L655](../references/opentelemetry-specification/specification/metrics/api.md#L655)
 
 ### Histogram
 
@@ -992,7 +992,7 @@
 
 ### Asynchronous Gauge
 
-- [ ] There MUST NOT be any API for creating an Async Gauge other than with a Meter — [L936](../references/opentelemetry-specification/specification/metrics/api.md#L936)
+- [x] There MUST NOT be any API for creating an Async Gauge other than with a Meter — [L936](../references/opentelemetry-specification/specification/metrics/api.md#L936)
 
 ### UpDownCounter
 
@@ -1008,11 +1008,11 @@
 
 ### Asynchronous UpDownCounter
 
-- [ ] There MUST NOT be any API for creating an Async UpDownCounter other than with a Meter — [L1178](../references/opentelemetry-specification/specification/metrics/api.md#L1178)
+- [x] There MUST NOT be any API for creating an Async UpDownCounter other than with a Meter — [L1178](../references/opentelemetry-specification/specification/metrics/api.md#L1178)
 
 ### Measurement
 
-- [ ] Multiple-instrument callbacks API SHOULD accept a callback function and a list of Instruments — [L1294](../references/opentelemetry-specification/specification/metrics/api.md#L1294)
+- [x] Multiple-instrument callbacks API SHOULD accept a callback function and a list of Instruments — [L1294](../references/opentelemetry-specification/specification/metrics/api.md#L1294)
 
 ### Compatibility requirements
 
