@@ -295,9 +295,141 @@ defmodule Otel.SDK.Metrics.MeterTest do
   end
 
   describe "callback registration" do
-    test "register_callback returns :ok", %{meter: meter} do
-      callback = fn _args -> [] end
-      assert :ok == Otel.SDK.Metrics.Meter.register_callback(meter, [], callback, nil, [])
+    test "inline callback stored on creation", %{meter: meter} do
+      cb = fn _args -> [{42, %{}}] end
+
+      Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
+
+      {_module, config} = meter
+      callbacks = :ets.tab2list(config.callbacks_tab)
+      assert callbacks != []
+    end
+
+    test "register_callback returns ref for unregistration", %{meter: meter} do
+      inst =
+        Otel.SDK.Metrics.Meter.create_observable_counter(meter, "cb_counter", [])
+
+      cb = fn _args -> [{1, %{}}] end
+      result = Otel.SDK.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
+      assert {ref, _tab} = result
+      assert is_reference(ref)
+    end
+
+    test "unregister_callback removes the callback", %{meter: meter} do
+      inst =
+        Otel.SDK.Metrics.Meter.create_observable_counter(meter, "unreg_counter", [])
+
+      cb = fn _args -> [{1, %{}}] end
+      registration = Otel.SDK.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
+
+      {_module, config} = meter
+      before_count = length(:ets.tab2list(config.callbacks_tab))
+
+      Otel.SDK.Metrics.Meter.unregister_callback(registration)
+
+      after_count = length(:ets.tab2list(config.callbacks_tab))
+      assert after_count < before_count
+    end
+
+    test "run_callbacks aggregates observations", %{meter: meter} do
+      cb = fn _args -> [{100, %{host: "a"}}, {200, %{host: "b"}}] end
+      Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "mem", cb, nil, [])
+
+      {_module, config} = meter
+      Otel.SDK.Metrics.Meter.run_callbacks(config)
+
+      stream_key = {"mem", config.scope}
+
+      dps =
+        Otel.SDK.Metrics.Aggregation.LastValue.collect(config.metrics_tab, stream_key, %{})
+
+      assert length(dps) == 2
+      values = Enum.map(dps, & &1.value) |> Enum.sort()
+      assert values == [100, 200]
+    end
+
+    test "run_callbacks with no callbacks is no-op", %{meter: meter} do
+      {_module, config} = meter
+      assert :ok == Otel.SDK.Metrics.Meter.run_callbacks(config)
+    end
+  end
+
+  describe "cardinality limits" do
+    test "default cardinality limit is 2000", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "card_test", [])
+      {_module, config} = meter
+
+      [{_key, stream}] =
+        :ets.lookup(
+          config.streams_tab,
+          {config.scope, "card_test"}
+        )
+
+      assert stream.aggregation_cardinality_limit == 2000
+    end
+
+    test "overflow routes to overflow attribute set" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "limited"},
+        %{aggregation_cardinality_limit: 3}
+      )
+
+      {_mod, cfg} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      m = {Otel.SDK.Metrics.Meter, cfg}
+
+      Otel.SDK.Metrics.Meter.create_counter(m, "limited", [])
+
+      Otel.SDK.Metrics.Meter.record(m, "limited", 1, %{k: "a"})
+      Otel.SDK.Metrics.Meter.record(m, "limited", 1, %{k: "b"})
+      Otel.SDK.Metrics.Meter.record(m, "limited", 1, %{k: "c"})
+      Otel.SDK.Metrics.Meter.record(m, "limited", 1, %{k: "d"})
+      Otel.SDK.Metrics.Meter.record(m, "limited", 1, %{k: "e"})
+
+      stream_key = {"limited", cfg.scope}
+      dps = Otel.SDK.Metrics.Aggregation.Sum.collect(cfg.metrics_tab, stream_key, %{})
+
+      overflow_dp =
+        Enum.find(dps, fn dp -> dp.attributes == %{:"otel.metric.overflow" => true} end)
+
+      assert overflow_dp != nil
+      assert overflow_dp.value == 2
+
+      normal_dps =
+        Enum.reject(dps, fn dp -> dp.attributes == %{:"otel.metric.overflow" => true} end)
+
+      assert length(normal_dps) == 3
+    end
+
+    test "existing attribute set not affected by overflow" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "exist_test"},
+        %{aggregation_cardinality_limit: 2}
+      )
+
+      {_mod, cfg} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      m = {Otel.SDK.Metrics.Meter, cfg}
+
+      Otel.SDK.Metrics.Meter.create_counter(m, "exist_test", [])
+
+      Otel.SDK.Metrics.Meter.record(m, "exist_test", 1, %{k: "a"})
+      Otel.SDK.Metrics.Meter.record(m, "exist_test", 1, %{k: "b"})
+      Otel.SDK.Metrics.Meter.record(m, "exist_test", 5, %{k: "a"})
+
+      stream_key = {"exist_test", cfg.scope}
+      dps = Otel.SDK.Metrics.Aggregation.Sum.collect(cfg.metrics_tab, stream_key, %{})
+
+      dp_a = Enum.find(dps, fn dp -> dp.attributes == %{k: "a"} end)
+      assert dp_a.value == 6
     end
   end
 
