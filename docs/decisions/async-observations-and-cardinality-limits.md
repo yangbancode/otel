@@ -37,7 +37,8 @@ from `:: :ok` to `:: term()` to support this.
 Default limit: 2000 per stream (resolved in `Stream.resolve/1`).
 Configurable via View's `aggregation_cardinality_limit`.
 
-Enforcement in `record()` via `maybe_overflow/3`:
+Enforcement in `record()` and callback observations via
+`maybe_overflow/3`:
 1. If key already exists in metrics_tab → no limit check needed
 2. If key is new → count existing keys for this stream
 3. If count >= limit → route to overflow key with attributes

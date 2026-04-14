@@ -348,6 +348,7 @@ defmodule Otel.SDK.Metrics.Meter do
       Enum.each(streams, fn stream ->
         filtered_attrs = filter_stream_attributes(stream, attributes)
         agg_key = {stream.name, stream.instrument.scope, filtered_attrs}
+        agg_key = maybe_overflow(config.metrics_tab, stream, agg_key)
 
         stream.aggregation.aggregate(
           config.metrics_tab,
