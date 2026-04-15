@@ -69,13 +69,24 @@ defmodule Otel.SDK.Metrics.Stream do
       |> merge_advisory_boundaries(stream.instrument)
 
     cardinality_limit = stream.aggregation_cardinality_limit || @default_cardinality_limit
+    reservoir = stream.exemplar_reservoir || default_reservoir(aggregation, aggregation_options)
 
     %{
       stream
       | aggregation: aggregation,
         aggregation_options: aggregation_options,
-        aggregation_cardinality_limit: cardinality_limit
+        aggregation_cardinality_limit: cardinality_limit,
+        exemplar_reservoir: reservoir
     }
+  end
+
+  @spec default_reservoir(aggregation :: module(), opts :: map()) :: module()
+  defp default_reservoir(Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram, _opts) do
+    Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket
+  end
+
+  defp default_reservoir(_aggregation, _opts) do
+    Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize
   end
 
   @spec merge_advisory_boundaries(opts :: map(), instrument :: Otel.SDK.Metrics.Instrument.t()) ::

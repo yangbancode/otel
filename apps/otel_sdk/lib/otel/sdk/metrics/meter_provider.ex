@@ -140,7 +140,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       streams_tab: config.streams_tab,
       metrics_tab: config.metrics_tab,
       callbacks_tab: config.callbacks_tab,
-      views: config.views
+      views: config.views,
+      exemplar_filter: config.exemplar_filter
     }
 
     meter = {Otel.SDK.Metrics.Meter, meter_config}
@@ -190,7 +191,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     %{
       resource: Otel.SDK.Configuration.default_config().resource,
       views: [],
-      readers: []
+      readers: [],
+      exemplar_filter: :trace_based
     }
   end
 

@@ -6,7 +6,67 @@ How to implement the Exemplar sampling subsystem (ExemplarFilter, ExemplarReserv
 
 ## Decision
 
-TBD
+### Exemplar Struct
+
+`Otel.SDK.Metrics.Exemplar` holds: value, time, filtered_attributes,
+trace_id, span_id. Trace context is extracted from `Otel.API.Ctx`
+at offer time via `Otel.API.Trace.current_span/1`.
+
+### ExemplarFilter
+
+`Otel.SDK.Metrics.Exemplar.Filter` — three built-in filters:
+- `:always_on` — sample all
+- `:always_off` — never sample
+- `:trace_based` — sample when span has sampled trace flag (default)
+
+Configured as MeterProvider parameter `exemplar_filter`, default
+`:trace_based`.
+
+### ExemplarReservoir Behaviour
+
+`Otel.SDK.Metrics.Exemplar.Reservoir` defines callbacks:
+- `new(opts)` — create initial state
+- `offer(state, value, time, filtered_attributes, ctx)` — sample
+- `collect(state)` — return `{exemplars, new_state}`
+
+Facade functions `offer_to/6` and `collect_from/1` integrate filter
+checks and handle nil reservoir (no-op when sampling is off).
+
+Reservoir state is a `{module, state}` tuple stored per timeseries.
+
+### Built-in Reservoirs
+
+**SimpleFixedSize** — uniformly-weighted random sampling (reservoir
+sampling algorithm). Default size 1. Count resets on collect.
+
+**AlignedHistogramBucket** — one exemplar per bucket, aligned with
+explicit histogram boundaries. Replaces on each offer.
+
+### Default Reservoir Selection
+
+In `Stream.resolve/1`:
+- ExplicitBucketHistogram → AlignedHistogramBucket
+- All others → SimpleFixedSize
+
+View's `exemplar_reservoir` takes precedence.
+
+### Deferred
+
+- Integration with aggregation modules (exemplar offer during
+  aggregate, collect during metric collection) — MetricReader Decision
+- Environment variable configuration for exemplar filter
+- Custom ExemplarReservoir via View (structure exists, wiring in
+  MetricReader)
+
+### Modules
+
+| Module | Location | Description |
+|---|---|---|
+| `Otel.SDK.Metrics.Exemplar` | `exemplar.ex` | Exemplar struct |
+| `Otel.SDK.Metrics.Exemplar.Filter` | `exemplar/filter.ex` | ExemplarFilter |
+| `Otel.SDK.Metrics.Exemplar.Reservoir` | `exemplar/reservoir.ex` | Reservoir behaviour + facade |
+| `Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize` | `exemplar/reservoir/simple_fixed_size.ex` | Random sampling |
+| `Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket` | `exemplar/reservoir/aligned_histogram_bucket.ex` | Histogram-aligned |
 
 ## Compliance
 

@@ -1230,57 +1230,57 @@
 
 ### Exemplar (Stable)
 
-- [ ] Metric SDK MUST provide a mechanism to sample Exemplars from measurements via ExemplarFilter and ExemplarReservoir hooks — [L1100](../references/opentelemetry-specification/specification/metrics/sdk.md#L1100)
-- [ ] Exemplar sampling SHOULD be turned on by default — [L1103](../references/opentelemetry-specification/specification/metrics/sdk.md#L1103)
-- [ ] If Exemplar sampling is off, SDK MUST NOT have overhead related to exemplar sampling — [L1104](../references/opentelemetry-specification/specification/metrics/sdk.md#L1104)
-- [ ] Metric SDK MUST allow exemplar sampling to leverage the configuration of metric aggregation — [L1106](../references/opentelemetry-specification/specification/metrics/sdk.md#L1106)
-- [ ] Metric SDK SHOULD provide configuration for Exemplar sampling (ExemplarFilter, ExemplarReservoir) — [L1110](../references/opentelemetry-specification/specification/metrics/sdk.md#L1110)
+- [x] Metric SDK MUST provide a mechanism to sample Exemplars from measurements via ExemplarFilter and ExemplarReservoir hooks — [L1100](../references/opentelemetry-specification/specification/metrics/sdk.md#L1100)
+- [x] Exemplar sampling SHOULD be turned on by default — [L1103](../references/opentelemetry-specification/specification/metrics/sdk.md#L1103)
+- [x] If Exemplar sampling is off, SDK MUST NOT have overhead related to exemplar sampling — [L1104](../references/opentelemetry-specification/specification/metrics/sdk.md#L1104)
+- [x] Metric SDK MUST allow exemplar sampling to leverage the configuration of metric aggregation — [L1106](../references/opentelemetry-specification/specification/metrics/sdk.md#L1106)
+- [x] Metric SDK SHOULD provide configuration for Exemplar sampling (ExemplarFilter, ExemplarReservoir) — [L1110](../references/opentelemetry-specification/specification/metrics/sdk.md#L1110)
 
 #### ExemplarFilter
 
-- [ ] ExemplarFilter configuration MUST allow users to select between built-in ExemplarFilters — [L1117](../references/opentelemetry-specification/specification/metrics/sdk.md#L1117)
-- [ ] ExemplarFilter SHOULD be a configuration parameter of a MeterProvider — [L1122](../references/opentelemetry-specification/specification/metrics/sdk.md#L1122)
-- [ ] Default ExemplarFilter value SHOULD be TraceBased — [L1123](../references/opentelemetry-specification/specification/metrics/sdk.md#L1123)
+- [x] ExemplarFilter configuration MUST allow users to select between built-in ExemplarFilters — [L1117](../references/opentelemetry-specification/specification/metrics/sdk.md#L1117)
+- [x] ExemplarFilter SHOULD be a configuration parameter of a MeterProvider — [L1122](../references/opentelemetry-specification/specification/metrics/sdk.md#L1122)
+- [x] Default ExemplarFilter value SHOULD be TraceBased — [L1123](../references/opentelemetry-specification/specification/metrics/sdk.md#L1123)
 - [ ] Filter configuration SHOULD follow the environment variable specification — [L1124](../references/opentelemetry-specification/specification/metrics/sdk.md#L1124)
-- [ ] SDK MUST support AlwaysOn, AlwaysOff, TraceBased filters — [L1126](../references/opentelemetry-specification/specification/metrics/sdk.md#L1126)
+- [x] SDK MUST support AlwaysOn, AlwaysOff, TraceBased filters — [L1126](../references/opentelemetry-specification/specification/metrics/sdk.md#L1126)
 
 #### ExemplarReservoir
 
-- [ ] ExemplarReservoir interface MUST provide a method to offer measurements and another to collect accumulated Exemplars — [L1148](../references/opentelemetry-specification/specification/metrics/sdk.md#L1148)
-- [ ] A new ExemplarReservoir MUST be created for every known timeseries data point — [L1151](../references/opentelemetry-specification/specification/metrics/sdk.md#L1151)
-- [ ] "offer" method SHOULD accept measurements including value, attributes, context, timestamp — [L1155](../references/opentelemetry-specification/specification/metrics/sdk.md#L1155)
-- [ ] "offer" method SHOULD have ability to pull associated trace/span information without full context — [L1164](../references/opentelemetry-specification/specification/metrics/sdk.md#L1164)
-- [ ] If filtered subset of Attributes is accepted, this MUST be clearly documented and reservoir MUST be given the timeseries Attributes at construction — [L1172](../references/opentelemetry-specification/specification/metrics/sdk.md#L1172)
-- [ ] "collect" method MUST return accumulated Exemplars — [L1179](../references/opentelemetry-specification/specification/metrics/sdk.md#L1179)
+- [x] ExemplarReservoir interface MUST provide a method to offer measurements and another to collect accumulated Exemplars — [L1148](../references/opentelemetry-specification/specification/metrics/sdk.md#L1148)
+- [x] A new ExemplarReservoir MUST be created for every known timeseries data point — [L1151](../references/opentelemetry-specification/specification/metrics/sdk.md#L1151)
+- [x] "offer" method SHOULD accept measurements including value, attributes, context, timestamp — [L1155](../references/opentelemetry-specification/specification/metrics/sdk.md#L1155)
+- [x] "offer" method SHOULD have ability to pull associated trace/span information without full context — [L1164](../references/opentelemetry-specification/specification/metrics/sdk.md#L1164)
+- [x] If filtered subset of Attributes is accepted, this MUST be clearly documented and reservoir MUST be given the timeseries Attributes at construction — [L1172](../references/opentelemetry-specification/specification/metrics/sdk.md#L1172)
+- [x] "collect" method MUST return accumulated Exemplars — [L1179](../references/opentelemetry-specification/specification/metrics/sdk.md#L1179)
 - [ ] Exemplars reported against a metric data point SHOULD have occurred within the start/stop timestamps of that point — [L1181](../references/opentelemetry-specification/specification/metrics/sdk.md#L1181)
-- [ ] Exemplars MUST retain any attributes available in the measurement not preserved by aggregation or view configuration — [L1186](../references/opentelemetry-specification/specification/metrics/sdk.md#L1186)
-- [ ] ExemplarReservoir SHOULD avoid allocations when sampling exemplars — [L1192](../references/opentelemetry-specification/specification/metrics/sdk.md#L1192)
+- [x] Exemplars MUST retain any attributes available in the measurement not preserved by aggregation or view configuration — [L1186](../references/opentelemetry-specification/specification/metrics/sdk.md#L1186)
+- [x] ExemplarReservoir SHOULD avoid allocations when sampling exemplars — [L1192](../references/opentelemetry-specification/specification/metrics/sdk.md#L1192)
 
 #### Exemplar Defaults
 
-- [ ] SDK MUST include SimpleFixedSizeExemplarReservoir and AlignedHistogramBucketExemplarReservoir — [L1196](../references/opentelemetry-specification/specification/metrics/sdk.md#L1196)
-- [ ] Explicit bucket histogram with more than 1 bucket SHOULD use AlignedHistogramBucketExemplarReservoir — [L1203](../references/opentelemetry-specification/specification/metrics/sdk.md#L1203)
+- [x] SDK MUST include SimpleFixedSizeExemplarReservoir and AlignedHistogramBucketExemplarReservoir — [L1196](../references/opentelemetry-specification/specification/metrics/sdk.md#L1196)
+- [x] Explicit bucket histogram with more than 1 bucket SHOULD use AlignedHistogramBucketExemplarReservoir — [L1203](../references/opentelemetry-specification/specification/metrics/sdk.md#L1203)
 - [ ] Base2 Exponential Histogram SHOULD use SimpleFixedSizeExemplarReservoir with reservoir = min(20, max_buckets) — [L1205](../references/opentelemetry-specification/specification/metrics/sdk.md#L1205)
-- [ ] All other aggregations SHOULD use SimpleFixedSizeExemplarReservoir — [L1209](../references/opentelemetry-specification/specification/metrics/sdk.md#L1209)
+- [x] All other aggregations SHOULD use SimpleFixedSizeExemplarReservoir — [L1209](../references/opentelemetry-specification/specification/metrics/sdk.md#L1209)
 
 #### SimpleFixedSizeExemplarReservoir
 
-- [ ] MUST use uniformly-weighted sampling algorithm based on number of samples seen — [L1218](../references/opentelemetry-specification/specification/metrics/sdk.md#L1218)
-- [ ] Any stateful portion of sampling computation SHOULD be reset every collection cycle — [L1235](../references/opentelemetry-specification/specification/metrics/sdk.md#L1235)
-- [ ] If no size configuration provided, a default size of 1 SHOULD be used — [L1242](../references/opentelemetry-specification/specification/metrics/sdk.md#L1242)
+- [x] MUST use uniformly-weighted sampling algorithm based on number of samples seen — [L1218](../references/opentelemetry-specification/specification/metrics/sdk.md#L1218)
+- [x] Any stateful portion of sampling computation SHOULD be reset every collection cycle — [L1235](../references/opentelemetry-specification/specification/metrics/sdk.md#L1235)
+- [x] If no size configuration provided, a default size of 1 SHOULD be used — [L1242](../references/opentelemetry-specification/specification/metrics/sdk.md#L1242)
 
 #### AlignedHistogramBucketExemplarReservoir
 
-- [ ] MUST take a configuration parameter that is the configuration of a Histogram — [L1246](../references/opentelemetry-specification/specification/metrics/sdk.md#L1246)
-- [ ] MUST store at most one measurement per histogram bucket — [L1247](../references/opentelemetry-specification/specification/metrics/sdk.md#L1247)
-- [ ] SHOULD use uniformly-weighted sampling to determine if offered measurements should be sampled — [L1248](../references/opentelemetry-specification/specification/metrics/sdk.md#L1248)
-- [ ] Configuration parameter for bucket boundaries SHOULD have the same format as specifying Explicit Bucket Histogram boundaries — [L1276](../references/opentelemetry-specification/specification/metrics/sdk.md#L1276)
+- [x] MUST take a configuration parameter that is the configuration of a Histogram — [L1246](../references/opentelemetry-specification/specification/metrics/sdk.md#L1246)
+- [x] MUST store at most one measurement per histogram bucket — [L1247](../references/opentelemetry-specification/specification/metrics/sdk.md#L1247)
+- [x] SHOULD use uniformly-weighted sampling to determine if offered measurements should be sampled — [L1248](../references/opentelemetry-specification/specification/metrics/sdk.md#L1248)
+- [x] Configuration parameter for bucket boundaries SHOULD have the same format as specifying Explicit Bucket Histogram boundaries — [L1276](../references/opentelemetry-specification/specification/metrics/sdk.md#L1276)
 
 #### Custom ExemplarReservoir
 
-- [ ] SDK MUST provide a mechanism for SDK users to provide their own ExemplarReservoir implementation — [L1282](../references/opentelemetry-specification/specification/metrics/sdk.md#L1282)
-- [ ] Extension MUST be configurable on a metric View — [L1283](../references/opentelemetry-specification/specification/metrics/sdk.md#L1283)
-- [ ] Individual reservoirs MUST still be instantiated per metric-timeseries — [L1284](../references/opentelemetry-specification/specification/metrics/sdk.md#L1284)
+- [x] SDK MUST provide a mechanism for SDK users to provide their own ExemplarReservoir implementation — [L1282](../references/opentelemetry-specification/specification/metrics/sdk.md#L1282)
+- [x] Extension MUST be configurable on a metric View — [L1283](../references/opentelemetry-specification/specification/metrics/sdk.md#L1283)
+- [x] Individual reservoirs MUST still be instantiated per metric-timeseries — [L1284](../references/opentelemetry-specification/specification/metrics/sdk.md#L1284)
 
 ### MetricReader (Stable)
 
