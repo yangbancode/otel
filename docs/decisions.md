@@ -91,6 +91,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
 - [ ] [Exemplar Pipeline Integration](decisions/exemplar-pipeline-integration.md)
 - [ ] [Metrics Temporality](decisions/metrics-temporality.md)
+- [ ] [View Deferred Features](decisions/view-deferred-features.md)
+- [ ] [Base2 Exponential Bucket Histogram](decisions/base2-exponential-histogram.md)
 
 ### Environment Variables
 - [x] [Metrics Environment Variables](decisions/metrics-environment-variables.md)
