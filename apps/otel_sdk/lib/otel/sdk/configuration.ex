@@ -43,6 +43,7 @@ defmodule Otel.SDK.Configuration do
     %{}
     |> maybe_put_sampler()
     |> maybe_put_span_limits()
+    |> maybe_put_metrics_env()
   end
 
   # --- Sampler ---
@@ -110,6 +111,61 @@ defmodule Otel.SDK.Configuration do
     else
       config
     end
+  end
+
+  # --- Metrics ---
+
+  @spec maybe_put_metrics_env(config :: map()) :: map()
+  defp maybe_put_metrics_env(config) do
+    metrics = %{}
+    metrics = maybe_put_metrics_exporter(metrics)
+    metrics = maybe_put_exemplar_filter(metrics)
+    metrics = maybe_put_metric_export_interval(metrics)
+    metrics = maybe_put_metric_export_timeout(metrics)
+
+    if map_size(metrics) > 0 do
+      Map.put(config, :metrics, metrics)
+    else
+      config
+    end
+  end
+
+  @spec maybe_put_metrics_exporter(config :: map()) :: map()
+  defp maybe_put_metrics_exporter(config) do
+    case get_env("OTEL_METRICS_EXPORTER") do
+      nil -> config
+      value -> Map.put(config, :exporter, parse_metrics_exporter(value))
+    end
+  end
+
+  @spec parse_metrics_exporter(value :: String.t()) :: atom()
+  defp parse_metrics_exporter("otlp"), do: :otlp
+  defp parse_metrics_exporter("console"), do: :console
+  defp parse_metrics_exporter("none"), do: :none
+  defp parse_metrics_exporter(_), do: :otlp
+
+  @spec maybe_put_exemplar_filter(config :: map()) :: map()
+  defp maybe_put_exemplar_filter(config) do
+    case get_env("OTEL_METRICS_EXEMPLAR_FILTER") do
+      nil -> config
+      value -> Map.put(config, :exemplar_filter, parse_exemplar_filter(value))
+    end
+  end
+
+  @spec parse_exemplar_filter(value :: String.t()) :: Otel.SDK.Metrics.Exemplar.Filter.t()
+  defp parse_exemplar_filter("always_on"), do: :always_on
+  defp parse_exemplar_filter("always_off"), do: :always_off
+  defp parse_exemplar_filter("trace_based"), do: :trace_based
+  defp parse_exemplar_filter(_), do: :trace_based
+
+  @spec maybe_put_metric_export_interval(config :: map()) :: map()
+  defp maybe_put_metric_export_interval(config) do
+    maybe_put_int(config, :export_interval_ms, "OTEL_METRIC_EXPORT_INTERVAL")
+  end
+
+  @spec maybe_put_metric_export_timeout(config :: map()) :: map()
+  defp maybe_put_metric_export_timeout(config) do
+    maybe_put_int(config, :export_timeout_ms, "OTEL_METRIC_EXPORT_TIMEOUT")
   end
 
   # --- Parsing helpers ---

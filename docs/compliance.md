@@ -1241,7 +1241,7 @@
 - [x] ExemplarFilter configuration MUST allow users to select between built-in ExemplarFilters — [L1117](../references/opentelemetry-specification/specification/metrics/sdk.md#L1117)
 - [x] ExemplarFilter SHOULD be a configuration parameter of a MeterProvider — [L1122](../references/opentelemetry-specification/specification/metrics/sdk.md#L1122)
 - [x] Default ExemplarFilter value SHOULD be TraceBased — [L1123](../references/opentelemetry-specification/specification/metrics/sdk.md#L1123)
-- [ ] Filter configuration SHOULD follow the environment variable specification — [L1124](../references/opentelemetry-specification/specification/metrics/sdk.md#L1124)
+- [x] Filter configuration SHOULD follow the environment variable specification — [L1124](../references/opentelemetry-specification/specification/metrics/sdk.md#L1124)
 - [x] SDK MUST support AlwaysOn, AlwaysOff, TraceBased filters — [L1126](../references/opentelemetry-specification/specification/metrics/sdk.md#L1126)
 
 #### ExemplarReservoir
