@@ -90,7 +90,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
 
 ### Environment Variables
-- [ ] [Metrics Environment Variables](decisions/metrics-environment-variables.md)
+- [x] [Metrics Environment Variables](decisions/metrics-environment-variables.md)
 
 ## Phase 4: Logs
 

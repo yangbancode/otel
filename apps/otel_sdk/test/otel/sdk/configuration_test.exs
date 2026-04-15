@@ -12,7 +12,11 @@ defmodule Otel.SDK.ConfigurationTest do
       "OTEL_SPAN_EVENT_COUNT_LIMIT",
       "OTEL_SPAN_LINK_COUNT_LIMIT",
       "OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT",
-      "OTEL_LINK_ATTRIBUTE_COUNT_LIMIT"
+      "OTEL_LINK_ATTRIBUTE_COUNT_LIMIT",
+      "OTEL_METRICS_EXPORTER",
+      "OTEL_METRICS_EXEMPLAR_FILTER",
+      "OTEL_METRIC_EXPORT_INTERVAL",
+      "OTEL_METRIC_EXPORT_TIMEOUT"
     ]
 
     Enum.each(env_vars, &System.delete_env/1)
@@ -191,6 +195,87 @@ defmodule Otel.SDK.ConfigurationTest do
       config = Otel.SDK.Configuration.merge(%{})
       assert config.span_limits.attribute_count_limit == 64
       assert config.span_limits.event_count_limit == 128
+    end
+  end
+
+  describe "OTEL_METRICS_EXPORTER" do
+    test "sets otlp exporter" do
+      System.put_env("OTEL_METRICS_EXPORTER", "otlp")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exporter == :otlp
+    end
+
+    test "sets console exporter" do
+      System.put_env("OTEL_METRICS_EXPORTER", "console")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exporter == :console
+    end
+
+    test "sets none exporter" do
+      System.put_env("OTEL_METRICS_EXPORTER", "none")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exporter == :none
+    end
+
+    test "unknown value defaults to otlp" do
+      System.put_env("OTEL_METRICS_EXPORTER", "unknown")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exporter == :otlp
+    end
+
+    test "case insensitive" do
+      System.put_env("OTEL_METRICS_EXPORTER", "CONSOLE")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exporter == :console
+    end
+  end
+
+  describe "OTEL_METRICS_EXEMPLAR_FILTER" do
+    test "sets always_on" do
+      System.put_env("OTEL_METRICS_EXEMPLAR_FILTER", "always_on")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exemplar_filter == :always_on
+    end
+
+    test "sets always_off" do
+      System.put_env("OTEL_METRICS_EXEMPLAR_FILTER", "always_off")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exemplar_filter == :always_off
+    end
+
+    test "sets trace_based" do
+      System.put_env("OTEL_METRICS_EXEMPLAR_FILTER", "trace_based")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exemplar_filter == :trace_based
+    end
+
+    test "unknown value defaults to trace_based" do
+      System.put_env("OTEL_METRICS_EXEMPLAR_FILTER", "unknown")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.exemplar_filter == :trace_based
+    end
+  end
+
+  describe "OTEL_METRIC_EXPORT_INTERVAL" do
+    test "sets export interval" do
+      System.put_env("OTEL_METRIC_EXPORT_INTERVAL", "30000")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.export_interval_ms == 30_000
+    end
+  end
+
+  describe "OTEL_METRIC_EXPORT_TIMEOUT" do
+    test "sets export timeout" do
+      System.put_env("OTEL_METRIC_EXPORT_TIMEOUT", "15000")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.metrics.export_timeout_ms == 15_000
+    end
+  end
+
+  describe "metrics env vars unset" do
+    test "no metrics key when no env vars set" do
+      config = Otel.SDK.Configuration.merge(%{})
+      refute Map.has_key?(config, :metrics)
     end
   end
 end
