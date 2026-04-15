@@ -89,6 +89,9 @@ defmodule Otel.SDK.Metrics.Meter do
         :ok
 
       stream_entries ->
+        ctx = Otel.API.Ctx.get_current()
+        now = System.system_time(:nanosecond)
+
         Enum.each(stream_entries, fn {_key, stream} ->
           filtered_attrs = filter_stream_attributes(stream, attributes)
           agg_key = {stream.name, stream.instrument.scope, filtered_attrs}
@@ -100,6 +103,8 @@ defmodule Otel.SDK.Metrics.Meter do
             value,
             stream.aggregation_options
           )
+
+          offer_exemplar(config, stream, agg_key, value, now, filtered_attrs, ctx)
         end)
     end
   end
@@ -343,6 +348,8 @@ defmodule Otel.SDK.Metrics.Meter do
         ) :: :ok
   defp apply_observations(config, entries, observations) do
     streams = lookup_callback_streams(config, entries)
+    ctx = Otel.API.Ctx.get_current()
+    now = System.system_time(:nanosecond)
 
     Enum.each(observations, fn {value, attributes} ->
       Enum.each(streams, fn stream ->
@@ -356,8 +363,85 @@ defmodule Otel.SDK.Metrics.Meter do
           value,
           stream.aggregation_options
         )
+
+        offer_exemplar(config, stream, agg_key, value, now, filtered_attrs, ctx)
       end)
     end)
+  end
+
+  @spec offer_exemplar(
+          config :: map(),
+          stream :: Otel.SDK.Metrics.Stream.t(),
+          agg_key :: term(),
+          value :: number(),
+          time :: integer(),
+          filtered_attrs :: map(),
+          ctx :: Otel.API.Ctx.t()
+        ) :: :ok
+  defp offer_exemplar(config, stream, agg_key, value, time, filtered_attrs, ctx) do
+    filter = Map.get(config, :exemplar_filter, :trace_based)
+    reservoir = get_reservoir(config.exemplars_tab, stream, agg_key)
+
+    updated =
+      Otel.SDK.Metrics.Exemplar.Reservoir.offer_to(
+        reservoir,
+        filter,
+        value,
+        time,
+        filtered_attrs,
+        ctx
+      )
+
+    put_reservoir(config.exemplars_tab, agg_key, updated)
+  end
+
+  @spec get_reservoir(
+          exemplars_tab :: :ets.table(),
+          stream :: Otel.SDK.Metrics.Stream.t(),
+          agg_key :: term()
+        ) :: {module(), term()} | nil
+  defp get_reservoir(exemplars_tab, stream, agg_key) do
+    case :ets.lookup(exemplars_tab, agg_key) do
+      [{^agg_key, reservoir}] ->
+        reservoir
+
+      [] ->
+        case stream.exemplar_reservoir do
+          nil ->
+            nil
+
+          module ->
+            opts = reservoir_opts(stream)
+            {module, module.new(opts)}
+        end
+    end
+  end
+
+  @spec put_reservoir(exemplars_tab :: :ets.table(), agg_key :: term(), reservoir :: term()) ::
+          :ok
+  defp put_reservoir(_exemplars_tab, _agg_key, nil), do: :ok
+
+  defp put_reservoir(exemplars_tab, agg_key, reservoir) do
+    :ets.insert(exemplars_tab, {agg_key, reservoir})
+    :ok
+  end
+
+  @spec reservoir_opts(stream :: Otel.SDK.Metrics.Stream.t()) :: map()
+  defp reservoir_opts(stream) do
+    case stream.aggregation do
+      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram ->
+        boundaries =
+          Map.get(
+            stream.aggregation_options,
+            :boundaries,
+            Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.default_boundaries()
+          )
+
+        %{boundaries: boundaries}
+
+      _ ->
+        %{size: 1}
+    end
   end
 
   @spec lookup_callback_streams(config :: map(), entries :: [tuple()]) ::

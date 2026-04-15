@@ -87,5 +87,73 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert metric.scope.name == "test_lib"
     end
+
+    test "datapoints include exemplars list", %{meter: meter, config: config} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "ex_counter", [])
+      Otel.SDK.Metrics.Meter.record(meter, "ex_counter", 1, %{})
+
+      [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
+      [dp] = metric.datapoints
+      assert Map.has_key?(dp, :exemplars)
+      assert is_list(dp.exemplars)
+    end
+
+    test "exemplars collected with always_on filter" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "sampled", [])
+      Otel.SDK.Metrics.Meter.record(meter, "sampled", 42, %{method: "GET"})
+
+      [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
+      [dp] = metric.datapoints
+      assert dp.exemplars != []
+      assert hd(dp.exemplars).value == 42
+    end
+
+    test "no exemplars with always_off filter" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_off})
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "not_sampled", [])
+      Otel.SDK.Metrics.Meter.record(meter, "not_sampled", 1, %{})
+
+      [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
+      [dp] = metric.datapoints
+      assert dp.exemplars == []
+    end
+
+    test "exemplars reset after collect" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "reset_test", [])
+      Otel.SDK.Metrics.Meter.record(meter, "reset_test", 1, %{})
+
+      [_] = Otel.SDK.Metrics.MetricReader.collect(config)
+
+      Otel.SDK.Metrics.Meter.record(meter, "reset_test", 2, %{})
+      [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
+      [dp] = metric.datapoints
+      assert hd(dp.exemplars).value == 2
+    end
   end
 end
