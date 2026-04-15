@@ -47,6 +47,8 @@ defmodule Otel.SDK.Metrics.MetricReader do
         []
 
       points ->
+        points_with_exemplars = attach_exemplars(config, stream_key, points)
+
         [
           %{
             name: stream.name,
@@ -55,9 +57,44 @@ defmodule Otel.SDK.Metrics.MetricReader do
             scope: stream.instrument.scope,
             resource: config.resource,
             kind: stream.instrument.kind,
-            datapoints: points
+            datapoints: points_with_exemplars
           }
         ]
+    end
+  end
+
+  @spec attach_exemplars(
+          config :: map(),
+          stream_key :: {String.t(), Otel.API.InstrumentationScope.t()},
+          datapoints :: [Otel.SDK.Metrics.Aggregation.datapoint()]
+        ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
+  defp attach_exemplars(config, {stream_name, scope}, datapoints) do
+    exemplars_tab = Map.get(config, :exemplars_tab)
+
+    if exemplars_tab == nil do
+      datapoints
+    else
+      Enum.map(datapoints, fn dp ->
+        agg_key = {stream_name, scope, dp.attributes}
+        collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp)
+      end)
+    end
+  end
+
+  @spec collect_exemplar_for_datapoint(
+          exemplars_tab :: :ets.table(),
+          agg_key :: term(),
+          dp :: Otel.SDK.Metrics.Aggregation.datapoint()
+        ) :: map()
+  defp collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp) do
+    case :ets.lookup(exemplars_tab, agg_key) do
+      [{^agg_key, reservoir}] ->
+        {exemplars, updated} = Otel.SDK.Metrics.Exemplar.Reservoir.collect_from(reservoir)
+        :ets.insert(exemplars_tab, {agg_key, updated})
+        Map.put(dp, :exemplars, exemplars)
+
+      [] ->
+        Map.put(dp, :exemplars, [])
     end
   end
 end
