@@ -85,7 +85,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [View System](decisions/view-system.md)
 - [x] [Aggregation Types](decisions/aggregation-types.md)
 - [x] [Async Observations & Cardinality Limits](decisions/async-observations-and-cardinality-limits.md)
-- [ ] [Exemplar System](decisions/exemplar-system.md)
+- [x] [Exemplar System](decisions/exemplar-system.md)
 - [ ] [MetricReader & Periodic Exporting](decisions/metricreader-and-periodic-exporting.md)
 - [ ] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
 
