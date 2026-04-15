@@ -1,11 +1,27 @@
 defmodule Otel.SDK.Metrics.MeterProviderTest.OkReader do
-  def shutdown(_config), do: :ok
-  def force_flush(_config), do: :ok
+  use GenServer
+  def start_link(config), do: GenServer.start_link(__MODULE__, config)
+  def shutdown(pid), do: GenServer.call(pid, :shutdown)
+  def force_flush(pid), do: GenServer.call(pid, :force_flush)
+
+  @impl true
+  def init(config), do: {:ok, config}
+  @impl true
+  def handle_call(:shutdown, _from, state), do: {:reply, :ok, state}
+  def handle_call(:force_flush, _from, state), do: {:reply, :ok, state}
 end
 
 defmodule Otel.SDK.Metrics.MeterProviderTest.FailReader do
-  def shutdown(_config), do: {:error, :shutdown_failed}
-  def force_flush(_config), do: {:error, :flush_failed}
+  use GenServer
+  def start_link(config), do: GenServer.start_link(__MODULE__, config)
+  def shutdown(pid), do: GenServer.call(pid, :shutdown)
+  def force_flush(pid), do: GenServer.call(pid, :force_flush)
+
+  @impl true
+  def init(config), do: {:ok, config}
+  @impl true
+  def handle_call(:shutdown, _from, state), do: {:reply, {:error, :shutdown_failed}, state}
+  def handle_call(:force_flush, _from, state), do: {:reply, {:error, :flush_failed}, state}
 end
 
 defmodule Otel.SDK.Metrics.MeterProviderTest do

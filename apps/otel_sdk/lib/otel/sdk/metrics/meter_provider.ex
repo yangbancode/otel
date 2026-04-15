@@ -117,6 +117,17 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       |> Map.put(:metrics_tab, metrics_tab)
       |> Map.put(:callbacks_tab, callbacks_tab)
 
+    reader_meter_config = %{
+      resource: config.resource,
+      instruments_tab: instruments_tab,
+      streams_tab: streams_tab,
+      metrics_tab: metrics_tab,
+      callbacks_tab: callbacks_tab
+    }
+
+    started_readers = start_readers(config.readers, reader_meter_config)
+    config = Map.put(config, :readers, started_readers)
+
     Otel.API.Metrics.MeterProvider.set_provider(__MODULE__)
     {:ok, config}
   end
@@ -196,16 +207,28 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     }
   end
 
-  @spec invoke_all_readers(
+  @spec start_readers(
           readers :: [{module(), map()}],
+          meter_config :: map()
+        ) :: [{module(), pid()}]
+  defp start_readers(readers, meter_config) do
+    Enum.map(readers, fn {reader_module, reader_config} ->
+      full_config = Map.put(reader_config, :meter_config, meter_config)
+      {:ok, pid} = reader_module.start_link(full_config)
+      {reader_module, pid}
+    end)
+  end
+
+  @spec invoke_all_readers(
+          readers :: [{module(), pid()}],
           function :: :shutdown | :force_flush
         ) :: :ok | {:error, [{module(), term()}]}
   defp invoke_all_readers(readers, function) do
     results =
-      Enum.reduce(readers, [], fn {reader, reader_config}, errors ->
-        case apply(reader, function, [reader_config]) do
+      Enum.reduce(readers, [], fn {reader_module, reader_pid}, errors ->
+        case apply(reader_module, function, [reader_pid]) do
           :ok -> errors
-          {:error, reason} -> [{reader, reason} | errors]
+          {:error, reason} -> [{reader_module, reason} | errors]
         end
       end)
 
