@@ -68,6 +68,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
+- [ ] [OTLP Metrics Exporter](decisions/otlp-metrics-exporter.md)
 
 ### Environment Variables
 - [x] [OTLP Environment Variables](decisions/otlp-environment-variables.md)
@@ -110,6 +111,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
 
 ## Finalization
+- [ ] [Exemplar Pipeline Integration](decisions/exemplar-pipeline-integration.md)
+- [ ] [Metrics Temporality](decisions/metrics-temporality.md)
 - [ ] [Error Handling](decisions/error-handling.md)
 - [ ] [Metrics ETS Key Optimization](decisions/metrics-ets-key-optimization.md)
 - [ ] [hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
