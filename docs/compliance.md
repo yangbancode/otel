@@ -1284,45 +1284,45 @@
 
 ### MetricReader (Stable)
 
-- [ ] MetricReader construction SHOULD be provided with an exporter — [L1302](../references/opentelemetry-specification/specification/metrics/sdk.md#L1302)
-- [ ] Default output aggregation function SHOULD be obtained from the exporter; if not configured, default aggregation SHOULD be used — [L1305](../references/opentelemetry-specification/specification/metrics/sdk.md#L1305)
+- [x] MetricReader construction SHOULD be provided with an exporter — [L1302](../references/opentelemetry-specification/specification/metrics/sdk.md#L1302)
+- [x] Default output aggregation function SHOULD be obtained from the exporter; if not configured, default aggregation SHOULD be used — [L1305](../references/opentelemetry-specification/specification/metrics/sdk.md#L1305)
 - [ ] Output temporality function SHOULD be obtained from the exporter; if not configured, Cumulative temporality SHOULD be used — [L1306](../references/opentelemetry-specification/specification/metrics/sdk.md#L1306)
-- [ ] Default cardinality limit, if not configured, a default value of 2000 SHOULD be used — [L1307](../references/opentelemetry-specification/specification/metrics/sdk.md#L1307)
-- [ ] A common implementation, periodic exporting MetricReader, SHOULD be provided — [L1318](../references/opentelemetry-specification/specification/metrics/sdk.md#L1318)
+- [x] Default cardinality limit, if not configured, a default value of 2000 SHOULD be used — [L1307](../references/opentelemetry-specification/specification/metrics/sdk.md#L1307)
+- [x] A common implementation, periodic exporting MetricReader, SHOULD be provided — [L1318](../references/opentelemetry-specification/specification/metrics/sdk.md#L1318)
 - [ ] MetricReader MUST ensure data points from OTel instruments are output in the configured aggregation temporality — [L1321](../references/opentelemetry-specification/specification/metrics/sdk.md#L1321)
 - [ ] For synchronous instruments with Cumulative temporality, Collect MUST receive data points exposed in previous collections — [L1339](../references/opentelemetry-specification/specification/metrics/sdk.md#L1339)
 - [ ] For synchronous instruments with Delta temporality, Collect MUST only receive data points with measurements recorded since the previous collection — [L1342](../references/opentelemetry-specification/specification/metrics/sdk.md#L1342)
 - [ ] For asynchronous instruments with Delta or Cumulative temporality, Collect MUST only receive data points with measurements recorded since previous collection — [L1345](../references/opentelemetry-specification/specification/metrics/sdk.md#L1345)
 - [ ] For Cumulative temporality, successive data points MUST repeat the same starting timestamps — [L1354](../references/opentelemetry-specification/specification/metrics/sdk.md#L1354)
 - [ ] For Delta temporality, successive data points MUST advance the starting timestamp — [L1357](../references/opentelemetry-specification/specification/metrics/sdk.md#L1357)
-- [ ] Ending timestamp MUST always be equal to time the metric data point took effect (when Collect was invoked) — [L1359](../references/opentelemetry-specification/specification/metrics/sdk.md#L1359)
-- [ ] SDK MUST support multiple MetricReader instances on the same MeterProvider — [L1365](../references/opentelemetry-specification/specification/metrics/sdk.md#L1365)
+- [x] Ending timestamp MUST always be equal to time the metric data point took effect (when Collect was invoked) — [L1359](../references/opentelemetry-specification/specification/metrics/sdk.md#L1359)
+- [x] SDK MUST support multiple MetricReader instances on the same MeterProvider — [L1365](../references/opentelemetry-specification/specification/metrics/sdk.md#L1365)
 - [ ] Collect on one MetricReader SHOULD NOT introduce side-effects to other MetricReader instances — [L1367](../references/opentelemetry-specification/specification/metrics/sdk.md#L1367)
 - [ ] SDK MUST NOT allow a MetricReader instance to be registered on more than one MeterProvider — [L1374](../references/opentelemetry-specification/specification/metrics/sdk.md#L1374)
-- [ ] SDK SHOULD provide a way to allow MetricReader to respond to ForceFlush and Shutdown — [L1391](../references/opentelemetry-specification/specification/metrics/sdk.md#L1391)
+- [x] SDK SHOULD provide a way to allow MetricReader to respond to ForceFlush and Shutdown — [L1391](../references/opentelemetry-specification/specification/metrics/sdk.md#L1391)
 
 #### Collect
 
-- [ ] Collect SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1406](../references/opentelemetry-specification/specification/metrics/sdk.md#L1406)
+- [x] Collect SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1406](../references/opentelemetry-specification/specification/metrics/sdk.md#L1406)
 - [ ] Collect SHOULD invoke Produce on registered MetricProducers — [L1416](../references/opentelemetry-specification/specification/metrics/sdk.md#L1416)
 
 #### Shutdown
 
-- [ ] Shutdown MUST be called only once for each MetricReader instance — [L1430](../references/opentelemetry-specification/specification/metrics/sdk.md#L1430)
-- [ ] After Shutdown, subsequent Collect invocations are not allowed; SDKs SHOULD return failure — [L1431](../references/opentelemetry-specification/specification/metrics/sdk.md#L1431)
-- [ ] Shutdown SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1434](../references/opentelemetry-specification/specification/metrics/sdk.md#L1434)
-- [ ] Shutdown SHOULD complete or abort within some timeout — [L1437](../references/opentelemetry-specification/specification/metrics/sdk.md#L1437)
+- [x] Shutdown MUST be called only once for each MetricReader instance — [L1430](../references/opentelemetry-specification/specification/metrics/sdk.md#L1430)
+- [x] After Shutdown, subsequent Collect invocations are not allowed; SDKs SHOULD return failure — [L1431](../references/opentelemetry-specification/specification/metrics/sdk.md#L1431)
+- [x] Shutdown SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1434](../references/opentelemetry-specification/specification/metrics/sdk.md#L1434)
+- [x] Shutdown SHOULD complete or abort within some timeout — [L1437](../references/opentelemetry-specification/specification/metrics/sdk.md#L1437)
 
 ### Periodic Exporting MetricReader
 
-- [ ] Reader MUST synchronize calls to MetricExporter's Export to make sure they are not invoked concurrently — [L1455](../references/opentelemetry-specification/specification/metrics/sdk.md#L1455)
+- [x] Reader MUST synchronize calls to MetricExporter's Export to make sure they are not invoked concurrently — [L1455](../references/opentelemetry-specification/specification/metrics/sdk.md#L1455)
 
 #### ForceFlush (Periodic)
 
-- [ ] ForceFlush SHOULD collect metrics, call Export(batch) and ForceFlush() on the configured Push Metric Exporter — [L1478](../references/opentelemetry-specification/specification/metrics/sdk.md#L1478)
-- [ ] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1482](../references/opentelemetry-specification/specification/metrics/sdk.md#L1482)
-- [ ] ForceFlush SHOULD return ERROR status if there is an error condition — [L1483](../references/opentelemetry-specification/specification/metrics/sdk.md#L1483)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L1488](../references/opentelemetry-specification/specification/metrics/sdk.md#L1488)
+- [x] ForceFlush SHOULD collect metrics, call Export(batch) and ForceFlush() on the configured Push Metric Exporter — [L1478](../references/opentelemetry-specification/specification/metrics/sdk.md#L1478)
+- [x] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1482](../references/opentelemetry-specification/specification/metrics/sdk.md#L1482)
+- [x] ForceFlush SHOULD return ERROR status if there is an error condition — [L1483](../references/opentelemetry-specification/specification/metrics/sdk.md#L1483)
+- [x] ForceFlush SHOULD complete or abort within some timeout — [L1488](../references/opentelemetry-specification/specification/metrics/sdk.md#L1488)
 
 ### MetricExporter (Stable)
 
