@@ -1326,38 +1326,38 @@
 
 ### MetricExporter (Stable)
 
-- [ ] MetricExporter defines the interface that protocol-specific exporters MUST implement — [L1496](../references/opentelemetry-specification/specification/metrics/sdk.md#L1496)
+- [x] MetricExporter defines the interface that protocol-specific exporters MUST implement — [L1496](../references/opentelemetry-specification/specification/metrics/sdk.md#L1496)
 - [ ] Metric Exporters SHOULD report an error for unsupported Aggregation or Aggregation Temporality — [L1512](../references/opentelemetry-specification/specification/metrics/sdk.md#L1512)
 
 #### Push Metric Exporter
 
-- [ ] Push Metric Exporter MUST support Export(batch), ForceFlush, Shutdown functions — [L1557](../references/opentelemetry-specification/specification/metrics/sdk.md#L1557)
+- [x] Push Metric Exporter MUST support Export(batch), ForceFlush, Shutdown functions — [L1557](../references/opentelemetry-specification/specification/metrics/sdk.md#L1557)
 
 ##### Export(batch)
 
-- [ ] SDK MUST provide a way for exporter to get Meter information associated with each Metric Point — [L1565](../references/opentelemetry-specification/specification/metrics/sdk.md#L1565)
+- [x] SDK MUST provide a way for exporter to get Meter information associated with each Metric Point — [L1565](../references/opentelemetry-specification/specification/metrics/sdk.md#L1565)
 - [ ] Export MUST NOT block indefinitely; there MUST be a reasonable upper limit timeout — [L1571](../references/opentelemetry-specification/specification/metrics/sdk.md#L1571)
-- [ ] Default SDK SHOULD NOT implement retry logic — [L1575](../references/opentelemetry-specification/specification/metrics/sdk.md#L1575)
+- [x] Default SDK SHOULD NOT implement retry logic — [L1575](../references/opentelemetry-specification/specification/metrics/sdk.md#L1575)
 
 ##### ForceFlush (Exporter)
 
-- [ ] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1629](../references/opentelemetry-specification/specification/metrics/sdk.md#L1629)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L1636](../references/opentelemetry-specification/specification/metrics/sdk.md#L1636)
+- [x] ForceFlush SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1629](../references/opentelemetry-specification/specification/metrics/sdk.md#L1629)
+- [x] ForceFlush SHOULD complete or abort within some timeout — [L1636](../references/opentelemetry-specification/specification/metrics/sdk.md#L1636)
 
 ##### Shutdown (Exporter)
 
-- [ ] Shutdown SHOULD be called only once for each MetricExporter instance — [L1646](../references/opentelemetry-specification/specification/metrics/sdk.md#L1646)
+- [x] Shutdown SHOULD be called only once for each MetricExporter instance — [L1646](../references/opentelemetry-specification/specification/metrics/sdk.md#L1646)
 - [ ] After Shutdown, subsequent Export calls should return Failure — [L1647](../references/opentelemetry-specification/specification/metrics/sdk.md#L1647)
-- [ ] Shutdown SHOULD NOT block indefinitely — [L1650](../references/opentelemetry-specification/specification/metrics/sdk.md#L1650)
+- [x] Shutdown SHOULD NOT block indefinitely — [L1650](../references/opentelemetry-specification/specification/metrics/sdk.md#L1650)
 
 ### MetricProducer (Stable)
 
-- [ ] MetricProducer defines the interface which bridges to third-party metric sources MUST implement — [L1707](../references/opentelemetry-specification/specification/metrics/sdk.md#L1707)
+- [x] MetricProducer defines the interface which bridges to third-party metric sources MUST implement — [L1707](../references/opentelemetry-specification/specification/metrics/sdk.md#L1707)
 - [ ] MetricProducer implementations SHOULD accept configuration for AggregationTemporality — [L1711](../references/opentelemetry-specification/specification/metrics/sdk.md#L1711)
-- [ ] MetricProducer MUST support the Produce function — [L1735](../references/opentelemetry-specification/specification/metrics/sdk.md#L1735)
-- [ ] Produce MUST return a batch of Metric Points — [L1740](../references/opentelemetry-specification/specification/metrics/sdk.md#L1740)
+- [x] MetricProducer MUST support the Produce function — [L1735](../references/opentelemetry-specification/specification/metrics/sdk.md#L1735)
+- [x] Produce MUST return a batch of Metric Points — [L1740](../references/opentelemetry-specification/specification/metrics/sdk.md#L1740)
 - [ ] If batch includes resource information, Produce SHOULD require a resource as a parameter — [L1746](../references/opentelemetry-specification/specification/metrics/sdk.md#L1746)
-- [ ] Produce SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1751](../references/opentelemetry-specification/specification/metrics/sdk.md#L1751)
+- [x] Produce SHOULD provide a way to let the caller know whether it succeeded, failed or timed out — [L1751](../references/opentelemetry-specification/specification/metrics/sdk.md#L1751)
 - [ ] If batch can include InstrumentationScope, Produce SHOULD include a single InstrumentationScope identifying the MetricProducer — [L1758](../references/opentelemetry-specification/specification/metrics/sdk.md#L1758)
 
 ### Defaults and Configuration

@@ -87,7 +87,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Async Observations & Cardinality Limits](decisions/async-observations-and-cardinality-limits.md)
 - [x] [Exemplar System](decisions/exemplar-system.md)
 - [x] [MetricReader & Periodic Exporting](decisions/metricreader-and-periodic-exporting.md)
-- [ ] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
+- [x] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
 
 ### Environment Variables
 - [ ] [Metrics Environment Variables](decisions/metrics-environment-variables.md)
