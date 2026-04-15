@@ -155,5 +155,31 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       [dp] = metric.datapoints
       assert hd(dp.exemplars).value == 2
     end
+
+    test "exemplar retains dropped attributes" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "attr_test"},
+        %{attribute_keys: {:include, [:method]}}
+      )
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "attr_test", [])
+      Otel.SDK.Metrics.Meter.record(meter, "attr_test", 1, %{method: "GET", path: "/api"})
+
+      [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
+      [dp] = metric.datapoints
+      assert dp.attributes == %{method: "GET"}
+      exemplar = hd(dp.exemplars)
+      assert exemplar.filtered_attributes == %{path: "/api"}
+    end
   end
 end

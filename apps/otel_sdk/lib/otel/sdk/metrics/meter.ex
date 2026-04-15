@@ -104,7 +104,8 @@ defmodule Otel.SDK.Metrics.Meter do
             stream.aggregation_options
           )
 
-          offer_exemplar(config, stream, agg_key, value, now, filtered_attrs, ctx)
+          dropped_attrs = Map.drop(attributes, Map.keys(filtered_attrs))
+          offer_exemplar(config, stream, agg_key, value, now, dropped_attrs, ctx)
         end)
     end
   end
@@ -364,7 +365,8 @@ defmodule Otel.SDK.Metrics.Meter do
           stream.aggregation_options
         )
 
-        offer_exemplar(config, stream, agg_key, value, now, filtered_attrs, ctx)
+        dropped_attrs = Map.drop(attributes, Map.keys(filtered_attrs))
+        offer_exemplar(config, stream, agg_key, value, now, dropped_attrs, ctx)
       end)
     end)
   end

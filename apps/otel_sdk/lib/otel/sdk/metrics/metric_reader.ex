@@ -85,7 +85,7 @@ defmodule Otel.SDK.Metrics.MetricReader do
           exemplars_tab :: :ets.table(),
           agg_key :: term(),
           dp :: Otel.SDK.Metrics.Aggregation.datapoint()
-        ) :: Otel.SDK.Metrics.Aggregation.datapoint()
+        ) :: map()
   defp collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp) do
     case :ets.lookup(exemplars_tab, agg_key) do
       [{^agg_key, reservoir}] ->
