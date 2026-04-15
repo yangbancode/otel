@@ -89,6 +89,8 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Exemplar System](decisions/exemplar-system.md)
 - [x] [MetricReader & Periodic Exporting](decisions/metricreader-and-periodic-exporting.md)
 - [x] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
+- [ ] [Exemplar Pipeline Integration](decisions/exemplar-pipeline-integration.md)
+- [ ] [Metrics Temporality](decisions/metrics-temporality.md)
 
 ### Environment Variables
 - [x] [Metrics Environment Variables](decisions/metrics-environment-variables.md)
@@ -111,8 +113,6 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
 
 ## Finalization
-- [ ] [Exemplar Pipeline Integration](decisions/exemplar-pipeline-integration.md)
-- [ ] [Metrics Temporality](decisions/metrics-temporality.md)
 - [ ] [Error Handling](decisions/error-handling.md)
 - [ ] [Metrics ETS Key Optimization](decisions/metrics-ets-key-optimization.md)
 - [ ] [hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
