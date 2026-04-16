@@ -299,7 +299,6 @@ defmodule Otel.Exporter.OTLP.Encoder do
   @spec encode_number_value(value :: number()) ::
           {:as_int, integer()} | {:as_double, float()}
   defp encode_number_value(value) when is_integer(value), do: {:as_int, value}
-  defp encode_number_value(value) when is_float(value), do: {:as_double, value}
   defp encode_number_value(value), do: {:as_double, value + 0.0}
 
   @spec encode_optional_double(value :: number() | :unset) :: float() | nil

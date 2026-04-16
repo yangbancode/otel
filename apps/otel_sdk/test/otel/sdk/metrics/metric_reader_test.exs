@@ -201,4 +201,43 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       assert metrics == []
     end
   end
+
+  describe "exemplar edge cases" do
+    test "collect with nil exemplars_tab skips exemplar attachment" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "no_exemplars_counter", [])
+      Otel.SDK.Metrics.Meter.record(meter, "no_exemplars_counter", 1, %{k: "v"})
+
+      config_no_exemplars = Map.put(config, :exemplars_tab, nil)
+      metrics = Otel.SDK.Metrics.MetricReader.collect(config_no_exemplars)
+      assert [metric] = metrics
+      [dp] = metric.datapoints
+      refute Map.has_key?(dp, :exemplars)
+    end
+
+    test "collect returns empty exemplars when no reservoir exists in ETS" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "no_reservoir_counter", [])
+      Otel.SDK.Metrics.Meter.record(meter, "no_reservoir_counter", 1, %{k: "v"})
+
+      :ets.delete_all_objects(config.exemplars_tab)
+
+      metrics = Otel.SDK.Metrics.MetricReader.collect(config)
+      assert [metric] = metrics
+      [dp] = metric.datapoints
+      assert dp.exemplars == []
+    end
+  end
 end

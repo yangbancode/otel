@@ -706,4 +706,45 @@ defmodule Otel.SDK.Metrics.MeterTest do
       assert length(streams) == 2
     end
   end
+
+  describe "exemplar edge cases" do
+    test "counter record with always_off exemplar filter creates empty reservoir" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_off})
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      m = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(m, "no_exemplar_counter", [])
+      Otel.SDK.Metrics.Meter.record(m, "no_exemplar_counter", 1, %{k: "v"})
+
+      [{_key, {_mod, reservoir_state}}] = :ets.tab2list(config.exemplars_tab)
+      assert reservoir_state.count == 0
+    end
+
+    test "gauge recording uses SimpleFixedSize reservoir" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      m = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_gauge(m, "gauge_exemplar", [])
+      Otel.SDK.Metrics.Meter.record(m, "gauge_exemplar", 42, %{k: "v"})
+
+      stream_key = {"gauge_exemplar", config.scope}
+
+      dps =
+        Otel.SDK.Metrics.Aggregation.LastValue.collect(config.metrics_tab, stream_key, %{
+          reader_id: nil,
+          temporality: :cumulative
+        })
+
+      assert dps != []
+    end
+  end
 end

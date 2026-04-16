@@ -417,28 +417,21 @@ defmodule Otel.SDK.Metrics.Meter do
           exemplars_tab :: :ets.table(),
           stream :: Otel.SDK.Metrics.Stream.t(),
           agg_key :: term()
-        ) :: {module(), term()} | nil
+        ) :: {module(), term()}
   defp get_reservoir(exemplars_tab, stream, agg_key) do
     case :ets.lookup(exemplars_tab, agg_key) do
       [{^agg_key, reservoir}] ->
         reservoir
 
       [] ->
-        case stream.exemplar_reservoir do
-          nil ->
-            nil
-
-          module ->
-            opts = reservoir_opts(stream)
-            {module, module.new(opts)}
-        end
+        module = stream.exemplar_reservoir
+        opts = reservoir_opts(stream)
+        {module, module.new(opts)}
     end
   end
 
   @spec put_reservoir(exemplars_tab :: :ets.table(), agg_key :: term(), reservoir :: term()) ::
           :ok
-  defp put_reservoir(_exemplars_tab, _agg_key, nil), do: :ok
-
   defp put_reservoir(exemplars_tab, agg_key, reservoir) do
     :ets.insert(exemplars_tab, {agg_key, reservoir})
     :ok
