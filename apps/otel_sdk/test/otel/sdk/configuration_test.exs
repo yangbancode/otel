@@ -16,7 +16,14 @@ defmodule Otel.SDK.ConfigurationTest do
       "OTEL_METRICS_EXPORTER",
       "OTEL_METRICS_EXEMPLAR_FILTER",
       "OTEL_METRIC_EXPORT_INTERVAL",
-      "OTEL_METRIC_EXPORT_TIMEOUT"
+      "OTEL_METRIC_EXPORT_TIMEOUT",
+      "OTEL_LOGS_EXPORTER",
+      "OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT",
+      "OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT",
+      "OTEL_BLRP_SCHEDULE_DELAY",
+      "OTEL_BLRP_EXPORT_TIMEOUT",
+      "OTEL_BLRP_MAX_QUEUE_SIZE",
+      "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE"
     ]
 
     Enum.each(env_vars, &System.delete_env/1)
@@ -276,6 +283,85 @@ defmodule Otel.SDK.ConfigurationTest do
     test "no metrics key when no env vars set" do
       config = Otel.SDK.Configuration.merge(%{})
       refute Map.has_key?(config, :metrics)
+    end
+  end
+
+  describe "OTEL_LOGS_EXPORTER" do
+    test "otlp" do
+      System.put_env("OTEL_LOGS_EXPORTER", "otlp")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.exporter == :otlp
+    end
+
+    test "console" do
+      System.put_env("OTEL_LOGS_EXPORTER", "console")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.exporter == :console
+    end
+
+    test "none" do
+      System.put_env("OTEL_LOGS_EXPORTER", "none")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.exporter == :none
+    end
+
+    test "unknown defaults to otlp" do
+      System.put_env("OTEL_LOGS_EXPORTER", "unknown")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.exporter == :otlp
+    end
+  end
+
+  describe "OTEL_LOGRECORD_* limits" do
+    test "attribute count limit" do
+      System.put_env("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", "64")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.log_record_limits.attribute_count_limit == 64
+    end
+
+    test "attribute value length limit" do
+      System.put_env("OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT", "256")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.log_record_limits.attribute_value_length_limit == 256
+    end
+
+    test "unparseable value length defaults to infinity" do
+      System.put_env("OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT", "abc")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.log_record_limits.attribute_value_length_limit == :infinity
+    end
+  end
+
+  describe "OTEL_BLRP_*" do
+    test "schedule delay" do
+      System.put_env("OTEL_BLRP_SCHEDULE_DELAY", "2000")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.blrp.scheduled_delay_ms == 2000
+    end
+
+    test "export timeout" do
+      System.put_env("OTEL_BLRP_EXPORT_TIMEOUT", "5000")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.blrp.export_timeout_ms == 5000
+    end
+
+    test "max queue size" do
+      System.put_env("OTEL_BLRP_MAX_QUEUE_SIZE", "1024")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.blrp.max_queue_size == 1024
+    end
+
+    test "max export batch size" do
+      System.put_env("OTEL_BLRP_MAX_EXPORT_BATCH_SIZE", "256")
+      config = Otel.SDK.Configuration.merge(%{})
+      assert config.logs.blrp.max_export_batch_size == 256
+    end
+  end
+
+  describe "logs env vars unset" do
+    test "no logs key when no env vars set" do
+      config = Otel.SDK.Configuration.merge(%{})
+      refute Map.has_key?(config, :logs)
     end
   end
 end

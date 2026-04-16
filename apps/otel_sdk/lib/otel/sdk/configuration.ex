@@ -44,6 +44,7 @@ defmodule Otel.SDK.Configuration do
     |> maybe_put_sampler()
     |> maybe_put_span_limits()
     |> maybe_put_metrics_env()
+    |> maybe_put_logs_env()
   end
 
   # --- Sampler ---
@@ -166,6 +167,72 @@ defmodule Otel.SDK.Configuration do
   @spec maybe_put_metric_export_timeout(config :: map()) :: map()
   defp maybe_put_metric_export_timeout(config) do
     maybe_put_int(config, :export_timeout_ms, "OTEL_METRIC_EXPORT_TIMEOUT")
+  end
+
+  # --- Logs ---
+
+  @spec maybe_put_logs_env(config :: map()) :: map()
+  defp maybe_put_logs_env(config) do
+    logs = %{}
+    logs = maybe_put_logs_exporter(logs)
+    logs = maybe_put_log_record_limits(logs)
+    logs = maybe_put_blrp_env(logs)
+
+    if map_size(logs) > 0 do
+      Map.put(config, :logs, logs)
+    else
+      config
+    end
+  end
+
+  @spec maybe_put_logs_exporter(config :: map()) :: map()
+  defp maybe_put_logs_exporter(config) do
+    case get_env("OTEL_LOGS_EXPORTER") do
+      nil -> config
+      value -> Map.put(config, :exporter, parse_logs_exporter(value))
+    end
+  end
+
+  @spec parse_logs_exporter(value :: String.t()) :: atom()
+  defp parse_logs_exporter("otlp"), do: :otlp
+  defp parse_logs_exporter("console"), do: :console
+  defp parse_logs_exporter("none"), do: :none
+  defp parse_logs_exporter(_), do: :otlp
+
+  @spec maybe_put_log_record_limits(config :: map()) :: map()
+  defp maybe_put_log_record_limits(config) do
+    limits = %{}
+
+    limits =
+      maybe_put_int(limits, :attribute_count_limit, "OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT")
+
+    limits =
+      maybe_put_int_or_infinity(
+        limits,
+        :attribute_value_length_limit,
+        "OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT"
+      )
+
+    if map_size(limits) > 0 do
+      Map.put(config, :log_record_limits, struct(Otel.SDK.Logs.LogRecordLimits, limits))
+    else
+      config
+    end
+  end
+
+  @spec maybe_put_blrp_env(config :: map()) :: map()
+  defp maybe_put_blrp_env(config) do
+    blrp = %{}
+    blrp = maybe_put_int(blrp, :scheduled_delay_ms, "OTEL_BLRP_SCHEDULE_DELAY")
+    blrp = maybe_put_int(blrp, :export_timeout_ms, "OTEL_BLRP_EXPORT_TIMEOUT")
+    blrp = maybe_put_int(blrp, :max_queue_size, "OTEL_BLRP_MAX_QUEUE_SIZE")
+    blrp = maybe_put_int(blrp, :max_export_batch_size, "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE")
+
+    if map_size(blrp) > 0 do
+      Map.put(config, :blrp, blrp)
+    else
+      config
+    end
   end
 
   # --- Parsing helpers ---
