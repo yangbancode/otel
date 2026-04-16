@@ -1504,11 +1504,11 @@
 - [ ] A function receiving ReadWriteLogRecord MUST additionally be able to modify Timestamp, ObservedTimestamp, SeverityText, SeverityNumber, Body, Attributes, TraceId, SpanId, TraceFlags, EventName — [L302](../references/opentelemetry-specification/specification/logs/sdk.md#L302)
 
 ### LogRecord Limits
-- [ ] LogRecord attributes MUST adhere to common rules of attribute limits — [L323](../references/opentelemetry-specification/specification/logs/sdk.md#L323)
-- [ ] If SDK implements attribute limits, it MUST provide a way to change them via LoggerProvider configuration — [L326](../references/opentelemetry-specification/specification/logs/sdk.md#L326)
-- [ ] Options SHOULD be called LogRecordLimits — [L331](../references/opentelemetry-specification/specification/logs/sdk.md#L331)
-- [ ] There SHOULD be a message in SDK log when attribute is discarded due to limit — [L345](../references/opentelemetry-specification/specification/logs/sdk.md#L345)
-- [ ] The message MUST be printed at most once per LogRecord — [L347](../references/opentelemetry-specification/specification/logs/sdk.md#L347)
+- [x] LogRecord attributes MUST adhere to common rules of attribute limits — [L323](../references/opentelemetry-specification/specification/logs/sdk.md#L323)
+- [x] If SDK implements attribute limits, it MUST provide a way to change them via LoggerProvider configuration — [L326](../references/opentelemetry-specification/specification/logs/sdk.md#L326)
+- [x] Options SHOULD be called LogRecordLimits — [L331](../references/opentelemetry-specification/specification/logs/sdk.md#L331)
+- [x] There SHOULD be a message in SDK log when attribute is discarded due to limit — [L345](../references/opentelemetry-specification/specification/logs/sdk.md#L345)
+- [x] The message MUST be printed at most once per LogRecord — [L347](../references/opentelemetry-specification/specification/logs/sdk.md#L347)
 
 ### LogRecordProcessor
 - [ ] SDK MUST allow each pipeline to end with an individual exporter — [L363](../references/opentelemetry-specification/specification/logs/sdk.md#L363)
