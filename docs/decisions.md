@@ -100,7 +100,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ## Phase 4: Logs
 
 ### Logs API
-- [ ] [Logs API](decisions/logs-api.md)
+- [x] [Logs API](decisions/logs-api.md)
 
 ### Logs SDK
 - [ ] [LoggerProvider SDK](decisions/loggerprovider-sdk.md)
