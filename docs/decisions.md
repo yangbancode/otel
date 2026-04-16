@@ -107,7 +107,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [LogRecord Limits](decisions/logrecord-limits.md)
 - [x] [LogRecordProcessor Interface](decisions/logrecordprocessor-interface.md)
 - [x] [LogRecordExporter Interface](decisions/logrecordexporter-interface.md)
-- [ ] [Simple LogRecord Processor](decisions/simple-logrecord-processor.md)
+- [x] [Simple LogRecord Processor](decisions/simple-logrecord-processor.md)
 - [ ] [Console Log Exporter](decisions/console-log-exporter.md)
 - [ ] [Batch LogRecord Processor](decisions/batch-logrecord-processor.md)
 

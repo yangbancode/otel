@@ -1542,7 +1542,7 @@
 - [x] Other common processing scenarios SHOULD be first considered for out-of-process implementation — [L510](../references/opentelemetry-specification/specification/logs/sdk.md#L510)
 
 ### Simple Processor
-- [ ] Processor MUST synchronize calls to LogRecordExporter's Export — [L521](../references/opentelemetry-specification/specification/logs/sdk.md#L521)
+- [x] Processor MUST synchronize calls to LogRecordExporter's Export — [L521](../references/opentelemetry-specification/specification/logs/sdk.md#L521)
 
 ### Batching Processor
 - [ ] Processor MUST synchronize calls to LogRecordExporter's Export — [L534](../references/opentelemetry-specification/specification/logs/sdk.md#L534)
