@@ -109,7 +109,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [LogRecordExporter Interface](decisions/logrecordexporter-interface.md)
 - [x] [Simple LogRecord Processor](decisions/simple-logrecord-processor.md)
 - [x] [Console Log Exporter](decisions/console-log-exporter.md)
-- [ ] [Batch LogRecord Processor](decisions/batch-logrecord-processor.md)
+- [x] [Batch LogRecord Processor](decisions/batch-logrecord-processor.md)
 
 ### OTLP
 - [ ] [OTLP Logs Exporter](decisions/otlp-logs-exporter.md)
