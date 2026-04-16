@@ -127,4 +127,5 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Error Handling](decisions/error-handling.md)
 - [ ] [Metrics ETS Key Optimization](decisions/metrics-ets-key-optimization.md)
 - [ ] [Integration Tests](decisions/integration-tests.md)
+- [ ] [E2E Environment Strategy](decisions/e2e-environment-strategy.md)
 - [ ] [hex.pm Publishing Strategy](decisions/hex-publishing-strategy.md)
