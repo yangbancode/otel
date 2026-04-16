@@ -31,8 +31,19 @@ defmodule Otel.SDK.Logs.Logger do
           logger :: Otel.API.Logs.Logger.t(),
           opts :: keyword()
         ) :: boolean()
-  def enabled?({_module, config}, _opts) do
-    get_processors(config) != []
+  def enabled?({_module, config}, opts) do
+    processors = get_processors(config)
+
+    case processors do
+      [] ->
+        false
+
+      _ ->
+        not Enum.all?(processors, fn {processor, processor_config} ->
+          function_exported?(processor, :enabled?, 2) and
+            not processor.enabled?(opts, processor_config)
+        end)
+    end
   end
 
   @spec get_processors(config :: map()) :: [{module(), map()}]
