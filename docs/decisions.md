@@ -103,7 +103,16 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [ ] [Logs API](decisions/logs-api.md)
 
 ### Logs SDK
-- [ ] [Logs SDK](decisions/logs-sdk.md)
+- [ ] [LoggerProvider SDK](decisions/loggerprovider-sdk.md)
+- [ ] [LogRecord Limits](decisions/logrecord-limits.md)
+- [ ] [LogRecordProcessor Interface](decisions/logrecordprocessor-interface.md)
+- [ ] [LogRecordExporter Interface](decisions/logrecordexporter-interface.md)
+- [ ] [Simple LogRecord Processor](decisions/simple-logrecord-processor.md)
+- [ ] [Console Log Exporter](decisions/console-log-exporter.md)
+- [ ] [Batch LogRecord Processor](decisions/batch-logrecord-processor.md)
+
+### OTLP
+- [ ] [OTLP Logs Exporter](decisions/otlp-logs-exporter.md)
 
 ### :logger Integration
 - [ ] [:logger Integration](decisions/logger-integration.md)
