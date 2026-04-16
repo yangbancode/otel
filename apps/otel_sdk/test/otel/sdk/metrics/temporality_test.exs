@@ -163,6 +163,44 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
 
       GenServer.stop(pid)
     end
+
+    test "observable_updown_counter is not monotonic" do
+      %{meter: meter, config: config, provider: pid} = setup_default_provider()
+
+      cb = fn _args -> [{10, %{}}] end
+
+      Otel.SDK.Metrics.Meter.create_observable_updown_counter(
+        meter,
+        "queue_size",
+        cb,
+        nil,
+        []
+      )
+
+      [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
+      assert metric.temporality == :cumulative
+      assert metric.is_monotonic == false
+
+      GenServer.stop(pid)
+    end
+
+    test "cumulative start_time is stable across collections" do
+      %{meter: meter, config: config, provider: pid} = setup_default_provider()
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "stable", [])
+      Otel.SDK.Metrics.Meter.record(meter, "stable", 1, %{})
+
+      [m1] = Otel.SDK.Metrics.MetricReader.collect(config)
+      start1 = hd(m1.datapoints).start_time
+
+      Otel.SDK.Metrics.Meter.record(meter, "stable", 1, %{})
+      [m2] = Otel.SDK.Metrics.MetricReader.collect(config)
+      start2 = hd(m2.datapoints).start_time
+
+      assert start1 == start2
+
+      GenServer.stop(pid)
+    end
   end
 
   describe "delta temporality with reader" do
@@ -198,6 +236,23 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "empty_delta", [])
       Otel.SDK.Metrics.Meter.record(meter, "empty_delta", 5, %{})
+
+      {:ok, [_]} =
+        Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
+
+      {:ok, metrics} =
+        Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
+
+      assert metrics == []
+
+      GenServer.stop(pid)
+    end
+
+    test "histogram with no new measurements returns empty" do
+      %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
+
+      Otel.SDK.Metrics.Meter.create_histogram(meter, "empty_hist", [])
+      Otel.SDK.Metrics.Meter.record(meter, "empty_hist", 10, %{})
 
       {:ok, [_]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
