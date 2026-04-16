@@ -1548,27 +1548,27 @@
 - [ ] Processor MUST synchronize calls to LogRecordExporter's Export — [L534](../references/opentelemetry-specification/specification/logs/sdk.md#L534)
 
 ### LogRecordExporter
-- [ ] Each implementation MUST document the concurrency characteristics the SDK requires — [L559](../references/opentelemetry-specification/specification/logs/sdk.md#L559)
-- [ ] LogRecordExporter MUST support Export, ForceFlush, and Shutdown functions — [L563](../references/opentelemetry-specification/specification/logs/sdk.md#L563)
+- [x] Each implementation MUST document the concurrency characteristics the SDK requires — [L559](../references/opentelemetry-specification/specification/logs/sdk.md#L559)
+- [x] LogRecordExporter MUST support Export, ForceFlush, and Shutdown functions — [L563](../references/opentelemetry-specification/specification/logs/sdk.md#L563)
 
 ### Export
-- [ ] Export MUST NOT block indefinitely, there MUST be a reasonable upper limit (timeout with Failure) — [L582](../references/opentelemetry-specification/specification/logs/sdk.md#L582)
-- [ ] Default SDK's LogRecordProcessors SHOULD NOT implement retry logic — [L586](../references/opentelemetry-specification/specification/logs/sdk.md#L586)
+- [x] Export MUST NOT block indefinitely, there MUST be a reasonable upper limit (timeout with Failure) — [L582](../references/opentelemetry-specification/specification/logs/sdk.md#L582)
+- [x] Default SDK's LogRecordProcessors SHOULD NOT implement retry logic — [L586](../references/opentelemetry-specification/specification/logs/sdk.md#L586)
 
 ### Exporter ForceFlush
-- [ ] ForceFlush SHOULD provide a way to let caller know success/failure/timeout — [L620](../references/opentelemetry-specification/specification/logs/sdk.md#L620)
-- [ ] ForceFlush SHOULD only be called in absolutely necessary cases — [L622](../references/opentelemetry-specification/specification/logs/sdk.md#L622)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L627](../references/opentelemetry-specification/specification/logs/sdk.md#L627)
+- [x] ForceFlush SHOULD provide a way to let caller know success/failure/timeout — [L620](../references/opentelemetry-specification/specification/logs/sdk.md#L620)
+- [x] ForceFlush SHOULD only be called in absolutely necessary cases — [L622](../references/opentelemetry-specification/specification/logs/sdk.md#L622)
+- [x] ForceFlush SHOULD complete or abort within some timeout — [L627](../references/opentelemetry-specification/specification/logs/sdk.md#L627)
 
 ### Exporter Shutdown
-- [ ] Shutdown SHOULD be called only once for each LogRecordExporter instance — [L637](../references/opentelemetry-specification/specification/logs/sdk.md#L637)
-- [ ] After Shutdown, subsequent calls to Export are not allowed and SHOULD return Failure — [L638](../references/opentelemetry-specification/specification/logs/sdk.md#L638)
-- [ ] Shutdown SHOULD NOT block indefinitely — [L640](../references/opentelemetry-specification/specification/logs/sdk.md#L640)
+- [x] Shutdown SHOULD be called only once for each LogRecordExporter instance — [L637](../references/opentelemetry-specification/specification/logs/sdk.md#L637)
+- [x] After Shutdown, subsequent calls to Export are not allowed and SHOULD return Failure — [L638](../references/opentelemetry-specification/specification/logs/sdk.md#L638)
+- [x] Shutdown SHOULD NOT block indefinitely — [L640](../references/opentelemetry-specification/specification/logs/sdk.md#L640)
 
 ### Concurrency Requirements (SDK)
 - [x] LoggerProvider: Logger creation, ForceFlush, and Shutdown MUST be safe to be called concurrently — [L654](../references/opentelemetry-specification/specification/logs/sdk.md#L654)
 - [x] Logger: all methods MUST be safe to be called concurrently — [L657](../references/opentelemetry-specification/specification/logs/sdk.md#L657)
-- [ ] LogRecordExporter: ForceFlush and Shutdown MUST be safe to be called concurrently — [L659](../references/opentelemetry-specification/specification/logs/sdk.md#L659)
+- [x] LogRecordExporter: ForceFlush and Shutdown MUST be safe to be called concurrently — [L659](../references/opentelemetry-specification/specification/logs/sdk.md#L659)
 
 ---
 
