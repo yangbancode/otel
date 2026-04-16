@@ -136,5 +136,67 @@ defmodule Otel.SDK.Metrics.InstrumentTest do
     test "empty advisory returns empty" do
       assert [] = Otel.SDK.Metrics.Instrument.validate_advisory(:counter, [])
     end
+
+    test "valid attributes advisory accepted for any kind" do
+      assert [attributes: [:method, :status]] =
+               Otel.SDK.Metrics.Instrument.validate_advisory(:counter,
+                 attributes: [:method, :status]
+               )
+    end
+
+    test "attributes advisory accepted for histogram" do
+      assert [attributes: [:path]] =
+               Otel.SDK.Metrics.Instrument.validate_advisory(:histogram, attributes: [:path])
+    end
+
+    test "attributes and boundaries together" do
+      result =
+        Otel.SDK.Metrics.Instrument.validate_advisory(:histogram,
+          explicit_bucket_boundaries: [1, 5, 10],
+          attributes: [:method]
+        )
+
+      assert result == [explicit_bucket_boundaries: [1, 5, 10], attributes: [:method]]
+    end
+  end
+
+  describe "conflict_type/2" do
+    test "description_only when only description differs" do
+      a = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
+      b = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "b"}
+      assert :description_only == Otel.SDK.Metrics.Instrument.conflict_type(a, b)
+    end
+
+    test "distinguishable when kind differs" do
+      a = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
+
+      b = %Otel.SDK.Metrics.Instrument{
+        name: "req",
+        kind: :histogram,
+        unit: "1",
+        description: "a"
+      }
+
+      assert :distinguishable == Otel.SDK.Metrics.Instrument.conflict_type(a, b)
+    end
+
+    test "unresolvable when unit differs" do
+      a = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
+      b = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "ms", description: "a"}
+      assert :unresolvable == Otel.SDK.Metrics.Instrument.conflict_type(a, b)
+    end
+
+    test "distinguishable takes priority when both kind and description differ" do
+      a = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
+
+      b = %Otel.SDK.Metrics.Instrument{
+        name: "req",
+        kind: :histogram,
+        unit: "1",
+        description: "b"
+      }
+
+      assert :distinguishable == Otel.SDK.Metrics.Instrument.conflict_type(a, b)
+    end
   end
 end

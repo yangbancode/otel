@@ -71,6 +71,29 @@ defmodule Otel.SDK.Metrics.Instrument do
   end
 
   @doc """
+  Returns the conflict type between two instruments that share the same
+  downcased name but differ in identifying fields.
+
+  - `:description_only` — only description differs
+  - `:distinguishable` — kind differs (resolvable by renaming View)
+  - `:unresolvable` — unit or other fields differ
+  """
+  @spec conflict_type(instrument_a :: t(), instrument_b :: t()) ::
+          :description_only | :distinguishable | :unresolvable
+  def conflict_type(a, b) do
+    cond do
+      a.kind == b.kind and a.unit == b.unit and a.description != b.description ->
+        :description_only
+
+      a.kind != b.kind ->
+        :distinguishable
+
+      true ->
+        :unresolvable
+    end
+  end
+
+  @doc """
   Validates advisory parameters for the given instrument kind.
 
   Returns validated advisory keyword list. Invalid params are dropped
@@ -103,6 +126,10 @@ defmodule Otel.SDK.Metrics.Instrument do
     )
 
     []
+  end
+
+  defp validate_advisory_param(_kind, {:attributes, keys}) when is_list(keys) do
+    [attributes: keys]
   end
 
   defp validate_advisory_param(_kind, {key, _value}) do

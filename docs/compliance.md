@@ -1188,9 +1188,9 @@
 - [x] Meter MUST return a functional instrument even for duplicate instrument registrations — [L912](../references/opentelemetry-specification/specification/metrics/sdk.md#L912)
 - [x] When duplicate instrument registration occurs (not corrected with a View), a warning SHOULD be emitted — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919)
 - [x] Warning SHOULD include information on how to resolve the conflict — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919)
-- [ ] If conflict involves multiple `description` properties, setting description through a View SHOULD avoid the warning — [L923](../references/opentelemetry-specification/specification/metrics/sdk.md#L923)
-- [ ] If conflict involves instruments distinguishable by a supported View selector, a renaming View recipe SHOULD be included — [L926](../references/opentelemetry-specification/specification/metrics/sdk.md#L926)
-- [ ] Otherwise, SDK SHOULD pass through data reporting both Metric objects and emit a generic warning — [L928](../references/opentelemetry-specification/specification/metrics/sdk.md#L928)
+- [x] If conflict involves multiple `description` properties, setting description through a View SHOULD avoid the warning — [L923](../references/opentelemetry-specification/specification/metrics/sdk.md#L923)
+- [x] If conflict involves instruments distinguishable by a supported View selector, a renaming View recipe SHOULD be included — [L926](../references/opentelemetry-specification/specification/metrics/sdk.md#L926)
+- [x] Otherwise, SDK SHOULD pass through data reporting both Metric objects and emit a generic warning — [L928](../references/opentelemetry-specification/specification/metrics/sdk.md#L928)
 - [x] SDK MUST aggregate data from identical Instruments together in its export pipeline — [L942](../references/opentelemetry-specification/specification/metrics/sdk.md#L942)
 
 #### Name Conflict
@@ -1217,16 +1217,16 @@
 - [x] Meter SHOULD validate instrument advisory parameters — [L985](../references/opentelemetry-specification/specification/metrics/sdk.md#L985)
 - [x] If advisory parameter is not valid, Meter SHOULD emit an error and proceed as if the parameter was not provided — [L986](../references/opentelemetry-specification/specification/metrics/sdk.md#L986)
 - [x] If multiple identical Instruments have different advisory parameters, Meter MUST return instrument using first-seen advisory parameters and log an error — [L990](../references/opentelemetry-specification/specification/metrics/sdk.md#L990)
-- [ ] If View and advisory parameters specify the same aspect, View MUST take precedence — [L996](../references/opentelemetry-specification/specification/metrics/sdk.md#L996)
+- [x] If View and advisory parameters specify the same aspect, View MUST take precedence — [L996](../references/opentelemetry-specification/specification/metrics/sdk.md#L996)
 
 #### ExplicitBucketBoundaries Advisory Parameter
 
-- [ ] If no View matches or default aggregation is selected, the ExplicitBucketBoundaries advisory parameter MUST be used — [L1009](../references/opentelemetry-specification/specification/metrics/sdk.md#L1009)
+- [x] If no View matches or default aggregation is selected, the ExplicitBucketBoundaries advisory parameter MUST be used — [L1009](../references/opentelemetry-specification/specification/metrics/sdk.md#L1009)
 
 ### Instrument Enabled
 
-- [ ] Synchronous instrument Enabled MUST return false when all resolved views are configured with Drop Aggregation — [L1029](../references/opentelemetry-specification/specification/metrics/sdk.md#L1029)
-- [ ] Otherwise, it SHOULD return true — [L1037](../references/opentelemetry-specification/specification/metrics/sdk.md#L1037)
+- [x] Synchronous instrument Enabled MUST return false when all resolved views are configured with Drop Aggregation — [L1029](../references/opentelemetry-specification/specification/metrics/sdk.md#L1029)
+- [x] Otherwise, it SHOULD return true — [L1037](../references/opentelemetry-specification/specification/metrics/sdk.md#L1037)
 
 ### Exemplar (Stable)
 

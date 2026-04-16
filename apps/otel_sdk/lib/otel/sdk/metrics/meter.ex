@@ -132,7 +132,17 @@ defmodule Otel.SDK.Metrics.Meter do
   # --- Enabled ---
 
   @impl true
-  def enabled?(_meter, _opts), do: true
+  def enabled?({_module, _config}, []), do: true
+
+  def enabled?({_module, config}, opts) do
+    case Keyword.get(opts, :instrument_name) do
+      nil ->
+        true
+
+      name ->
+        instrument_enabled?(config, name)
+    end
+  end
 
   # --- Private ---
 
@@ -184,15 +194,7 @@ defmodule Otel.SDK.Metrics.Meter do
 
       false ->
         [{^key, existing}] = :ets.lookup(config.instruments_tab, key)
-
-        if not Otel.SDK.Metrics.Instrument.identical?(existing, instrument) do
-          :logger.warning(
-            "duplicate instrument registration for #{inspect(name)} " <>
-              "with different identifying fields, using first-seen",
-            %{domain: [:otel, :metrics]}
-          )
-        end
-
+        warn_duplicate(config, existing, instrument, name)
         existing
     end
   end
@@ -458,6 +460,106 @@ defmodule Otel.SDK.Metrics.Meter do
       _ ->
         %{size: 1}
     end
+  end
+
+  @spec instrument_enabled?(config :: map(), name :: String.t()) :: boolean()
+  defp instrument_enabled?(config, name) do
+    instrument_key =
+      {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(name)}
+
+    case :ets.lookup(config.streams_tab, instrument_key) do
+      [] ->
+        not all_views_drop?(config.views, name)
+
+      streams ->
+        not Enum.all?(streams, fn {_key, stream} ->
+          stream.aggregation == Otel.SDK.Metrics.Aggregation.Drop
+        end)
+    end
+  end
+
+  @spec all_views_drop?(views :: [Otel.SDK.Metrics.View.t()], name :: String.t()) :: boolean()
+  defp all_views_drop?(views, name) do
+    dummy = %Otel.SDK.Metrics.Instrument{name: name}
+
+    matching =
+      Enum.filter(views, &Otel.SDK.Metrics.View.matches?(&1, dummy))
+
+    case matching do
+      [] ->
+        false
+
+      matched ->
+        Enum.all?(matched, fn view ->
+          Map.get(view.config, :aggregation) == Otel.SDK.Metrics.Aggregation.Drop
+        end)
+    end
+  end
+
+  @spec warn_duplicate(
+          config :: map(),
+          existing :: Otel.SDK.Metrics.Instrument.t(),
+          new_instrument :: Otel.SDK.Metrics.Instrument.t(),
+          name :: String.t()
+        ) :: :ok
+  defp warn_duplicate(_config, existing, new_instrument, _name)
+       when existing.kind == new_instrument.kind and
+              existing.unit == new_instrument.unit and
+              existing.description == new_instrument.description do
+    :ok
+  end
+
+  defp warn_duplicate(config, existing, new_instrument, name) do
+    case Otel.SDK.Metrics.Instrument.conflict_type(existing, new_instrument) do
+      :description_only ->
+        warn_description_conflict(config, existing, name)
+
+      :distinguishable ->
+        :logger.warning(
+          "duplicate instrument registration for #{inspect(name)} " <>
+            "with different identifying fields (kind: #{existing.kind} vs #{new_instrument.kind}), " <>
+            "consider configuring a renaming View to produce distinguishable metric streams",
+          %{domain: [:otel, :metrics]}
+        )
+
+      :unresolvable ->
+        :logger.warning(
+          "duplicate instrument registration for #{inspect(name)} " <>
+            "with different identifying fields, using first-seen",
+          %{domain: [:otel, :metrics]}
+        )
+    end
+  end
+
+  @spec warn_description_conflict(
+          config :: map(),
+          instrument :: Otel.SDK.Metrics.Instrument.t(),
+          name :: String.t()
+        ) :: :ok
+  defp warn_description_conflict(config, instrument, name) do
+    if description_resolved_by_view?(instrument, config) do
+      :ok
+    else
+      :logger.warning(
+        "duplicate instrument registration for #{inspect(name)} " <>
+          "with different description, consider configuring a View " <>
+          "to set the description and avoid this warning",
+        %{domain: [:otel, :metrics]}
+      )
+    end
+  end
+
+  @spec description_resolved_by_view?(
+          instrument :: Otel.SDK.Metrics.Instrument.t(),
+          config :: map()
+        ) :: boolean()
+  defp description_resolved_by_view?(instrument, config) do
+    views = Map.get(config, :views, [])
+
+    Enum.any?(views, fn view ->
+      Otel.SDK.Metrics.View.matches?(view, instrument) and
+        Map.has_key?(view.config, :description)
+    end)
   end
 
   @spec lookup_callback_streams(config :: map(), entries :: [tuple()]) ::
