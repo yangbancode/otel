@@ -34,10 +34,17 @@ defmodule Otel.Logger.Handler do
           {:ok, :logger.handler_config()} | {:error, term()}
   def adding_handler(config) do
     otel_config = Map.get(config, :config, %{})
-    scope_name = Map.get(otel_config, :scope_name, "otel_logger_handler")
-    scope_version = Map.get(otel_config, :scope_version, "")
 
-    logger = Otel.API.Logs.LoggerProvider.get_logger(scope_name, scope_version)
+    logger =
+      case Map.get(otel_config, :otel_logger) do
+        nil ->
+          scope_name = Map.get(otel_config, :scope_name, "otel_logger_handler")
+          scope_version = Map.get(otel_config, :scope_version, "")
+          Otel.API.Logs.LoggerProvider.get_logger(scope_name, scope_version)
+
+        existing ->
+          existing
+      end
 
     updated_config = Map.put(config, :config, Map.put(otel_config, :otel_logger, logger))
     {:ok, updated_config}
