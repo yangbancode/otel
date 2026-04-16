@@ -176,6 +176,158 @@ defmodule Otel.Exporter.OTLP.Encoder do
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, inspect(value)}}
   end
 
+  # --- Metrics ---
+
+  @doc """
+  Encodes a list of collected metrics into an
+  ExportMetricsServiceRequest protobuf binary.
+  """
+  @spec encode_metrics(metrics :: [Otel.SDK.Metrics.MetricReader.metric()]) :: binary()
+  def encode_metrics(metrics) do
+    resource_metrics = build_resource_metrics(metrics)
+
+    %Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest{
+      resource_metrics: resource_metrics
+    }
+    |> Protobuf.encode()
+  end
+
+  @spec build_resource_metrics(metrics :: [Otel.SDK.Metrics.MetricReader.metric()]) ::
+          [Opentelemetry.Proto.Metrics.V1.ResourceMetrics.t()]
+  defp build_resource_metrics(metrics) do
+    metrics
+    |> Enum.group_by(& &1.resource)
+    |> Enum.map(fn {resource, resource_group} ->
+      %Opentelemetry.Proto.Metrics.V1.ResourceMetrics{
+        resource: encode_resource(resource),
+        scope_metrics: group_metrics_by_scope(resource_group)
+      }
+    end)
+  end
+
+  @spec group_metrics_by_scope(metrics :: [Otel.SDK.Metrics.MetricReader.metric()]) ::
+          [Opentelemetry.Proto.Metrics.V1.ScopeMetrics.t()]
+  defp group_metrics_by_scope(metrics) do
+    metrics
+    |> Enum.group_by(& &1.scope)
+    |> Enum.map(fn {scope, scope_group} ->
+      %Opentelemetry.Proto.Metrics.V1.ScopeMetrics{
+        scope: encode_scope(scope),
+        metrics: Enum.map(scope_group, &encode_metric/1)
+      }
+    end)
+  end
+
+  @spec encode_metric(metric :: Otel.SDK.Metrics.MetricReader.metric()) ::
+          Opentelemetry.Proto.Metrics.V1.Metric.t()
+  defp encode_metric(metric) do
+    %Opentelemetry.Proto.Metrics.V1.Metric{
+      name: metric.name,
+      description: metric.description,
+      unit: metric.unit,
+      data: encode_metric_data(metric)
+    }
+  end
+
+  @spec encode_metric_data(metric :: Otel.SDK.Metrics.MetricReader.metric()) ::
+          {:sum, Opentelemetry.Proto.Metrics.V1.Sum.t()}
+          | {:gauge, Opentelemetry.Proto.Metrics.V1.Gauge.t()}
+          | {:histogram, Opentelemetry.Proto.Metrics.V1.Histogram.t()}
+  defp encode_metric_data(%{kind: kind} = metric)
+       when kind in [:counter, :updown_counter, :observable_counter, :observable_updown_counter] do
+    {:sum,
+     %Opentelemetry.Proto.Metrics.V1.Sum{
+       data_points: Enum.map(metric.datapoints, &encode_number_data_point/1),
+       aggregation_temporality: encode_temporality(metric.temporality),
+       is_monotonic: metric.is_monotonic || false
+     }}
+  end
+
+  defp encode_metric_data(%{kind: kind} = metric)
+       when kind in [:gauge, :observable_gauge] do
+    {:gauge,
+     %Opentelemetry.Proto.Metrics.V1.Gauge{
+       data_points: Enum.map(metric.datapoints, &encode_number_data_point/1)
+     }}
+  end
+
+  defp encode_metric_data(%{kind: :histogram} = metric) do
+    {:histogram,
+     %Opentelemetry.Proto.Metrics.V1.Histogram{
+       data_points: Enum.map(metric.datapoints, &encode_histogram_data_point/1),
+       aggregation_temporality: encode_temporality(metric.temporality)
+     }}
+  end
+
+  @spec encode_number_data_point(dp :: map()) ::
+          Opentelemetry.Proto.Metrics.V1.NumberDataPoint.t()
+  defp encode_number_data_point(dp) do
+    %Opentelemetry.Proto.Metrics.V1.NumberDataPoint{
+      attributes: encode_attributes(dp.attributes),
+      start_time_unix_nano: dp.start_time,
+      time_unix_nano: dp.time,
+      value: encode_number_value(dp.value),
+      exemplars: encode_metric_exemplars(Map.get(dp, :exemplars, []))
+    }
+  end
+
+  @spec encode_histogram_data_point(dp :: map()) ::
+          Opentelemetry.Proto.Metrics.V1.HistogramDataPoint.t()
+  defp encode_histogram_data_point(dp) do
+    histogram = dp.value
+
+    %Opentelemetry.Proto.Metrics.V1.HistogramDataPoint{
+      attributes: encode_attributes(dp.attributes),
+      start_time_unix_nano: dp.start_time,
+      time_unix_nano: dp.time,
+      count: histogram.count,
+      sum: histogram.sum + 0.0,
+      bucket_counts: histogram.bucket_counts,
+      explicit_bounds: Enum.map(histogram.boundaries, &(&1 + 0.0)),
+      min: encode_optional_double(histogram.min),
+      max: encode_optional_double(histogram.max),
+      exemplars: encode_metric_exemplars(Map.get(dp, :exemplars, []))
+    }
+  end
+
+  @spec encode_number_value(value :: number()) ::
+          {:as_int, integer()} | {:as_double, float()}
+  defp encode_number_value(value) when is_integer(value), do: {:as_int, value}
+  defp encode_number_value(value) when is_float(value), do: {:as_double, value}
+  defp encode_number_value(value), do: {:as_double, value + 0.0}
+
+  @spec encode_optional_double(value :: number() | :unset) :: float() | nil
+  defp encode_optional_double(:unset), do: nil
+  defp encode_optional_double(value), do: value + 0.0
+
+  @spec encode_temporality(temporality :: atom() | nil) ::
+          Opentelemetry.Proto.Metrics.V1.AggregationTemporality.t()
+  defp encode_temporality(:delta), do: :AGGREGATION_TEMPORALITY_DELTA
+  defp encode_temporality(:cumulative), do: :AGGREGATION_TEMPORALITY_CUMULATIVE
+  defp encode_temporality(_), do: :AGGREGATION_TEMPORALITY_UNSPECIFIED
+
+  @spec encode_metric_exemplars(exemplars :: [Otel.SDK.Metrics.Exemplar.t()]) ::
+          [Opentelemetry.Proto.Metrics.V1.Exemplar.t()]
+  defp encode_metric_exemplars(exemplars) do
+    Enum.map(exemplars, &encode_metric_exemplar/1)
+  end
+
+  @spec encode_metric_exemplar(exemplar :: Otel.SDK.Metrics.Exemplar.t()) ::
+          Opentelemetry.Proto.Metrics.V1.Exemplar.t()
+  defp encode_metric_exemplar(exemplar) do
+    %Opentelemetry.Proto.Metrics.V1.Exemplar{
+      filtered_attributes: encode_attributes(exemplar.filtered_attributes),
+      time_unix_nano: exemplar.time,
+      value: encode_number_value(exemplar.value),
+      span_id: encode_optional_id(exemplar.span_id, 8),
+      trace_id: encode_optional_id(exemplar.trace_id, 16)
+    }
+  end
+
+  @spec encode_optional_id(id :: non_neg_integer() | nil, byte_size :: pos_integer()) :: binary()
+  defp encode_optional_id(nil, _byte_size), do: <<>>
+  defp encode_optional_id(id, byte_size), do: <<id::unsigned-integer-size(byte_size * 8)>>
+
   # --- Helpers ---
 
   @spec encode_id(id :: non_neg_integer(), byte_size :: pos_integer()) :: binary()

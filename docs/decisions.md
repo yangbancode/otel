@@ -68,7 +68,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [OTLP HTTP Exporter](decisions/otlp-http-exporter.md)
 - [ ] [OTLP Retry, Backoff & Throttling](decisions/otlp-retry-backoff-and-throttling.md)
 - [ ] [OTLP gRPC Exporter](decisions/otlp-grpc-exporter.md)
-- [ ] [OTLP Metrics Exporter](decisions/otlp-metrics-exporter.md)
+- [x] [OTLP Metrics Exporter](decisions/otlp-metrics-exporter.md)
 
 ### Environment Variables
 - [x] [OTLP Environment Variables](decisions/otlp-environment-variables.md)

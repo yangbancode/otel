@@ -1336,7 +1336,7 @@
 ##### Export(batch)
 
 - [x] SDK MUST provide a way for exporter to get Meter information associated with each Metric Point — [L1565](../references/opentelemetry-specification/specification/metrics/sdk.md#L1565)
-- [ ] Export MUST NOT block indefinitely; there MUST be a reasonable upper limit timeout — [L1571](../references/opentelemetry-specification/specification/metrics/sdk.md#L1571)
+- [x] Export MUST NOT block indefinitely; there MUST be a reasonable upper limit timeout — [L1571](../references/opentelemetry-specification/specification/metrics/sdk.md#L1571)
 - [x] Default SDK SHOULD NOT implement retry logic — [L1575](../references/opentelemetry-specification/specification/metrics/sdk.md#L1575)
 
 ##### ForceFlush (Exporter)

@@ -265,4 +265,284 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert scope_spans.scope == nil
     end
   end
+
+  describe "encode_metrics/1" do
+    @counter_metric %{
+      name: "http.requests",
+      description: "Request count",
+      unit: "1",
+      scope: %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"},
+      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      kind: :counter,
+      temporality: :cumulative,
+      is_monotonic: true,
+      datapoints: [
+        %{
+          attributes: %{method: "GET"},
+          value: 42,
+          start_time: 1_000_000,
+          time: 2_000_000,
+          exemplars: []
+        }
+      ]
+    }
+
+    @gauge_metric %{
+      name: "cpu.usage",
+      description: "CPU usage",
+      unit: "%",
+      scope: %Otel.API.InstrumentationScope{name: "test_lib"},
+      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      kind: :gauge,
+      temporality: nil,
+      is_monotonic: nil,
+      datapoints: [
+        %{
+          attributes: %{host: "a"},
+          value: 75.5,
+          start_time: 1_000_000,
+          time: 2_000_000,
+          exemplars: []
+        }
+      ]
+    }
+
+    @histogram_metric %{
+      name: "http.duration",
+      description: "Request duration",
+      unit: "ms",
+      scope: %Otel.API.InstrumentationScope{name: "test_lib"},
+      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      kind: :histogram,
+      temporality: :cumulative,
+      is_monotonic: nil,
+      datapoints: [
+        %{
+          attributes: %{},
+          value: %{
+            bucket_counts: [1, 2, 0, 1],
+            boundaries: [10, 50, 100],
+            sum: 150.5,
+            count: 4,
+            min: 5,
+            max: 120
+          },
+          start_time: 1_000_000,
+          time: 2_000_000,
+          exemplars: []
+        }
+      ]
+    }
+
+    test "produces valid protobuf binary for counter" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@counter_metric])
+      assert is_binary(binary)
+      assert byte_size(binary) > 0
+    end
+
+    test "counter decoded as Sum" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@counter_metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      assert metric.name == "http.requests"
+      assert metric.description == "Request count"
+      assert metric.unit == "1"
+      assert {:sum, sum} = metric.data
+      assert sum.aggregation_temporality == :AGGREGATION_TEMPORALITY_CUMULATIVE
+      assert sum.is_monotonic == true
+      dp = hd(sum.data_points)
+      assert {:as_int, 42} = dp.value
+      assert dp.start_time_unix_nano == 1_000_000
+      assert dp.time_unix_nano == 2_000_000
+    end
+
+    test "gauge decoded as Gauge" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@gauge_metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      assert {:gauge, gauge} = metric.data
+      dp = hd(gauge.data_points)
+      assert {:as_double, 75.5} = dp.value
+    end
+
+    test "histogram decoded as Histogram" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@histogram_metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      assert {:histogram, histogram} = metric.data
+      assert histogram.aggregation_temporality == :AGGREGATION_TEMPORALITY_CUMULATIVE
+      dp = hd(histogram.data_points)
+      assert dp.count == 4
+      assert dp.sum == 150.5
+      assert dp.bucket_counts == [1, 2, 0, 1]
+      assert dp.explicit_bounds == [10.0, 50.0, 100.0]
+      assert dp.min == 5.0
+      assert dp.max == 120.0
+    end
+
+    test "delta temporality encoded correctly" do
+      metric = %{@counter_metric | temporality: :delta}
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      {:sum, sum} = metric.data
+      assert sum.aggregation_temporality == :AGGREGATION_TEMPORALITY_DELTA
+    end
+
+    test "updown_counter encoded as non-monotonic Sum" do
+      metric = %{@counter_metric | kind: :updown_counter, is_monotonic: false}
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      {:sum, sum} = metric.data
+      assert sum.is_monotonic == false
+    end
+
+    test "observable_counter encoded as Sum" do
+      metric = %{@counter_metric | kind: :observable_counter}
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      assert {:sum, _} = metric.data
+    end
+
+    test "observable_gauge encoded as Gauge" do
+      metric = %{@gauge_metric | kind: :observable_gauge}
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      assert {:gauge, _} = metric.data
+    end
+
+    test "encodes resource and scope" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@counter_metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      resource_metrics = hd(decoded.resource_metrics)
+      attrs = resource_metrics.resource.attributes
+      assert Enum.any?(attrs, &(&1.key == "service.name"))
+
+      scope_metrics = hd(resource_metrics.scope_metrics)
+      assert scope_metrics.scope.name == "test_lib"
+    end
+
+    test "groups metrics by resource and scope" do
+      scope_a = %Otel.API.InstrumentationScope{name: "lib_a"}
+      scope_b = %Otel.API.InstrumentationScope{name: "lib_b"}
+      metric_a = %{@counter_metric | scope: scope_a}
+      metric_b = %{@counter_metric | scope: scope_b, name: "other"}
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric_a, metric_b])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      scope_metrics = hd(decoded.resource_metrics).scope_metrics
+      assert length(scope_metrics) == 2
+    end
+
+    test "encodes exemplars with trace context" do
+      exemplar = %Otel.SDK.Metrics.Exemplar{
+        value: 42,
+        time: 1_500_000,
+        filtered_attributes: %{extra: "val"},
+        span_id: 0xDEADBEEF,
+        trace_id: 0x0AF7651916CD43DD8448EB211C80319C
+      }
+
+      metric =
+        put_in(
+          @counter_metric,
+          [:datapoints, Access.at(0), :exemplars],
+          [exemplar]
+        )
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      {_type, data} = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics).data
+      dp = hd(data.data_points)
+
+      ex = hd(dp.exemplars)
+      assert ex.time_unix_nano == 1_500_000
+      assert {:as_int, 42} = ex.value
+      assert ex.span_id == <<0xDEADBEEF::64>>
+      assert ex.trace_id == <<0x0AF7651916CD43DD8448EB211C80319C::128>>
+      assert Enum.any?(ex.filtered_attributes, &(&1.key == "extra"))
+    end
+
+    test "encodes exemplar without trace context" do
+      exemplar = %Otel.SDK.Metrics.Exemplar{
+        value: 10.5,
+        time: 1_500_000,
+        filtered_attributes: %{},
+        span_id: nil,
+        trace_id: nil
+      }
+
+      metric =
+        put_in(
+          @counter_metric,
+          [:datapoints, Access.at(0), :exemplars],
+          [exemplar]
+        )
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      {_type, data} = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics).data
+      dp = hd(data.data_points)
+
+      ex = hd(dp.exemplars)
+      assert {:as_double, 10.5} = ex.value
+      assert ex.span_id == <<>>
+      assert ex.trace_id == <<>>
+    end
+
+    test "encodes float value as as_double" do
+      metric =
+        put_in(
+          @counter_metric,
+          [:datapoints, Access.at(0), :value],
+          3.14
+        )
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      {_type, data} = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics).data
+      dp = hd(data.data_points)
+
+      assert {:as_double, 3.14} = dp.value
+    end
+  end
 end
