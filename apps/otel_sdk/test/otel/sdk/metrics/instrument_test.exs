@@ -186,7 +186,7 @@ defmodule Otel.SDK.Metrics.InstrumentTest do
       assert :unresolvable == Otel.SDK.Metrics.Instrument.conflict_type(a, b)
     end
 
-    test "distinguishable takes priority when both kind and description differ" do
+    test "distinguishable when kind differs but unit matches" do
       a = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
 
       b = %Otel.SDK.Metrics.Instrument{
@@ -197,6 +197,19 @@ defmodule Otel.SDK.Metrics.InstrumentTest do
       }
 
       assert :distinguishable == Otel.SDK.Metrics.Instrument.conflict_type(a, b)
+    end
+
+    test "unresolvable when both kind and unit differ" do
+      a = %Otel.SDK.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
+
+      b = %Otel.SDK.Metrics.Instrument{
+        name: "req",
+        kind: :histogram,
+        unit: "ms",
+        description: "a"
+      }
+
+      assert :unresolvable == Otel.SDK.Metrics.Instrument.conflict_type(a, b)
     end
   end
 end

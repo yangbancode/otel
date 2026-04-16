@@ -10,17 +10,19 @@ How to implement View features deferred from the View System Decision: duplicate
 
 When a duplicate instrument is registered (same downcased name, same scope) with different identifying fields:
 
-1. **Description-only conflict** — If only description differs and a matching View sets description, the warning is suppressed. Otherwise warn with a suggestion to configure a View.
-2. **Distinguishable conflict** — If kind differs, warn with a suggestion to configure a renaming View.
-3. **Unresolvable conflict** — If unit or other fields differ, emit a generic warning and use the first-seen instrument.
+1. **Fully identical** — All identifying fields and advisory match: silently return first-seen (no warning needed).
+2. **Advisory-only conflict** — Identifying fields identical but advisory differs: warn per MUST requirement (sdk.md L990) and return first-seen advisory.
+3. **Description-only conflict** — If only description differs and a matching View sets description, the warning is suppressed. Otherwise warn with a suggestion to configure a View.
+4. **Distinguishable conflict** — If kind differs (but unit matches), warn with a suggestion to configure a renaming View.
+5. **Unresolvable conflict** — If unit differs (regardless of kind), emit a generic warning and use the first-seen instrument.
 
-`Instrument.conflict_type/2` classifies the conflict. `Meter.warn_duplicate/4` dispatches to the appropriate warning. In all cases the SDK returns the first-seen functional instrument.
+`Instrument.conflict_type/2` classifies identifying-field conflicts. `Meter.warn_duplicate/4` dispatches to the appropriate warning using guard clauses for the advisory and identical cases, and pattern matching for the rest. In all cases the SDK returns the first-seen functional instrument.
 
 ### View vs Advisory Precedence
 
 View configuration always takes precedence over advisory parameters for the same aspect:
 
-- **Bucket boundaries**: `Stream.merge_advisory_boundaries/2` uses `Map.put_new/3`, so View-provided boundaries are never overwritten.
+- **Bucket boundaries**: When a View explicitly specifies an aggregation (e.g., ExplicitBucketHistogram), advisory boundaries are ignored entirely — even if the View does not supply custom boundaries (sdk.md L1003-1005). Advisory boundaries are only used when no View matched or the matching View uses default aggregation (`stream.aggregation == nil`).
 - **Attribute keys**: `Stream.from_view/2` falls back to `advisory_attribute_keys/1` only when the View has no `:attribute_keys`.
 
 When no View matches, advisory parameters are used as defaults via `Stream.from_instrument/1` and `Stream.resolve/1`.
@@ -39,6 +41,6 @@ Fix: added `validate_advisory_param/2` clause for `:attributes` — previously t
 ## Compliance
 
 - [Metrics SDK](../compliance.md)
-  * Duplicate Instrument Registration — L923, L926, L928
-  * Instrument Advisory Parameters — L996, L1009
+  * Duplicate Instrument Registration — L923, L926, L928, L990
+  * Instrument Advisory Parameters — L996, L1003, L1009
   * Instrument Enabled — L1029, L1037

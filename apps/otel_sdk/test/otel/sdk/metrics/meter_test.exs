@@ -521,6 +521,27 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
       assert second == first
     end
+
+    test "advisory-only conflict returns first-seen advisory", %{meter: meter} do
+      first =
+        Otel.SDK.Metrics.Meter.create_histogram(meter, "adv_dup",
+          advisory: [explicit_bucket_boundaries: [1, 5, 10]]
+        )
+
+      second =
+        Otel.SDK.Metrics.Meter.create_histogram(meter, "adv_dup",
+          advisory: [explicit_bucket_boundaries: [100, 200, 500]]
+        )
+
+      assert second == first
+      assert second.advisory == [explicit_bucket_boundaries: [1, 5, 10]]
+    end
+
+    test "kind and unit both differ is unresolvable", %{meter: meter} do
+      first = Otel.SDK.Metrics.Meter.create_counter(meter, "both_dup", unit: "1")
+      second = Otel.SDK.Metrics.Meter.create_histogram(meter, "both_dup", unit: "ms")
+      assert second == first
+    end
   end
 
   describe "enabled?" do

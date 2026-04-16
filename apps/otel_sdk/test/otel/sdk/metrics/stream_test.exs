@@ -164,5 +164,44 @@ defmodule Otel.SDK.Metrics.StreamTest do
       resolved = Otel.SDK.Metrics.Stream.resolve(stream)
       assert resolved.aggregation_options.boundaries == [100, 200]
     end
+
+    test "view specifying EBH aggregation without boundaries ignores advisory" do
+      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
+
+      {:ok, view} =
+        Otel.SDK.Metrics.View.new(%{}, %{
+          aggregation: Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram
+        })
+
+      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      refute Map.has_key?(resolved.aggregation_options, :boundaries)
+    end
+
+    test "view specifying non-default aggregation ignores advisory boundaries" do
+      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
+
+      {:ok, view} =
+        Otel.SDK.Metrics.View.new(%{}, %{aggregation: Otel.SDK.Metrics.Aggregation.Sum})
+
+      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      refute Map.has_key?(resolved.aggregation_options, :boundaries)
+    end
+
+    test "no view uses advisory boundaries as fallback" do
+      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
+      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation_options.boundaries == [1, 5, 10]
+    end
+
+    test "view with default aggregation uses advisory boundaries" do
+      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
+      {:ok, view} = Otel.SDK.Metrics.View.new(%{name: "http.request.duration"}, %{})
+      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
+      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
+      assert resolved.aggregation_options.boundaries == [1, 5, 10]
+    end
   end
 end
