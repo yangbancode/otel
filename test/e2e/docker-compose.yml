@@ -1,0 +1,10 @@
+services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.123.0
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+      - ./output:/output
+    ports:
+      - "4318:4318"
