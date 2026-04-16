@@ -6,7 +6,30 @@ How to implement LoggerProvider, Logger, Emit LogRecord, and Enabled API on BEAM
 
 ## Decision
 
-TBD
+### Modules
+
+| Module | Location | Description |
+|---|---|---|
+| `Otel.API.Logs.LoggerProvider` | `apps/otel_api/lib/otel/api/logs/logger_provider.ex` | Global provider registration, Logger caching |
+| `Otel.API.Logs.Logger` | `apps/otel_api/lib/otel/api/logs/logger.ex` | Logger behaviour and dispatch |
+| `Otel.API.Logs.Logger.Noop` | `apps/otel_api/lib/otel/api/logs/logger/noop.ex` | No-op implementation |
+
+### LoggerProvider
+
+Global registration via `persistent_term`, matching TracerProvider and MeterProvider pattern. `get_logger/4` accepts `name`, `version`, `schema_url`, `attributes` — all but `name` optional. Loggers are cached by `{name, version, schema_url}`.
+
+Invalid name (nil or empty) returns a working Logger and logs a warning.
+
+### Logger
+
+Represented as `{module, config}` tuple. Two operations:
+
+- **`emit/2,3`** — Emits a LogRecord. Accepts a map with optional fields: `timestamp`, `observed_timestamp`, `severity_number`, `severity_text`, `body`, `attributes`, `event_name`, `exception`. Context is either implicit (current) or explicit (3-arity).
+- **`enabled?/2`** — Returns whether the logger is enabled. Accepts opts with optional `severity_number`, `event_name`, and `ctx`. Injects current context when not provided.
+
+### Noop
+
+`emit/3` returns `:ok`, `enabled?/2` returns `false`. Used when no SDK is installed.
 
 ## Compliance
 
