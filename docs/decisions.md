@@ -112,7 +112,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Batch LogRecord Processor](decisions/batch-logrecord-processor.md)
 
 ### OTLP
-- [ ] [OTLP Logs Exporter](decisions/otlp-logs-exporter.md)
+- [x] [OTLP Logs Exporter](decisions/otlp-logs-exporter.md)
 
 ### :logger Integration
 - [ ] [:logger Integration](decisions/logger-integration.md)

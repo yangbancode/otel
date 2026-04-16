@@ -33,6 +33,8 @@ Location: `apps/otel_exporter_otlp/lib/otel/exporter/otlp/proto/`
 | `collector/trace/v1/trace_service.proto` | `Opentelemetry.Proto.Collector.Trace.V1.*` |
 | `metrics/v1/metrics.proto` | `Opentelemetry.Proto.Metrics.V1.*` |
 | `collector/metrics/v1/metrics_service.proto` | `Opentelemetry.Proto.Collector.Metrics.V1.*` |
+| `logs/v1/logs.proto` | `Opentelemetry.Proto.Logs.V1.*` |
+| `collector/logs/v1/logs_service.proto` | `Opentelemetry.Proto.Collector.Logs.V1.*` |
 
 ### Generation Command
 

@@ -573,4 +573,158 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert {:as_double, 3.14} = dp.value
     end
   end
+
+  describe "encode_logs/1" do
+    @log_record %{
+      body: "test message",
+      severity_number: 9,
+      severity_text: "INFO",
+      timestamp: 1_000_000,
+      observed_timestamp: 2_000_000,
+      attributes: %{method: "GET"},
+      event_name: nil,
+      scope: %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"},
+      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      trace_id: 0,
+      span_id: 0,
+      trace_flags: 0,
+      dropped_attributes_count: 0
+    }
+
+    test "produces valid protobuf binary" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+      assert is_binary(binary)
+      assert byte_size(binary) > 0
+    end
+
+    test "log record fields decoded correctly" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      record = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert record.time_unix_nano == 1_000_000
+      assert record.observed_time_unix_nano == 2_000_000
+      assert record.severity_number == :SEVERITY_NUMBER_INFO
+      assert record.severity_text == "INFO"
+      assert record.body.value == {:string_value, "test message"}
+      assert record.dropped_attributes_count == 0
+    end
+
+    test "encodes resource and scope" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      resource_logs = hd(decoded.resource_logs)
+      attrs = resource_logs.resource.attributes
+      assert Enum.any?(attrs, &(&1.key == "service.name"))
+
+      scope_logs = hd(resource_logs.scope_logs)
+      assert scope_logs.scope.name == "test_lib"
+      assert scope_logs.scope.version == "1.0.0"
+    end
+
+    test "encodes trace context when present" do
+      record = %{
+        @log_record
+        | trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
+          span_id: 0xB7AD6B7169203331,
+          trace_flags: 1
+      }
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.trace_id == <<0x0AF7651916CD43DD8448EB211C80319C::128>>
+      assert log.span_id == <<0xB7AD6B7169203331::64>>
+      assert log.flags == 1
+    end
+
+    test "omits trace context when zero" do
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.trace_id == <<>>
+      assert log.span_id == <<>>
+    end
+
+    test "encodes nil body as absent" do
+      record = %{@log_record | body: nil}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.body == nil
+    end
+
+    test "encodes map body as string via inspect" do
+      record = %{@log_record | body: %{nested: "value"}}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.body != nil
+    end
+
+    test "encodes severity number unspecified for nil" do
+      record = %{@log_record | severity_number: nil}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.severity_number == :SEVERITY_NUMBER_UNSPECIFIED
+    end
+
+    test "encodes event_name" do
+      record = %{@log_record | event_name: "http.request"}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.event_name == "http.request"
+    end
+
+    test "groups by resource and scope" do
+      scope_a = %Otel.API.InstrumentationScope{name: "lib_a"}
+      scope_b = %Otel.API.InstrumentationScope{name: "lib_b"}
+      record_a = %{@log_record | scope: scope_a}
+      record_b = %{@log_record | scope: scope_b, body: "other"}
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record_a, record_b])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      scope_logs = hd(decoded.resource_logs).scope_logs
+      assert length(scope_logs) == 2
+    end
+
+    test "encodes dropped_attributes_count" do
+      record = %{@log_record | dropped_attributes_count: 5}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.dropped_attributes_count == 5
+    end
+  end
 end

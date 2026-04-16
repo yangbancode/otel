@@ -334,6 +334,81 @@ defmodule Otel.Exporter.OTLP.Encoder do
   defp encode_optional_id(nil, _byte_size), do: <<>>
   defp encode_optional_id(id, byte_size), do: <<id::unsigned-integer-size(byte_size * 8)>>
 
+  # --- Logs ---
+
+  @doc """
+  Encodes a list of log records into an
+  ExportLogsServiceRequest protobuf binary.
+  """
+  @spec encode_logs(log_records :: [map()]) :: binary()
+  def encode_logs(log_records) do
+    resource_logs = build_resource_logs(log_records)
+
+    %Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest{
+      resource_logs: resource_logs
+    }
+    |> Protobuf.encode()
+  end
+
+  @spec build_resource_logs(log_records :: [map()]) ::
+          [Opentelemetry.Proto.Logs.V1.ResourceLogs.t()]
+  defp build_resource_logs(log_records) do
+    log_records
+    |> Enum.group_by(& &1.resource)
+    |> Enum.map(fn {resource, resource_group} ->
+      %Opentelemetry.Proto.Logs.V1.ResourceLogs{
+        resource: encode_resource(resource),
+        scope_logs: group_logs_by_scope(resource_group),
+        schema_url: resource.schema_url
+      }
+    end)
+  end
+
+  @spec group_logs_by_scope(log_records :: [map()]) ::
+          [Opentelemetry.Proto.Logs.V1.ScopeLogs.t()]
+  defp group_logs_by_scope(log_records) do
+    log_records
+    |> Enum.group_by(& &1.scope)
+    |> Enum.map(fn {scope, scope_group} ->
+      %Opentelemetry.Proto.Logs.V1.ScopeLogs{
+        scope: encode_scope(scope),
+        log_records: Enum.map(scope_group, &encode_log_record/1),
+        schema_url: scope_schema_url(scope)
+      }
+    end)
+  end
+
+  @spec encode_log_record(record :: map()) :: Opentelemetry.Proto.Logs.V1.LogRecord.t()
+  defp encode_log_record(record) do
+    %Opentelemetry.Proto.Logs.V1.LogRecord{
+      time_unix_nano: record.timestamp || 0,
+      observed_time_unix_nano: record.observed_timestamp || 0,
+      severity_number: encode_severity_number(record.severity_number),
+      severity_text: record.severity_text || "",
+      body: encode_log_body(record.body),
+      attributes: encode_attributes(record.attributes || %{}),
+      dropped_attributes_count: Map.get(record, :dropped_attributes_count, 0),
+      trace_id: encode_optional_id(nonzero_or_nil(record.trace_id), 16),
+      span_id: encode_optional_id(nonzero_or_nil(record.span_id), 8),
+      flags: Map.get(record, :trace_flags, 0),
+      event_name: record.event_name || ""
+    }
+  end
+
+  @spec encode_severity_number(severity :: integer() | nil) ::
+          Opentelemetry.Proto.Logs.V1.SeverityNumber.t()
+  defp encode_severity_number(nil), do: :SEVERITY_NUMBER_UNSPECIFIED
+  defp encode_severity_number(n) when is_integer(n) and n in 1..24, do: n
+  defp encode_severity_number(_), do: :SEVERITY_NUMBER_UNSPECIFIED
+
+  @spec encode_log_body(body :: term()) :: Opentelemetry.Proto.Common.V1.AnyValue.t() | nil
+  defp encode_log_body(nil), do: nil
+  defp encode_log_body(body), do: encode_any_value(body)
+
+  @spec nonzero_or_nil(id :: non_neg_integer() | nil) :: non_neg_integer() | nil
+  defp nonzero_or_nil(0), do: nil
+  defp nonzero_or_nil(id), do: id
+
   # --- Helpers ---
 
   @spec encode_id(id :: non_neg_integer(), byte_size :: pos_integer()) :: binary()
