@@ -727,6 +727,22 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert log.dropped_attributes_count == 5
     end
 
+    test "nil temporality on counter encoded as unspecified" do
+      counter_nil_temp = %{
+        @counter_metric
+        | temporality: nil
+      }
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([counter_nil_temp])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      {:sum, sum} = metric.data
+      assert sum.aggregation_temporality == :AGGREGATION_TEMPORALITY_UNSPECIFIED
+    end
+
     test "out-of-range severity number encoded as unspecified" do
       record = %{@log_record | severity_number: 99}
       binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])

@@ -195,4 +195,29 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogramTest do
                [0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10_000]
     end
   end
+
+  describe "delta with float values" do
+    test "collects float sum in delta mode", %{tab: tab} do
+      key = {"float_hist", @scope, nil, %{}}
+      opts = %{boundaries: @boundaries, reader_id: nil, temporality: :delta}
+
+      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key, 25.5, %{
+        boundaries: @boundaries
+      })
+
+      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key, 75.3, %{
+        boundaries: @boundaries
+      })
+
+      [dp] =
+        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
+          tab,
+          {"float_hist", @scope},
+          opts
+        )
+
+      assert dp.value.count == 2
+      assert_in_delta dp.value.sum, 100.8, 0.01
+    end
+  end
 end

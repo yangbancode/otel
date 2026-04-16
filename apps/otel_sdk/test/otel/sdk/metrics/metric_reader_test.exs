@@ -193,4 +193,12 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       assert exemplar.filtered_attributes == %{path: "/api"}
     end
   end
+
+  describe "empty datapoints" do
+    test "stream with no recordings returns no metrics", %{meter: meter, config: config} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "empty_counter", [])
+      metrics = Otel.SDK.Metrics.MetricReader.collect(config)
+      assert metrics == []
+    end
+  end
 end

@@ -252,6 +252,14 @@ defmodule Otel.Exporter.OTLP.MetricsTest do
       assert Otel.Exporter.OTLP.Metrics.export([@test_metric], state) == :ok
       stop_test_server(pid, listen)
     end
+
+    test "returns :ok with ssl_options set" do
+      {pid, port, listen} = start_test_server(200)
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{endpoint: "http://localhost:#{port}"})
+      state = %{state | ssl_options: [verify: :verify_none]}
+      assert Otel.Exporter.OTLP.Metrics.export([@test_metric], state) == :ok
+      stop_test_server(pid, listen)
+    end
   end
 
   describe "export/2 errors" do

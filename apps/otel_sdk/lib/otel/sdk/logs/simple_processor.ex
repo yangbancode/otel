@@ -63,11 +63,11 @@ defmodule Otel.SDK.Logs.SimpleProcessor do
   @impl GenServer
   @spec handle_call(msg :: term(), from :: GenServer.from(), state :: map()) ::
           {:reply, term(), map()}
-  def handle_call({:export, _log_record}, _from, %{exporter: nil} = state) do
+  def handle_call({:export, _log_record}, _from, %{shut_down: true} = state) do
     {:reply, :ok, state}
   end
 
-  def handle_call({:export, _log_record}, _from, %{shut_down: true} = state) do
+  def handle_call({:export, _log_record}, _from, %{exporter: nil} = state) do
     {:reply, :ok, state}
   end
 

@@ -198,6 +198,13 @@ defmodule Otel.API.Trace.SpanTest do
     end
   end
 
+  describe "get_span_module/0" do
+    test "returns nil when no module registered" do
+      :persistent_term.erase({Otel.API.Trace.Span, :module})
+      assert Otel.API.Trace.Span.get_span_module() == nil
+    end
+  end
+
   describe "dispatch to registered module" do
     setup do
       Otel.API.Trace.Span.set_span_module(Otel.API.Trace.SpanTest.FakeSpanOperations)

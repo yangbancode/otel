@@ -154,6 +154,18 @@ defmodule Otel.SDK.Logs.SimpleProcessorTest do
       config = %{reg_name: :simple_ignored_shutdown}
       assert :ok == Otel.SDK.Logs.SimpleProcessor.shutdown(config)
     end
+
+    test "double shutdown on ignored exporter returns error" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.SimpleProcessor.start_link(%{
+          exporter: {IgnoredExporter, %{}},
+          name: :simple_ignored_double_shutdown
+        })
+
+      config = %{reg_name: :simple_ignored_double_shutdown}
+      assert :ok == Otel.SDK.Logs.SimpleProcessor.shutdown(config)
+      assert {:error, :already_shut_down} == Otel.SDK.Logs.SimpleProcessor.shutdown(config)
+    end
   end
 
   describe "force_flush/1" do

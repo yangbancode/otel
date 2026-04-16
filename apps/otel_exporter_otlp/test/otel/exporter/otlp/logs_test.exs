@@ -255,6 +255,14 @@ defmodule Otel.Exporter.OTLP.LogsTest do
       stop_test_server(pid, listen)
     end
 
+    test "returns :ok with ssl_options set" do
+      {pid, port, listen} = start_test_server(200)
+      {:ok, state} = Otel.Exporter.OTLP.Logs.init(%{endpoint: "http://localhost:#{port}"})
+      state = %{state | ssl_options: [verify: :verify_none]}
+      assert :ok == Otel.Exporter.OTLP.Logs.export([@test_log_record], state)
+      stop_test_server(pid, listen)
+    end
+
     test "returns :error when endpoint unreachable" do
       {:ok, state} =
         Otel.Exporter.OTLP.Logs.init(%{endpoint: "http://localhost:19999", timeout: 500})
