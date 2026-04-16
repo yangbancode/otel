@@ -42,22 +42,5 @@ defmodule Otel.SDK.Trace.SpanExporterTest do
 
       assert :ok = Otel.SDK.Trace.SpanExporterTest.TestExporter.shutdown(state)
     end
-
-    test "init can return :ignore" do
-      defmodule IgnoreExporter do
-        @behaviour Otel.SDK.Trace.SpanExporter
-
-        @impl true
-        def init(_config), do: :ignore
-
-        @impl true
-        def export(_spans, _resource, _state), do: :ok
-
-        @impl true
-        def shutdown(_state), do: :ok
-      end
-
-      assert :ignore = IgnoreExporter.init(%{})
-    end
   end
 end

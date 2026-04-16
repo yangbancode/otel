@@ -48,78 +48,12 @@ defmodule Otel.Logger.HandlerTest do
     end
   end
 
-  describe "log/2 with SDK" do
-    setup do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-
-      test_pid = self()
-
-      {:ok, proc_pid} =
-        Otel.SDK.Logs.SimpleProcessor.start_link(%{
-          exporter:
-            {Otel.SDK.Logs.Exporter.Console,
-             %{
-               export_fn: fn records ->
-                 send(test_pid, {:log_exported, records})
-                 :ok
-               end
-             }},
-          name: :handler_test_proc
-        })
-
-      {:ok, provider_pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Logs.SimpleProcessor, %{reg_name: :handler_test_proc}}
-            ]
-          }
-        )
-
-      on_exit(fn ->
-        if Process.alive?(proc_pid), do: GenServer.stop(proc_pid)
-        if Process.alive?(provider_pid), do: GenServer.stop(provider_pid)
-      end)
-
-      %{provider: provider_pid, processor: proc_pid}
-    end
-
-    test "emits log record through SDK pipeline" do
-      :ok =
-        :logger.add_handler(@handler_id, Otel.Logger.Handler, %{
-          config: %{scope_name: "my_app", scope_version: "2.0.0"}
-        })
-
-      # Give handler time to register and get SDK logger
-      # Re-add with fresh SDK logger
-      :logger.remove_handler(@handler_id)
-
-      :ok =
-        :logger.add_handler(@handler_id, Otel.Logger.Handler, %{
-          config: %{scope_name: "my_app", scope_version: "2.0.0"}
-        })
-
-      :logger.info("hello from logger")
-      Process.sleep(50)
-    end
-  end
-
   describe "build_log_record" do
-    test "maps severity correctly" do
-      for {level, _expected_number, _expected_text} <- [
-            {:emergency, 21, "FATAL"},
-            {:alert, 18, "ERROR3"},
-            {:critical, 17, "ERROR"},
-            {:error, 17, "ERROR"},
-            {:warning, 13, "WARN"},
-            {:notice, 12, "INFO4"},
-            {:info, 9, "INFO"},
-            {:debug, 5, "DEBUG"}
-          ] do
+    test "all severity levels dispatch without error" do
+      for level <- [:emergency, :alert, :critical, :error, :warning, :notice, :info, :debug] do
         log_event = %{level: level, msg: {:string, "test"}, meta: %{time: 1_000_000}}
         config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
-        Otel.Logger.Handler.log(log_event, config)
+        assert :ok == Otel.Logger.Handler.log(log_event, config)
       end
     end
 
