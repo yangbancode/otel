@@ -424,6 +424,18 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert {:sum, _} = metric.data
     end
 
+    test "observable_updown_counter encoded as non-monotonic Sum" do
+      metric = %{@counter_metric | kind: :observable_updown_counter, is_monotonic: false}
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      {:sum, sum} = metric.data
+      assert sum.is_monotonic == false
+    end
+
     test "observable_gauge encoded as Gauge" do
       metric = %{@gauge_metric | kind: :observable_gauge}
       binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
@@ -433,6 +445,22 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
       metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
       assert {:gauge, _} = metric.data
+    end
+
+    test "propagates schema_url on ScopeMetrics" do
+      scope = %Otel.API.InstrumentationScope{
+        name: "lib",
+        schema_url: "https://opentelemetry.io/schemas/1.21.0"
+      }
+
+      metric = %{@counter_metric | scope: scope}
+      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      scope_metrics = hd(hd(decoded.resource_metrics).scope_metrics)
+      assert scope_metrics.schema_url == "https://opentelemetry.io/schemas/1.21.0"
     end
 
     test "encodes resource and scope" do

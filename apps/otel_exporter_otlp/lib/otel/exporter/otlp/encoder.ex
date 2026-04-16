@@ -200,7 +200,8 @@ defmodule Otel.Exporter.OTLP.Encoder do
     |> Enum.map(fn {resource, resource_group} ->
       %Opentelemetry.Proto.Metrics.V1.ResourceMetrics{
         resource: encode_resource(resource),
-        scope_metrics: group_metrics_by_scope(resource_group)
+        scope_metrics: group_metrics_by_scope(resource_group),
+        schema_url: resource.schema_url
       }
     end)
   end
@@ -213,10 +214,15 @@ defmodule Otel.Exporter.OTLP.Encoder do
     |> Enum.map(fn {scope, scope_group} ->
       %Opentelemetry.Proto.Metrics.V1.ScopeMetrics{
         scope: encode_scope(scope),
-        metrics: Enum.map(scope_group, &encode_metric/1)
+        metrics: Enum.map(scope_group, &encode_metric/1),
+        schema_url: scope_schema_url(scope)
       }
     end)
   end
+
+  @spec scope_schema_url(scope :: Otel.API.InstrumentationScope.t() | nil) :: String.t()
+  defp scope_schema_url(nil), do: ""
+  defp scope_schema_url(scope), do: scope.schema_url || ""
 
   @spec encode_metric(metric :: Otel.SDK.Metrics.MetricReader.metric()) ::
           Opentelemetry.Proto.Metrics.V1.Metric.t()
