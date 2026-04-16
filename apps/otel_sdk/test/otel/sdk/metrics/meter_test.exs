@@ -114,6 +114,28 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
       assert result.advisory == [explicit_bucket_boundaries: [1, 5, 10]]
     end
+
+    test "advisory attributes stored for any instrument kind", %{meter: meter} do
+      result =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "adv_attrs",
+          advisory: [attributes: [:method, :status]]
+        )
+
+      assert result.advisory == [attributes: [:method, :status]]
+    end
+
+    test "advisory attributes filter recording attributes", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "adv_filter",
+        advisory: [attributes: [:method]]
+      )
+
+      Otel.SDK.Metrics.Meter.record(meter, "adv_filter", 1, %{method: "GET", path: "/api"})
+
+      {_module, config} = meter
+      stream_key = {"adv_filter", config.scope}
+      [dp] = Otel.SDK.Metrics.Aggregation.Sum.collect(config.metrics_tab, stream_key, %{})
+      assert dp.attributes == %{method: "GET"}
+    end
   end
 
   describe "name validation" do
@@ -433,9 +455,166 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
   end
 
+  describe "duplicate conflict resolution" do
+    test "description-only conflict with view override suppresses warning" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "desc_dup"},
+        %{description: "Canonical description"}
+      )
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      first =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "desc_dup",
+          unit: "1",
+          description: "first"
+        )
+
+      second =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "desc_dup",
+          unit: "1",
+          description: "second"
+        )
+
+      assert first == second
+    end
+
+    test "description-only conflict without view emits warning", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "desc_no_view",
+        unit: "1",
+        description: "alpha"
+      )
+
+      result =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "desc_no_view",
+          unit: "1",
+          description: "beta"
+        )
+
+      assert result.description == "alpha"
+    end
+
+    test "distinguishable conflict suggests renaming view", %{meter: meter} do
+      first = Otel.SDK.Metrics.Meter.create_counter(meter, "kind_dup", unit: "1")
+      second = Otel.SDK.Metrics.Meter.create_histogram(meter, "kind_dup", unit: "1")
+      assert second == first
+    end
+
+    test "unresolvable conflict emits generic warning", %{meter: meter} do
+      first =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "unit_dup",
+          unit: "1",
+          description: "a"
+        )
+
+      second =
+        Otel.SDK.Metrics.Meter.create_counter(meter, "unit_dup",
+          unit: "ms",
+          description: "a"
+        )
+
+      assert second == first
+    end
+
+    test "advisory-only conflict returns first-seen advisory", %{meter: meter} do
+      first =
+        Otel.SDK.Metrics.Meter.create_histogram(meter, "adv_dup",
+          advisory: [explicit_bucket_boundaries: [1, 5, 10]]
+        )
+
+      second =
+        Otel.SDK.Metrics.Meter.create_histogram(meter, "adv_dup",
+          advisory: [explicit_bucket_boundaries: [100, 200, 500]]
+        )
+
+      assert second == first
+      assert second.advisory == [explicit_bucket_boundaries: [1, 5, 10]]
+    end
+
+    test "kind and unit both differ is unresolvable", %{meter: meter} do
+      first = Otel.SDK.Metrics.Meter.create_counter(meter, "both_dup", unit: "1")
+      second = Otel.SDK.Metrics.Meter.create_histogram(meter, "both_dup", unit: "ms")
+      assert second == first
+    end
+  end
+
   describe "enabled?" do
-    test "returns true for SDK meter", %{meter: meter} do
+    test "returns true for SDK meter without instrument_name", %{meter: meter} do
       assert true == Otel.SDK.Metrics.Meter.enabled?(meter, [])
+    end
+
+    test "returns true for registered instrument with non-Drop aggregation", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "active_counter", [])
+      assert true == Otel.SDK.Metrics.Meter.enabled?(meter, instrument_name: "active_counter")
+    end
+
+    test "returns false when all views use Drop aggregation" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "dropped"},
+        %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
+      )
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "dropped", [])
+      refute Otel.SDK.Metrics.Meter.enabled?(meter, instrument_name: "dropped")
+    end
+
+    test "returns true when at least one view is not Drop" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "partial_drop"},
+        %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
+      )
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{type: :counter},
+        %{name: "partial_drop_sum"}
+      )
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      Otel.SDK.Metrics.Meter.create_counter(meter, "partial_drop", [])
+      assert Otel.SDK.Metrics.Meter.enabled?(meter, instrument_name: "partial_drop")
+    end
+
+    test "returns false for unregistered instrument when all matching views Drop" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "*"},
+        %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
+      )
+
+      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      meter = {Otel.SDK.Metrics.Meter, config}
+
+      refute Otel.SDK.Metrics.Meter.enabled?(meter, instrument_name: "not_yet_created")
+    end
+
+    test "returns true for unregistered instrument with no matching views", %{meter: meter} do
+      assert Otel.SDK.Metrics.Meter.enabled?(meter, instrument_name: "unknown")
     end
   end
 

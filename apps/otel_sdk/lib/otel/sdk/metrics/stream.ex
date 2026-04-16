@@ -69,8 +69,11 @@ defmodule Otel.SDK.Metrics.Stream do
       stream.aggregation || Otel.SDK.Metrics.Aggregation.default_module(stream.instrument.kind)
 
     aggregation_options =
-      stream.aggregation_options
-      |> merge_advisory_boundaries(stream.instrument)
+      if stream.aggregation == nil do
+        merge_advisory_boundaries(stream.aggregation_options, stream.instrument)
+      else
+        stream.aggregation_options
+      end
 
     cardinality_limit = stream.aggregation_cardinality_limit || @default_cardinality_limit
     reservoir = stream.exemplar_reservoir || default_reservoir(aggregation, aggregation_options)
