@@ -726,5 +726,16 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
       assert log.dropped_attributes_count == 5
     end
+
+    test "out-of-range severity number encoded as unspecified" do
+      record = %{@log_record | severity_number: 99}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log.severity_number == :SEVERITY_NUMBER_UNSPECIFIED
+    end
   end
 end

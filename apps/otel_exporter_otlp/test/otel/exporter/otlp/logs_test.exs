@@ -119,6 +119,12 @@ defmodule Otel.Exporter.OTLP.LogsTest do
       assert state.timeout == 5_000
     end
 
+    test "general endpoint with trailing slash" do
+      System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318/")
+      {:ok, state} = Otel.Exporter.OTLP.Logs.init(%{})
+      assert state.endpoint == "http://collector:4318/v1/logs"
+    end
+
     test "general env overrides code config" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env:4318")
       {:ok, state} = Otel.Exporter.OTLP.Logs.init(%{endpoint: "http://code:4318"})

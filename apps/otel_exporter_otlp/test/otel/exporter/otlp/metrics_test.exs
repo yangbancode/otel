@@ -116,6 +116,19 @@ defmodule Otel.Exporter.OTLP.MetricsTest do
       {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
       assert state.endpoint == "http://metrics:4318/v1/metrics"
     end
+
+    test "general endpoint with trailing slash" do
+      System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318/")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert state.endpoint == "http://collector:4318/v1/metrics"
+    end
+
+    test "empty signal env falls through to general" do
+      System.put_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "")
+      System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://general:4318")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert state.endpoint == "http://general:4318/v1/metrics"
+    end
   end
 
   describe "init/1 OTEL_EXPORTER_OTLP_METRICS_HEADERS" do

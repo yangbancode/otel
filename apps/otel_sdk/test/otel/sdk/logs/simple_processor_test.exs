@@ -143,6 +143,19 @@ defmodule Otel.SDK.Logs.SimpleProcessorTest do
     end
   end
 
+  describe "shutdown with ignored exporter" do
+    test "shutdown returns :ok when exporter was ignored" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.SimpleProcessor.start_link(%{
+          exporter: {IgnoredExporter, %{}},
+          name: :simple_ignored_shutdown
+        })
+
+      config = %{reg_name: :simple_ignored_shutdown}
+      assert :ok == Otel.SDK.Logs.SimpleProcessor.shutdown(config)
+    end
+  end
+
   describe "force_flush/1" do
     test "returns :ok" do
       assert :ok == Otel.SDK.Logs.SimpleProcessor.force_flush(%{})

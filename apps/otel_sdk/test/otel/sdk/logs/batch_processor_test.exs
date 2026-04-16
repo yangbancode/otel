@@ -24,6 +24,23 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
     end
   end
 
+  defmodule IgnoredExporter do
+    @moduledoc false
+    @behaviour Otel.SDK.Logs.LogRecordExporter
+
+    @impl true
+    def init(_config), do: :ignore
+
+    @impl true
+    def export(_log_records, _config), do: :ok
+
+    @impl true
+    def force_flush(_config), do: :ok
+
+    @impl true
+    def shutdown(_config), do: :ok
+  end
+
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
@@ -176,6 +193,120 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
   describe "enabled?/2" do
     test "returns true" do
       assert Otel.SDK.Logs.BatchProcessor.enabled?([], %{})
+    end
+  end
+
+  describe "env var config" do
+    test "reads OTEL_BLRP_SCHEDULE_DELAY" do
+      System.put_env("OTEL_BLRP_SCHEDULE_DELAY", "200")
+
+      {:ok, pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {TestExporter, %{test_pid: self()}},
+          name: :batch_env_delay
+        })
+
+      System.delete_env("OTEL_BLRP_SCHEDULE_DELAY")
+      GenServer.stop(pid)
+    end
+
+    test "invalid env var uses default" do
+      System.put_env("OTEL_BLRP_MAX_QUEUE_SIZE", "not_a_number")
+
+      {:ok, pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {TestExporter, %{test_pid: self()}},
+          name: :batch_env_invalid
+        })
+
+      System.delete_env("OTEL_BLRP_MAX_QUEUE_SIZE")
+      GenServer.stop(pid)
+    end
+
+    test "empty env var uses default" do
+      System.put_env("OTEL_BLRP_MAX_QUEUE_SIZE", "")
+
+      {:ok, pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {TestExporter, %{test_pid: self()}},
+          name: :batch_env_empty
+        })
+
+      System.delete_env("OTEL_BLRP_MAX_QUEUE_SIZE")
+      GenServer.stop(pid)
+    end
+  end
+
+  describe "ignored exporter" do
+    test "starts with ignored exporter and exports are no-op" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {IgnoredExporter, %{}},
+          name: :batch_ignored_export,
+          scheduled_delay_ms: 60_000
+        })
+
+      config = %{reg_name: :batch_ignored_export}
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "ignored"}, config)
+      :ok = Otel.SDK.Logs.BatchProcessor.force_flush(config)
+    end
+
+    test "timer fires with ignored exporter" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {IgnoredExporter, %{}},
+          name: :batch_ignored_timer,
+          scheduled_delay_ms: 30
+        })
+
+      config = %{reg_name: :batch_ignored_timer}
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "timed_ignored"}, config)
+      Process.sleep(100)
+      :ok = Otel.SDK.Logs.BatchProcessor.force_flush(config)
+    end
+
+    test "shutdown with ignored exporter" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {IgnoredExporter, %{}},
+          name: :batch_ignored_shutdown,
+          scheduled_delay_ms: 60_000
+        })
+
+      config = %{reg_name: :batch_ignored_shutdown}
+      :ok = Otel.SDK.Logs.BatchProcessor.shutdown(config)
+    end
+  end
+
+  describe "emit after shutdown" do
+    test "cast after shutdown is silently dropped" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {TestExporter, %{test_pid: self()}},
+          name: :batch_emit_after_shutdown,
+          scheduled_delay_ms: 60_000
+        })
+
+      config = %{reg_name: :batch_emit_after_shutdown}
+      Otel.SDK.Logs.BatchProcessor.shutdown(config)
+      :ok = Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "late"}, config)
+      refute_receive {:exported, _}, 100
+    end
+
+    test "timer after shutdown is no-op" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.BatchProcessor.start_link(%{
+          exporter: {TestExporter, %{test_pid: self()}},
+          name: :batch_timer_after_shutdown,
+          scheduled_delay_ms: 30
+        })
+
+      config = %{reg_name: :batch_timer_after_shutdown}
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "before"}, config)
+      Otel.SDK.Logs.BatchProcessor.shutdown(config)
+      assert_receive {:exported, _}
+      Process.sleep(100)
+      refute_receive {:exported, _}
     end
   end
 

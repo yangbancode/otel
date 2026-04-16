@@ -167,5 +167,26 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       Otel.SDK.Logs.LoggerProvider.force_flush(pid)
       assert_receive :processor_force_flush
     end
+
+    test "shutdown returns error when processor fails" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      defmodule FailingProcessor do
+        @moduledoc false
+        def on_emit(_record, _config), do: :ok
+        def shutdown(_config), do: {:error, :boom}
+        def force_flush(_config), do: :ok
+      end
+
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(
+          config: %{
+            processors: [{FailingProcessor, %{}}]
+          }
+        )
+
+      assert {:error, _} = Otel.SDK.Logs.LoggerProvider.shutdown(pid)
+    end
   end
 end

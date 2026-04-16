@@ -12,7 +12,7 @@ defmodule Otel.Exporter.OTLP.MixProject do
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [
-        threshold: 100,
+        summary: [threshold: 100],
         ignore_modules: [
           ~r/^Opentelemetry\.Proto\./
         ]
