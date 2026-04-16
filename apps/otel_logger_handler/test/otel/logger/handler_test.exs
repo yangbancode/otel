@@ -156,9 +156,34 @@ defmodule Otel.Logger.HandlerTest do
       assert :ok == Otel.Logger.Handler.log(log_event, config)
     end
 
-    test "converts timestamp from microseconds to nanoseconds" do
+    test "extracts metadata without mfa" do
+      meta = %{time: 1_000_000, file: ~c"lib/test.ex", line: 10}
+      log_event = %{level: :info, msg: {:string, "test"}, meta: meta}
+      config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
+      assert :ok == Otel.Logger.Handler.log(log_event, config)
+    end
+
+    test "extracts metadata with no optional fields" do
       meta = %{time: 1_000_000}
       log_event = %{level: :info, msg: {:string, "test"}, meta: meta}
+      config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
+      assert :ok == Otel.Logger.Handler.log(log_event, config)
+    end
+
+    test "uses current time when meta has no time" do
+      log_event = %{level: :info, msg: {:string, "test"}, meta: %{}}
+      config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
+      assert :ok == Otel.Logger.Handler.log(log_event, config)
+    end
+
+    test "extracts report list message" do
+      log_event = %{level: :info, msg: {:report, [key: "value"]}, meta: %{time: 1_000_000}}
+      config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
+      assert :ok == Otel.Logger.Handler.log(log_event, config)
+    end
+
+    test "extracts unknown message type" do
+      log_event = %{level: :info, msg: :unexpected, meta: %{time: 1_000_000}}
       config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
       assert :ok == Otel.Logger.Handler.log(log_event, config)
     end

@@ -131,12 +131,41 @@ defmodule Otel.Exporter.OTLP.MetricsTest do
       {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
       assert Enum.any?(state.headers, fn {k, _} -> k == ~c"user-agent" end)
     end
+
+    test "general headers env var" do
+      System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "key1=val1,key2=val2")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert {~c"key1", ~c"val1"} in state.headers
+    end
+
+    test "skips invalid header pairs" do
+      System.put_env("OTEL_EXPORTER_OTLP_METRICS_HEADERS", "valid=yes,=invalid")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert {~c"valid", ~c"yes"} in state.headers
+    end
+
+    test "code config headers as map" do
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{headers: %{"auth" => "token"}})
+      assert {~c"auth", ~c"token"} in state.headers
+    end
   end
 
   describe "init/1 OTEL_EXPORTER_OTLP_METRICS_COMPRESSION" do
     test "signal-specific compression overrides general" do
       System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
       System.put_env("OTEL_EXPORTER_OTLP_METRICS_COMPRESSION", "none")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert state.compression == :none
+    end
+
+    test "general compression env var" do
+      System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert state.compression == :gzip
+    end
+
+    test "unknown compression defaults to none" do
+      System.put_env("OTEL_EXPORTER_OTLP_METRICS_COMPRESSION", "brotli")
       {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
       assert state.compression == :none
     end
@@ -148,6 +177,40 @@ defmodule Otel.Exporter.OTLP.MetricsTest do
       System.put_env("OTEL_EXPORTER_OTLP_METRICS_TIMEOUT", "3000")
       {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
       assert state.timeout == 3000
+    end
+
+    test "general timeout env var" do
+      System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "7000")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert state.timeout == 7000
+    end
+
+    test "unparseable timeout uses default" do
+      System.put_env("OTEL_EXPORTER_OTLP_METRICS_TIMEOUT", "abc")
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert state.timeout == 10_000
+    end
+  end
+
+  describe "init/1 SSL" do
+    test "http endpoint has empty ssl_options" do
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})
+      assert state.ssl_options == []
+    end
+
+    test "https endpoint gets default ssl_options" do
+      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{endpoint: "https://collector:4318"})
+      assert state.ssl_options[:verify] == :verify_peer
+    end
+
+    test "custom ssl_options override defaults" do
+      {:ok, state} =
+        Otel.Exporter.OTLP.Metrics.init(%{
+          endpoint: "https://collector:4318",
+          ssl_options: [verify: :verify_none]
+        })
+
+      assert state.ssl_options == [verify: :verify_none]
     end
   end
 
