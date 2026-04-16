@@ -105,7 +105,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### Logs SDK
 - [x] [LoggerProvider SDK](decisions/loggerprovider-sdk.md)
 - [x] [LogRecord Limits](decisions/logrecord-limits.md)
-- [ ] [LogRecordProcessor Interface](decisions/logrecordprocessor-interface.md)
+- [x] [LogRecordProcessor Interface](decisions/logrecordprocessor-interface.md)
 - [ ] [LogRecordExporter Interface](decisions/logrecordexporter-interface.md)
 - [ ] [Simple LogRecord Processor](decisions/simple-logrecord-processor.md)
 - [ ] [Console Log Exporter](decisions/console-log-exporter.md)

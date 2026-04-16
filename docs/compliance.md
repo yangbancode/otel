@@ -1491,17 +1491,17 @@
 
 ### Enabled (SDK)
 - [x] Enabled MUST return false when there are no registered LogRecordProcessors — [L256](../references/opentelemetry-specification/specification/logs/sdk.md#L256)
-- [ ] Enabled MUST return false when all registered processors implement Enabled and each returns false — [L267](../references/opentelemetry-specification/specification/logs/sdk.md#L267)
+- [x] Enabled MUST return false when all registered processors implement Enabled and each returns false — [L267](../references/opentelemetry-specification/specification/logs/sdk.md#L267)
 - [x] Otherwise, Enabled SHOULD return true — [L270](../references/opentelemetry-specification/specification/logs/sdk.md#L270)
 
 ### ReadableLogRecord
 - [x] A function receiving ReadableLogRecord MUST be able to access all information added to the LogRecord — [L279](../references/opentelemetry-specification/specification/logs/sdk.md#L279)
 - [x] ReadableLogRecord MUST also be able to access Instrumentation Scope and Resource — [L281](../references/opentelemetry-specification/specification/logs/sdk.md#L281)
 - [x] Trace context fields MUST be populated from resolved Context when emitted — [L285](../references/opentelemetry-specification/specification/logs/sdk.md#L285)
-- [ ] Counts for attributes due to collection limits MUST be available for exporters — [L289](../references/opentelemetry-specification/specification/logs/sdk.md#L289)
+- [x] Counts for attributes due to collection limits MUST be available for exporters — [L289](../references/opentelemetry-specification/specification/logs/sdk.md#L289)
 
 ### ReadWriteLogRecord
-- [ ] A function receiving ReadWriteLogRecord MUST additionally be able to modify Timestamp, ObservedTimestamp, SeverityText, SeverityNumber, Body, Attributes, TraceId, SpanId, TraceFlags, EventName — [L302](../references/opentelemetry-specification/specification/logs/sdk.md#L302)
+- [x] A function receiving ReadWriteLogRecord MUST additionally be able to modify Timestamp, ObservedTimestamp, SeverityText, SeverityNumber, Body, Attributes, TraceId, SpanId, TraceFlags, EventName — [L302](../references/opentelemetry-specification/specification/logs/sdk.md#L302)
 
 ### LogRecord Limits
 - [x] LogRecord attributes MUST adhere to common rules of attribute limits — [L323](../references/opentelemetry-specification/specification/logs/sdk.md#L323)
@@ -1511,35 +1511,35 @@
 - [x] The message MUST be printed at most once per LogRecord — [L347](../references/opentelemetry-specification/specification/logs/sdk.md#L347)
 
 ### LogRecordProcessor
-- [ ] SDK MUST allow each pipeline to end with an individual exporter — [L363](../references/opentelemetry-specification/specification/logs/sdk.md#L363)
-- [ ] SDK MUST allow users to implement and configure custom processors — [L365](../references/opentelemetry-specification/specification/logs/sdk.md#L365)
+- [x] SDK MUST allow each pipeline to end with an individual exporter — [L363](../references/opentelemetry-specification/specification/logs/sdk.md#L363)
+- [x] SDK MUST allow users to implement and configure custom processors — [L365](../references/opentelemetry-specification/specification/logs/sdk.md#L365)
 
 ### OnEmit
-- [ ] OnEmit SHOULD NOT block or throw exceptions — [L397](../references/opentelemetry-specification/specification/logs/sdk.md#L397)
-- [ ] For processor registered directly on LoggerProvider, logRecord mutations MUST be visible in next registered processors — [L409](../references/opentelemetry-specification/specification/logs/sdk.md#L409)
+- [x] OnEmit SHOULD NOT block or throw exceptions — [L397](../references/opentelemetry-specification/specification/logs/sdk.md#L397)
+- [x] For processor registered directly on LoggerProvider, logRecord mutations MUST be visible in next registered processors — [L409](../references/opentelemetry-specification/specification/logs/sdk.md#L409)
 
 ### Enabled (Processor)
-- [ ] Any modifications to parameters inside Enabled MUST NOT be propagated to the caller — [L439](../references/opentelemetry-specification/specification/logs/sdk.md#L439)
+- [x] Any modifications to parameters inside Enabled MUST NOT be propagated to the caller — [L439](../references/opentelemetry-specification/specification/logs/sdk.md#L439)
 
 ### Processor Shutdown
-- [ ] Shutdown SHOULD be called only once for each LogRecordProcessor instance — [L462](../references/opentelemetry-specification/specification/logs/sdk.md#L462)
-- [ ] After Shutdown, subsequent calls to OnEmit are not allowed; SDKs SHOULD ignore gracefully — [L463](../references/opentelemetry-specification/specification/logs/sdk.md#L463)
-- [ ] Shutdown SHOULD provide a way to let caller know success/failure/timeout — [L466](../references/opentelemetry-specification/specification/logs/sdk.md#L466)
-- [ ] Shutdown MUST include the effects of ForceFlush — [L469](../references/opentelemetry-specification/specification/logs/sdk.md#L469)
-- [ ] Shutdown SHOULD complete or abort within some timeout — [L471](../references/opentelemetry-specification/specification/logs/sdk.md#L471)
+- [x] Shutdown SHOULD be called only once for each LogRecordProcessor instance — [L462](../references/opentelemetry-specification/specification/logs/sdk.md#L462)
+- [x] After Shutdown, subsequent calls to OnEmit are not allowed; SDKs SHOULD ignore gracefully — [L463](../references/opentelemetry-specification/specification/logs/sdk.md#L463)
+- [x] Shutdown SHOULD provide a way to let caller know success/failure/timeout — [L466](../references/opentelemetry-specification/specification/logs/sdk.md#L466)
+- [x] Shutdown MUST include the effects of ForceFlush — [L469](../references/opentelemetry-specification/specification/logs/sdk.md#L469)
+- [x] Shutdown SHOULD complete or abort within some timeout — [L471](../references/opentelemetry-specification/specification/logs/sdk.md#L471)
 
 ### Processor ForceFlush
-- [ ] Tasks associated with LogRecords received prior to ForceFlush SHOULD be completed as soon as possible — [L480](../references/opentelemetry-specification/specification/logs/sdk.md#L480)
-- [ ] If processor has associated exporter, it SHOULD try to call Export and then ForceFlush on it — [L484](../references/opentelemetry-specification/specification/logs/sdk.md#L484)
-- [ ] Built-in LogRecordProcessors MUST do so — [L486](../references/opentelemetry-specification/specification/logs/sdk.md#L486)
-- [ ] If timeout is specified, LogRecordProcessor MUST prioritize honoring the timeout — [L487](../references/opentelemetry-specification/specification/logs/sdk.md#L487)
-- [ ] ForceFlush SHOULD provide a way to let caller know success/failure/timeout — [L492](../references/opentelemetry-specification/specification/logs/sdk.md#L492)
-- [ ] ForceFlush SHOULD only be called in absolutely necessary cases — [L495](../references/opentelemetry-specification/specification/logs/sdk.md#L495)
-- [ ] ForceFlush SHOULD complete or abort within some timeout — [L500](../references/opentelemetry-specification/specification/logs/sdk.md#L500)
+- [x] Tasks associated with LogRecords received prior to ForceFlush SHOULD be completed as soon as possible — [L480](../references/opentelemetry-specification/specification/logs/sdk.md#L480)
+- [x] If processor has associated exporter, it SHOULD try to call Export and then ForceFlush on it — [L484](../references/opentelemetry-specification/specification/logs/sdk.md#L484)
+- [x] Built-in LogRecordProcessors MUST do so — [L486](../references/opentelemetry-specification/specification/logs/sdk.md#L486)
+- [x] If timeout is specified, LogRecordProcessor MUST prioritize honoring the timeout — [L487](../references/opentelemetry-specification/specification/logs/sdk.md#L487)
+- [x] ForceFlush SHOULD provide a way to let caller know success/failure/timeout — [L492](../references/opentelemetry-specification/specification/logs/sdk.md#L492)
+- [x] ForceFlush SHOULD only be called in absolutely necessary cases — [L495](../references/opentelemetry-specification/specification/logs/sdk.md#L495)
+- [x] ForceFlush SHOULD complete or abort within some timeout — [L500](../references/opentelemetry-specification/specification/logs/sdk.md#L500)
 
 ### Built-in Processors
 - [ ] Standard SDK MUST implement both simple and batch processors — [L507](../references/opentelemetry-specification/specification/logs/sdk.md#L507)
-- [ ] Other common processing scenarios SHOULD be first considered for out-of-process implementation — [L510](../references/opentelemetry-specification/specification/logs/sdk.md#L510)
+- [x] Other common processing scenarios SHOULD be first considered for out-of-process implementation — [L510](../references/opentelemetry-specification/specification/logs/sdk.md#L510)
 
 ### Simple Processor
 - [ ] Processor MUST synchronize calls to LogRecordExporter's Export — [L521](../references/opentelemetry-specification/specification/logs/sdk.md#L521)
