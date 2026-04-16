@@ -115,7 +115,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [OTLP Logs Exporter](decisions/otlp-logs-exporter.md)
 
 ### :logger Integration
-- [ ] [:logger Integration](decisions/logger-integration.md)
+- [x] [:logger Integration](decisions/logger-integration.md)
 
 ### Environment Variables
 - [ ] [Logs Environment Variables](decisions/logs-environment-variables.md)
