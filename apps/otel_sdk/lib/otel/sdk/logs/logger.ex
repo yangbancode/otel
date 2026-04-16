@@ -90,12 +90,26 @@ defmodule Otel.SDK.Logs.Logger do
       :"exception.message" => Exception.message(exception)
     }
 
+    exception_attrs =
+      case Map.get(log_record, :stacktrace) do
+        nil ->
+          exception_attrs
+
+        stacktrace ->
+          Map.put(exception_attrs, :"exception.stacktrace", format_stacktrace(stacktrace))
+      end
+
     user_attrs = Map.get(log_record, :attributes, %{})
     merged = Map.merge(exception_attrs, user_attrs)
     Map.put(log_record, :attributes, merged)
   end
 
   defp apply_exception_attributes(log_record), do: log_record
+
+  @spec format_stacktrace(stacktrace :: list()) :: String.t()
+  defp format_stacktrace(stacktrace) do
+    Exception.format_stacktrace(stacktrace)
+  end
 
   @spec extract_trace_context(ctx :: Otel.API.Ctx.t()) ::
           {non_neg_integer(), non_neg_integer(), non_neg_integer()}

@@ -78,16 +78,17 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   # --- Server Callbacks ---
 
-  @processors_key {__MODULE__, :processors}
-
   @impl true
   def init(user_config) do
+    processors_key = {__MODULE__, :processors, make_ref()}
+
     config =
       default_config()
       |> Map.merge(user_config)
       |> Map.put(:shut_down, false)
+      |> Map.put(:processors_key, processors_key)
 
-    :persistent_term.put(@processors_key, config.processors)
+    :persistent_term.put(processors_key, config.processors)
 
     Otel.API.Logs.LoggerProvider.set_provider(__MODULE__)
     {:ok, config}
@@ -110,7 +111,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     logger_config = %{
       scope: scope,
       resource: config.resource,
-      processors_key: @processors_key,
+      processors_key: config.processors_key,
       log_record_limits: config.log_record_limits
     }
 

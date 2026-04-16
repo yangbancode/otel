@@ -505,20 +505,8 @@ defmodule Otel.SDK.Metrics.Meter do
   defp warn_duplicate(_config, existing, new_instrument, _name)
        when existing.kind == new_instrument.kind and
               existing.unit == new_instrument.unit and
-              existing.description == new_instrument.description and
-              existing.advisory == new_instrument.advisory do
-    :ok
-  end
-
-  defp warn_duplicate(_config, existing, new_instrument, name)
-       when existing.kind == new_instrument.kind and
-              existing.unit == new_instrument.unit and
               existing.description == new_instrument.description do
-    :logger.warning(
-      "duplicate instrument registration for #{inspect(name)} " <>
-        "with different advisory parameters, using first-seen",
-      %{domain: [:otel, :metrics]}
-    )
+    :ok
   end
 
   defp warn_duplicate(config, existing, new_instrument, name) do
