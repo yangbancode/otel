@@ -22,7 +22,7 @@ Batching and export are handled by the SDK's processor pipeline, not by this han
 
 | Callback | Description |
 |---|---|
-| `adding_handler/1` | Obtains an OTel Logger via `LoggerProvider.get_logger` and caches it |
+| `adding_handler/1` | Uses pre-configured `otel_logger` if present; otherwise obtains one via `LoggerProvider.get_logger` |
 | `removing_handler/1` | No-op cleanup |
 | `log/2` | Converts log event → OTel log_record → `Logger.emit` |
 | `changing_config/3` | Accepts new config |

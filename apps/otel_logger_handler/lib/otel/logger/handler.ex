@@ -22,6 +22,7 @@ defmodule Otel.Logger.Handler do
   |---|---|---|
   | `scope_name` | `"otel_logger_handler"` | InstrumentationScope name |
   | `scope_version` | `""` | InstrumentationScope version |
+  | `otel_logger` | `nil` | Pre-built OTel Logger; if set, skips `LoggerProvider.get_logger` |
 
   Batching and export are handled by the SDK's processor pipeline,
   not by this handler. Pair with `BatchProcessor` for production use.
