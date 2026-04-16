@@ -107,7 +107,7 @@ defmodule Otel.Logger.HandlerTest do
 
   describe "build_log_record" do
     test "maps severity correctly" do
-      for {level, expected_number, expected_text} <- [
+      for {level, _expected_number, _expected_text} <- [
             {:emergency, 21, "FATAL"},
             {:alert, 18, "ERROR3"},
             {:critical, 17, "ERROR"},
