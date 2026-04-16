@@ -163,6 +163,58 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
   end
 
+  describe "attribute limits" do
+    test "truncates attribute values when limit set" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(
+          config: %{
+            processors: [{CollectorProcessor, %{test_pid: self()}}],
+            log_record_limits: %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 5}
+          }
+        )
+
+      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+      logger = {Otel.SDK.Logs.Logger, config}
+
+      ctx = Otel.API.Ctx.get_current()
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{key: "abcdefgh"}})
+      assert_receive {:log_record, record}
+      assert record.attributes.key == "abcde"
+    end
+
+    test "drops excess attributes when count limit set" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(
+          config: %{
+            processors: [{CollectorProcessor, %{test_pid: self()}}],
+            log_record_limits: %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 2}
+          }
+        )
+
+      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+      logger = {Otel.SDK.Logs.Logger, config}
+
+      ctx = Otel.API.Ctx.get_current()
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{a: 1, b: 2, c: 3, d: 4}})
+      assert_receive {:log_record, record}
+      assert map_size(record.attributes) == 2
+      assert record.dropped_attributes_count == 2
+    end
+
+    test "dropped_attributes_count is 0 when within limit", %{logger: logger} do
+      ctx = Otel.API.Ctx.get_current()
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{a: 1}})
+      assert_receive {:log_record, record}
+      assert record.dropped_attributes_count == 0
+    end
+  end
+
   describe "dispatch via API" do
     test "emit via API dispatch works", %{logger: logger} do
       Otel.API.Logs.Logger.emit(logger, %{body: "via API"})

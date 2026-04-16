@@ -110,7 +110,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     logger_config = %{
       scope: scope,
       resource: config.resource,
-      processors_key: @processors_key
+      processors_key: @processors_key,
+      log_record_limits: config.log_record_limits
     }
 
     logger = {Otel.SDK.Logs.Logger, logger_config}
@@ -170,7 +171,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   defp default_config do
     %{
       resource: Otel.SDK.Configuration.default_config().resource,
-      processors: []
+      processors: [],
+      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{}
     }
   end
 
