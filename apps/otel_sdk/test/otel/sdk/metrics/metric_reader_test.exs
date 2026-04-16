@@ -156,6 +156,17 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       assert hd(dp.exemplars).value == 2
     end
 
+    test "collects without exemplars_tab in config", %{meter: meter, config: config} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "no_ex", [])
+      Otel.SDK.Metrics.Meter.record(meter, "no_ex", 5, %{})
+
+      no_exemplar_config = Map.delete(config, :exemplars_tab)
+      [metric] = Otel.SDK.Metrics.MetricReader.collect(no_exemplar_config)
+      [dp] = metric.datapoints
+      assert dp.value == 5
+      refute Map.has_key?(dp, :exemplars)
+    end
+
     test "exemplar retains dropped attributes" do
       Application.stop(:otel_sdk)
       Application.ensure_all_started(:otel_sdk)

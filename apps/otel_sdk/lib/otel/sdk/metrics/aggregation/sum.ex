@@ -4,6 +4,9 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
 
   Stores integer and float components separately for atomic updates.
   ETS entry format: `{key, int_value, float_value, start_time}`.
+
+  Supports Cumulative and Delta temporality. For Delta, values are
+  atomically read and subtracted during collection.
   """
 
   @behaviour Otel.SDK.Metrics.Aggregation
@@ -41,9 +44,8 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
 
   @spec cas_add_float(metrics_tab :: :ets.table(), key :: term(), value :: float()) :: :ok
   defp cas_add_float(metrics_tab, key, value) do
-    [{^key, int_val, old_float, start}] = :ets.lookup(metrics_tab, key)
+    [{^key, _int_val, old_float, _start}] = :ets.lookup(metrics_tab, key)
     :ets.update_element(metrics_tab, key, [{3, old_float + value}])
-    _ = {int_val, start}
     :ok
   end
 
@@ -53,19 +55,36 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
           stream_key :: {String.t(), Otel.API.InstrumentationScope.t()},
           opts :: map()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
-  def collect(metrics_tab, {stream_name, scope}, _opts) do
+  def collect(metrics_tab, {stream_name, scope}, opts) do
+    reader_id = Map.get(opts, :reader_id)
+    temporality = Map.get(opts, :temporality, :cumulative)
     now = System.system_time(:nanosecond)
 
     match_spec = [
       {
-        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4"},
+        {{stream_name, scope, reader_id, :"$1"}, :"$2", :"$3", :"$4"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4"}}]
       }
     ]
 
-    :ets.select(metrics_tab, match_spec)
-    |> Enum.map(fn {attributes, int_value, float_value, start_time} ->
+    entries = :ets.select(metrics_tab, match_spec)
+
+    case temporality do
+      :cumulative ->
+        collect_cumulative(entries, now)
+
+      :delta ->
+        collect_delta(metrics_tab, entries, stream_name, scope, reader_id, now)
+    end
+  end
+
+  @spec collect_cumulative(
+          entries :: [{map(), integer(), float(), integer()}],
+          now :: integer()
+        ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
+  defp collect_cumulative(entries, now) do
+    Enum.map(entries, fn {attributes, int_value, float_value, start_time} ->
       %{
         attributes: attributes,
         value: int_value + float_value,
@@ -73,5 +92,52 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
         time: now
       }
     end)
+  end
+
+  @spec collect_delta(
+          metrics_tab :: :ets.table(),
+          entries :: [{map(), integer(), float(), integer()}],
+          stream_name :: String.t(),
+          scope :: Otel.API.InstrumentationScope.t(),
+          reader_id :: reference() | nil,
+          now :: integer()
+        ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
+  defp collect_delta(metrics_tab, entries, stream_name, scope, reader_id, now) do
+    entries
+    |> Enum.map(fn {attributes, int_value, float_value, start_time} ->
+      key = {stream_name, scope, reader_id, attributes}
+      reset_sum(metrics_tab, key, int_value, float_value, now)
+
+      %{
+        attributes: attributes,
+        value: int_value + float_value,
+        start_time: start_time,
+        time: now
+      }
+    end)
+    |> Enum.reject(fn dp -> dp.value == 0 end)
+  end
+
+  @spec reset_sum(
+          metrics_tab :: :ets.table(),
+          key :: term(),
+          int_value :: integer(),
+          float_value :: float(),
+          now :: integer()
+        ) :: :ok
+  defp reset_sum(metrics_tab, key, int_value, float_value, now) do
+    :ets.update_counter(metrics_tab, key, [{@int_pos, -int_value}])
+    cas_subtract_float(metrics_tab, key, float_value)
+    :ets.update_element(metrics_tab, key, [{4, now}])
+    :ok
+  end
+
+  @spec cas_subtract_float(metrics_tab :: :ets.table(), key :: term(), value :: float()) :: :ok
+  defp cas_subtract_float(_metrics_tab, _key, value) when value == 0.0, do: :ok
+
+  defp cas_subtract_float(metrics_tab, key, value) do
+    [{^key, _int_val, old_float, _start}] = :ets.lookup(metrics_tab, key)
+    :ets.update_element(metrics_tab, key, [{3, old_float - value}])
+    :ok
   end
 end

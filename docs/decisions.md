@@ -90,7 +90,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [MetricReader & Periodic Exporting](decisions/metricreader-and-periodic-exporting.md)
 - [x] [MetricExporter & MetricProducer](decisions/metricexporter-and-metricproducer.md)
 - [x] [Exemplar Pipeline Integration](decisions/exemplar-pipeline-integration.md)
-- [ ] [Metrics Temporality](decisions/metrics-temporality.md)
+- [x] [Metrics Temporality](decisions/metrics-temporality.md)
 - [ ] [View Deferred Features](decisions/view-deferred-features.md)
 - [ ] [Base2 Exponential Bucket Histogram](decisions/base2-exponential-histogram.md)
 

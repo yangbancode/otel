@@ -8,7 +8,7 @@ defmodule Otel.SDK.Metrics.Aggregation.SumTest do
     %{tab: tab}
   end
 
-  defp key(attrs \\ %{}), do: {"counter", @scope, attrs}
+  defp key(attrs \\ %{}), do: {"counter", @scope, nil, attrs}
 
   describe "aggregate/4 with integers" do
     test "creates entry on first aggregate", %{tab: tab} do

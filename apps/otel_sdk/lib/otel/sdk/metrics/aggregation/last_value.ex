@@ -5,6 +5,8 @@ defmodule Otel.SDK.Metrics.Aggregation.LastValue do
   ETS entry format: `{key, value, timestamp, start_time}`.
   Uses `ets:insert` (overwrite) — last writer wins, which is the
   correct semantic for gauges.
+
+  Gauge data points have no aggregation temporality.
   """
 
   @behaviour Otel.SDK.Metrics.Aggregation
@@ -35,12 +37,13 @@ defmodule Otel.SDK.Metrics.Aggregation.LastValue do
           stream_key :: {String.t(), Otel.API.InstrumentationScope.t()},
           opts :: map()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
-  def collect(metrics_tab, {stream_name, scope}, _opts) do
+  def collect(metrics_tab, {stream_name, scope}, opts) do
+    reader_id = Map.get(opts, :reader_id)
     now = System.system_time(:nanosecond)
 
     match_spec = [
       {
-        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4"},
+        {{stream_name, scope, reader_id, :"$1"}, :"$2", :"$3", :"$4"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4"}}]
       }

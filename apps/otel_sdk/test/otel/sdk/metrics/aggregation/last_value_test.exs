@@ -8,7 +8,7 @@ defmodule Otel.SDK.Metrics.Aggregation.LastValueTest do
     %{tab: tab}
   end
 
-  defp key(attrs \\ %{}), do: {"gauge", @scope, attrs}
+  defp key(attrs \\ %{}), do: {"gauge", @scope, nil, attrs}
 
   describe "aggregate/4" do
     test "stores first value", %{tab: tab} do
