@@ -29,6 +29,13 @@ defmodule Otel.Logger.HandlerTest do
       {:ok, updated} = Otel.Logger.Handler.adding_handler(%{config: %{}})
       assert Map.has_key?(updated.config, :otel_logger)
     end
+
+    test "preserves pre-configured otel_logger" do
+      pre_configured = {SomeFakeModule, %{custom: true}}
+      config = %{config: %{otel_logger: pre_configured}}
+      {:ok, updated} = Otel.Logger.Handler.adding_handler(config)
+      assert updated.config.otel_logger == pre_configured
+    end
   end
 
   describe "removing_handler/1" do
