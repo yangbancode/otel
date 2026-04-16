@@ -9,7 +9,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogramTest do
     %{tab: tab, opts: %{boundaries: @boundaries}}
   end
 
-  defp key(attrs \\ %{}), do: {"histogram", @scope, attrs}
+  defp key(attrs \\ %{}), do: {"histogram", @scope, nil, attrs}
 
   describe "aggregate/4" do
     test "creates entry on first aggregate", %{tab: tab, opts: opts} do

@@ -16,6 +16,8 @@ defmodule Otel.SDK.Metrics.Instrument do
           | :observable_gauge
           | :observable_updown_counter
 
+  @type temporality :: :cumulative | :delta
+
   @type t :: %__MODULE__{
           name: String.t(),
           kind: kind(),
@@ -111,6 +113,33 @@ defmodule Otel.SDK.Metrics.Instrument do
 
     []
   end
+
+  @spec temporality(kind :: kind()) :: temporality()
+  def temporality(:counter), do: :delta
+  def temporality(:updown_counter), do: :delta
+  def temporality(:histogram), do: :delta
+  def temporality(:gauge), do: :cumulative
+  def temporality(:observable_counter), do: :cumulative
+  def temporality(:observable_gauge), do: :cumulative
+  def temporality(:observable_updown_counter), do: :cumulative
+
+  @spec default_temporality_mapping() :: %{kind() => temporality()}
+  def default_temporality_mapping do
+    %{
+      counter: :cumulative,
+      updown_counter: :cumulative,
+      histogram: :cumulative,
+      gauge: :cumulative,
+      observable_counter: :cumulative,
+      observable_gauge: :cumulative,
+      observable_updown_counter: :cumulative
+    }
+  end
+
+  @spec monotonic?(kind :: kind()) :: boolean()
+  def monotonic?(:counter), do: true
+  def monotonic?(:observable_counter), do: true
+  def monotonic?(_kind), do: false
 
   @spec sorted?(list :: [number()]) :: boolean()
   defp sorted?([]), do: true

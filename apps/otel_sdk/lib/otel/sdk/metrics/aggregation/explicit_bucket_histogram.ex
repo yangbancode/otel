@@ -8,6 +8,10 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
 
   ETS entry format:
   `{key, counters_ref, min, max, sum, count, start_time}`.
+
+  Supports Cumulative and Delta temporality. For Delta, bucket
+  counts, sum, and count are atomically read and subtracted;
+  min and max are reset to `:unset`.
   """
 
   @behaviour Otel.SDK.Metrics.Aggregation
@@ -52,20 +56,49 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
           opts :: map()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   def collect(metrics_tab, {stream_name, scope}, opts) do
-    now = System.system_time(:nanosecond)
+    reader_id = Map.get(opts, :reader_id)
+    temporality = Map.get(opts, :temporality, :cumulative)
     boundaries = Map.get(opts, :boundaries, @default_boundaries)
+    now = System.system_time(:nanosecond)
+    num_buckets = length(boundaries) + 1
 
     match_spec = [
       {
-        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"},
+        {{stream_name, scope, reader_id, :"$1"}, :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"}}]
       }
     ]
 
-    :ets.select(metrics_tab, match_spec)
-    |> Enum.map(fn {attributes, counters_ref, min, max, sum, count, start_time} ->
-      bucket_counts = read_bucket_counts(counters_ref, length(boundaries) + 1)
+    entries = :ets.select(metrics_tab, match_spec)
+
+    case temporality do
+      :cumulative ->
+        collect_cumulative(entries, boundaries, num_buckets, now)
+
+      :delta ->
+        collect_delta(
+          metrics_tab,
+          entries,
+          stream_name,
+          scope,
+          reader_id,
+          boundaries,
+          num_buckets,
+          now
+        )
+    end
+  end
+
+  @spec collect_cumulative(
+          entries :: [tuple()],
+          boundaries :: [number()],
+          num_buckets :: pos_integer(),
+          now :: integer()
+        ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
+  defp collect_cumulative(entries, boundaries, num_buckets, now) do
+    Enum.map(entries, fn {attributes, counters_ref, min, max, sum, count, start_time} ->
+      bucket_counts = read_bucket_counts(counters_ref, num_buckets)
 
       %{
         attributes: attributes,
@@ -81,6 +114,82 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
         time: now
       }
     end)
+  end
+
+  @spec collect_delta(
+          metrics_tab :: :ets.table(),
+          entries :: [tuple()],
+          stream_name :: String.t(),
+          scope :: Otel.API.InstrumentationScope.t(),
+          reader_id :: reference() | nil,
+          boundaries :: [number()],
+          num_buckets :: pos_integer(),
+          now :: integer()
+        ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
+  defp collect_delta(
+         metrics_tab,
+         entries,
+         stream_name,
+         scope,
+         reader_id,
+         boundaries,
+         num_buckets,
+         now
+       ) do
+    entries
+    |> Enum.map(fn {attributes, counters_ref, min, max, sum, count, start_time} ->
+      bucket_counts = read_bucket_counts(counters_ref, num_buckets)
+      key = {stream_name, scope, reader_id, attributes}
+      reset_histogram(metrics_tab, key, counters_ref, bucket_counts, count, sum, now)
+
+      %{
+        attributes: attributes,
+        value: %{
+          boundaries: boundaries,
+          bucket_counts: bucket_counts,
+          min: normalize_min(min),
+          max: normalize_max(max),
+          sum: sum,
+          count: count
+        },
+        start_time: start_time,
+        time: now
+      }
+    end)
+    |> Enum.reject(fn dp -> dp.value.count == 0 end)
+  end
+
+  @spec reset_histogram(
+          metrics_tab :: :ets.table(),
+          key :: term(),
+          counters_ref :: :counters.counters_ref(),
+          bucket_counts :: [non_neg_integer()],
+          count :: non_neg_integer(),
+          sum :: number(),
+          now :: integer()
+        ) :: :ok
+  defp reset_histogram(metrics_tab, key, counters_ref, bucket_counts, count, sum, now) do
+    Enum.each(Enum.with_index(bucket_counts, 1), fn {cnt, idx} ->
+      :counters.sub(counters_ref, idx, cnt)
+    end)
+
+    :ets.update_counter(metrics_tab, key, [{@count_pos, -count}])
+    reset_sum_field(metrics_tab, key, sum)
+    :ets.update_element(metrics_tab, key, [{3, :unset}, {4, :unset}])
+    :ets.update_element(metrics_tab, key, [{7, now}])
+    :ok
+  end
+
+  @spec reset_sum_field(metrics_tab :: :ets.table(), key :: term(), sum :: number()) :: :ok
+  defp reset_sum_field(metrics_tab, key, sum) when is_integer(sum) do
+    :ets.update_counter(metrics_tab, key, [{@sum_pos, -sum}])
+    :ok
+  end
+
+  defp reset_sum_field(metrics_tab, key, sum) when is_float(sum) do
+    [{^key, _, _, _, old_sum, _, _}] = :ets.lookup(metrics_tab, key)
+    :ets.update_element(metrics_tab, key, [{@sum_pos, old_sum - sum}])
+    :ok
   end
 
   @spec init_and_aggregate(

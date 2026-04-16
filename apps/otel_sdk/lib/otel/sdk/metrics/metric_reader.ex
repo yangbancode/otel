@@ -16,6 +16,8 @@ defmodule Otel.SDK.Metrics.MetricReader do
           scope: Otel.API.InstrumentationScope.t(),
           resource: Otel.SDK.Resource.t(),
           kind: Otel.SDK.Metrics.Instrument.kind(),
+          temporality: Otel.SDK.Metrics.Instrument.temporality() | nil,
+          is_monotonic: boolean() | nil,
           datapoints: [Otel.SDK.Metrics.Aggregation.datapoint()]
         }
 
@@ -27,10 +29,12 @@ defmodule Otel.SDK.Metrics.MetricReader do
   def collect(config) do
     Otel.SDK.Metrics.Meter.run_callbacks(config)
 
+    reader_id = Map.get(config, :reader_id)
     streams = :ets.tab2list(config.streams_tab)
 
     streams
     |> Enum.map(fn {_key, stream} -> stream end)
+    |> Enum.filter(fn stream -> stream.reader_id == reader_id end)
     |> Enum.uniq_by(fn stream -> {stream.name, stream.instrument.scope} end)
     |> Enum.flat_map(fn stream -> collect_stream(config, stream) end)
   end
@@ -38,16 +42,18 @@ defmodule Otel.SDK.Metrics.MetricReader do
   @spec collect_stream(config :: map(), stream :: Otel.SDK.Metrics.Stream.t()) :: [metric()]
   defp collect_stream(config, stream) do
     stream_key = {stream.name, stream.instrument.scope}
+    collect_opts = build_collect_opts(stream)
 
     datapoints =
-      stream.aggregation.collect(config.metrics_tab, stream_key, stream.aggregation_options)
+      stream.aggregation.collect(config.metrics_tab, stream_key, collect_opts)
 
     case datapoints do
       [] ->
         []
 
       points ->
-        points_with_exemplars = attach_exemplars(config, stream_key, points)
+        points_with_exemplars = attach_exemplars(config, stream, points)
+        {temporality, is_monotonic} = metric_type_info(stream)
 
         [
           %{
@@ -57,25 +63,46 @@ defmodule Otel.SDK.Metrics.MetricReader do
             scope: stream.instrument.scope,
             resource: config.resource,
             kind: stream.instrument.kind,
+            temporality: temporality,
+            is_monotonic: is_monotonic,
             datapoints: points_with_exemplars
           }
         ]
     end
   end
 
+  @spec build_collect_opts(stream :: Otel.SDK.Metrics.Stream.t()) :: map()
+  defp build_collect_opts(stream) do
+    stream.aggregation_options
+    |> Map.put(:reader_id, stream.reader_id)
+    |> Map.put(:temporality, stream.temporality)
+  end
+
+  @spec metric_type_info(stream :: Otel.SDK.Metrics.Stream.t()) ::
+          {Otel.SDK.Metrics.Instrument.temporality() | nil, boolean() | nil}
+  defp metric_type_info(stream) do
+    case stream.instrument.kind do
+      kind when kind in [:gauge, :observable_gauge] ->
+        {nil, nil}
+
+      kind ->
+        {stream.temporality, Otel.SDK.Metrics.Instrument.monotonic?(kind)}
+    end
+  end
+
   @spec attach_exemplars(
           config :: map(),
-          stream_key :: {String.t(), Otel.API.InstrumentationScope.t()},
+          stream :: Otel.SDK.Metrics.Stream.t(),
           datapoints :: [Otel.SDK.Metrics.Aggregation.datapoint()]
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
-  defp attach_exemplars(config, {stream_name, scope}, datapoints) do
+  defp attach_exemplars(config, stream, datapoints) do
     exemplars_tab = Map.get(config, :exemplars_tab)
 
     if exemplars_tab == nil do
       datapoints
     else
       Enum.map(datapoints, fn dp ->
-        agg_key = {stream_name, scope, dp.attributes}
+        agg_key = {stream.name, stream.instrument.scope, stream.reader_id, dp.attributes}
         collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp)
       end)
     end

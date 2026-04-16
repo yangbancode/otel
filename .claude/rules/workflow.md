@@ -20,3 +20,8 @@ When a user requests a task that involves code changes:
 9. **Push and create PR** — push the branch and create a PR following git conventions
 
 Skip this workflow for questions, exploration, or tasks that do not produce code changes.
+
+## AI Model Usage
+
+- Main model: **Opus 4.6 (1M context)**
+- Sub-agents (research, verification, exploration): **Sonnet 4.6** — use `model: "sonnet"` parameter on Agent calls
