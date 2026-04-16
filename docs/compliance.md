@@ -1538,14 +1538,14 @@
 - [x] ForceFlush SHOULD complete or abort within some timeout — [L500](../references/opentelemetry-specification/specification/logs/sdk.md#L500)
 
 ### Built-in Processors
-- [ ] Standard SDK MUST implement both simple and batch processors — [L507](../references/opentelemetry-specification/specification/logs/sdk.md#L507)
+- [x] Standard SDK MUST implement both simple and batch processors — [L507](../references/opentelemetry-specification/specification/logs/sdk.md#L507)
 - [x] Other common processing scenarios SHOULD be first considered for out-of-process implementation — [L510](../references/opentelemetry-specification/specification/logs/sdk.md#L510)
 
 ### Simple Processor
 - [x] Processor MUST synchronize calls to LogRecordExporter's Export — [L521](../references/opentelemetry-specification/specification/logs/sdk.md#L521)
 
 ### Batching Processor
-- [ ] Processor MUST synchronize calls to LogRecordExporter's Export — [L534](../references/opentelemetry-specification/specification/logs/sdk.md#L534)
+- [x] Processor MUST synchronize calls to LogRecordExporter's Export — [L534](../references/opentelemetry-specification/specification/logs/sdk.md#L534)
 
 ### LogRecordExporter
 - [x] Each implementation MUST document the concurrency characteristics the SDK requires — [L559](../references/opentelemetry-specification/specification/logs/sdk.md#L559)
