@@ -537,7 +537,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
       assert second.advisory == [explicit_bucket_boundaries: [1, 5, 10]]
     end
 
-    test "kind and unit both differ is unresolvable", %{meter: meter} do
+    test "kind and unit both differ is distinguishable", %{meter: meter} do
       first = Otel.SDK.Metrics.Meter.create_counter(meter, "both_dup", unit: "1")
       second = Otel.SDK.Metrics.Meter.create_histogram(meter, "both_dup", unit: "ms")
       assert second == first

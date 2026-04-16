@@ -24,7 +24,7 @@ GenServer that mirrors TracerProvider/MeterProvider pattern. Owns resource and p
 
 ### Dynamic Configuration via persistent_term
 
-Processors are stored in `persistent_term` so that config updates propagate to all existing loggers without re-creation. Logger config holds a `processors_key` instead of a snapshot of the processor list. This satisfies the spec requirement that configuration changes MUST apply to already-returned Loggers (L97).
+Processors are stored in `persistent_term` so that config updates propagate to all existing loggers without re-creation. Logger config holds a `processors_key` instead of a snapshot of the processor list. The key is instance-specific (generated via `make_ref()` in `init/1`) to prevent cross-instance collisions when multiple LoggerProviders exist. This satisfies the spec requirement that configuration changes MUST apply to already-returned Loggers (L97).
 
 ### SDK Logger
 
@@ -39,7 +39,7 @@ On emit, the SDK Logger:
 
 1. Sets `observed_timestamp` to current time if not provided
 2. Extracts `trace_id`, `span_id`, `trace_flags` from the resolved Context
-3. If `exception` is provided, sets `exception.type` and `exception.message` attributes (user attributes take precedence)
+3. If `exception` is provided, sets `exception.type`, `exception.message`, and `exception.stacktrace` (when `:stacktrace` is in the log record) attributes per semantic conventions (user attributes take precedence)
 4. Attaches `scope` and `resource` from the logger config
 
 ## Compliance

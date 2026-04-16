@@ -10,13 +10,12 @@ How to implement View features deferred from the View System Decision: duplicate
 
 When a duplicate instrument is registered (same downcased name, same scope) with different identifying fields:
 
-1. **Fully identical** — All identifying fields and advisory match: silently return first-seen (no warning needed).
-2. **Advisory-only conflict** — Identifying fields identical but advisory differs: warn per MUST requirement (sdk.md L990) and return first-seen advisory.
-3. **Description-only conflict** — If only description differs and a matching View sets description, the warning is suppressed. Otherwise warn with a suggestion to configure a View.
-4. **Distinguishable conflict** — If kind differs (but unit matches), warn with a suggestion to configure a renaming View.
-5. **Unresolvable conflict** — If unit differs (regardless of kind), emit a generic warning and use the first-seen instrument.
+1. **Identical** — All identifying fields (name, kind, unit, description) match: silently return first-seen (no warning needed). Advisory is not an identifying field; if advisory differs, a warning is logged per L990 but the first-seen instrument is returned.
+2. **Description-only conflict** — If only description differs and a matching View sets description, the warning is suppressed. Otherwise warn with a suggestion to configure a View.
+3. **Distinguishable conflict** — If kind differs, warn with a suggestion to configure a renaming View.
+4. **Unresolvable conflict** — If kind matches but unit differs, emit a generic warning and use the first-seen instrument.
 
-`Instrument.conflict_type/2` classifies identifying-field conflicts. `Meter.warn_duplicate/4` dispatches to the appropriate warning using guard clauses for the advisory and identical cases, and pattern matching for the rest. In all cases the SDK returns the first-seen functional instrument.
+`Instrument.conflict_type/2` classifies identifying-field conflicts. `Meter.warn_duplicate/4` dispatches to the appropriate warning using a guard clause for the identical case and pattern matching for the rest. In all cases the SDK returns the first-seen functional instrument.
 
 ### View vs Advisory Precedence
 

@@ -85,7 +85,7 @@ defmodule Otel.SDK.Metrics.Instrument do
       a.kind == b.kind and a.unit == b.unit and a.description != b.description ->
         :description_only
 
-      a.kind != b.kind and a.unit == b.unit ->
+      a.kind != b.kind ->
         :distinguishable
 
       true ->

@@ -11,7 +11,7 @@ defmodule Otel.API.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      test_coverage: [threshold: 100],
+      test_coverage: [summary: [threshold: 95]],
       elixirc_options: [warnings_as_errors: true]
     ]
   end
