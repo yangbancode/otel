@@ -16,6 +16,8 @@ defmodule Otel.SDK.Metrics.Instrument do
           | :observable_gauge
           | :observable_updown_counter
 
+  @type temporality :: :cumulative | :delta
+
   @type t :: %__MODULE__{
           name: String.t(),
           kind: kind(),
@@ -111,6 +113,50 @@ defmodule Otel.SDK.Metrics.Instrument do
 
     []
   end
+
+  @doc """
+  Returns the default temporality for the given instrument kind.
+
+  Synchronous instruments naturally produce delta measurements;
+  asynchronous instruments produce cumulative observations.
+  """
+  @spec temporality(kind :: kind()) :: temporality()
+  def temporality(:counter), do: :delta
+  def temporality(:updown_counter), do: :delta
+  def temporality(:histogram), do: :delta
+  def temporality(:gauge), do: :cumulative
+  def temporality(:observable_counter), do: :cumulative
+  def temporality(:observable_gauge), do: :cumulative
+  def temporality(:observable_updown_counter), do: :cumulative
+
+  @doc """
+  Returns the default temporality mapping for all instrument kinds.
+
+  Used as the default when no exporter-specific preference is set.
+  Per the spec, the SDK default output temporality is Cumulative.
+  """
+  @spec default_temporality_mapping() :: %{kind() => temporality()}
+  def default_temporality_mapping do
+    %{
+      counter: :cumulative,
+      updown_counter: :cumulative,
+      histogram: :cumulative,
+      gauge: :cumulative,
+      observable_counter: :cumulative,
+      observable_gauge: :cumulative,
+      observable_updown_counter: :cumulative
+    }
+  end
+
+  @doc """
+  Returns whether the given instrument kind is monotonic.
+
+  Counter and ObservableCounter are monotonic (non-negative, cumulative).
+  """
+  @spec monotonic?(kind :: kind()) :: boolean()
+  def monotonic?(:counter), do: true
+  def monotonic?(:observable_counter), do: true
+  def monotonic?(_kind), do: false
 
   @spec sorted?(list :: [number()]) :: boolean()
   defp sorted?([]), do: true

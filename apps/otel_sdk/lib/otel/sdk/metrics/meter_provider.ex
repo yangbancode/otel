@@ -121,7 +121,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       |> Map.put(:callbacks_tab, callbacks_tab)
       |> Map.put(:exemplars_tab, exemplars_tab)
 
-    reader_meter_config = %{
+    base_meter_config = %{
       resource: config.resource,
       instruments_tab: instruments_tab,
       streams_tab: streams_tab,
@@ -131,8 +131,9 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       exemplar_filter: config.exemplar_filter
     }
 
-    started_readers = start_readers(config.readers, reader_meter_config)
+    {started_readers, reader_configs} = start_readers(config.readers, base_meter_config)
     config = Map.put(config, :readers, started_readers)
+    config = Map.put(config, :reader_configs, reader_configs)
 
     Otel.API.Metrics.MeterProvider.set_provider(__MODULE__)
     {:ok, config}
@@ -150,6 +151,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       schema_url: schema_url
     }
 
+    reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
+
     meter_config = %{
       scope: scope,
       resource: config.resource,
@@ -159,7 +162,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       callbacks_tab: config.callbacks_tab,
       exemplars_tab: config.exemplars_tab,
       views: config.views,
-      exemplar_filter: config.exemplar_filter
+      exemplar_filter: config.exemplar_filter,
+      reader_configs: reader_configs
     }
 
     meter = {Otel.SDK.Metrics.Meter, meter_config}
@@ -216,14 +220,50 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @spec start_readers(
           readers :: [{module(), map()}],
-          meter_config :: map()
-        ) :: [{module(), pid()}]
-  defp start_readers(readers, meter_config) do
-    Enum.map(readers, fn {reader_module, reader_config} ->
-      full_config = Map.put(reader_config, :meter_config, meter_config)
-      {:ok, pid} = reader_module.start_link(full_config)
-      {reader_module, pid}
-    end)
+          base_meter_config :: map()
+        ) :: {[{module(), pid()}], [{reference() | nil, map()}]}
+  defp start_readers([], base_meter_config) do
+    reader_meter_config = Map.put(base_meter_config, :reader_id, nil)
+    {[], [{nil, %{meter_config: reader_meter_config}}]}
+  end
+
+  defp start_readers(readers, base_meter_config) do
+    {started, reader_configs} =
+      Enum.reduce(readers, {[], []}, fn {reader_module, reader_config}, {started, configs} ->
+        reader_id = make_ref()
+        temporality_mapping = Map.get(reader_config, :temporality_mapping)
+        reader_opts = build_reader_opts(temporality_mapping)
+
+        reader_meter_config =
+          base_meter_config
+          |> Map.put(:reader_id, reader_id)
+          |> Map.put(
+            :temporality_mapping,
+            temporality_mapping || Otel.SDK.Metrics.Instrument.default_temporality_mapping()
+          )
+
+        full_config =
+          reader_config
+          |> Map.put(:meter_config, reader_meter_config)
+
+        {:ok, pid} = reader_module.start_link(full_config)
+
+        {
+          [{reader_module, pid} | started],
+          [{reader_id, reader_opts} | configs]
+        }
+      end)
+
+    {Enum.reverse(started), Enum.reverse(reader_configs)}
+  end
+
+  @spec build_reader_opts(temporality_mapping :: map() | nil) :: map()
+  defp build_reader_opts(nil) do
+    %{temporality_mapping: Otel.SDK.Metrics.Instrument.default_temporality_mapping()}
+  end
+
+  defp build_reader_opts(temporality_mapping) do
+    %{temporality_mapping: temporality_mapping}
   end
 
   @spec invoke_all_readers(

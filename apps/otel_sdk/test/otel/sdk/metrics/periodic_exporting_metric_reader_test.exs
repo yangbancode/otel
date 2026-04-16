@@ -126,6 +126,55 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
     end
   end
 
+  describe "collect/1" do
+    test "returns metrics via GenServer call", %{config: config} do
+      meter = {Otel.SDK.Metrics.Meter, config}
+      Otel.SDK.Metrics.Meter.create_counter(meter, "collect_counter", [])
+      Otel.SDK.Metrics.Meter.record(meter, "collect_counter", 7, %{})
+
+      {:ok, reader} =
+        Otel.SDK.Metrics.PeriodicExportingMetricReader.start_link(%{
+          meter_config: config,
+          exporter: nil,
+          export_interval_ms: 60_000
+        })
+
+      assert {:ok, metrics} = GenServer.call(reader, :collect)
+      assert [metric] = metrics
+      assert metric.name == "collect_counter"
+      GenServer.stop(reader)
+    end
+
+    test "returns error after shutdown", %{config: config} do
+      {:ok, reader} =
+        Otel.SDK.Metrics.PeriodicExportingMetricReader.start_link(%{
+          meter_config: config,
+          exporter: nil,
+          export_interval_ms: 60_000
+        })
+
+      Otel.SDK.Metrics.PeriodicExportingMetricReader.shutdown(reader)
+      assert {:error, :shut_down} = GenServer.call(reader, :collect)
+      GenServer.stop(reader)
+    end
+  end
+
+  describe "timer after shutdown" do
+    test "collect timer after shutdown is no-op", %{config: config} do
+      {:ok, reader} =
+        Otel.SDK.Metrics.PeriodicExportingMetricReader.start_link(%{
+          meter_config: config,
+          exporter: nil,
+          export_interval_ms: 60_000
+        })
+
+      Otel.SDK.Metrics.PeriodicExportingMetricReader.shutdown(reader)
+      send(reader, :collect)
+      assert Process.alive?(reader)
+      GenServer.stop(reader)
+    end
+  end
+
   describe "periodic collection" do
     test "exports on interval", %{config: config} do
       meter = {Otel.SDK.Metrics.Meter, config}

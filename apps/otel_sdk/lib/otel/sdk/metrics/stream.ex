@@ -16,7 +16,9 @@ defmodule Otel.SDK.Metrics.Stream do
           aggregation: module() | nil,
           aggregation_options: map(),
           exemplar_reservoir: module() | nil,
-          aggregation_cardinality_limit: pos_integer() | nil
+          aggregation_cardinality_limit: pos_integer() | nil,
+          temporality: Otel.SDK.Metrics.Instrument.temporality(),
+          reader_id: reference() | nil
         }
 
   defstruct name: "",
@@ -26,7 +28,9 @@ defmodule Otel.SDK.Metrics.Stream do
             aggregation: nil,
             aggregation_options: %{},
             exemplar_reservoir: nil,
-            aggregation_cardinality_limit: nil
+            aggregation_cardinality_limit: nil,
+            temporality: :cumulative,
+            reader_id: nil
 
   @spec from_instrument(instrument :: Otel.SDK.Metrics.Instrument.t()) :: t()
   def from_instrument(instrument) do
