@@ -7,7 +7,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     body: "Hello, world!",
     severity_number: 9,
     severity_text: "INFO",
-    attributes: %{method: "GET"},
+    attributes: %{"method" => "GET"},
     scope: %Otel.API.InstrumentationScope{name: "test_lib"},
     resource: Otel.SDK.Resource.create(%{}),
     trace_id: 0,

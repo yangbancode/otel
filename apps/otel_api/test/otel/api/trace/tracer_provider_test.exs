@@ -35,7 +35,7 @@ defmodule Otel.API.Trace.TracerProviderTest do
     end
 
     test "accepts attributes" do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer("my_lib", "1.0.0", nil, %{key: "val"})
+      tracer = Otel.API.Trace.TracerProvider.get_tracer("my_lib", "1.0.0", nil, %{"key" => "val"})
       assert {Otel.API.Trace.Tracer.Noop, []} == tracer
     end
 
@@ -72,14 +72,14 @@ defmodule Otel.API.Trace.TracerProviderTest do
     test "creates InstrumentationScope with all fields" do
       scope =
         Otel.API.Trace.TracerProvider.scope("my_lib", "1.0.0", "https://example.com", %{
-          key: "val"
+          "key" => "val"
         })
 
       assert %Otel.API.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com",
-               attributes: %{key: "val"}
+               attributes: %{"key" => "val"}
              } == scope
     end
   end

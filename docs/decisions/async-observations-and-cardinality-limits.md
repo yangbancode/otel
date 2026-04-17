@@ -42,7 +42,7 @@ Enforcement in `record()` and callback observations via
 1. If key already exists in metrics_tab → no limit check needed
 2. If key is new → count existing keys for this stream
 3. If count >= limit → route to overflow key with attributes
-   `%{:"otel.metric.overflow" => true}`
+   `%{"otel.metric.overflow" => true}`
 4. Existing attribute sets continue aggregating normally
 
 This ensures every measurement is reflected in exactly one

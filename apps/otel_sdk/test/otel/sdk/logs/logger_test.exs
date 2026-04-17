@@ -94,7 +94,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
         severity_number: 9,
         severity_text: "INFO",
         body: "structured log",
-        attributes: %{method: "GET", status: 200},
+        attributes: %{"method" => "GET", "status" => 200},
         event_name: "http.request"
       })
 
@@ -103,7 +103,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
       assert record.severity_number == 9
       assert record.severity_text == "INFO"
       assert record.body == "structured log"
-      assert record.attributes == %{method: "GET", status: 200}
+      assert record.attributes == %{"method" => "GET", "status" => 200}
       assert record.event_name == "http.request"
     end
   end
@@ -136,8 +136,8 @@ defmodule Otel.SDK.Logs.LoggerTest do
       })
 
       assert_receive {:log_record, record}
-      assert record.attributes[:"exception.type"] == "Elixir.RuntimeError"
-      assert record.attributes[:"exception.message"] == "something went wrong"
+      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
+      assert record.attributes["exception.message"] == "something went wrong"
     end
 
     test "user attributes take precedence over exception attributes", %{logger: logger} do
@@ -147,19 +147,19 @@ defmodule Otel.SDK.Logs.LoggerTest do
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
         body: "error",
         exception: exception,
-        attributes: %{:"exception.message" => "user override"}
+        attributes: %{"exception.message" => "user override"}
       })
 
       assert_receive {:log_record, record}
-      assert record.attributes[:"exception.message"] == "user override"
-      assert record.attributes[:"exception.type"] == "Elixir.RuntimeError"
+      assert record.attributes["exception.message"] == "user override"
+      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
     end
 
     test "no exception does not set exception attributes", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "normal"})
       assert_receive {:log_record, record}
-      refute Map.has_key?(record.attributes, :"exception.type")
+      refute Map.has_key?(record.attributes, "exception.type")
     end
   end
 
@@ -180,9 +180,9 @@ defmodule Otel.SDK.Logs.LoggerTest do
       logger = {Otel.SDK.Logs.Logger, config}
 
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{key: "abcdefgh"}})
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{"key" => "abcdefgh"}})
       assert_receive {:log_record, record}
-      assert record.attributes.key == "abcde"
+      assert record.attributes["key"] == "abcde"
     end
 
     test "drops excess attributes when count limit set" do
@@ -201,7 +201,11 @@ defmodule Otel.SDK.Logs.LoggerTest do
       logger = {Otel.SDK.Logs.Logger, config}
 
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{a: 1, b: 2, c: 3, d: 4}})
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{
+        attributes: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
+      })
+
       assert_receive {:log_record, record}
       assert map_size(record.attributes) == 2
       assert record.dropped_attributes_count == 2
@@ -209,7 +213,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
     test "dropped_attributes_count is 0 when within limit", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{a: 1}})
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{"a" => 1}})
       assert_receive {:log_record, record}
       assert record.dropped_attributes_count == 0
     end

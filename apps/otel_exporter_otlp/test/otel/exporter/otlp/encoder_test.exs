@@ -278,7 +278,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       is_monotonic: true,
       datapoints: [
         %{
-          attributes: %{method: "GET"},
+          attributes: %{"method" => "GET"},
           value: 42,
           start_time: 1_000_000,
           time: 2_000_000,
@@ -298,7 +298,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       is_monotonic: nil,
       datapoints: [
         %{
-          attributes: %{host: "a"},
+          attributes: %{"host" => "a"},
           value: 75.5,
           start_time: 1_000_000,
           time: 2_000_000,
@@ -496,7 +496,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       exemplar = %Otel.SDK.Metrics.Exemplar{
         value: 42,
         time: 1_500_000,
-        filtered_attributes: %{extra: "val"},
+        filtered_attributes: %{"extra" => "val"},
         span_id: 0xDEADBEEF,
         trace_id: 0x0AF7651916CD43DD8448EB211C80319C
       }
@@ -581,7 +581,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       severity_text: "INFO",
       timestamp: 1_000_000,
       observed_timestamp: 2_000_000,
-      attributes: %{method: "GET"},
+      attributes: %{"method" => "GET"},
       event_name: nil,
       scope: %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"},
       resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),

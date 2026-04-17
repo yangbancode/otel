@@ -273,7 +273,7 @@ defmodule Otel.SDK.Metrics.Meter do
     end
   end
 
-  @overflow_attributes %{:"otel.metric.overflow" => true}
+  @overflow_attributes %{"otel.metric.overflow" => true}
 
   @spec maybe_overflow(
           metrics_tab :: :ets.table(),

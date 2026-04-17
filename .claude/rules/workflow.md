@@ -23,5 +23,5 @@ Skip this workflow for questions, exploration, or tasks that do not produce code
 
 ## AI Model Usage
 
-- Main model: **Opus 4.6 (1M context)**
-- Sub-agents (research, verification, exploration): **Sonnet 4.6** — use `model: "sonnet"` parameter on Agent calls
+- Main model: **Opus 4.7 (1M context)**
+- Sub-agents (research, verification, exploration): **Opus 4.7** — use `model: "opus"` parameter on Agent calls

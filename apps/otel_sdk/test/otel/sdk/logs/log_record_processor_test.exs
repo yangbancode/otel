@@ -185,7 +185,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
         severity_number: 9,
         severity_text: "INFO",
         body: "structured",
-        attributes: %{key: "val"},
+        attributes: %{"key" => "val"},
         event_name: "my.event"
       })
 
@@ -194,7 +194,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
       assert record.severity_number == 9
       assert record.severity_text == "INFO"
       assert record.body == "structured"
-      assert record.attributes == %{key: "val"}
+      assert record.attributes == %{"key" => "val"}
       assert record.event_name == "my.event"
       assert record.scope.name == "test_lib"
       assert record.scope.version == "1.0.0"

@@ -23,8 +23,8 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
 
     test "collects counter data", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_counter(meter, "requests", unit: "1")
-      Otel.SDK.Metrics.Meter.record(meter, "requests", 5, %{method: "GET"})
-      Otel.SDK.Metrics.Meter.record(meter, "requests", 3, %{method: "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "requests", 5, %{"method" => "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "requests", 3, %{"method" => "GET"})
 
       metrics = Otel.SDK.Metrics.MetricReader.collect(config)
       assert [metric] = metrics
@@ -33,11 +33,11 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       assert metric.kind == :counter
       assert [dp] = metric.datapoints
       assert dp.value == 8
-      assert dp.attributes == %{method: "GET"}
+      assert dp.attributes == %{"method" => "GET"}
     end
 
     test "collects gauge data via callback", %{meter: meter, config: config} do
-      cb = fn _args -> [{42, %{host: "a"}}] end
+      cb = fn _args -> [{42, %{"host" => "a"}}] end
       Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
 
       metrics = Otel.SDK.Metrics.MetricReader.collect(config)
@@ -109,7 +109,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       meter = {Otel.SDK.Metrics.Meter, config}
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "sampled", [])
-      Otel.SDK.Metrics.Meter.record(meter, "sampled", 42, %{method: "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "sampled", 42, %{"method" => "GET"})
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp] = metric.datapoints
@@ -177,20 +177,20 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
         %{name: "attr_test"},
-        %{attribute_keys: {:include, [:method]}}
+        %{attribute_keys: {:include, ["method"]}}
       )
 
       {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
       meter = {Otel.SDK.Metrics.Meter, config}
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "attr_test", [])
-      Otel.SDK.Metrics.Meter.record(meter, "attr_test", 1, %{method: "GET", path: "/api"})
+      Otel.SDK.Metrics.Meter.record(meter, "attr_test", 1, %{"method" => "GET", "path" => "/api"})
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp] = metric.datapoints
-      assert dp.attributes == %{method: "GET"}
+      assert dp.attributes == %{"method" => "GET"}
       exemplar = hd(dp.exemplars)
-      assert exemplar.filtered_attributes == %{path: "/api"}
+      assert exemplar.filtered_attributes == %{"path" => "/api"}
     end
   end
 end

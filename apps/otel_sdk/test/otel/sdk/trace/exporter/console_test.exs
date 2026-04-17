@@ -9,7 +9,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     name: "test_span",
     kind: :internal,
     start_time: 1_000_000_000,
-    attributes: %{key: "value"},
+    attributes: %{"key" => "value"},
     trace_flags: 1,
     is_recording: true
   }

@@ -23,7 +23,7 @@ defmodule Otel.SDK.Metrics.View do
   @type config :: %{
           optional(:name) => String.t(),
           optional(:description) => String.t(),
-          optional(:attribute_keys) => {:include, [atom()]} | {:exclude, [atom()]},
+          optional(:attribute_keys) => {:include, [String.t()]} | {:exclude, [String.t()]},
           optional(:aggregation) => module(),
           optional(:aggregation_options) => map(),
           optional(:exemplar_reservoir) => module(),
