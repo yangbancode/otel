@@ -19,8 +19,6 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 |---|---|
 | `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
 
-For stability filtering and excluded domains, see the [Overview](documentation/topics/overview.md).
-
 ## Installation
 
 Add the dependency to your `mix.exs`:
@@ -33,25 +31,9 @@ def deps do
 end
 ```
 
-## About the Documentation
+## Module Organization
 
-This package's documentation follows the [Diátaxis](https://diataxis.fr/) framework:
-
-- **Topics** — conceptual explanations of *what* and *why*
-- **How-to** — task-focused recipes for getting things done
-- **Reference** — auto-generated module API docs (sidebar)
-
-## Topics
-
-- [Overview](documentation/topics/overview.md) — what semantic conventions are, why this package generates only stable items, and how the modules are organized
-
-## How-to
-
-- [Using Semantic Convention Constants with Spans](documentation/how-to/use-with-spans.md) — recipes for HTTP server, database, and error attribute patterns
-
-## Reference
-
-The full API reference is in the sidebar. Constants are organized into two namespaces:
+Constants are organized into two namespaces, visible in the sidebar:
 
 | Namespace | Contents |
 |---|---|
@@ -69,8 +51,6 @@ iex> Otel.SemConv.Attributes.HTTP.http_request_method()
 iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()[:post]
 "POST"
 ```
-
-Use these in place of string literals when emitting attributes — see the [how-to guide](documentation/how-to/use-with-spans.md) for full patterns.
 
 ## License
 
