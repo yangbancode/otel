@@ -81,8 +81,7 @@ apps/otel_semantic_conventions/
   mix.exs           # package metadata + ex_doc config
   README.md         # what hex.pm displays
   CHANGELOG.md      # version history
-  LICENSE           # Apache-2.0 (per-package copy)
-  NOTICE            # Apache-2.0 attribution
+  LICENSE           # Unlicense (per-package copy)
   lib/              # source
 ```
 
@@ -90,7 +89,9 @@ The hex tarball is built from the app directory. Umbrella root [`README.md`](../
 
 ### License Files: Per-Package Copies
 
-`LICENSE` and `NOTICE` are copied into each published app directory rather than referenced via `../../` paths in `package.files`. Apache-2.0 text is stable and the duplication is trivial, while in-tree copies make hex package builds straightforward and match what opentelemetry-erlang does.
+`LICENSE` is copied into each published app directory rather than referenced via `../../` paths in `package.files`. Hex's default `package.files` only picks up `LICENSE*` patterns relative to the app dir, the file is short and stable, and per-app copies make `mix hex.build` straightforward.
+
+All packages declare `licenses: ["Unlicense"]` matching the umbrella root [LICENSE](../../LICENSE) (public domain dedication via [unlicense.org](https://unlicense.org/)). `NOTICE` files are not included by default — they are added per-app only when an app vendors third-party content with attribution requirements (currently only `otel_exporter_otlp` for opentelemetry-proto).
 
 ### CI Changes
 
