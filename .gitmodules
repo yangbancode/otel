@@ -13,3 +13,6 @@
 [submodule "references/weaver"]
 	path = references/weaver
 	url = https://github.com/open-telemetry/weaver
+[submodule "references/ash"]
+	path = references/ash
+	url = https://github.com/ash-project/ash.git
