@@ -1,5 +1,12 @@
 params:
   stability: "stable"
+  # Runtime/framework domains whose attributes describe their own internals
+  # and cannot be observed from the BEAM. An Elixir application never
+  # natively emits these; exclude to prevent misuse. Other language/platform
+  # groups (go, ios, nodejs, v8js) have no stable items in v1.40.0 and are
+  # filtered by `stability` alone. `webengine` is kept because its generic
+  # attributes (name/version) apply to Phoenix/Cowboy/Bandit.
+  excluded: ["aspnetcore", "dotnet", "jvm", "kestrel", "signalr"]
 
 templates:
   - pattern: semantic_attributes.ex.j2
@@ -16,6 +23,7 @@ templates:
             | sort_by(.id),
           output: $output + "/otel/sem_conv/attributes/"
         })
+      | map(select(.id as $id | any($excluded[]; . == $id) | not))
       | map(select(.attributes | length > 0))
     application_mode: each
   - pattern: semantic_metrics.ex.j2
@@ -30,6 +38,7 @@ templates:
           metrics: . | sort_by(.metric_name),
           output: $output + "/otel/sem_conv/metrics/"
         })
+      | map(select(.id as $id | any($excluded[]; . == $id) | not))
       | map(select(.metrics | length > 0))
     application_mode: each
 

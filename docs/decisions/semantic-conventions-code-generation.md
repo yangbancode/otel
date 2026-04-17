@@ -38,7 +38,24 @@ Example modules:
 
 Per tech-spec, experimental/incubating attributes are out of scope. One generation pass with `--param stability=stable`.
 
-Platform-specific groups are not blocked. Every group with at least one stable item is generated, including runtime/framework domains (`Otel.SemConv.Attributes.JVM`, `Otel.SemConv.Metrics.Dotnet`, etc.). Rationale: an Elixir app may legitimately receive/proxy telemetry from polyglot systems (e.g., an OTel collector pipeline, gRPC interop), and the stability filter already suppresses anything the OTel project hasn't committed to.
+### Runtime/Framework Exclusion
+
+Five domains are excluded via the `excluded` list in `weaver.yaml`:
+
+| Domain | Reason |
+|---|---|
+| `aspnetcore` | ASP.NET Core framework internals (rate limiting, routing) — .NET-only |
+| `dotnet` | .NET runtime (GC, assemblies, exceptions) — CLR-only |
+| `jvm` | JVM runtime (memory, GC, threads, classes) — JVM-only |
+| `kestrel` | Kestrel HTTP server — .NET-only |
+| `signalr` | SignalR realtime framework — .NET-only |
+
+These describe their own runtime/framework internals and cannot be observed from the BEAM. The project is a **pure Elixir SDK** for instrumenting Elixir applications, not an OTel Collector that proxies polyglot telemetry. Including these groups would offer modules (`Otel.SemConv.Attributes.JVM`, etc.) that an Elixir developer has no legitimate way to populate.
+
+Not excluded:
+
+- `go`, `ios`, `nodejs`, `v8js` — have no stable items in v1.40.0; the `stability` filter suffices. Revisit if the spec promotes any to stable.
+- `webengine` — generic web-framework descriptor (`webengine.name`, `webengine.version`) applicable to Phoenix/Cowboy/Bandit. Currently all `development`, so nothing is generated today; when promoted to stable, inclusion is desired.
 
 ### Templates
 
