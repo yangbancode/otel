@@ -231,8 +231,8 @@ defmodule MyApp.PaymentService do
       severity_text: "INFO",
       body: "Processing payment for order #{order.id}",
       attributes: %{
-        "order.id": order.id,
-        "payment.amount": order.total
+        "order.id" => order.id,
+        "payment.amount" => order.total
       }
     })
 

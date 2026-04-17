@@ -37,7 +37,7 @@ SDK Span → Encoder.encode_traces/2 → ExportTraceServiceRequest protobuf bina
 
 - Spans grouped by InstrumentationScope into ScopeSpans
 - Resource attributes encoded as KeyValue list
-- Attribute types: string, int, float, bool, atom→string, list→array
+- Attribute value types: string, int, float, bool, atom→string (booleans/nil), list→array; keys are always `String.t()` per spec, no coercion
 - trace_id encoded as 16-byte binary, span_id as 8-byte binary
 - SpanKind mapped to proto enum values
 - Status mapped: nil→no status, :ok→STATUS_CODE_OK, :error→STATUS_CODE_ERROR

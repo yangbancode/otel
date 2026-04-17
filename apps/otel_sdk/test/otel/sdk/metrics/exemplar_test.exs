@@ -4,10 +4,10 @@ defmodule Otel.SDK.Metrics.ExemplarTest do
   describe "new/4" do
     test "creates exemplar with value and attributes" do
       ctx = Otel.API.Ctx.new()
-      exemplar = Otel.SDK.Metrics.Exemplar.new(42, 1000, %{key: "val"}, ctx)
+      exemplar = Otel.SDK.Metrics.Exemplar.new(42, 1000, %{"key" => "val"}, ctx)
       assert exemplar.value == 42
       assert exemplar.time == 1000
-      assert exemplar.filtered_attributes == %{key: "val"}
+      assert exemplar.filtered_attributes == %{"key" => "val"}
       assert exemplar.trace_id == nil
       assert exemplar.span_id == nil
     end

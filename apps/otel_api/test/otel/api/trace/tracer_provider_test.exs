@@ -35,7 +35,7 @@ defmodule Otel.API.Trace.TracerProviderTest do
     end
 
     test "accepts attributes" do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer("my_lib", "1.0.0", nil, %{key: "val"})
+      tracer = Otel.API.Trace.TracerProvider.get_tracer("my_lib", "1.0.0", nil, %{"key" => "val"})
       assert {Otel.API.Trace.Tracer.Noop, []} == tracer
     end
 
