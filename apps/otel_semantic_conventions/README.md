@@ -4,7 +4,7 @@
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/otel_semantic_conventions)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://unlicense.org/)
 
-OpenTelemetry [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/) for Elixir — auto-generated attribute and metric key constants from the official OTel spec.
+Pure Elixir implementation of [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/).
 
 Part of the [`otel`](https://github.com/yangbancode/otel) umbrella project, a pure Elixir implementation of the OpenTelemetry SDK.
 
