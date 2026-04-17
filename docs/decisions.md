@@ -121,7 +121,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Logs Environment Variables](decisions/logs-environment-variables.md)
 
 ## Phase 5: Semantic Conventions
-- [ ] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
+- [x] [Semantic Conventions Code Generation](decisions/semantic-conventions-code-generation.md)
 
 ## Finalization
 - [ ] [Error Handling](decisions/error-handling.md)
