@@ -1,6 +1,6 @@
 # Otel
 
-Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
+Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/)
 
 ## Features
 
@@ -25,8 +25,8 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 
 | App | Description |
 |---|---|
-| [`otel_api`](apps/otel_api) | Instrumentation API for traces, metrics, logs, and baggage |
-| [`otel_sdk`](apps/otel_sdk) | Default SDK with providers, processors, and samplers |
-| [`otel_semantic_conventions`](apps/otel_semantic_conventions) | Auto-generated attribute and metric key constants |
-| [`otel_exporter_otlp`](apps/otel_exporter_otlp) | OTLP HTTP exporter for traces, metrics, and logs |
-| [`otel_logger_handler`](apps/otel_logger_handler) | Elixir `Logger` handler forwarding to OTel |
+| [`otel_api`](apps/otel_api) | Pure Elixir implementation of the OpenTelemetry API |
+| [`otel_sdk`](apps/otel_sdk) | Pure Elixir implementation of the OpenTelemetry SDK |
+| [`otel_semantic_conventions`](apps/otel_semantic_conventions) | Pure Elixir implementation of OpenTelemetry Semantic Conventions |
+| [`otel_exporter_otlp`](apps/otel_exporter_otlp) | Pure Elixir implementation of the OpenTelemetry Protocol (OTLP) exporter |
+| [`otel_logger_handler`](apps/otel_logger_handler) | Pure Elixir implementation of an OpenTelemetry Logs handler for `:logger` |
