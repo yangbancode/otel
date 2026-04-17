@@ -16,9 +16,8 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
   - OTLP HTTP
   - OTLP gRPC
 - **Semantic Conventions**
-  - Auto-generated constants (stable only)
 - **Integrations**
-  - Erlang `:logger` bridge
+  - `:logger` bridge
 
 ## Packages
 
@@ -28,4 +27,4 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 | [`otel_sdk`](apps/otel_sdk) | Default SDK with providers, processors, and samplers |
 | [`otel_semantic_conventions`](apps/otel_semantic_conventions) | Auto-generated attribute and metric key constants |
 | [`otel_exporter_otlp`](apps/otel_exporter_otlp) | OTLP HTTP exporter for traces, metrics, and logs |
-| [`otel_logger_handler`](apps/otel_logger_handler) | Elixir `:logger` handler that forwards logs to OTel |
+| [`otel_logger_handler`](apps/otel_logger_handler) | Elixir `Logger` handler forwarding to OTel |
