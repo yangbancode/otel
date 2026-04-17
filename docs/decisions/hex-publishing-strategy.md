@@ -91,7 +91,7 @@ The hex tarball is built from the app directory. Umbrella root [`README.md`](../
 
 `LICENSE` is copied into each published app directory rather than referenced via `../../` paths in `package.files`. Hex's default `package.files` only picks up `LICENSE*` patterns relative to the app dir, the file is short and stable, and per-app copies make `mix hex.build` straightforward.
 
-All packages declare `licenses: ["Unlicense"]` matching the umbrella root [LICENSE](../../LICENSE) (public domain dedication via [unlicense.org](https://unlicense.org/)). `NOTICE` files are not included by default — they are added per-app only when an app vendors third-party content with attribution requirements (currently only `otel_exporter_otlp` for opentelemetry-proto).
+All packages declare `licenses: ["Unlicense"]` (public domain dedication via [unlicense.org](https://unlicense.org/)) and ship a per-app `LICENSE` file. The umbrella root has no shared `LICENSE` — each app is self-contained so the hex tarball carries the license it needs without cross-directory references. `NOTICE` files are added per-app only when an app vendors third-party content with attribution requirements; currently only `otel_exporter_otlp` carries one for the bundled opentelemetry-proto generated code.
 
 ### CI Changes
 
