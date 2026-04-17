@@ -1,5 +1,5 @@
 [tools]
-erlang = "28.4.2"
-elixir = "1.19.5-otp-28"
+erlang = "26.2.5.19"
+elixir = "1.18.4-otp-26"
 protoc = "34.1"
 "github:open-telemetry/weaver" = "0.22.1"
