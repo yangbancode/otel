@@ -201,9 +201,11 @@ defmodule Otel.SDK.Logs.LoggerTest do
       logger = {Otel.SDK.Logs.Logger, config}
 
       ctx = Otel.API.Ctx.get_current()
+
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
         attributes: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
       })
+
       assert_receive {:log_record, record}
       assert map_size(record.attributes) == 2
       assert record.dropped_attributes_count == 2
