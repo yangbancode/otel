@@ -1,11 +1,16 @@
 # Otel Semantic Conventions
 
-> [!WARNING]
-> **Status: Alpha** — API may change in `0.x` minor releases. Not recommended for production use yet.
+[![Hex.pm](https://img.shields.io/hexpm/v/otel_semantic_conventions.svg)](https://hex.pm/packages/otel_semantic_conventions)
+[![Hexdocs.pm](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/otel_semantic_conventions)
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://unlicense.org/)
 
 OpenTelemetry [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/) for Elixir — auto-generated attribute and metric key constants from the official OTel spec.
 
 Part of the [`otel`](https://github.com/yangbancode/otel) umbrella project, a pure Elixir implementation of the OpenTelemetry SDK.
+
+> ### Status: Alpha {: .warning}
+>
+> API may change in `0.x` minor releases. Not recommended for production use yet.
 
 ## Spec Version Mapping
 
@@ -13,7 +18,7 @@ Part of the [`otel`](https://github.com/yangbancode/otel) umbrella project, a pu
 |---|---|
 | `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
 
-Only **stable** items are generated. Experimental/incubating attributes and metrics are out of scope (see [the generation decision](https://github.com/yangbancode/otel/blob/main/docs/decisions/semantic-conventions-code-generation.md)).
+Only **stable** items are generated. Experimental, development, and deprecated items are out of scope — see the [Overview](documentation/topics/overview.md) for the rationale.
 
 ## Installation
 
@@ -27,47 +32,44 @@ def deps do
 end
 ```
 
-## Usage
+## About the Documentation
 
-Each attribute is exposed as a zero-arity function returning the attribute key as a `String.t()`:
+This package's documentation follows the [Diátaxis](https://diataxis.fr/) framework:
+
+- **Topics** — conceptual explanations of *what* and *why*
+- **How-to** — task-focused recipes for getting things done
+- **Reference** — auto-generated module API docs (sidebar)
+
+## Topics
+
+- [Overview](documentation/topics/overview.md) — what semantic conventions are, why this package generates only stable items, and how the modules are organized
+
+## How-to
+
+- [Using Semantic Convention Constants with Spans](documentation/how-to/use-with-spans.md) — recipes for HTTP server, database, and error attribute patterns
+
+## Reference
+
+The full API reference is in the sidebar. Constants are organized into two namespaces:
+
+| Namespace | Contents |
+|---|---|
+| `Otel.SemConv.Attributes.*` | attribute key constants (e.g., `HTTP`, `DB`, `URL`, `K8S`) |
+| `Otel.SemConv.Metrics.*` | metric name constants (e.g., `HTTP`, `DB`) |
+
+Module names preserve common acronyms exactly (`HTTP`, not `Http`).
+
+## Quick Example
 
 ```elixir
 iex> Otel.SemConv.Attributes.HTTP.http_request_method()
 "http.request.method"
+
+iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()[:post]
+"POST"
 ```
 
-For enum attributes, an additional `_values()` helper returns a member-to-value map. Use the atom keys as Elixir-side handles to look up the canonical wire value:
-
-```elixir
-iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()[:connect]
-"CONNECT"
-```
-
-Use the constants directly when emitting attributes on spans, metrics, or log records:
-
-```elixir
-Otel.API.Trace.Span.set_attribute(
-  span,
-  Otel.SemConv.Attributes.HTTP.http_request_method(),
-  "POST"
-)
-```
-
-## Module Organization
-
-| Namespace | Contents |
-|---|---|
-| `Otel.SemConv.Attributes.*` | attribute groups (e.g., `HTTP`, `DB`, `URL`, `K8S`, `Network`) |
-| `Otel.SemConv.Metrics.*` | metric groups (e.g., `HTTP`, `DB`) |
-
-Module names preserve common acronyms exactly (`HTTP`, not `Http`).
-
-## Excluded Domains
-
-The following runtime/framework-specific domains are intentionally excluded since they describe internals not observable from the BEAM:
-
-- `aspnetcore`, `dotnet`, `kestrel`, `signalr` — .NET / ASP.NET internals
-- `jvm` — JVM runtime internals
+Use these in place of string literals when emitting attributes — see the [how-to guide](documentation/how-to/use-with-spans.md) for full patterns.
 
 ## License
 
