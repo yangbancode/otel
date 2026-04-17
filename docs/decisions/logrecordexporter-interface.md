@@ -1,5 +1,7 @@
 # LogRecordExporter Interface
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `LogRecord` is promoted to a dedicated struct; "list of log record maps" wording below will be revised when that phase PR lands.
+
 ## Question
 
 How to define the LogRecordExporter behaviour on BEAM? Export, ForceFlush, Shutdown callbacks, timeout handling, and concurrency requirements?

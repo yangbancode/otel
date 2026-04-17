@@ -1,5 +1,7 @@
 # Span Operations
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `Link`, `Event`, and `Status` are promoted to dedicated structs; operation signatures below will be revised when that phase PR lands.
+
 ## Question
 
 How to implement SDK-level span operations (set_attribute, add_event, set_status, update_name, end_span, record_exception) that mutate ETS-stored spans and enforce limits?

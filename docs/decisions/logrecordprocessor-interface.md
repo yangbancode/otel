@@ -1,5 +1,7 @@
 # LogRecordProcessor Interface
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `LogRecord` is promoted to a dedicated struct; "plain map" wording below will be revised when that phase PR lands.
+
 ## Question
 
 How to define the LogRecordProcessor behaviour on BEAM? OnEmit, Enabled, Shutdown, ForceFlush callbacks and ReadableLogRecord/ReadWriteLogRecord interfaces?

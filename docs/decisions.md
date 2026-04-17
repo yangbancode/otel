@@ -6,6 +6,8 @@ Each decision has its own document under [decisions/](decisions/) with related [
 
 Items are ordered by implementation sequence — completing them top to bottom produces a working system.
 
+> **Note:** [Spec-First Type System](decisions/spec-first-type-system.md) is the authoritative source for how OTel entities are represented (structs, not native types). Decision documents written before this policy contain native-type code examples for promoted entities (`AnyValue`, `Attribute`, `TraceId`, `SpanId`, `Link`, `Event`, `Status`, `LogRecord`, `SeverityNumber`, `Measurement`, `Instrument`) — those examples are revised alongside the implementation in each phase PR.
+
 ## Foundation
 
 - [x] [Package Structure & Module Namespacing](decisions/package-structure-and-module-namespacing.md)
@@ -13,6 +15,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Logging Convention](decisions/logging-convention.md)
 - [x] [GitHub Actions CI](decisions/github-actions-ci.md)
 - [x] [Application & Supervision Tree](decisions/application-and-supervision.md)
+- [ ] [Spec-First Type System](decisions/spec-first-type-system.md)
 
 ## Phase 1: Traces
 

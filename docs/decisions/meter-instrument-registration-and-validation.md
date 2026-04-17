@@ -1,5 +1,7 @@
 # Meter: Instrument Registration & Validation
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `Instrument` is promoted to a dedicated struct; name-keyed implicit-reference wording below will be revised when that phase PR lands.
+
 ## Question
 
 How does the SDK Meter handle instrument creation, name validation, duplicate registration, and advisory parameters?

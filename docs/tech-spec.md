@@ -39,6 +39,12 @@ Implementation order and phases are defined in [Decisions](decisions.md).
 - Dependencies on external OpenTelemetry libraries (e.g., opentelemetry-erlang)
 - Experimental/Development status spec items
 
+## Type System
+
+Every OpenTelemetry spec entity — primitive value containers (`AnyValue`, `Attribute`), opaque identifiers (`TraceId`, `SpanId`), and composite records (`Link`, `Event`, `Status`, `LogRecord`, `Measurement`, `Instrument`) — is represented as a dedicated Elixir struct with 1:1 correspondence to its spec definition. Native-type shortcuts (plain maps, tuples, raw binaries) are not used for spec-defined entities.
+
+See [Spec-First Type System](decisions/spec-first-type-system.md) for rationale, scope, and implementation phases.
+
 ## Code Conventions
 
 - Follow standard Elixir formatting (`mix format`)

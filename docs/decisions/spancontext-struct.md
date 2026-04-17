@@ -1,5 +1,7 @@
 # SpanContext
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `TraceId` and `SpanId` are promoted to dedicated structs; native-integer examples below will be revised when that phase PR lands.
+
 ## Question
 
 How to represent SpanContext in Elixir? Binary format for trace_id/span_id, hex conversion, and internal storage? How to implement IsValid and IsRemote?

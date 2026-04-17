@@ -1,5 +1,7 @@
 # Synchronous Instruments
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `Measurement`, `Instrument`, and `Attribute` are promoted to dedicated structs; native-attribute recording examples below will be revised when that phase PR lands.
+
 ## Question
 
 How to implement synchronous instruments (Counter, Histogram, Gauge, UpDownCounter) and their common creation/recording API on BEAM?

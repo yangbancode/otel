@@ -1,5 +1,7 @@
 # ID Generation
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). Generator callbacks return `TraceId.t()` and `SpanId.t()` structs; native-integer examples below will be revised when that phase PR lands.
+
 ## Question
 
 How to generate trace IDs and span IDs on BEAM? Which random source to use and how to support custom generators?

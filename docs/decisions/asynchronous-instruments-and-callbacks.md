@@ -1,5 +1,7 @@
 # Asynchronous Instruments & Callbacks
 
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `Measurement` and `Instrument` are promoted to dedicated structs; the `{value, attributes}` tuple callback shape below will be revised when that phase PR lands.
+
 ## Question
 
 How to implement asynchronous instruments and callback registration/execution on BEAM? How do callbacks interact with process boundaries?
