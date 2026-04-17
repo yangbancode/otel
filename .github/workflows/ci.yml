@@ -8,28 +8,24 @@ on:
 
 env:
   MIX_ENV: test
+  OTP_VERSION: "26.2"
+  ELIXIR_VERSION: "1.18.4"
 
 permissions:
   contents: read
 
 jobs:
   ci:
-    name: OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }}
+    name: OTP 26.2 / Elixir 1.18.4
     runs-on: ubuntu-latest
-
-    strategy:
-      fail-fast: false
-      matrix:
-        otp: ["28.4"]
-        elixir: ["1.19.5"]
 
     steps:
       - uses: actions/checkout@v6
 
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: ${{ matrix.otp }}
-          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
 
       - name: Cache deps and _build
         uses: actions/cache@v5
@@ -37,17 +33,17 @@ jobs:
           path: |
             deps
             _build
-          key: mix-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
+          key: mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}
           restore-keys: |
-            mix-${{ matrix.otp }}-${{ matrix.elixir }}-
+            mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
 
       - name: Cache Dialyzer PLTs
         uses: actions/cache@v5
         with:
           path: _build/dev/dialyxir_*.plt*
-          key: plt-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
+          key: plt-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}
           restore-keys: |
-            plt-${{ matrix.otp }}-${{ matrix.elixir }}-
+            plt-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
 
       - name: Install dependencies
         run: mix deps.get

@@ -55,3 +55,7 @@
 {%- macro strong_reqs(string) -%}
   {{ string | replace(" MUST ", " **MUST** ") | replace(" MUST NOT ", " **MUST NOT** ") | replace(" SHOULD ", " **SHOULD** ") | replace(" SHOULD NOT ", " **SHOULD NOT** ") |  replace(" MAY ", " **MAY** ") }}
 {%- endmacro -%}
+
+{%- macro strip_spec_links(string) -%}
+{{- string | regex_replace('\\[([^\\]]+)\\]\\(/docs/[^)]+\\)', '$1') -}}
+{%- endmacro -%}

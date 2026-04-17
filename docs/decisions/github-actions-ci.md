@@ -18,9 +18,11 @@ Single GitHub Actions workflow that runs on every PR and push to `main`. Five st
 
 ### Runtime Versions
 
-Use the same versions pinned in `.mise.toml`:
-- Erlang/OTP 28
-- Elixir 1.19
+Single pinned combination (no matrix) matching `.mise.toml`:
+- Erlang/OTP 26.2
+- Elixir 1.18.4
+
+The `ci.yml` workflow exposes these as `OTP_VERSION` / `ELIXIR_VERSION` env vars so upgrades are a single-place edit. Rationale for a single combination (not a matrix) lives in [minimum-elixir-version.md](minimum-elixir-version.md).
 
 ### Caching
 

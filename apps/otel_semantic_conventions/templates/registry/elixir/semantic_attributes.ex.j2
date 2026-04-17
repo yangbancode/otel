@@ -12,13 +12,13 @@ defmodule {{ module_namespace }}.{{ module_name }} do
   {%- if attribute.type is mapping %}
 
   @typedoc """
-  {{ c.strong_reqs(attribute.brief | trim | replace("\n", "\n  ")) }}
+  {{ c.strong_reqs(c.strip_spec_links(attribute.brief | trim | replace("\n", "\n  "))) }}
   """
   @type {{ c.func_name(attribute.name) }}_values :: {{ c.enum_type_map(attribute.type.members) }}
   {%- endif %}
 
   @doc """
-  {{ c.strong_reqs(attribute.brief | trim | replace("\n", "\n  ")) }}
+  {{ c.strong_reqs(c.strip_spec_links(attribute.brief | trim | replace("\n", "\n  "))) }}
 
       iex> {{ module_namespace }}.{{ module_name }}.{{ c.func_name(attribute.name) }}()
       {{ c.to_string_literal(attribute.name) }}
