@@ -57,18 +57,10 @@ defmodule Otel.SemConv.MixProject do
   defp docs do
     [
       main: "readme",
-      extra_section: "GUIDES",
       extras: [
-        {"README.md", title: "Home"},
-        {"CHANGELOG.md", title: "Changelog"},
-        {"LICENSE", title: "License"},
-        "documentation/topics/overview.md",
-        "documentation/how-to/use-with-spans.md"
-      ],
-      groups_for_extras: [
-        Topics: ~r/documentation\/topics\//,
-        "How-to": ~r/documentation\/how-to\//,
-        About: ["CHANGELOG.md", "LICENSE"]
+        {"README.md", title: "README.md"},
+        {"CHANGELOG.md", title: "CHANGELOG"},
+        {"LICENSE", title: "LICENSE"}
       ],
       source_url: @source_url,
       source_ref: "otel_semantic_conventions-v#{@version}",
