@@ -20,8 +20,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        otp: ["28.4"]
-        elixir: ["1.19.5"]
+        include:
+          # Minimum supported combination (OTP 25 floor from :public_key.cacerts_get/0,
+          # Elixir 1.15 floor from ex_doc dev dep)
+          - otp: "25.3"
+            elixir: "1.15.8"
+          # Current development pin (.mise.toml)
+          - otp: "28.4"
+            elixir: "1.19.5"
 
     steps:
       - uses: actions/checkout@v6
