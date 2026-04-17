@@ -2,9 +2,6 @@
 
 Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 
-> [!WARNING]
-> **Status: Alpha** — Basic functionality has been tested with a real OTel Collector. API is unstable and may change without notice. Not recommended for production use.
-
 ## Requirements
 
 - Elixir 1.18+
@@ -23,21 +20,17 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 ## Features
 
 - **Specification**
-  - [x] Traces
-  - [x] Metrics
-  - [x] Logs
-  - [x] Baggage
-  - [x] W3C TraceContext Propagator
-  - [x] W3C Baggage Propagator
+  - Traces
+  - Metrics
+  - Logs
+  - Baggage
+  - W3C TraceContext Propagator
+  - W3C Baggage Propagator
 - **Exporters**
-  - [x] Console (stdout)
-  - [x] OTLP HTTP
-  - [ ] OTLP gRPC
+  - Console (stdout)
+  - OTLP HTTP
+  - OTLP gRPC
 - **Semantic Conventions**
-  - [x] Auto-generated constants (stable only)
+  - Auto-generated constants (stable only)
 - **Integrations**
-  - [x] Erlang `:logger` bridge
-
-## License
-
-Each app is released into the public domain under the [Unlicense](https://unlicense.org/). See the `LICENSE` file inside each `apps/<name>/` directory.
+  - Erlang `:logger` bridge
