@@ -28,232 +28,33 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 - Elixir 1.18+
 - Erlang/OTP 26+
 
-## Installation
+## Packages
 
-Add the dependencies to your `mix.exs`:
+| App | Description |
+|---|---|
+| [`otel_api`](apps/otel_api) | Instrumentation API — Tracer, Meter, Logger, Span, Baggage |
+| [`otel_sdk`](apps/otel_sdk) | SDK implementation — providers, processors, samplers, resource detection |
+| [`otel_semantic_conventions`](apps/otel_semantic_conventions) | Auto-generated attribute and metric key constants |
+| [`otel_exporter_otlp`](apps/otel_exporter_otlp) | OTLP HTTP exporter (protobuf over HTTP/1.1) |
+| [`otel_logger_handler`](apps/otel_logger_handler) | Elixir `:logger` bridge to OTel Logs |
 
-```elixir
-defp deps do
-  [
-    # Required: API + SDK
-    {:otel_api, github: "yangbancode/otel", sparse: "apps/otel_api"},
-    {:otel_sdk, github: "yangbancode/otel", sparse: "apps/otel_sdk"},
+Each app is published independently on hex.pm. Refer to the per-app README for installation and usage.
 
-    # Optional: export to OTLP-compatible collectors via HTTP
-    {:otel_exporter_otlp, github: "yangbancode/otel", sparse: "apps/otel_exporter_otlp"},
+## Architecture
 
-    # Optional: standardized attribute constants
-    {:otel_semantic_conventions, github: "yangbancode/otel", sparse: "apps/otel_semantic_conventions"},
-
-    # Optional: bridges Elixir Logger to OTel Logs pipeline
-    {:otel_logger_handler, github: "yangbancode/otel", sparse: "apps/otel_logger_handler"}
-  ]
-end
+```
+your code → otel_api → otel_sdk → otel_exporter_otlp → OTel Collector
 ```
 
-Then run:
+- **`otel_api`** — instrumentation surface your code calls (`Tracer.start_span`, `Meter.record`, `Logger.emit`, etc.)
+- **`otel_sdk`** — the behaviours behind the API: providers, processors (Simple/Batch), samplers, span storage, resource detection
+- **`otel_exporter_otlp`** — serializes to protobuf and ships to a collector/backend over HTTP/1.1
 
-```bash
-mix deps.get
-```
+Optional:
 
-## Setup
+- **`otel_semantic_conventions`** — attribute-key constants (`http.request.method`, `db.system.name`, ...) to keep emitted attributes consistent with the OTel spec
+- **`otel_logger_handler`** — registers as a `:logger` handler so standard `Logger.info/warning/error` calls flow into the OTel Logs pipeline
 
-### Application Configuration
+## License
 
-Add OTel setup to your application's `start/2` callback:
-
-```elixir
-defmodule MyApp.Application do
-  use Application
-
-  @impl true
-  def start(_type, _args) do
-    # 1. Start OTel providers before your app's supervision tree
-    setup_otel()
-
-    children = [
-      # ... your app's children ...
-    ]
-
-    opts = [strategy: :one_for_one, name: MyApp.Supervisor]
-    Supervisor.start_link(children, opts)
-  end
-
-  defp setup_otel do
-    resource = Otel.SDK.Resource.create(%{
-      "service.name" => "my_app",
-      "service.version" => "1.0.0"
-    })
-
-    # --- Traces ---
-    {:ok, _} =
-      Otel.SDK.Trace.BatchProcessor.start_link(%{
-        name: :otel_trace_bsp,
-        resource: resource,
-        exporter: {Otel.Exporter.OTLP.Traces, %{}}
-      })
-
-    {:ok, _} =
-      Otel.SDK.Trace.TracerProvider.start_link(
-        config: %{
-          processors: [
-            {Otel.SDK.Trace.BatchProcessor, %{reg_name: :otel_trace_bsp}}
-          ]
-        }
-      )
-
-    # --- Metrics ---
-    {:ok, _} =
-      Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-
-    # --- Logs ---
-    {:ok, _} =
-      Otel.SDK.Logs.BatchProcessor.start_link(%{
-        name: :otel_log_blrp,
-        exporter: {Otel.Exporter.OTLP.Logs, %{}}
-      })
-
-    {:ok, log_provider} =
-      Otel.SDK.Logs.LoggerProvider.start_link(
-        config: %{
-          processors: [
-            {Otel.SDK.Logs.BatchProcessor, %{reg_name: :otel_log_blrp}}
-          ]
-        }
-      )
-
-    # --- :logger bridge (optional) ---
-    {_mod, bridge_config} =
-      Otel.SDK.Logs.LoggerProvider.get_logger(log_provider, "my_app")
-
-    :logger.add_handler(:otel, Otel.Logger.Handler, %{
-      config: %{otel_logger: {Otel.SDK.Logs.Logger, bridge_config}}
-    })
-
-    :ok
-  end
-end
-```
-
-### Environment Variables
-
-Configure the OTLP endpoint via environment variables — no code changes needed:
-
-```bash
-# Point to your Collector (default: http://localhost:4318)
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://collector.example.com:4318
-
-# Optional: authentication headers
-export OTEL_EXPORTER_OTLP_HEADERS=Authorization=Bearer my-token
-
-# Optional: enable gzip compression
-export OTEL_EXPORTER_OTLP_COMPRESSION=gzip
-```
-
-Signal-specific overrides are supported:
-
-```bash
-# Send traces to a different endpoint
-export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://tempo:4318/v1/traces
-
-# Different timeout for metrics
-export OTEL_EXPORTER_OTLP_METRICS_TIMEOUT=30000
-```
-
-## Usage
-
-### Traces
-
-```elixir
-defmodule MyApp.OrderController do
-  def create(params) do
-    tracer = Otel.SDK.Trace.TracerProvider.get_tracer(:global, "my_app")
-
-    Otel.API.Trace.with_span(tracer, "OrderController.create", fn _ctx ->
-      span = Otel.API.Trace.current_span(Otel.API.Ctx.get_current())
-      Otel.API.Trace.Span.set_attribute(span, "http.method", "POST")
-
-      # Nested span
-      Otel.API.Trace.with_span(tracer, "validate_order", fn _ctx ->
-        validate(params)
-      end)
-
-      # Another nested span
-      Otel.API.Trace.with_span(tracer, "save_to_db", fn _ctx ->
-        db_span = Otel.API.Trace.current_span(Otel.API.Ctx.get_current())
-        Otel.API.Trace.Span.set_attribute(db_span, "db.system", "postgresql")
-        save(params)
-      end)
-
-      Otel.API.Trace.Span.set_attribute(span, "http.status_code", 201)
-    end)
-  end
-end
-```
-
-### Metrics
-
-```elixir
-defmodule MyApp.Metrics do
-  def setup(provider) do
-    meter = Otel.SDK.Metrics.MeterProvider.get_meter(provider, "my_app")
-
-    # Create instruments once
-    Otel.API.Metrics.Meter.create_counter(meter, "http.requests", unit: "1")
-    Otel.API.Metrics.Meter.create_histogram(meter, "http.duration", unit: "ms")
-    Otel.API.Metrics.Meter.create_gauge(meter, "system.memory", unit: "bytes")
-
-    meter
-  end
-
-  def record_request(meter, method, status, duration) do
-    Otel.API.Metrics.Meter.record(meter, "http.requests", 1, %{
-      method: method,
-      status: status
-    })
-
-    Otel.API.Metrics.Meter.record(meter, "http.duration", duration, %{
-      method: method
-    })
-  end
-end
-```
-
-### Logs (Direct API)
-
-```elixir
-defmodule MyApp.PaymentService do
-  def charge(order) do
-    # logger is a {module, config} tuple from LoggerProvider.get_logger
-    Otel.API.Logs.Logger.emit(logger(), %{
-      severity_number: 9,
-      severity_text: "INFO",
-      body: "Processing payment for order #{order.id}",
-      attributes: %{
-        "order.id" => order.id,
-        "payment.amount" => order.total
-      }
-    })
-
-    # Logs emitted inside a span automatically include trace_id/span_id
-  end
-end
-```
-
-### Logs (:logger Bridge)
-
-Once the `:logger` handler is registered in your application setup, all standard `Logger` calls are automatically exported:
-
-```elixir
-require Logger
-
-# These are all automatically sent to your OTel Collector
-Logger.info("User signed up", user_id: 123)
-Logger.warning("Rate limit approaching", current: 95, limit: 100)
-Logger.error("Payment failed", order_id: "ORD-456", reason: "declined")
-```
-
-The handler maps Elixir log levels to OTel severity numbers and extracts metadata (module, function, file, line) as attributes.
-
-
+Released into the public domain under the [Unlicense](LICENSE).
