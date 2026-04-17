@@ -15,11 +15,18 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 
 ## Compatibility
 
-| Package | OTel Semantic Conventions |
+| Package | Semantic Conventions |
 |---|---|
 | `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
 
-Only **stable** items are generated. Experimental, development, and deprecated items are out of scope — see the [Overview](documentation/topics/overview.md) for the rationale.
+| Scope | Contents |
+|---|---|
+| **Included attributes** | `Client`, `Code`, `DB`, `Error`, `Exception`, `HTTP`, `Network`, `Otel`, `Server`, `Service`, `Telemetry`, `URL`, `UserAgent` |
+| **Included metrics** | `DB`, `HTTP` |
+| **Excluded by stability** | experimental/development, release_candidate, deprecated |
+| **Excluded by domain** | `aspnetcore`, `dotnet`, `jvm`, `kestrel`, `signalr` |
+
+See the [Overview](documentation/topics/overview.md) for the full rationale.
 
 ## Installation
 
