@@ -35,6 +35,16 @@ def deps do
 end
 ```
 
+## Quick Example
+
+```elixir
+iex> Otel.SemConv.Attributes.HTTP.http_request_method()
+"http.request.method"
+
+iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()[:post]
+"POST"
+```
+
 ## Module Organization
 
 Constants are organized into two namespaces, visible in the sidebar:
@@ -45,16 +55,6 @@ Constants are organized into two namespaces, visible in the sidebar:
 | `Otel.SemConv.Metrics.*` | metric name constants (e.g., `HTTP`, `DB`) |
 
 Module names preserve common acronyms exactly (`HTTP`, not `Http`).
-
-## Quick Example
-
-```elixir
-iex> Otel.SemConv.Attributes.HTTP.http_request_method()
-"http.request.method"
-
-iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()[:post]
-"POST"
-```
 
 ## License
 
