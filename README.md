@@ -1,6 +1,6 @@
 # Otel
 
-Otel umbrella project, a pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
+Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 
 ## Features
 
