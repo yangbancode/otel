@@ -57,11 +57,24 @@ defmodule Otel.SemConv.MixProject do
   defp docs do
     [
       main: "readme",
-      extras: ["README.md", "CHANGELOG.md", "LICENSE"],
+      extra_section: "GUIDES",
+      extras: [
+        {"README.md", title: "Home"},
+        {"CHANGELOG.md", title: "Changelog"},
+        {"LICENSE", title: "License"},
+        "documentation/topics/overview.md",
+        "documentation/how-to/use-with-spans.md"
+      ],
+      groups_for_extras: [
+        Topics: ~r/documentation\/topics\//,
+        "How-to": ~r/documentation\/how-to\//,
+        About: ["CHANGELOG.md", "LICENSE"]
+      ],
       source_url: @source_url,
       source_ref: "otel_semantic_conventions-v#{@version}",
       source_url_pattern:
         "#{@repo_url}/blob/otel_semantic_conventions-v#{@version}/apps/otel_semantic_conventions/%{path}#L%{line}",
+      before_closing_head_tag: &before_closing_head_tag/1,
       groups_for_modules: [
         Attributes: ~r/^Otel\.SemConv\.Attributes\./,
         Metrics: ~r/^Otel\.SemConv\.Metrics\./
@@ -72,4 +85,10 @@ defmodule Otel.SemConv.MixProject do
       ]
     ]
   end
+
+  defp before_closing_head_tag(:html) do
+    ~S(<meta name="exdoc:autocomplete-limit" content="25">)
+  end
+
+  defp before_closing_head_tag(_), do: ""
 end
