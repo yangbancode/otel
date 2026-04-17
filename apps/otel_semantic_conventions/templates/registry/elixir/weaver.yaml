@@ -1,7 +1,5 @@
 params:
   stability: "stable"
-  excluded: ["aspnetcore", "dotnet", "go", "ios", "jvm", "kestrel", "nodejs", "signalr", "v8js", "veightjs", "webengine"]
-  excluded_attrs: ["messaging.client_id"]
 
 templates:
   - pattern: semantic_attributes.ex.j2
@@ -14,12 +12,10 @@ templates:
       | group_by(.group_id)
       | map({
           id: .[0].group_id,
-          attributes: [.[].attributes[] | select(.stability == $stability)
-            | (select(.name as $id | any($excluded_attrs[]; . == $id) | not))]
+          attributes: [.[].attributes[] | select(.stability == $stability)]
             | sort_by(.id),
           output: $output + "/otel/sem_conv/attributes/"
         })
-      | map(select(.id as $id | any($excluded[]; . == $id) | not))
       | map(select(.attributes | length > 0))
     application_mode: each
   - pattern: semantic_metrics.ex.j2
@@ -34,7 +30,6 @@ templates:
           metrics: . | sort_by(.metric_name),
           output: $output + "/otel/sem_conv/metrics/"
         })
-      | map(select(.id as $id | any($excluded[]; . == $id) | not))
       | map(select(.metrics | length > 0))
     application_mode: each
 
