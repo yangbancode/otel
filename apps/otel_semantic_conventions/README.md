@@ -15,16 +15,24 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 
 ## Compatibility
 
-| Package | Semantic Conventions |
-|---|---|
-| `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
+Version mapping:
 
-| Scope | Contents |
+- `0.1.x` → [semantic-conventions v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0)
+
+Included in generated code:
+
+| Category | Contents |
 |---|---|
-| **Included attributes** | `Client`, `Code`, `DB`, `Error`, `Exception`, `HTTP`, `Network`, `Otel`, `Server`, `Service`, `Telemetry`, `URL`, `UserAgent` |
-| **Included metrics** | `DB`, `HTTP` |
-| **Excluded by stability** | experimental/development, release_candidate, deprecated |
-| **Excluded by domain** | `aspnetcore`, `dotnet`, `jvm`, `kestrel`, `signalr` |
+| Stability | stable |
+| Attributes | `Client`, `Code`, `DB`, `Error`, `Exception`, `HTTP`, `Network`, `Otel`, `Server`, `Service`, `Telemetry`, `URL`, `UserAgent` |
+| Metrics | `DB`, `HTTP` |
+
+Excluded:
+
+| Category | Contents |
+|---|---|
+| Stability | experimental/development, release_candidate, deprecated |
+| Domains | `aspnetcore`, `dotnet`, `jvm`, `kestrel`, `signalr` |
 
 See the [Overview](documentation/topics/overview.md) for the full rationale.
 
