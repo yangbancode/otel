@@ -38,8 +38,7 @@ Example modules:
 
 Per tech-spec, experimental/incubating attributes are out of scope. One generation pass with `--param stability=stable`.
 
-Excluded platform-specific groups (no relevance outside their runtime):
-`aspnetcore`, `dotnet`, `go`, `ios`, `jvm`, `kestrel`, `nodejs`, `signalr`, `v8js`, `veightjs`, `webengine`.
+Platform-specific groups are not blocked. Every group with at least one stable item is generated, including runtime/framework domains (`Otel.SemConv.Attributes.JVM`, `Otel.SemConv.Metrics.Dotnet`, etc.). Rationale: an Elixir app may legitimately receive/proxy telemetry from polyglot systems (e.g., an OTel collector pipeline, gRPC interop), and the stability filter already suppresses anything the OTel project hasn't committed to.
 
 ### Templates
 
