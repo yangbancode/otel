@@ -14,8 +14,10 @@ defmodule Otel.API.Logs.LoggerTest do
         observed_timestamp: System.system_time(:nanosecond),
         severity_number: 9,
         severity_text: "INFO",
-        body: "Hello, world!",
-        attributes: %{"key" => "value"},
+        body: Otel.API.Common.AnyValue.string("Hello, world!"),
+        attributes: [
+          Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("value"))
+        ],
         event_name: "my.event"
       }
 
@@ -26,7 +28,7 @@ defmodule Otel.API.Logs.LoggerTest do
       assert :ok ==
                Otel.API.Logs.Logger.emit(@noop_logger, %{
                  severity_number: 17,
-                 body: "Error occurred"
+                 body: Otel.API.Common.AnyValue.string("Error occurred")
                })
     end
   end
@@ -37,7 +39,7 @@ defmodule Otel.API.Logs.LoggerTest do
 
       assert :ok ==
                Otel.API.Logs.Logger.emit(@noop_logger, ctx, %{
-                 body: "with context"
+                 body: Otel.API.Common.AnyValue.string("with context")
                })
     end
   end

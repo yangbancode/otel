@@ -1,6 +1,6 @@
 # Logs API
 
-> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `LogRecord`, `SeverityNumber`, `AnyValue`, and `Attribute` are promoted to dedicated structs; the map-shaped `emit/2,3` examples below will be revised when that phase PR lands.
+> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `LogRecord` and `SeverityNumber` are still native-typed; they will be promoted to dedicated structs when the Logs phase PR lands.
 
 ## Question
 

@@ -21,7 +21,7 @@ defmodule Otel.SDK.Trace.SpanCreator do
         ) :: {Otel.API.Trace.SpanContext.t(), Otel.SDK.Trace.Span.t() | nil}
   def start_span(ctx, name, sampler, id_generator, span_limits, opts) do
     kind = Keyword.get(opts, :kind, :internal)
-    attributes = Keyword.get(opts, :attributes, %{})
+    attributes = Keyword.get(opts, :attributes, [])
     links = Keyword.get(opts, :links, [])
     start_time = Keyword.get(opts, :start_time, System.system_time(:nanosecond))
 
@@ -42,14 +42,14 @@ defmodule Otel.SDK.Trace.SpanCreator do
     if is_recording do
       merged_attributes =
         attributes
-        |> Map.merge(sampler_attributes)
+        |> merge_attribute_lists(sampler_attributes)
         |> apply_attribute_limits(span_limits)
 
       limited_links =
         links
         |> Enum.take(span_limits.link_count_limit)
-        |> Enum.map(fn {ctx, attrs} ->
-          {ctx,
+        |> Enum.map(fn {link_ctx, attrs} ->
+          {link_ctx,
            apply_link_attribute_limits(
              attrs,
              span_limits.attribute_per_link_limit,
@@ -79,75 +79,99 @@ defmodule Otel.SDK.Trace.SpanCreator do
     end
   end
 
-  @spec apply_attribute_limits(attributes :: map(), span_limits :: Otel.SDK.Trace.SpanLimits.t()) ::
-          map()
+  @spec merge_attribute_lists(
+          existing :: [Otel.API.Common.Attribute.t()],
+          incoming :: [Otel.API.Common.Attribute.t()]
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp merge_attribute_lists(existing, incoming) do
+    incoming_keys = MapSet.new(incoming, & &1.key)
+    Enum.reject(existing, &MapSet.member?(incoming_keys, &1.key)) ++ incoming
+  end
+
+  @spec apply_attribute_limits(
+          attributes :: [Otel.API.Common.Attribute.t()],
+          span_limits :: Otel.SDK.Trace.SpanLimits.t()
+        ) :: [Otel.API.Common.Attribute.t()]
   defp apply_attribute_limits(attributes, span_limits) do
     attributes
     |> Enum.take(span_limits.attribute_count_limit)
-    |> Enum.map(fn {key, value} ->
-      {key, truncate_value(value, span_limits.attribute_value_length_limit)}
-    end)
-    |> Map.new()
+    |> Enum.map(&truncate_attribute(&1, span_limits.attribute_value_length_limit))
   end
 
   @spec apply_link_attribute_limits(
-          attributes :: map(),
+          attributes :: [Otel.API.Common.Attribute.t()],
           count_limit :: pos_integer(),
           value_length_limit :: pos_integer() | :infinity
-        ) :: map()
+        ) :: [Otel.API.Common.Attribute.t()]
   defp apply_link_attribute_limits(attributes, count_limit, value_length_limit) do
     attributes
     |> Enum.take(count_limit)
-    |> Enum.map(fn {key, value} ->
-      {key, truncate_value(value, value_length_limit)}
-    end)
-    |> Map.new()
+    |> Enum.map(&truncate_attribute(&1, value_length_limit))
   end
 
-  @spec truncate_value(value :: term(), limit :: pos_integer() | :infinity) :: term()
-  defp truncate_value(value, :infinity), do: value
-
-  defp truncate_value(value, limit) when is_binary(value) do
-    if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
+  @spec truncate_attribute(
+          attribute :: Otel.API.Common.Attribute.t(),
+          limit :: pos_integer() | :infinity
+        ) :: Otel.API.Common.Attribute.t()
+  defp truncate_attribute(%Otel.API.Common.Attribute{value: value} = attr, limit) do
+    %{attr | value: truncate_any_value(value, limit)}
   end
 
-  defp truncate_value(value, limit) when is_list(value) do
-    Enum.map(value, &truncate_value(&1, limit))
+  @spec truncate_any_value(
+          value :: Otel.API.Common.AnyValue.t(),
+          limit :: pos_integer() | :infinity
+        ) :: Otel.API.Common.AnyValue.t()
+  defp truncate_any_value(value, :infinity), do: value
+
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :string, value: s} = v, limit)
+       when is_integer(limit) do
+    if String.length(s) > limit, do: %{v | value: String.slice(s, 0, limit)}, else: v
   end
 
-  defp truncate_value(value, _limit), do: value
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :bytes, value: b} = v, limit)
+       when is_integer(limit) do
+    if byte_size(b) > limit, do: %{v | value: binary_part(b, 0, limit)}, else: v
+  end
+
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :array, value: vs} = v, limit)
+       when is_integer(limit) do
+    %{v | value: Enum.map(vs, &truncate_any_value(&1, limit))}
+  end
+
+  defp truncate_any_value(%Otel.API.Common.AnyValue{} = v, _limit), do: v
 
   @spec new_span_ctx(
           ctx :: Otel.API.Ctx.t(),
           id_generator :: module(),
           opts :: keyword()
-        ) :: {Otel.API.Trace.SpanContext.t(), non_neg_integer() | nil, boolean() | nil}
+        ) ::
+          {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t() | nil, boolean() | nil}
   defp new_span_ctx(ctx, id_generator, opts) do
     parent = Otel.API.Trace.current_span(ctx)
     is_root = Keyword.get(opts, :is_root, false)
 
-    case {is_root, parent} do
-      {true, _} ->
+    cond do
+      is_root ->
         root_span_ctx(id_generator)
 
-      {_, %Otel.API.Trace.SpanContext{trace_id: 0}} ->
+      not Otel.API.Trace.TraceId.valid?(parent.trace_id) ->
         root_span_ctx(id_generator)
 
-      {_, %Otel.API.Trace.SpanContext{span_id: 0}} ->
+      not Otel.API.Trace.SpanId.valid?(parent.span_id) ->
         root_span_ctx(id_generator)
 
-      {_, %Otel.API.Trace.SpanContext{} = parent_ctx} ->
+      true ->
         span_id = id_generator.generate_span_id()
 
         {
           %Otel.API.Trace.SpanContext{
-            trace_id: parent_ctx.trace_id,
+            trace_id: parent.trace_id,
             span_id: span_id,
-            tracestate: parent_ctx.tracestate,
+            tracestate: parent.tracestate,
             is_remote: false
           },
-          parent_ctx.span_id,
-          parent_ctx.is_remote
+          parent.span_id,
+          parent.is_remote
         }
     end
   end
@@ -172,12 +196,14 @@ defmodule Otel.SDK.Trace.SpanCreator do
   @spec sample(
           ctx :: Otel.API.Ctx.t(),
           sampler :: Otel.SDK.Trace.Sampler.t(),
-          trace_id :: non_neg_integer(),
+          trace_id :: Otel.API.Trace.TraceId.t(),
           links :: list(),
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map()
-        ) :: {non_neg_integer(), boolean(), map(), Otel.API.Trace.TraceState.t()}
+          attributes :: [Otel.API.Common.Attribute.t()]
+        ) ::
+          {non_neg_integer(), boolean(), [Otel.API.Common.Attribute.t()],
+           Otel.API.Trace.TraceState.t()}
   defp sample(ctx, sampler, trace_id, links, name, kind, attributes) do
     {decision, new_attributes, tracestate} =
       Otel.SDK.Trace.Sampler.should_sample(

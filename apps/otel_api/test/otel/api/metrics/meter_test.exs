@@ -138,7 +138,10 @@ defmodule Otel.API.Metrics.MeterTest do
     end
 
     test "record accepts attributes", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.Meter.record(meter, "my_counter", 1, %{"key" => "val"})
+      assert :ok ==
+               Otel.API.Metrics.Meter.record(meter, "my_counter", 1, [
+                 Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+               ])
     end
 
     test "register_callback returns :ok", %{meter: meter} do

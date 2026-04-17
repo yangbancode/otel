@@ -14,8 +14,8 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
       ctx = Otel.API.Ctx.new()
 
       span_ctx = %Otel.API.Trace.SpanContext{
-        trace_id: 1,
-        span_id: 1,
+        trace_id: Otel.API.Trace.TraceId.new(<<1::128>>),
+        span_id: Otel.API.Trace.SpanId.new(<<1::64>>),
         trace_flags: 1
       }
 
@@ -27,8 +27,8 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
       ctx = Otel.API.Ctx.new()
 
       span_ctx = %Otel.API.Trace.SpanContext{
-        trace_id: 1,
-        span_id: 1,
+        trace_id: Otel.API.Trace.TraceId.new(<<1::128>>),
+        span_id: Otel.API.Trace.SpanId.new(<<1::64>>),
         trace_flags: 0
       }
 

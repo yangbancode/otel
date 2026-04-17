@@ -4,7 +4,7 @@ defmodule Otel.SDK.Metrics.Aggregation do
   """
 
   @type datapoint :: %{
-          attributes: map(),
+          attributes: [Otel.API.Common.Attribute.t()],
           value: term(),
           start_time: integer(),
           time: integer()

@@ -1,7 +1,5 @@
 # SpanContext
 
-> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). `TraceId` and `SpanId` are promoted to dedicated structs; native-integer examples below will be revised when that phase PR lands.
-
 ## Question
 
 How to represent SpanContext in Elixir? Binary format for trace_id/span_id, hex conversion, and internal storage? How to implement IsValid and IsRemote?
@@ -10,7 +8,7 @@ How to represent SpanContext in Elixir? Binary format for trace_id/span_id, hex 
 
 ### Struct
 
-Elixir struct matching the opentelemetry-erlang `#span_ctx{}` record:
+Elixir struct holding the spec-defined fields:
 
 ```elixir
 defstruct [
@@ -26,28 +24,28 @@ Only spec-defined fields are stored. `IsValid` is a function that computes from 
 
 ### ID Representation
 
-Same as opentelemetry-erlang: trace_id is a 128-bit integer, span_id is a 64-bit integer. Stored as non-negative integers, not binaries. Hex conversion is done via functions, not cached in the struct.
+`trace_id` and `span_id` are opaque structs from the Spec-First Type System — `Otel.API.Trace.TraceId.t()` (16 bytes internally) and `Otel.API.Trace.SpanId.t()` (8 bytes internally). Hex and raw-bytes conversions are exposed via module functions rather than cached on the struct.
 
 | Field | Type | Size |
 |---|---|---|
-| `trace_id` | `non_neg_integer()` | 128 bits |
-| `span_id` | `non_neg_integer()` | 64 bits |
+| `trace_id` | `Otel.API.Trace.TraceId.t()` | 16 bytes |
+| `span_id` | `Otel.API.Trace.SpanId.t()` | 8 bytes |
 | `trace_flags` | `non_neg_integer()` | 8 bits |
 
-Zero values (0) represent invalid/empty IDs.
+All-zero IDs represent invalid/empty values; validity is tested through `TraceId.valid?/1` and `SpanId.valid?/1`.
 
 ### Functions
 
 | Function | Description |
 |---|---|
-| `new/4` | Create from trace_id, span_id, trace_flags, tracestate |
-| `valid?/1` | Non-zero trace_id AND non-zero span_id |
+| `new/4` | Create from `TraceId.t()`, `SpanId.t()`, trace_flags, tracestate |
+| `valid?/1` | `TraceId.valid?/1` AND `SpanId.valid?/1` |
 | `remote?/1` | Returns `is_remote` field |
 | `sampled?/1` | Lowest bit of trace_flags is 1 |
-| `trace_id_hex/1` | 32-char lowercase hex string |
-| `span_id_hex/1` | 16-char lowercase hex string |
-| `trace_id_bytes/1` | 16-byte binary |
-| `span_id_bytes/1` | 8-byte binary |
+| `trace_id_hex/1` | Delegates to `TraceId.to_hex/1` (32-char lowercase hex) |
+| `span_id_hex/1` | Delegates to `SpanId.to_hex/1` (16-char lowercase hex) |
+| `trace_id_bytes/1` | Delegates to `TraceId.to_bytes/1` (16-byte binary) |
+| `span_id_bytes/1` | Delegates to `SpanId.to_bytes/1` (8-byte binary) |
 
 ### Module: `Otel.API.Trace.SpanContext`
 

@@ -9,7 +9,7 @@ defmodule Otel.SDK.Trace.SamplerTest.TestSampler do
 
   @impl true
   def should_sample(_ctx, _trace_id, _links, _name, _kind, _attributes, _config) do
-    {:record_and_sample, %{}, %Otel.API.Trace.TraceState{}}
+    {:record_and_sample, [], %Otel.API.Trace.TraceState{}}
   end
 end
 
@@ -34,14 +34,14 @@ defmodule Otel.SDK.Trace.SamplerTest do
         Otel.SDK.Trace.Sampler.should_sample(
           sampler,
           %{},
-          123,
+          Otel.API.Trace.TraceId.new(<<123::128>>),
           [],
           "test_span",
           :internal,
-          %{}
+          []
         )
 
-      assert {:record_and_sample, %{}, %Otel.API.Trace.TraceState{}} = result
+      assert {:record_and_sample, [], %Otel.API.Trace.TraceState{}} = result
     end
   end
 

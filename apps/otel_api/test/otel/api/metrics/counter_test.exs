@@ -44,9 +44,12 @@ defmodule Otel.API.Metrics.CounterTest do
 
     test "records with attributes", %{meter: meter} do
       assert :ok ==
-               Otel.API.Metrics.Counter.add(meter, "request_count", 5, %{
-                 "http.method" => "GET"
-               })
+               Otel.API.Metrics.Counter.add(meter, "request_count", 5, [
+                 Otel.API.Common.Attribute.new(
+                   "http.method",
+                   Otel.API.Common.AnyValue.string("GET")
+                 )
+               ])
     end
 
     test "accepts zero", %{meter: meter} do

@@ -2,17 +2,26 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
   use ExUnit.Case, async: true
 
   @span %Otel.SDK.Trace.Span{
-    trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
-    span_id: 0xB7AD6B7169203331,
+    trace_id: Otel.API.Trace.TraceId.new(<<0x0AF7651916CD43DD8448EB211C80319C::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<0xB7AD6B7169203331::64>>),
     parent_span_id: nil,
     tracestate: %Otel.API.Trace.TraceState{},
     name: "test_span",
     kind: :server,
     start_time: 1_000_000_000,
     end_time: 2_000_000_000,
-    attributes: %{"http.method" => "GET", "http.status_code" => 200},
+    attributes: [
+      Otel.API.Common.Attribute.new("http.method", Otel.API.Common.AnyValue.string("GET")),
+      Otel.API.Common.Attribute.new("http.status_code", Otel.API.Common.AnyValue.int(200))
+    ],
     events: [
-      %{name: "event1", time: 1_500_000_000, attributes: %{"key" => "val"}}
+      %{
+        name: "event1",
+        time: 1_500_000_000,
+        attributes: [
+          Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+        ]
+      }
     ],
     links: [],
     status: {:ok, ""},
@@ -132,8 +141,21 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes links" do
-      linked_ctx = Otel.API.Trace.SpanContext.new(100, 200, 1)
-      span_with_link = %{@span | links: [{linked_ctx, %{"link.key" => "val"}}]}
+      linked_ctx =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<100::128>>),
+          Otel.API.Trace.SpanId.new(<<200::64>>),
+          1
+        )
+
+      span_with_link = %{
+        @span
+        | links: [
+            {linked_ctx,
+             [Otel.API.Common.Attribute.new("link.key", Otel.API.Common.AnyValue.string("val"))]}
+          ]
+      }
+
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([span_with_link], @resource)
 
       decoded =
@@ -149,14 +171,21 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       span =
         %{
           @span
-          | attributes: %{
-              "string" => "val",
-              "int" => 42,
-              "float" => 3.14,
-              "bool" => true,
-              "atom" => :test,
-              "list" => [1, 2, 3]
-            }
+          | attributes: [
+              Otel.API.Common.Attribute.new("string", Otel.API.Common.AnyValue.string("val")),
+              Otel.API.Common.Attribute.new("int", Otel.API.Common.AnyValue.int(42)),
+              Otel.API.Common.Attribute.new("float", Otel.API.Common.AnyValue.double(3.14)),
+              Otel.API.Common.Attribute.new("bool", Otel.API.Common.AnyValue.bool(true)),
+              Otel.API.Common.Attribute.new("atom", Otel.API.Common.AnyValue.string("test")),
+              Otel.API.Common.Attribute.new(
+                "list",
+                Otel.API.Common.AnyValue.array([
+                  Otel.API.Common.AnyValue.int(1),
+                  Otel.API.Common.AnyValue.int(2),
+                  Otel.API.Common.AnyValue.int(3)
+                ])
+              )
+            ]
         }
 
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
@@ -176,7 +205,13 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "handles unknown attribute type via inspect" do
-      span = %{@span | attributes: %{"tuple" => {1, 2}}}
+      span = %{
+        @span
+        | attributes: [
+            Otel.API.Common.Attribute.new("tuple", Otel.API.Common.AnyValue.string("{1, 2}"))
+          ]
+      }
+
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
@@ -222,7 +257,11 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes parent span id" do
-      child_span = %{@span | parent_span_id: 0xDEADBEEF}
+      child_span = %{
+        @span
+        | parent_span_id: Otel.API.Trace.SpanId.new(<<0xDEADBEEF::64>>)
+      }
+
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([child_span], @resource)
 
       decoded =
@@ -232,8 +271,8 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert span.parent_span_id == <<0xDEADBEEF::64>>
     end
 
-    test "encodes parent_span_id 0 as empty" do
-      span = %{@span | parent_span_id: 0}
+    test "encodes nil parent_span_id as empty" do
+      span = %{@span | parent_span_id: nil}
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
@@ -278,7 +317,9 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       is_monotonic: true,
       datapoints: [
         %{
-          attributes: %{"method" => "GET"},
+          attributes: [
+            Otel.API.Common.Attribute.new("method", Otel.API.Common.AnyValue.string("GET"))
+          ],
           value: 42,
           start_time: 1_000_000,
           time: 2_000_000,
@@ -298,7 +339,9 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       is_monotonic: nil,
       datapoints: [
         %{
-          attributes: %{"host" => "a"},
+          attributes: [
+            Otel.API.Common.Attribute.new("host", Otel.API.Common.AnyValue.string("a"))
+          ],
           value: 75.5,
           start_time: 1_000_000,
           time: 2_000_000,
@@ -318,7 +361,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       is_monotonic: nil,
       datapoints: [
         %{
-          attributes: %{},
+          attributes: [],
           value: %{
             bucket_counts: [1, 2, 0, 1],
             boundaries: [10, 50, 100],
@@ -496,9 +539,11 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       exemplar = %Otel.SDK.Metrics.Exemplar{
         value: 42,
         time: 1_500_000,
-        filtered_attributes: %{"extra" => "val"},
-        span_id: 0xDEADBEEF,
-        trace_id: 0x0AF7651916CD43DD8448EB211C80319C
+        filtered_attributes: [
+          Otel.API.Common.Attribute.new("extra", Otel.API.Common.AnyValue.string("val"))
+        ],
+        span_id: Otel.API.Trace.SpanId.new(<<0xDEADBEEF::64>>),
+        trace_id: Otel.API.Trace.TraceId.new(<<0x0AF7651916CD43DD8448EB211C80319C::128>>)
       }
 
       metric =
@@ -528,7 +573,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       exemplar = %Otel.SDK.Metrics.Exemplar{
         value: 10.5,
         time: 1_500_000,
-        filtered_attributes: %{},
+        filtered_attributes: [],
         span_id: nil,
         trace_id: nil
       }
@@ -576,17 +621,19 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
   describe "encode_logs/1" do
     @log_record %{
-      body: "test message",
+      body: Otel.API.Common.AnyValue.string("test message"),
       severity_number: 9,
       severity_text: "INFO",
       timestamp: 1_000_000,
       observed_timestamp: 2_000_000,
-      attributes: %{"method" => "GET"},
+      attributes: [
+        Otel.API.Common.Attribute.new("method", Otel.API.Common.AnyValue.string("GET"))
+      ],
       event_name: nil,
       scope: %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"},
       resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
-      trace_id: 0,
-      span_id: 0,
+      trace_id: Otel.API.Trace.TraceId.invalid(),
+      span_id: Otel.API.Trace.SpanId.invalid(),
       trace_flags: 0,
       dropped_attributes_count: 0
     }
@@ -630,8 +677,8 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     test "encodes trace context when present" do
       record = %{
         @log_record
-        | trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
-          span_id: 0xB7AD6B7169203331,
+        | trace_id: Otel.API.Trace.TraceId.new(<<0x0AF7651916CD43DD8448EB211C80319C::128>>),
+          span_id: Otel.API.Trace.SpanId.new(<<0xB7AD6B7169203331::64>>),
           trace_flags: 1
       }
 
@@ -668,8 +715,15 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert log.body == nil
     end
 
-    test "encodes map body as string via inspect" do
-      record = %{@log_record | body: %{nested: "value"}}
+    test "encodes kvlist body" do
+      record = %{
+        @log_record
+        | body:
+            Otel.API.Common.AnyValue.kvlist(%{
+              "nested" => Otel.API.Common.AnyValue.string("value")
+            })
+      }
+
       binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
 
       decoded =
@@ -705,7 +759,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       scope_a = %Otel.API.InstrumentationScope{name: "lib_a"}
       scope_b = %Otel.API.InstrumentationScope{name: "lib_b"}
       record_a = %{@log_record | scope: scope_a}
-      record_b = %{@log_record | scope: scope_b, body: "other"}
+      record_b = %{@log_record | scope: scope_b, body: Otel.API.Common.AnyValue.string("other")}
 
       binary = Otel.Exporter.OTLP.Encoder.encode_logs([record_a, record_b])
 

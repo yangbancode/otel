@@ -18,23 +18,22 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
             attribute_value_length_limit: :infinity
 
   @doc """
-  Applies attribute limits to a map of attributes.
+  Applies attribute limits to a list of `Otel.API.Common.Attribute.t()`.
 
-  Truncates string values exceeding the length limit and
-  discards attributes beyond the count limit. Logs a warning
-  at most once per call when attributes are discarded.
+  Truncates string/bytes values exceeding the length limit (recursing
+  into arrays) and discards attributes beyond the count limit. Logs a
+  warning at most once per call when attributes are discarded.
   """
-  @spec apply(attributes :: map(), limits :: t()) :: {map(), non_neg_integer()}
-  def apply(attributes, %__MODULE__{} = limits) do
-    truncated = truncate_values(attributes, limits.attribute_value_length_limit)
-    count = map_size(truncated)
+  @spec apply(
+          attributes :: [Otel.API.Common.Attribute.t()],
+          limits :: t()
+        ) :: {[Otel.API.Common.Attribute.t()], non_neg_integer()}
+  def apply(attributes, %__MODULE__{} = limits) when is_list(attributes) do
+    truncated = truncate_attributes(attributes, limits.attribute_value_length_limit)
+    count = length(truncated)
 
     if count > limits.attribute_count_limit do
-      limited =
-        truncated
-        |> Enum.take(limits.attribute_count_limit)
-        |> Map.new()
-
+      limited = Enum.take(truncated, limits.attribute_count_limit)
       dropped = count - limits.attribute_count_limit
 
       :logger.warning(
@@ -49,23 +48,41 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
     end
   end
 
-  @spec truncate_values(attributes :: map(), limit :: pos_integer() | :infinity) :: map()
-  defp truncate_values(attributes, :infinity), do: attributes
+  @spec truncate_attributes(
+          attributes :: [Otel.API.Common.Attribute.t()],
+          limit :: pos_integer() | :infinity
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp truncate_attributes(attributes, :infinity), do: attributes
 
-  defp truncate_values(attributes, limit) do
-    Map.new(attributes, fn {key, value} ->
-      {key, truncate_value(value, limit)}
+  defp truncate_attributes(attributes, limit) do
+    Enum.map(attributes, fn %Otel.API.Common.Attribute{key: key, value: value} ->
+      %Otel.API.Common.Attribute{key: key, value: truncate_any_value(value, limit)}
     end)
   end
 
-  @spec truncate_value(value :: term(), limit :: pos_integer()) :: term()
-  defp truncate_value(value, limit) when is_binary(value) do
-    if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
+  @spec truncate_any_value(
+          value :: Otel.API.Common.AnyValue.t(),
+          limit :: pos_integer()
+        ) :: Otel.API.Common.AnyValue.t()
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :string, value: v} = av, limit) do
+    if String.length(v) > limit do
+      %Otel.API.Common.AnyValue{av | value: String.slice(v, 0, limit)}
+    else
+      av
+    end
   end
 
-  defp truncate_value(value, limit) when is_list(value) do
-    Enum.map(value, &truncate_value(&1, limit))
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :bytes, value: v} = av, limit) do
+    if byte_size(v) > limit do
+      %Otel.API.Common.AnyValue{av | value: binary_part(v, 0, limit)}
+    else
+      av
+    end
   end
 
-  defp truncate_value(value, _limit), do: value
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :array, value: vs} = av, limit) do
+    %Otel.API.Common.AnyValue{av | value: Enum.map(vs, &truncate_any_value(&1, limit))}
+  end
+
+  defp truncate_any_value(%Otel.API.Common.AnyValue{} = av, _limit), do: av
 end

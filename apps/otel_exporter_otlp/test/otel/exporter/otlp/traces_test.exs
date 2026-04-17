@@ -2,8 +2,8 @@ defmodule Otel.Exporter.OTLP.TracesTest do
   use ExUnit.Case
 
   @test_span %Otel.SDK.Trace.Span{
-    trace_id: 1,
-    span_id: 2,
+    trace_id: Otel.API.Trace.TraceId.new(<<1::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<2::64>>),
     name: "test",
     kind: :internal,
     start_time: 1_000_000,

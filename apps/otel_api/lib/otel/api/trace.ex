@@ -18,9 +18,9 @@ defmodule Otel.API.Trace do
           name :: String.t(),
           version :: String.t(),
           schema_url :: String.t() | nil,
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: Otel.API.Trace.Tracer.t()
-  def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+  def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ []) do
     Otel.API.Trace.TracerProvider.get_tracer(name, version, schema_url, attributes)
   end
 

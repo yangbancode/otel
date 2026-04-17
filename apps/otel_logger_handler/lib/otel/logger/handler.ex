@@ -28,6 +28,10 @@ defmodule Otel.Logger.Handler do
   not by this handler. Pair with `BatchProcessor` for production use.
   """
 
+  # int64 range for AnyValue int tag
+  @int64_min -9_223_372_036_854_775_808
+  @int64_max 9_223_372_036_854_775_807
+
   # --- :logger handler callbacks ---
 
   @doc false
@@ -107,58 +111,123 @@ defmodule Otel.Logger.Handler do
     System.system_time(:nanosecond)
   end
 
-  @spec extract_body(msg :: term()) :: String.t()
+  @spec extract_body(msg :: term()) :: Otel.API.Common.AnyValue.t()
   defp extract_body({:string, string}) do
-    IO.chardata_to_string(string)
+    native_to_any_value(IO.chardata_to_string(string))
   end
 
   defp extract_body({:report, report}) when is_map(report) do
-    inspect(report)
+    native_to_any_value(report)
   end
 
   defp extract_body({:report, report}) when is_list(report) do
-    inspect(report)
+    native_to_any_value(report)
   end
 
   defp extract_body({format, args}) when is_list(format) do
-    :io_lib.format(format, args) |> IO.chardata_to_string()
+    :io_lib.format(format, args)
+    |> IO.chardata_to_string()
+    |> native_to_any_value()
   end
 
   defp extract_body(other) do
-    inspect(other)
+    native_to_any_value(other)
   end
 
-  @spec extract_attributes(meta :: map()) :: map()
+  @spec native_to_any_value(term :: term()) :: Otel.API.Common.AnyValue.t()
+  defp native_to_any_value(nil) do
+    Otel.API.Common.AnyValue.empty()
+  end
+
+  defp native_to_any_value(value) when is_boolean(value) do
+    Otel.API.Common.AnyValue.bool(value)
+  end
+
+  defp native_to_any_value(value) when is_binary(value) do
+    if String.valid?(value) do
+      Otel.API.Common.AnyValue.string(value)
+    else
+      Otel.API.Common.AnyValue.bytes(value)
+    end
+  end
+
+  defp native_to_any_value(value) when is_integer(value) do
+    if value >= @int64_min and value <= @int64_max do
+      Otel.API.Common.AnyValue.int(value)
+    else
+      Otel.API.Common.AnyValue.string(Integer.to_string(value))
+    end
+  end
+
+  defp native_to_any_value(value) when is_float(value) do
+    Otel.API.Common.AnyValue.double(value)
+  end
+
+  defp native_to_any_value(value) when is_map(value) do
+    kvlist =
+      Map.new(value, fn {k, v} -> {to_string(k), native_to_any_value(v)} end)
+
+    Otel.API.Common.AnyValue.kvlist(kvlist)
+  end
+
+  defp native_to_any_value(value) when is_list(value) do
+    Otel.API.Common.AnyValue.array(Enum.map(value, &native_to_any_value/1))
+  end
+
+  defp native_to_any_value(value) do
+    Otel.API.Common.AnyValue.string(inspect(value))
+  end
+
+  @spec extract_attributes(meta :: map()) :: [Otel.API.Common.Attribute.t()]
   defp extract_attributes(meta) do
-    %{}
+    []
     |> put_mfa_attrs(meta)
-    |> put_meta_attr(meta, :file, "code.filepath", &IO.chardata_to_string/1)
-    |> put_meta_attr(meta, :line, "code.lineno", & &1)
-    |> put_meta_attr(meta, :pid, "process.pid", &inspect/1)
-    |> put_meta_attr(meta, :domain, "log.domain", &inspect/1)
+    |> put_meta_attr(meta, :file, "code.filepath", &chardata_to_any_value/1)
+    |> put_meta_attr(meta, :line, "code.lineno", &native_to_any_value/1)
+    |> put_meta_attr(meta, :pid, "process.pid", &inspect_to_any_value/1)
+    |> put_meta_attr(meta, :domain, "log.domain", &inspect_to_any_value/1)
   end
 
-  @spec put_mfa_attrs(attrs :: map(), meta :: map()) :: map()
+  @spec chardata_to_any_value(value :: IO.chardata()) :: Otel.API.Common.AnyValue.t()
+  defp chardata_to_any_value(value) do
+    native_to_any_value(IO.chardata_to_string(value))
+  end
+
+  @spec inspect_to_any_value(value :: term()) :: Otel.API.Common.AnyValue.t()
+  defp inspect_to_any_value(value) do
+    Otel.API.Common.AnyValue.string(inspect(value))
+  end
+
+  @spec put_mfa_attrs(attrs :: [Otel.API.Common.Attribute.t()], meta :: map()) ::
+          [Otel.API.Common.Attribute.t()]
   defp put_mfa_attrs(attrs, %{mfa: {module, function, arity}}) do
-    attrs
-    |> Map.put("code.namespace", Atom.to_string(module))
-    |> Map.put("code.function", "#{function}/#{arity}")
+    [
+      Otel.API.Common.Attribute.new(
+        "code.namespace",
+        Otel.API.Common.AnyValue.string(Atom.to_string(module))
+      ),
+      Otel.API.Common.Attribute.new(
+        "code.function",
+        Otel.API.Common.AnyValue.string("#{function}/#{arity}")
+      )
+      | attrs
+    ]
   end
 
   defp put_mfa_attrs(attrs, _meta), do: attrs
 
   @spec put_meta_attr(
-          attrs :: map(),
+          attrs :: [Otel.API.Common.Attribute.t()],
           meta :: map(),
           key :: atom(),
           attr_key :: String.t(),
-          transform :: function()
+          transform :: (term() -> Otel.API.Common.AnyValue.t())
         ) ::
-          map()
+          [Otel.API.Common.Attribute.t()]
   defp put_meta_attr(attrs, meta, key, attr_key, transform) do
     case Map.get(meta, key) do
       nil -> attrs
-      value -> Map.put(attrs, attr_key, transform.(value))
+      value -> [Otel.API.Common.Attribute.new(attr_key, transform.(value)) | attrs]
     end
   end
 

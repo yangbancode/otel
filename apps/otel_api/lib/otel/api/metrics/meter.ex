@@ -64,7 +64,7 @@ defmodule Otel.API.Metrics.Meter do
               meter :: t(),
               name :: String.t(),
               value :: number(),
-              attributes :: map()
+              attributes :: [Otel.API.Common.Attribute.t()]
             ) :: :ok
 
   # --- Enabled ---
@@ -179,8 +179,13 @@ defmodule Otel.API.Metrics.Meter do
   Histogram.record, Gauge.record, UpDownCounter.add) route through
   this function.
   """
-  @spec record(meter :: t(), name :: String.t(), value :: number(), attributes :: map()) :: :ok
-  def record({module, _} = meter, name, value, attributes \\ %{}) do
+  @spec record(
+          meter :: t(),
+          name :: String.t(),
+          value :: number(),
+          attributes :: [Otel.API.Common.Attribute.t()]
+        ) :: :ok
+  def record({module, _} = meter, name, value, attributes \\ []) do
     module.record(meter, name, value, attributes)
   end
 

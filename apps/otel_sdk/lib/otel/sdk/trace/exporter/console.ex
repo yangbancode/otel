@@ -36,18 +36,38 @@ defmodule Otel.SDK.Trace.Exporter.Console do
 
   @spec format_span(span :: Otel.SDK.Trace.Span.t()) :: String.t()
   defp format_span(span) do
-    trace_id =
-      span.trace_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(32, "0")
-
-    span_id =
-      span.span_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(16, "0")
+    trace_id = Otel.API.Trace.TraceId.to_hex(span.trace_id)
+    span_id = Otel.API.Trace.SpanId.to_hex(span.span_id)
 
     parent =
       case span.parent_span_id do
         nil -> "none"
-        id -> id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(16, "0")
+        %Otel.API.Trace.SpanId{} = id -> Otel.API.Trace.SpanId.to_hex(id)
       end
 
-    "[otel] #{span.name} trace_id=#{trace_id} span_id=#{span_id} parent=#{parent} kind=#{span.kind} status=#{inspect(span.status)} attributes=#{inspect(span.attributes)}"
+    "[otel] #{span.name} trace_id=#{trace_id} span_id=#{span_id} parent=#{parent} kind=#{span.kind} status=#{inspect(span.status)} attributes=#{format_attributes(span.attributes)}"
   end
+
+  @spec format_attributes(attributes :: [Otel.API.Common.Attribute.t()]) :: String.t()
+  defp format_attributes(attributes) do
+    rendered =
+      Enum.map_join(attributes, ", ", fn %Otel.API.Common.Attribute{key: k, value: v} ->
+        "#{k}=#{display_any_value(v)}"
+      end)
+
+    "[#{rendered}]"
+  end
+
+  @spec display_any_value(value :: Otel.API.Common.AnyValue.t()) :: String.t()
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :string, value: v}), do: v
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :bool, value: v}), do: to_string(v)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :int, value: v}), do: to_string(v)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :double, value: v}), do: to_string(v)
+
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :bytes, value: v}),
+    do: "<#{byte_size(v)} bytes>"
+
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :array, value: vs}), do: inspect(vs)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :kvlist, value: m}), do: inspect(m)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :empty}), do: "nil"
 end

@@ -10,7 +10,7 @@ defmodule Otel.SDK.Trace.Sampler do
 
   @type sampling_result :: {
           sampling_decision(),
-          map(),
+          [Otel.API.Common.Attribute.t()],
           Otel.API.Trace.TraceState.t()
         }
 
@@ -35,11 +35,11 @@ defmodule Otel.SDK.Trace.Sampler do
   """
   @callback should_sample(
               ctx :: Otel.API.Ctx.t(),
-              trace_id :: Otel.API.Trace.SpanContext.trace_id(),
-              links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+              trace_id :: Otel.API.Trace.TraceId.t(),
+              links :: [{Otel.API.Trace.SpanContext.t(), [Otel.API.Common.Attribute.t()]}],
               name :: String.t(),
               kind :: Otel.API.Trace.SpanKind.t(),
-              attributes :: map(),
+              attributes :: [Otel.API.Common.Attribute.t()],
               config :: config()
             ) :: sampling_result()
 
@@ -60,11 +60,11 @@ defmodule Otel.SDK.Trace.Sampler do
   @spec should_sample(
           sampler :: t(),
           ctx :: Otel.API.Ctx.t(),
-          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
+          trace_id :: Otel.API.Trace.TraceId.t(),
           links :: list(),
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) ::
           sampling_result()
   def should_sample({module, _description, config}, ctx, trace_id, links, name, kind, attributes) do

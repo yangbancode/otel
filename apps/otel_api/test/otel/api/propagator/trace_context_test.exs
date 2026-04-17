@@ -13,7 +13,11 @@ defmodule Otel.API.Propagator.TraceContextTest do
   describe "inject/3" do
     test "injects traceparent for valid span" do
       span_ctx =
-        Otel.API.Trace.SpanContext.new(0x0AF7651916CD43DD8448EB211C80319C, 0xB7AD6B7169203331, 1)
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<0x0AF7651916CD43DD8448EB211C80319C::128>>),
+          Otel.API.Trace.SpanId.new(<<0xB7AD6B7169203331::64>>),
+          1
+        )
 
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
@@ -25,7 +29,15 @@ defmodule Otel.API.Propagator.TraceContextTest do
 
     test "injects tracestate when non-empty" do
       ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
-      span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
+
+      span_ctx =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<123::128>>),
+          Otel.API.Trace.SpanId.new(<<456::64>>),
+          1,
+          ts
+        )
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
@@ -35,7 +47,13 @@ defmodule Otel.API.Propagator.TraceContextTest do
     end
 
     test "does not inject tracestate when empty" do
-      span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
+      span_ctx =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<123::128>>),
+          Otel.API.Trace.SpanId.new(<<456::64>>),
+          1
+        )
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
@@ -50,7 +68,11 @@ defmodule Otel.API.Propagator.TraceContextTest do
     end
 
     test "does not inject for zero trace_id" do
-      span_ctx = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 456}
+      span_ctx = %Otel.API.Trace.SpanContext{
+        trace_id: Otel.API.Trace.TraceId.invalid(),
+        span_id: Otel.API.Trace.SpanId.new(<<456::64>>)
+      }
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
@@ -58,7 +80,13 @@ defmodule Otel.API.Propagator.TraceContextTest do
     end
 
     test "encodes trace_flags 0 as unsampled" do
-      span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 0)
+      span_ctx =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<123::128>>),
+          Otel.API.Trace.SpanId.new(<<456::64>>),
+          0
+        )
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
@@ -73,8 +101,11 @@ defmodule Otel.API.Propagator.TraceContextTest do
       ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
-      assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
-      assert span_ctx.span_id == 0xB7AD6B7169203331
+
+      assert span_ctx.trace_id ==
+               Otel.API.Trace.TraceId.new(<<0x0AF7651916CD43DD8448EB211C80319C::128>>)
+
+      assert span_ctx.span_id == Otel.API.Trace.SpanId.new(<<0xB7AD6B7169203331::64>>)
       assert span_ctx.trace_flags == 1
       assert span_ctx.is_remote == true
     end
@@ -153,8 +184,8 @@ defmodule Otel.API.Propagator.TraceContextTest do
     test "roundtrip inject then extract preserves context" do
       original =
         Otel.API.Trace.SpanContext.new(
-          0x0AF7651916CD43DD8448EB211C80319C,
-          0xB7AD6B7169203331,
+          Otel.API.Trace.TraceId.new(<<0x0AF7651916CD43DD8448EB211C80319C::128>>),
+          Otel.API.Trace.SpanId.new(<<0xB7AD6B7169203331::64>>),
           1,
           Otel.API.Trace.TraceState.new([{"vendor", "value"}])
         )

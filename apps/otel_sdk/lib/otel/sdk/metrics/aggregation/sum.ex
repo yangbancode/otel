@@ -80,7 +80,7 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
   end
 
   @spec collect_cumulative(
-          entries :: [{map(), integer(), float(), integer()}],
+          entries :: [{[Otel.API.Common.Attribute.t()], integer(), float(), integer()}],
           now :: integer()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   defp collect_cumulative(entries, now) do
@@ -96,7 +96,7 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
 
   @spec collect_delta(
           metrics_tab :: :ets.table(),
-          entries :: [{map(), integer(), float(), integer()}],
+          entries :: [{[Otel.API.Common.Attribute.t()], integer(), float(), integer()}],
           stream_name :: String.t(),
           scope :: Otel.API.InstrumentationScope.t(),
           reader_id :: reference() | nil,

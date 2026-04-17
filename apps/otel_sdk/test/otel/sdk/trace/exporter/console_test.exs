@@ -4,12 +4,14 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
   import ExUnit.CaptureIO
 
   @span %Otel.SDK.Trace.Span{
-    trace_id: 0xFF000000000000000000000000000001,
-    span_id: 0xFF00000000000001,
+    trace_id: Otel.API.Trace.TraceId.new(<<0xFF000000000000000000000000000001::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<0xFF00000000000001::64>>),
     name: "test_span",
     kind: :internal,
     start_time: 1_000_000_000,
-    attributes: %{"key" => "value"},
+    attributes: [
+      Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("value"))
+    ],
     trace_flags: 1,
     is_recording: true
   }
@@ -60,7 +62,10 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     end
 
     test "shows parent span_id for child span" do
-      child = %{@span | parent_span_id: 0xAA00000000000001}
+      child = %{
+        @span
+        | parent_span_id: Otel.API.Trace.SpanId.new(<<0xAA00000000000001::64>>)
+      }
 
       output =
         capture_io(fn ->
@@ -81,7 +86,11 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     end
 
     test "exports multiple spans" do
-      span2 = %{@span | name: "second_span", span_id: 2}
+      span2 = %{
+        @span
+        | name: "second_span",
+          span_id: Otel.API.Trace.SpanId.new(<<2::64>>)
+      }
 
       output =
         capture_io(fn ->

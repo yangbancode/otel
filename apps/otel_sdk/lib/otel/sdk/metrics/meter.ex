@@ -104,7 +104,7 @@ defmodule Otel.SDK.Metrics.Meter do
             stream.aggregation_options
           )
 
-          dropped_attrs = Map.drop(attributes, Map.keys(filtered_attrs))
+          dropped_attrs = drop_attributes(attributes, filtered_attrs)
           offer_exemplar(config, stream, agg_key, value, now, dropped_attrs, ctx)
         end)
     end
@@ -263,17 +263,36 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @spec filter_stream_attributes(
           stream :: Otel.SDK.Metrics.Stream.t(),
-          attributes :: map()
-        ) :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
+        ) :: [Otel.API.Common.Attribute.t()]
   defp filter_stream_attributes(stream, attributes) do
     case stream.attribute_keys do
-      {:include, keys} -> Map.take(attributes, keys)
-      {:exclude, keys} -> Map.drop(attributes, keys)
-      nil -> attributes
+      {:include, keys} ->
+        Enum.filter(attributes, fn %Otel.API.Common.Attribute{key: k} -> k in keys end)
+
+      {:exclude, keys} ->
+        Enum.reject(attributes, fn %Otel.API.Common.Attribute{key: k} -> k in keys end)
+
+      nil ->
+        attributes
     end
   end
 
-  @overflow_attributes %{"otel.metric.overflow" => true}
+  @spec drop_attributes(
+          attributes :: [Otel.API.Common.Attribute.t()],
+          filtered :: [Otel.API.Common.Attribute.t()]
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp drop_attributes(attributes, filtered) do
+    kept_keys = Enum.map(filtered, fn %Otel.API.Common.Attribute{key: k} -> k end)
+    Enum.reject(attributes, fn %Otel.API.Common.Attribute{key: k} -> k in kept_keys end)
+  end
+
+  @overflow_attributes [
+    %Otel.API.Common.Attribute{
+      key: "otel.metric.overflow",
+      value: %Otel.API.Common.AnyValue{type: :bool, value: true}
+    }
+  ]
 
   @spec maybe_overflow(
           metrics_tab :: :ets.table(),
@@ -361,7 +380,7 @@ defmodule Otel.SDK.Metrics.Meter do
   @spec apply_observations(
           config :: map(),
           entries :: [tuple()],
-          observations :: [{number(), map()}]
+          observations :: [{number(), [Otel.API.Common.Attribute.t()]}]
         ) :: :ok
   defp apply_observations(config, entries, observations) do
     streams = lookup_callback_streams(config, entries)
@@ -381,7 +400,7 @@ defmodule Otel.SDK.Metrics.Meter do
           stream.aggregation_options
         )
 
-        dropped_attrs = Map.drop(attributes, Map.keys(filtered_attrs))
+        dropped_attrs = drop_attributes(attributes, filtered_attrs)
         offer_exemplar(config, stream, agg_key, value, now, dropped_attrs, ctx)
       end)
     end)
@@ -393,7 +412,7 @@ defmodule Otel.SDK.Metrics.Meter do
           agg_key :: term(),
           value :: number(),
           time :: integer(),
-          filtered_attrs :: map(),
+          filtered_attrs :: [Otel.API.Common.Attribute.t()],
           ctx :: Otel.API.Ctx.t()
         ) :: :ok
   defp offer_exemplar(config, stream, agg_key, value, time, filtered_attrs, ctx) do

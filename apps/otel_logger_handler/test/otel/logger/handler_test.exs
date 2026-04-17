@@ -149,6 +149,34 @@ defmodule Otel.Logger.HandlerTest do
     end
   end
 
+  describe "body and attribute type coverage" do
+    test "handles boolean, nil, float, large integer, binary, list, and unknown term bodies" do
+      config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
+
+      for body <- [
+            {:report, %{a: nil, b: true, c: 1.5, d: 10 ** 20, e: {:tuple, :term}, f: [1, "x"]}},
+            {:report, [1, 2, 3]},
+            {:string, <<0xFF, 0xFE>>},
+            {~c"no args ~p", [self()]}
+          ] do
+        log_event = %{level: :info, msg: body, meta: %{time: 1_000_000}}
+        assert :ok == Otel.Logger.Handler.log(log_event, config)
+      end
+    end
+
+    test "log without otel_logger configured is a no-op" do
+      config = %{config: %{}}
+      log_event = %{level: :info, msg: {:string, "no logger"}, meta: %{time: 1_000_000}}
+      assert :ok == Otel.Logger.Handler.log(log_event, config)
+    end
+
+    test "log without :time meta uses system time" do
+      config = %{config: %{otel_logger: {Otel.API.Logs.Logger.Noop, []}}}
+      log_event = %{level: :info, msg: {:string, "no time"}, meta: %{}}
+      assert :ok == Otel.Logger.Handler.log(log_event, config)
+    end
+  end
+
   describe "changing_config/3" do
     test "returns {:ok, new_config}" do
       assert {:ok, %{new: true}} ==

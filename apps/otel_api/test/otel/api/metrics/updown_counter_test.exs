@@ -41,9 +41,12 @@ defmodule Otel.API.Metrics.UpDownCounterTest do
 
     test "records with attributes", %{meter: meter} do
       assert :ok ==
-               Otel.API.Metrics.UpDownCounter.add(meter, "active_requests", 3, %{
-                 "http.method" => "GET"
-               })
+               Otel.API.Metrics.UpDownCounter.add(meter, "active_requests", 3, [
+                 Otel.API.Common.Attribute.new(
+                   "http.method",
+                   Otel.API.Common.AnyValue.string("GET")
+                 )
+               ])
     end
 
     test "accepts zero", %{meter: meter} do

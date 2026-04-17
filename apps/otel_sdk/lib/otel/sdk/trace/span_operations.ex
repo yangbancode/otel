@@ -21,29 +21,23 @@ defmodule Otel.SDK.Trace.SpanOperations do
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           key :: String.t(),
-          value :: term()
+          value :: Otel.API.Common.AnyValue.t()
         ) :: :ok
-  def set_attribute(%Otel.API.Trace.SpanContext{span_id: span_id}, key, value) do
+  def set_attribute(
+        %Otel.API.Trace.SpanContext{span_id: span_id},
+        key,
+        %Otel.API.Common.AnyValue{} = value
+      )
+      when is_binary(key) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
         :ok
 
       span ->
         limits = span.span_limits
-        value = truncate_value(value, limits.attribute_value_length_limit)
-
-        attributes =
-          cond do
-            Map.has_key?(span.attributes, key) ->
-              Map.put(span.attributes, key, value)
-
-            map_size(span.attributes) < limits.attribute_count_limit ->
-              Map.put(span.attributes, key, value)
-
-            true ->
-              span.attributes
-          end
-
+        truncated = truncate_any_value(value, limits.attribute_value_length_limit)
+        new_attr = Otel.API.Common.Attribute.new(key, truncated)
+        attributes = put_attribute(span.attributes, new_attr, limits.attribute_count_limit)
         Otel.SDK.Trace.SpanStorage.insert(%{span | attributes: attributes})
         :ok
     end
@@ -54,11 +48,10 @@ defmodule Otel.SDK.Trace.SpanOperations do
   """
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map() | [{String.t(), term()}]
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
-  def set_attributes(%Otel.API.Trace.SpanContext{span_id: span_id}, new_attributes) do
-    new_attributes = to_map(new_attributes)
-
+  def set_attributes(%Otel.API.Trace.SpanContext{span_id: span_id}, new_attributes)
+      when is_list(new_attributes) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
         :ok
@@ -88,7 +81,7 @@ defmodule Otel.SDK.Trace.SpanOperations do
 
         if length(span.events) < limits.event_count_limit do
           time = Keyword.get(opts, :time, System.system_time(:nanosecond))
-          attributes = Keyword.get(opts, :attributes, %{})
+          attributes = Keyword.get(opts, :attributes, [])
 
           limited_attributes =
             apply_attribute_limits(
@@ -111,9 +104,10 @@ defmodule Otel.SDK.Trace.SpanOperations do
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           linked_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
-  def add_link(%Otel.API.Trace.SpanContext{span_id: span_id}, linked_ctx, attributes) do
+  def add_link(%Otel.API.Trace.SpanContext{span_id: span_id}, linked_ctx, attributes)
+      when is_list(attributes) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
         :ok
@@ -139,9 +133,6 @@ defmodule Otel.SDK.Trace.SpanOperations do
 
   @doc """
   Sets the status of the span.
-
-  Status priority: Ok > Error > Unset. Once set to :ok, status is final.
-  Setting :unset is always ignored.
   """
   @spec set_status(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
@@ -177,9 +168,6 @@ defmodule Otel.SDK.Trace.SpanOperations do
 
   @doc """
   Ends the span.
-
-  Removes the span from ETS, sets end_time and is_recording=false,
-  then calls on_end on all processors.
   """
   @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer() | nil) :: :ok
   def end_span(%Otel.API.Trace.SpanContext{span_id: span_id}, timestamp) do
@@ -202,52 +190,70 @@ defmodule Otel.SDK.Trace.SpanOperations do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
-  def record_exception(span_ctx, exception, stacktrace, attributes) do
-    exception_attributes =
-      Map.merge(
-        %{
-          "exception.type" => exception_type(exception),
-          "exception.message" => Exception.message(exception),
-          "exception.stacktrace" => Exception.format_stacktrace(stacktrace)
-        },
-        attributes
+  def record_exception(span_ctx, exception, stacktrace, attributes) when is_list(attributes) do
+    exception_attrs = [
+      Otel.API.Common.Attribute.new(
+        "exception.type",
+        Otel.API.Common.AnyValue.string(exception_type(exception))
+      ),
+      Otel.API.Common.Attribute.new(
+        "exception.message",
+        Otel.API.Common.AnyValue.string(Exception.message(exception))
+      ),
+      Otel.API.Common.Attribute.new(
+        "exception.stacktrace",
+        Otel.API.Common.AnyValue.string(Exception.format_stacktrace(stacktrace))
       )
+    ]
 
-    add_event(span_ctx, "exception", attributes: exception_attributes)
+    merged = merge_attribute_lists(exception_attrs, attributes)
+    add_event(span_ctx, "exception", attributes: merged)
   end
 
   # --- Private helpers ---
 
   @spec merge_attributes(
-          new_attributes :: map(),
-          existing :: map(),
+          new_attributes :: [Otel.API.Common.Attribute.t()],
+          existing :: [Otel.API.Common.Attribute.t()],
           limits :: Otel.SDK.Trace.SpanLimits.t()
-        ) :: map()
+        ) :: [Otel.API.Common.Attribute.t()]
   defp merge_attributes(new_attributes, existing, limits) do
-    Enum.reduce(new_attributes, existing, fn {key, value}, acc ->
+    Enum.reduce(new_attributes, existing, fn %Otel.API.Common.Attribute{} = attr, acc ->
+      truncated_value =
+        truncate_any_value(attr.value, limits.attribute_value_length_limit)
+
       put_attribute(
         acc,
-        key,
-        truncate_value(value, limits.attribute_value_length_limit),
+        %{attr | value: truncated_value},
         limits.attribute_count_limit
       )
     end)
   end
 
   @spec put_attribute(
-          attributes :: map(),
-          key :: String.t(),
-          value :: term(),
+          attributes :: [Otel.API.Common.Attribute.t()],
+          attribute :: Otel.API.Common.Attribute.t(),
           count_limit :: pos_integer()
-        ) :: map()
-  defp put_attribute(attributes, key, value, count_limit) do
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp put_attribute(attributes, %Otel.API.Common.Attribute{key: key} = attr, count_limit) do
+    {existing, others} = Enum.split_with(attributes, &(&1.key == key))
+
     cond do
-      Map.has_key?(attributes, key) -> Map.put(attributes, key, value)
-      map_size(attributes) < count_limit -> Map.put(attributes, key, value)
+      existing != [] -> others ++ [attr]
+      length(attributes) < count_limit -> attributes ++ [attr]
       true -> attributes
     end
+  end
+
+  @spec merge_attribute_lists(
+          base :: [Otel.API.Common.Attribute.t()],
+          override :: [Otel.API.Common.Attribute.t()]
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp merge_attribute_lists(base, override) do
+    override_keys = MapSet.new(override, & &1.key)
+    Enum.reject(base, &MapSet.member?(override_keys, &1.key)) ++ override
   end
 
   @spec apply_set_status(
@@ -271,35 +277,40 @@ defmodule Otel.SDK.Trace.SpanOperations do
   end
 
   @spec apply_attribute_limits(
-          attributes :: map(),
+          attributes :: [Otel.API.Common.Attribute.t()],
           count_limit :: pos_integer(),
           value_length_limit :: pos_integer() | :infinity
-        ) :: map()
+        ) :: [Otel.API.Common.Attribute.t()]
   defp apply_attribute_limits(attributes, count_limit, value_length_limit) do
     attributes
     |> Enum.take(count_limit)
-    |> Enum.map(fn {key, value} ->
-      {key, truncate_value(value, value_length_limit)}
+    |> Enum.map(fn %Otel.API.Common.Attribute{value: value} = attr ->
+      %{attr | value: truncate_any_value(value, value_length_limit)}
     end)
-    |> Map.new()
   end
 
-  @spec truncate_value(value :: term(), limit :: pos_integer() | :infinity) :: term()
-  defp truncate_value(value, :infinity), do: value
+  @spec truncate_any_value(
+          value :: Otel.API.Common.AnyValue.t(),
+          limit :: pos_integer() | :infinity
+        ) :: Otel.API.Common.AnyValue.t()
+  defp truncate_any_value(value, :infinity), do: value
 
-  defp truncate_value(value, limit) when is_binary(value) do
-    if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :string, value: s} = v, limit)
+       when is_integer(limit) do
+    if String.length(s) > limit, do: %{v | value: String.slice(s, 0, limit)}, else: v
   end
 
-  defp truncate_value(value, limit) when is_list(value) do
-    Enum.map(value, &truncate_value(&1, limit))
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :bytes, value: b} = v, limit)
+       when is_integer(limit) do
+    if byte_size(b) > limit, do: %{v | value: binary_part(b, 0, limit)}, else: v
   end
 
-  defp truncate_value(value, _limit), do: value
+  defp truncate_any_value(%Otel.API.Common.AnyValue{type: :array, value: vs} = v, limit)
+       when is_integer(limit) do
+    %{v | value: Enum.map(vs, &truncate_any_value(&1, limit))}
+  end
 
-  @spec to_map(attributes :: map() | [{String.t(), term()}]) :: map()
-  defp to_map(attributes) when is_map(attributes), do: attributes
-  defp to_map(attributes) when is_list(attributes), do: Map.new(attributes)
+  defp truncate_any_value(%Otel.API.Common.AnyValue{} = v, _limit), do: v
 
   @spec exception_type(exception :: Exception.t()) :: String.t()
   defp exception_type(exception) do

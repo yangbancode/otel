@@ -52,9 +52,9 @@ defmodule Otel.API.Metrics.UpDownCounter do
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
           value :: number(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
-  def add(meter, name, value, attributes \\ %{}) do
+  def add(meter, name, value, attributes \\ []) do
     Otel.API.Metrics.Meter.record(meter, name, value, attributes)
   end
 end

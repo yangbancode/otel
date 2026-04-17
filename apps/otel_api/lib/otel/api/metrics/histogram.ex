@@ -52,9 +52,9 @@ defmodule Otel.API.Metrics.Histogram do
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
           value :: number(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
-  def record(meter, name, value, attributes \\ %{}) do
+  def record(meter, name, value, attributes \\ []) do
     Otel.API.Metrics.Meter.record(meter, name, value, attributes)
   end
 end

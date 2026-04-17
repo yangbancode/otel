@@ -45,11 +45,11 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
 
   @spec should_sample(
           ctx :: Otel.API.Ctx.t(),
-          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
-          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          trace_id :: Otel.API.Trace.TraceId.t(),
+          links :: [{Otel.API.Trace.SpanContext.t(), [Otel.API.Common.Attribute.t()]}],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map(),
+          attributes :: [Otel.API.Common.Attribute.t()],
           config :: Otel.SDK.Trace.Sampler.config()
         ) :: Otel.SDK.Trace.Sampler.sampling_result()
   @impl true
@@ -66,22 +66,28 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
           | :remote_parent_not_sampled
           | :local_parent_sampled
           | :local_parent_not_sampled
-  defp select_sampler(%Otel.API.Trace.SpanContext{trace_id: 0}), do: :root
-  defp select_sampler(%Otel.API.Trace.SpanContext{span_id: 0}), do: :root
-
-  defp select_sampler(%Otel.API.Trace.SpanContext{is_remote: true, trace_flags: trace_flags}) do
-    if Bitwise.band(trace_flags, 1) != 0 do
-      :remote_parent_sampled
-    else
-      :remote_parent_not_sampled
+  defp select_sampler(%Otel.API.Trace.SpanContext{} = ctx) do
+    cond do
+      not Otel.API.Trace.TraceId.valid?(ctx.trace_id) -> :root
+      not Otel.API.Trace.SpanId.valid?(ctx.span_id) -> :root
+      ctx.is_remote -> remote_sampler(ctx.trace_flags)
+      true -> local_sampler(ctx.trace_flags)
     end
   end
 
-  defp select_sampler(%Otel.API.Trace.SpanContext{trace_flags: trace_flags}) do
-    if Bitwise.band(trace_flags, 1) != 0 do
-      :local_parent_sampled
-    else
-      :local_parent_not_sampled
-    end
+  @spec remote_sampler(trace_flags :: non_neg_integer()) ::
+          :remote_parent_sampled | :remote_parent_not_sampled
+  defp remote_sampler(trace_flags) do
+    if Bitwise.band(trace_flags, 1) != 0,
+      do: :remote_parent_sampled,
+      else: :remote_parent_not_sampled
+  end
+
+  @spec local_sampler(trace_flags :: non_neg_integer()) ::
+          :local_parent_sampled | :local_parent_not_sampled
+  defp local_sampler(trace_flags) do
+    if Bitwise.band(trace_flags, 1) != 0,
+      do: :local_parent_sampled,
+      else: :local_parent_not_sampled
   end
 end

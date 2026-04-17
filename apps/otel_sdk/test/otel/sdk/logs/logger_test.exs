@@ -33,25 +33,49 @@ defmodule Otel.SDK.Logs.LoggerTest do
     %{logger: logger}
   end
 
+  defp attr(k, v) when is_binary(v) do
+    Otel.API.Common.Attribute.new(k, Otel.API.Common.AnyValue.string(v))
+  end
+
+  defp attr(k, v) when is_integer(v) do
+    Otel.API.Common.Attribute.new(k, Otel.API.Common.AnyValue.int(v))
+  end
+
+  defp find_attr(attributes, key) do
+    case Enum.find(attributes, &(&1.key == key)) do
+      nil -> nil
+      %Otel.API.Common.Attribute{value: %Otel.API.Common.AnyValue{value: v}} -> v
+    end
+  end
+
   describe "emit/3" do
     test "dispatches to processor", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "hello"})
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: Otel.API.Common.AnyValue.string("hello")})
+
       assert_receive {:log_record, record}
-      assert record.body == "hello"
+      assert record.body == Otel.API.Common.AnyValue.string("hello")
     end
 
     test "sets observed_timestamp when not provided", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
       before = System.system_time(:nanosecond)
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "test"})
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: Otel.API.Common.AnyValue.string("test")})
+
       assert_receive {:log_record, record}
       assert record.observed_timestamp >= before
     end
 
     test "preserves user-provided observed_timestamp", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "test", observed_timestamp: 42})
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{
+        body: Otel.API.Common.AnyValue.string("test"),
+        observed_timestamp: 42
+      })
+
       assert_receive {:log_record, record}
       assert record.observed_timestamp == 42
     end
@@ -64,13 +88,15 @@ defmodule Otel.SDK.Logs.LoggerTest do
       assert record.severity_number == nil
       assert record.severity_text == nil
       assert record.body == nil
-      assert record.attributes == %{}
+      assert record.attributes == []
       assert record.event_name == nil
     end
 
     test "includes scope and resource", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "scoped"})
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: Otel.API.Common.AnyValue.string("scoped")})
+
       assert_receive {:log_record, record}
       assert record.scope.name == "test_lib"
       assert record.scope.version == "1.0.0"
@@ -79,7 +105,9 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
     test "extracts trace context", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "traced"})
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: Otel.API.Common.AnyValue.string("traced")})
+
       assert_receive {:log_record, record}
       assert Map.has_key?(record, :trace_id)
       assert Map.has_key?(record, :span_id)
@@ -93,8 +121,8 @@ defmodule Otel.SDK.Logs.LoggerTest do
         timestamp: 1_000_000,
         severity_number: 9,
         severity_text: "INFO",
-        body: "structured log",
-        attributes: %{"method" => "GET", "status" => 200},
+        body: Otel.API.Common.AnyValue.string("structured log"),
+        attributes: [attr("method", "GET"), attr("status", 200)],
         event_name: "http.request"
       })
 
@@ -102,8 +130,9 @@ defmodule Otel.SDK.Logs.LoggerTest do
       assert record.timestamp == 1_000_000
       assert record.severity_number == 9
       assert record.severity_text == "INFO"
-      assert record.body == "structured log"
-      assert record.attributes == %{"method" => "GET", "status" => 200}
+      assert record.body == Otel.API.Common.AnyValue.string("structured log")
+      assert find_attr(record.attributes, "method") == "GET"
+      assert find_attr(record.attributes, "status") == 200
       assert record.event_name == "http.request"
     end
   end
@@ -131,13 +160,13 @@ defmodule Otel.SDK.Logs.LoggerTest do
       exception = %RuntimeError{message: "something went wrong"}
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
-        body: "error",
+        body: Otel.API.Common.AnyValue.string("error"),
         exception: exception
       })
 
       assert_receive {:log_record, record}
-      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
-      assert record.attributes["exception.message"] == "something went wrong"
+      assert find_attr(record.attributes, "exception.type") == "Elixir.RuntimeError"
+      assert find_attr(record.attributes, "exception.message") == "something went wrong"
     end
 
     test "user attributes take precedence over exception attributes", %{logger: logger} do
@@ -145,21 +174,23 @@ defmodule Otel.SDK.Logs.LoggerTest do
       exception = %RuntimeError{message: "auto"}
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
-        body: "error",
+        body: Otel.API.Common.AnyValue.string("error"),
         exception: exception,
-        attributes: %{"exception.message" => "user override"}
+        attributes: [attr("exception.message", "user override")]
       })
 
       assert_receive {:log_record, record}
-      assert record.attributes["exception.message"] == "user override"
-      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
+      assert find_attr(record.attributes, "exception.message") == "user override"
+      assert find_attr(record.attributes, "exception.type") == "Elixir.RuntimeError"
     end
 
     test "no exception does not set exception attributes", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "normal"})
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: Otel.API.Common.AnyValue.string("normal")})
+
       assert_receive {:log_record, record}
-      refute Map.has_key?(record.attributes, "exception.type")
+      refute Enum.any?(record.attributes, &(&1.key == "exception.type"))
     end
   end
 
@@ -180,9 +211,9 @@ defmodule Otel.SDK.Logs.LoggerTest do
       logger = {Otel.SDK.Logs.Logger, config}
 
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{"key" => "abcdefgh"}})
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: [attr("key", "abcdefgh")]})
       assert_receive {:log_record, record}
-      assert record.attributes["key"] == "abcde"
+      assert find_attr(record.attributes, "key") == "abcde"
     end
 
     test "drops excess attributes when count limit set" do
@@ -203,17 +234,17 @@ defmodule Otel.SDK.Logs.LoggerTest do
       ctx = Otel.API.Ctx.get_current()
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
-        attributes: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
+        attributes: [attr("a", 1), attr("b", 2), attr("c", 3), attr("d", 4)]
       })
 
       assert_receive {:log_record, record}
-      assert map_size(record.attributes) == 2
+      assert length(record.attributes) == 2
       assert record.dropped_attributes_count == 2
     end
 
     test "dropped_attributes_count is 0 when within limit", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{"a" => 1}})
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: [attr("a", 1)]})
       assert_receive {:log_record, record}
       assert record.dropped_attributes_count == 0
     end
@@ -221,9 +252,9 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
   describe "dispatch via API" do
     test "emit via API dispatch works", %{logger: logger} do
-      Otel.API.Logs.Logger.emit(logger, %{body: "via API"})
+      Otel.API.Logs.Logger.emit(logger, %{body: Otel.API.Common.AnyValue.string("via API")})
       assert_receive {:log_record, record}
-      assert record.body == "via API"
+      assert record.body == Otel.API.Common.AnyValue.string("via API")
     end
   end
 end

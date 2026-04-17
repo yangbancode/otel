@@ -1,19 +1,17 @@
 defmodule Otel.SDK.Trace.IdGenerator.DefaultTest do
   use ExUnit.Case, async: true
 
-  @trace_id_max Bitwise.bsl(2, 127) - 1
-  @span_id_max Bitwise.bsl(2, 63) - 1
-
   describe "generate_trace_id/0" do
-    test "returns a positive integer" do
+    test "returns a valid TraceId struct" do
       id = Otel.SDK.Trace.IdGenerator.Default.generate_trace_id()
-      assert is_integer(id)
-      assert id > 0
+      assert %Otel.API.Trace.TraceId{} = id
+      assert Otel.API.Trace.TraceId.valid?(id)
     end
 
-    test "returns value within 128-bit range" do
+    test "returns 16-byte binary representation" do
       id = Otel.SDK.Trace.IdGenerator.Default.generate_trace_id()
-      assert id <= @trace_id_max
+      bytes = Otel.API.Trace.TraceId.to_bytes(id)
+      assert byte_size(bytes) == 16
     end
 
     test "returns different values on subsequent calls" do
@@ -24,15 +22,16 @@ defmodule Otel.SDK.Trace.IdGenerator.DefaultTest do
   end
 
   describe "generate_span_id/0" do
-    test "returns a positive integer" do
+    test "returns a valid SpanId struct" do
       id = Otel.SDK.Trace.IdGenerator.Default.generate_span_id()
-      assert is_integer(id)
-      assert id > 0
+      assert %Otel.API.Trace.SpanId{} = id
+      assert Otel.API.Trace.SpanId.valid?(id)
     end
 
-    test "returns value within 64-bit range" do
+    test "returns 8-byte binary representation" do
       id = Otel.SDK.Trace.IdGenerator.Default.generate_span_id()
-      assert id <= @span_id_max
+      bytes = Otel.API.Trace.SpanId.to_bytes(id)
+      assert byte_size(bytes) == 8
     end
 
     test "returns different values on subsequent calls" do

@@ -7,11 +7,11 @@ defmodule Otel.API.InstrumentationScope do
           name: String.t(),
           version: String.t(),
           schema_url: String.t() | nil,
-          attributes: map()
+          attributes: [Otel.API.Common.Attribute.t()]
         }
 
   defstruct name: "",
             version: "",
             schema_url: nil,
-            attributes: %{}
+            attributes: []
 end

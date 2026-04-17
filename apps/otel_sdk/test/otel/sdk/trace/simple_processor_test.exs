@@ -28,16 +28,16 @@ defmodule Otel.SDK.Trace.SimpleProcessorTest do
   use ExUnit.Case
 
   @sampled_span %Otel.SDK.Trace.Span{
-    trace_id: 1,
-    span_id: 1,
+    trace_id: Otel.API.Trace.TraceId.new(<<1::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<1::64>>),
     name: "sampled_span",
     trace_flags: 1,
     is_recording: true
   }
 
   @unsampled_span %Otel.SDK.Trace.Span{
-    trace_id: 2,
-    span_id: 2,
+    trace_id: Otel.API.Trace.TraceId.new(<<2::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<2::64>>),
     name: "unsampled_span",
     trace_flags: 0,
     is_recording: true

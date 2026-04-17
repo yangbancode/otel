@@ -1,26 +1,31 @@
 defmodule Otel.SDK.Trace.IdGenerator.Default do
   @moduledoc """
-  Default ID generator using Erlang's `:rand.uniform/1`.
+  Default ID generator using `:crypto.strong_rand_bytes/1`.
 
-  Generates random non-zero integers:
-  - trace_id: 128-bit (1 to 2^128 - 1)
-  - span_id: 64-bit (1 to 2^64 - 1)
+  Generates cryptographically strong random bytes and rerolls the
+  all-zero result so every returned ID is valid per the spec.
   """
 
   @behaviour Otel.SDK.Trace.IdGenerator
 
-  @trace_id_max Bitwise.bsl(2, 127) - 1
-  @span_id_max Bitwise.bsl(2, 63) - 1
+  @trace_id_zero <<0::128>>
+  @span_id_zero <<0::64>>
 
-  @spec generate_trace_id() :: non_neg_integer()
+  @spec generate_trace_id() :: Otel.API.Trace.TraceId.t()
   @impl true
   def generate_trace_id do
-    :rand.uniform(@trace_id_max)
+    case :crypto.strong_rand_bytes(16) do
+      @trace_id_zero -> generate_trace_id()
+      bytes -> Otel.API.Trace.TraceId.new(bytes)
+    end
   end
 
-  @spec generate_span_id() :: non_neg_integer()
+  @spec generate_span_id() :: Otel.API.Trace.SpanId.t()
   @impl true
   def generate_span_id do
-    :rand.uniform(@span_id_max)
+    case :crypto.strong_rand_bytes(8) do
+      @span_id_zero -> generate_span_id()
+      bytes -> Otel.API.Trace.SpanId.new(bytes)
+    end
   end
 end

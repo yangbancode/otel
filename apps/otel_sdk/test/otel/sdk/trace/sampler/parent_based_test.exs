@@ -1,6 +1,9 @@
 defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
   use ExUnit.Case
 
+  @trace_id Otel.API.Trace.TraceId.new(<<123::128>>)
+  @span_id Otel.API.Trace.SpanId.new(<<456::64>>)
+
   describe "root span (no parent)" do
     test "delegates to root sampler (default AlwaysOn)" do
       sampler =
@@ -9,13 +12,17 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         )
 
       {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, 123, [], "span", :internal, %{})
+        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, @trace_id, [], "span", :internal, [])
 
       assert decision == :record_and_sample
     end
 
     test "treats span_id 0 as root" do
-      parent = %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 0}
+      parent = %Otel.API.Trace.SpanContext{
+        trace_id: @trace_id,
+        span_id: Otel.API.Trace.SpanId.invalid()
+      }
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       sampler =
@@ -24,7 +31,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         )
 
       {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
+        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, @trace_id, [], "span", :internal, [])
 
       assert decision == :record_and_sample
     end
@@ -36,7 +43,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         )
 
       {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, 123, [], "span", :internal, %{})
+        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, @trace_id, [], "span", :internal, [])
 
       assert decision == :drop
     end
@@ -45,8 +52,8 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
   describe "remote parent sampled" do
     test "delegates to remote_parent_sampled (default AlwaysOn)" do
       parent = %Otel.API.Trace.SpanContext{
-        trace_id: 123,
-        span_id: 456,
+        trace_id: @trace_id,
+        span_id: @span_id,
         trace_flags: 1,
         is_remote: true
       }
@@ -59,7 +66,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         )
 
       {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
+        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, @trace_id, [], "span", :internal, [])
 
       assert decision == :record_and_sample
     end
@@ -68,8 +75,8 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
   describe "remote parent not sampled" do
     test "delegates to remote_parent_not_sampled (default AlwaysOff)" do
       parent = %Otel.API.Trace.SpanContext{
-        trace_id: 123,
-        span_id: 456,
+        trace_id: @trace_id,
+        span_id: @span_id,
         trace_flags: 0,
         is_remote: true
       }
@@ -82,7 +89,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         )
 
       {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
+        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, @trace_id, [], "span", :internal, [])
 
       assert decision == :drop
     end
@@ -91,8 +98,8 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
   describe "local parent sampled" do
     test "delegates to local_parent_sampled (default AlwaysOn)" do
       parent = %Otel.API.Trace.SpanContext{
-        trace_id: 123,
-        span_id: 456,
+        trace_id: @trace_id,
+        span_id: @span_id,
         trace_flags: 1,
         is_remote: false
       }
@@ -105,7 +112,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         )
 
       {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
+        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, @trace_id, [], "span", :internal, [])
 
       assert decision == :record_and_sample
     end
@@ -114,8 +121,8 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
   describe "local parent not sampled" do
     test "delegates to local_parent_not_sampled (default AlwaysOff)" do
       parent = %Otel.API.Trace.SpanContext{
-        trace_id: 123,
-        span_id: 456,
+        trace_id: @trace_id,
+        span_id: @span_id,
         trace_flags: 0,
         is_remote: false
       }
@@ -128,7 +135,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         )
 
       {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
+        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, @trace_id, [], "span", :internal, [])
 
       assert decision == :drop
     end

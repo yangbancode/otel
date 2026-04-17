@@ -17,8 +17,8 @@ defmodule Otel.API.Logs.Logger do
           optional(:observed_timestamp) => integer() | nil,
           optional(:severity_number) => 1..24 | nil,
           optional(:severity_text) => String.t() | nil,
-          optional(:body) => term() | nil,
-          optional(:attributes) => map(),
+          optional(:body) => Otel.API.Common.AnyValue.t() | nil,
+          optional(:attributes) => [Otel.API.Common.Attribute.t()],
           optional(:event_name) => String.t() | nil,
           optional(:exception) => Exception.t() | nil
         }

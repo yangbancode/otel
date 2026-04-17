@@ -14,7 +14,9 @@ defmodule Otel.Exporter.OTLP.MetricsTest do
     is_monotonic: true,
     datapoints: [
       %{
-        attributes: %{"method" => "GET"},
+        attributes: [
+          Otel.API.Common.Attribute.new("method", Otel.API.Common.AnyValue.string("GET"))
+        ],
         value: 42,
         start_time: 1_000_000,
         time: 2_000_000,

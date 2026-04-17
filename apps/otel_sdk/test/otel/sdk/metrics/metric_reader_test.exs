@@ -16,6 +16,14 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     %{meter: meter, config: config, provider: pid}
   end
 
+  defp attr(k, v) when is_binary(v) do
+    Otel.API.Common.Attribute.new(k, Otel.API.Common.AnyValue.string(v))
+  end
+
+  defp attr(k, v) when is_integer(v) do
+    Otel.API.Common.Attribute.new(k, Otel.API.Common.AnyValue.int(v))
+  end
+
   describe "collect/1" do
     test "returns empty when no instruments", %{config: config} do
       assert [] == Otel.SDK.Metrics.MetricReader.collect(config)
@@ -23,8 +31,8 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
 
     test "collects counter data", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_counter(meter, "requests", unit: "1")
-      Otel.SDK.Metrics.Meter.record(meter, "requests", 5, %{"method" => "GET"})
-      Otel.SDK.Metrics.Meter.record(meter, "requests", 3, %{"method" => "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "requests", 5, [attr("method", "GET")])
+      Otel.SDK.Metrics.Meter.record(meter, "requests", 3, [attr("method", "GET")])
 
       metrics = Otel.SDK.Metrics.MetricReader.collect(config)
       assert [metric] = metrics
@@ -33,11 +41,11 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       assert metric.kind == :counter
       assert [dp] = metric.datapoints
       assert dp.value == 8
-      assert dp.attributes == %{"method" => "GET"}
+      assert dp.attributes == [attr("method", "GET")]
     end
 
     test "collects gauge data via callback", %{meter: meter, config: config} do
-      cb = fn _args -> [{42, %{"host" => "a"}}] end
+      cb = fn _args -> [{42, [attr("host", "a")]}] end
       Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
 
       metrics = Otel.SDK.Metrics.MetricReader.collect(config)
@@ -49,8 +57,8 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
 
     test "collects histogram data", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_histogram(meter, "latency", unit: "ms")
-      Otel.SDK.Metrics.Meter.record(meter, "latency", 50, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "latency", 150, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "latency", 50, [])
+      Otel.SDK.Metrics.Meter.record(meter, "latency", 150, [])
 
       metrics = Otel.SDK.Metrics.MetricReader.collect(config)
       assert [metric] = metrics
@@ -63,8 +71,8 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     test "collects multiple instruments", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_counter(meter, "req", [])
       Otel.SDK.Metrics.Meter.create_gauge(meter, "temp", [])
-      Otel.SDK.Metrics.Meter.record(meter, "req", 1, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "temp", 22, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "req", 1, [])
+      Otel.SDK.Metrics.Meter.record(meter, "temp", 22, [])
 
       metrics = Otel.SDK.Metrics.MetricReader.collect(config)
       assert length(metrics) == 2
@@ -74,7 +82,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
 
     test "includes resource in metric", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_counter(meter, "r", [])
-      Otel.SDK.Metrics.Meter.record(meter, "r", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "r", 1, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert %Otel.SDK.Resource{} = metric.resource
@@ -82,7 +90,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
 
     test "includes scope in metric", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_counter(meter, "s", [])
-      Otel.SDK.Metrics.Meter.record(meter, "s", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "s", 1, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert metric.scope.name == "test_lib"
@@ -90,7 +98,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
 
     test "datapoints include exemplars list", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_counter(meter, "ex_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "ex_counter", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "ex_counter", 1, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp] = metric.datapoints
@@ -109,7 +117,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       meter = {Otel.SDK.Metrics.Meter, config}
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "sampled", [])
-      Otel.SDK.Metrics.Meter.record(meter, "sampled", 42, %{"method" => "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "sampled", 42, [attr("method", "GET")])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp] = metric.datapoints
@@ -128,7 +136,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       meter = {Otel.SDK.Metrics.Meter, config}
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "not_sampled", [])
-      Otel.SDK.Metrics.Meter.record(meter, "not_sampled", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "not_sampled", 1, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp] = metric.datapoints
@@ -146,11 +154,11 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       meter = {Otel.SDK.Metrics.Meter, config}
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "reset_test", [])
-      Otel.SDK.Metrics.Meter.record(meter, "reset_test", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "reset_test", 1, [])
 
       [_] = Otel.SDK.Metrics.MetricReader.collect(config)
 
-      Otel.SDK.Metrics.Meter.record(meter, "reset_test", 2, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "reset_test", 2, [])
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp] = metric.datapoints
       assert hd(dp.exemplars).value == 2
@@ -158,7 +166,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
 
     test "collects without exemplars_tab in config", %{meter: meter, config: config} do
       Otel.SDK.Metrics.Meter.create_counter(meter, "no_ex", [])
-      Otel.SDK.Metrics.Meter.record(meter, "no_ex", 5, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "no_ex", 5, [])
 
       no_exemplar_config = Map.delete(config, :exemplars_tab)
       [metric] = Otel.SDK.Metrics.MetricReader.collect(no_exemplar_config)
@@ -184,13 +192,17 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       meter = {Otel.SDK.Metrics.Meter, config}
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "attr_test", [])
-      Otel.SDK.Metrics.Meter.record(meter, "attr_test", 1, %{"method" => "GET", "path" => "/api"})
+
+      Otel.SDK.Metrics.Meter.record(meter, "attr_test", 1, [
+        attr("method", "GET"),
+        attr("path", "/api")
+      ])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp] = metric.datapoints
-      assert dp.attributes == %{"method" => "GET"}
+      assert dp.attributes == [attr("method", "GET")]
       exemplar = hd(dp.exemplars)
-      assert exemplar.filtered_attributes == %{"path" => "/api"}
+      assert exemplar.filtered_attributes == [attr("path", "/api")]
     end
   end
 end

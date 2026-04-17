@@ -38,9 +38,9 @@ defmodule Otel.API.Trace.TracerProvider do
           name :: String.t(),
           version :: String.t(),
           schema_url :: String.t() | nil,
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: Otel.API.Trace.Tracer.t()
-  def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+  def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ []) do
     name = validate_name(name)
     key = {@tracer_key_prefix, {name, version, schema_url}}
 
@@ -63,10 +63,10 @@ defmodule Otel.API.Trace.TracerProvider do
           name :: String.t(),
           version :: String.t(),
           schema_url :: String.t() | nil,
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) ::
           Otel.API.InstrumentationScope.t()
-  def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+  def scope(name, version \\ "", schema_url \\ nil, attributes \\ []) do
     %Otel.API.InstrumentationScope{
       name: name,
       version: version,
@@ -100,7 +100,7 @@ defmodule Otel.API.Trace.TracerProvider do
           name :: String.t(),
           version :: String.t(),
           schema_url :: String.t() | nil,
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: Otel.API.Trace.Tracer.t()
   defp fetch_or_default(_name, _version, _schema_url, _attributes) do
     @default_tracer

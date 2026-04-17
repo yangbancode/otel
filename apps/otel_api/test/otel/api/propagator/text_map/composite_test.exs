@@ -45,7 +45,13 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
 
   describe "inject/4" do
     test "injects from all propagators in order" do
-      span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
+      span_ctx =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<123::128>>),
+          Otel.API.Trace.SpanId.new(<<456::64>>),
+          1
+        )
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier =
@@ -130,7 +136,13 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
     end
 
     test "inject dispatches through composite tuple" do
-      span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
+      span_ctx =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<123::128>>),
+          Otel.API.Trace.SpanId.new(<<456::64>>),
+          1
+        )
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.inject(ctx, [])

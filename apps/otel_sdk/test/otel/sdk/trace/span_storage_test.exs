@@ -8,8 +8,8 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
   end
 
   @span %Otel.SDK.Trace.Span{
-    trace_id: 0xFF000000000000000000000000000001,
-    span_id: 0xFF00000000000001,
+    trace_id: Otel.API.Trace.TraceId.new(<<0xFF000000000000000000000000000001::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<0xFF00000000000001::64>>),
     name: "test_span",
     kind: :internal,
     start_time: System.system_time(:nanosecond),
@@ -31,7 +31,7 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
     end
 
     test "returns nil for missing span_id" do
-      assert Otel.SDK.Trace.SpanStorage.get(999) == nil
+      assert Otel.SDK.Trace.SpanStorage.get(Otel.API.Trace.SpanId.new(<<999::64>>)) == nil
     end
   end
 
@@ -45,7 +45,7 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
     end
 
     test "returns nil for missing span_id" do
-      assert Otel.SDK.Trace.SpanStorage.take(999) == nil
+      assert Otel.SDK.Trace.SpanStorage.take(Otel.API.Trace.SpanId.new(<<999::64>>)) == nil
     end
   end
 

@@ -12,11 +12,11 @@ defmodule Otel.SDK.Trace.SpanCreatorTest.RecordOnlySampler do
 
   @spec should_sample(
           ctx :: Otel.API.Ctx.t(),
-          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
-          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          trace_id :: Otel.API.Trace.TraceId.t(),
+          links :: [{Otel.API.Trace.SpanContext.t(), [Otel.API.Common.Attribute.t()]}],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map(),
+          attributes :: [Otel.API.Common.Attribute.t()],
           config :: Otel.SDK.Trace.Sampler.config()
         ) :: Otel.SDK.Trace.Sampler.sampling_result()
   @impl true
@@ -26,7 +26,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest.RecordOnlySampler do
       |> Otel.API.Trace.current_span()
       |> Map.get(:tracestate, %Otel.API.Trace.TraceState{})
 
-    {:record_only, %{}, tracestate}
+    {:record_only, [], tracestate}
   end
 end
 
@@ -47,6 +47,9 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
   @id_generator Otel.SDK.Trace.IdGenerator.Default
   @span_limits %Otel.SDK.Trace.SpanLimits{}
 
+  @trace_id_123 Otel.API.Trace.TraceId.new(<<123::128>>)
+  @span_id_456 Otel.API.Trace.SpanId.new(<<456::64>>)
+
   describe "root span creation" do
     test "generates new trace_id and span_id" do
       ctx = Otel.API.Ctx.new()
@@ -61,8 +64,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      assert span_ctx.trace_id != 0
-      assert span_ctx.span_id != 0
+      assert Otel.API.Trace.TraceId.valid?(span_ctx.trace_id)
+      assert Otel.API.Trace.SpanId.valid?(span_ctx.span_id)
       assert Otel.API.Trace.SpanContext.valid?(span_ctx)
       assert span != nil
       assert span.name == "root_span"
@@ -70,7 +73,11 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "with invalid parent (trace_id 0) creates root span" do
-      parent = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 1}
+      parent = %Otel.API.Trace.SpanContext{
+        trace_id: Otel.API.Trace.TraceId.invalid(),
+        span_id: Otel.API.Trace.SpanId.new(<<1::64>>)
+      }
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, _span} =
@@ -83,11 +90,15 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      assert span_ctx.trace_id != 0
+      assert Otel.API.Trace.TraceId.valid?(span_ctx.trace_id)
     end
 
     test "with invalid parent (span_id 0) creates root span" do
-      parent = %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 0}
+      parent = %Otel.API.Trace.SpanContext{
+        trace_id: @trace_id_123,
+        span_id: Otel.API.Trace.SpanId.invalid()
+      }
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, _span} =
@@ -100,11 +111,11 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      assert span_ctx.trace_id != 123
+      assert span_ctx.trace_id != @trace_id_123
     end
 
     test "is_root option forces root span" do
-      parent = Otel.API.Trace.SpanContext.new(123, 456, 1)
+      parent = Otel.API.Trace.SpanContext.new(@trace_id_123, @span_id_456, 1)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, span} =
@@ -117,14 +128,14 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           is_root: true
         )
 
-      assert span_ctx.trace_id != 123
+      assert span_ctx.trace_id != @trace_id_123
       assert span.parent_span_id == nil
     end
   end
 
   describe "child span creation" do
     test "inherits parent trace_id" do
-      parent = Otel.API.Trace.SpanContext.new(123, 456, 1)
+      parent = Otel.API.Trace.SpanContext.new(@trace_id_123, @span_id_456, 1)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, span} =
@@ -137,14 +148,14 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      assert span_ctx.trace_id == 123
-      assert span_ctx.span_id != 456
-      assert span.parent_span_id == 456
+      assert span_ctx.trace_id == @trace_id_123
+      assert span_ctx.span_id != @span_id_456
+      assert span.parent_span_id == @span_id_456
     end
 
     test "inherits parent tracestate" do
       ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
-      parent = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
+      parent = Otel.API.Trace.SpanContext.new(@trace_id_123, @span_id_456, 1, ts)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, _span} =
@@ -231,7 +242,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      assert span_ctx.span_id != 0
+      assert Otel.API.Trace.SpanId.valid?(span_ctx.span_id)
     end
   end
 
@@ -255,6 +266,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     test "passes attributes to span" do
       ctx = Otel.API.Ctx.new()
 
+      attrs = [
+        Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+      ]
+
       {_span_ctx, span} =
         Otel.SDK.Trace.SpanCreator.start_span(
           ctx,
@@ -262,10 +277,11 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           @span_limits,
-          attributes: %{"key" => "val"}
+          attributes: attrs
         )
 
-      assert span.attributes["key"] == "val"
+      assert Enum.find(span.attributes, &(&1.key == "key")).value ==
+               Otel.API.Common.AnyValue.string("val")
     end
 
     test "passes custom start_time" do
@@ -309,7 +325,13 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     test "enforces attribute_count_limit" do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2}
-      attrs = %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
+
+      attrs = [
+        Otel.API.Common.Attribute.new("a", Otel.API.Common.AnyValue.int(1)),
+        Otel.API.Common.Attribute.new("b", Otel.API.Common.AnyValue.int(2)),
+        Otel.API.Common.Attribute.new("c", Otel.API.Common.AnyValue.int(3)),
+        Otel.API.Common.Attribute.new("d", Otel.API.Common.AnyValue.int(4))
+      ]
 
       {_span_ctx, span} =
         Otel.SDK.Trace.SpanCreator.start_span(
@@ -321,12 +343,16 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           attributes: attrs
         )
 
-      assert map_size(span.attributes) <= 2
+      assert length(span.attributes) <= 2
     end
 
     test "enforces attribute_value_length_limit" do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 5}
+
+      attrs = [
+        Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("hello world"))
+      ]
 
       {_span_ctx, span} =
         Otel.SDK.Trace.SpanCreator.start_span(
@@ -335,10 +361,11 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{"key" => "hello world"}
+          attributes: attrs
         )
 
-      assert String.length(span.attributes["key"]) <= 5
+      value = Enum.find(span.attributes, &(&1.key == "key")).value
+      assert String.length(value.value) <= 5
     end
 
     test "infinity value length limit does not truncate" do
@@ -346,6 +373,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: :infinity}
       long_value = String.duplicate("a", 10_000)
 
+      attrs = [
+        Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string(long_value))
+      ]
+
       {_span_ctx, span} =
         Otel.SDK.Trace.SpanCreator.start_span(
           ctx,
@@ -353,16 +384,20 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{"key" => long_value}
+          attributes: attrs
         )
 
-      assert span.attributes["key"] == long_value
+      assert Enum.find(span.attributes, &(&1.key == "key")).value.value == long_value
     end
 
     test "non-string values are not truncated" do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 1}
 
+      attrs = [
+        Otel.API.Common.Attribute.new("num", Otel.API.Common.AnyValue.int(12_345))
+      ]
+
       {_span_ctx, span} =
         Otel.SDK.Trace.SpanCreator.start_span(
           ctx,
@@ -370,16 +405,26 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{"num" => 12_345}
+          attributes: attrs
         )
 
-      assert span.attributes["num"] == 12_345
+      assert Enum.find(span.attributes, &(&1.key == "num")).value.value == 12_345
     end
 
     test "truncates strings inside arrays" do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
+      attrs = [
+        Otel.API.Common.Attribute.new(
+          "tags",
+          Otel.API.Common.AnyValue.array([
+            Otel.API.Common.AnyValue.string("hello"),
+            Otel.API.Common.AnyValue.string("world")
+          ])
+        )
+      ]
+
       {_span_ctx, span} =
         Otel.SDK.Trace.SpanCreator.start_span(
           ctx,
@@ -387,10 +432,12 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{"tags" => ["hello", "world"]}
+          attributes: attrs
         )
 
-      assert span.attributes["tags"] == ["hel", "wor"]
+      array_value = Enum.find(span.attributes, &(&1.key == "tags")).value
+
+      assert Enum.map(array_value.value, & &1.value) == ["hel", "wor"]
     end
 
     test "enforces link_count_limit" do
@@ -398,8 +445,14 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{link_count_limit: 1}
 
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{}},
-        {Otel.API.Trace.SpanContext.new(2, 2), %{}}
+        {Otel.API.Trace.SpanContext.new(
+           Otel.API.Trace.TraceId.new(<<1::128>>),
+           Otel.API.Trace.SpanId.new(<<1::64>>)
+         ), []},
+        {Otel.API.Trace.SpanContext.new(
+           Otel.API.Trace.TraceId.new(<<2::128>>),
+           Otel.API.Trace.SpanId.new(<<2::64>>)
+         ), []}
       ]
 
       {_span_ctx, span} =
@@ -419,8 +472,17 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1}
 
+      link_attrs = [
+        Otel.API.Common.Attribute.new("a", Otel.API.Common.AnyValue.int(1)),
+        Otel.API.Common.Attribute.new("b", Otel.API.Common.AnyValue.int(2)),
+        Otel.API.Common.Attribute.new("c", Otel.API.Common.AnyValue.int(3))
+      ]
+
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{"a" => 1, "b" => 2, "c" => 3}}
+        {Otel.API.Trace.SpanContext.new(
+           Otel.API.Trace.TraceId.new(<<1::128>>),
+           Otel.API.Trace.SpanId.new(<<1::64>>)
+         ), link_attrs}
       ]
 
       {_span_ctx, span} =
@@ -434,15 +496,22 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
         )
 
       {_ctx, attrs} = hd(span.links)
-      assert map_size(attrs) == 1
+      assert length(attrs) == 1
     end
 
     test "truncates link attribute values at creation" do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
+      link_attrs = [
+        Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("hello world"))
+      ]
+
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{"key" => "hello world"}}
+        {Otel.API.Trace.SpanContext.new(
+           Otel.API.Trace.TraceId.new(<<1::128>>),
+           Otel.API.Trace.SpanId.new(<<1::64>>)
+         ), link_attrs}
       ]
 
       {_span_ctx, span} =
@@ -456,7 +525,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
         )
 
       {_ctx, attrs} = hd(span.links)
-      assert attrs["key"] == "hel"
+      assert Enum.find(attrs, &(&1.key == "key")).value.value == "hel"
     end
   end
 end

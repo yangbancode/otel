@@ -27,6 +27,13 @@ end
 defmodule Otel.SDK.Metrics.MeterProviderTest do
   use ExUnit.Case
 
+  defp attr_value(attributes, key) do
+    case Enum.find(attributes, &(&1.key == key)) do
+      nil -> nil
+      %Otel.API.Common.Attribute{value: %Otel.API.Common.AnyValue{value: value}} -> value
+    end
+  end
+
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
@@ -58,7 +65,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
         Otel.SDK.Metrics.MeterProvider.start_link(config: %{resource: custom_resource})
 
       resource = Otel.SDK.Metrics.MeterProvider.resource(pid)
-      assert resource.attributes["service.name"] == "test"
+      assert attr_value(resource.attributes, "service.name") == "test"
     end
   end
 
@@ -85,7 +92,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
         Otel.SDK.Metrics.MeterProvider.get_meter(pid, "my_lib")
 
       assert %Otel.SDK.Resource{} = resource
-      assert resource.attributes["telemetry.sdk.name"] == "otel"
+      assert attr_value(resource.attributes, "telemetry.sdk.name") == "otel"
     end
   end
 
@@ -105,7 +112,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
         Otel.SDK.Metrics.MeterProvider.start_link(config: %{resource: custom_resource})
 
       config = Otel.SDK.Metrics.MeterProvider.config(pid)
-      assert config.resource.attributes["service.name"] == "custom"
+      assert attr_value(config.resource.attributes, "service.name") == "custom"
       assert config.views == []
     end
   end
@@ -114,8 +121,8 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     test "returns SDK default resource", %{provider: pid} do
       resource = Otel.SDK.Metrics.MeterProvider.resource(pid)
       assert %Otel.SDK.Resource{} = resource
-      assert resource.attributes["telemetry.sdk.name"] == "otel"
-      assert resource.attributes["telemetry.sdk.language"] == "elixir"
+      assert attr_value(resource.attributes, "telemetry.sdk.name") == "otel"
+      assert attr_value(resource.attributes, "telemetry.sdk.language") == "elixir"
     end
   end
 

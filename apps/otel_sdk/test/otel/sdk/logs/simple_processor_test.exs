@@ -80,7 +80,11 @@ defmodule Otel.SDK.Logs.SimpleProcessorTest do
         })
 
       config = %{reg_name: :simple_emit_test}
-      log_record = %{body: "hello", severity_number: 9}
+
+      log_record = %{
+        body: Otel.API.Common.AnyValue.string("hello"),
+        severity_number: 9
+      }
 
       Otel.SDK.Logs.SimpleProcessor.on_emit(log_record, config)
       assert_receive {:exported, [^log_record]}
@@ -94,7 +98,12 @@ defmodule Otel.SDK.Logs.SimpleProcessorTest do
         })
 
       config = %{reg_name: :simple_noop_test}
-      assert :ok == Otel.SDK.Logs.SimpleProcessor.on_emit(%{body: "test"}, config)
+
+      assert :ok ==
+               Otel.SDK.Logs.SimpleProcessor.on_emit(
+                 %{body: Otel.API.Common.AnyValue.string("test")},
+                 config
+               )
     end
   end
 
@@ -138,7 +147,13 @@ defmodule Otel.SDK.Logs.SimpleProcessorTest do
 
       config = %{reg_name: :simple_emit_after_shutdown}
       Otel.SDK.Logs.SimpleProcessor.shutdown(config)
-      assert :ok == Otel.SDK.Logs.SimpleProcessor.on_emit(%{body: "late"}, config)
+
+      assert :ok ==
+               Otel.SDK.Logs.SimpleProcessor.on_emit(
+                 %{body: Otel.API.Common.AnyValue.string("late")},
+                 config
+               )
+
       refute_receive {:exported, _}
     end
   end
@@ -169,9 +184,13 @@ defmodule Otel.SDK.Logs.SimpleProcessorTest do
       {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(provider_pid, "test_lib")
       logger = {Otel.SDK.Logs.Logger, config}
 
-      Otel.API.Logs.Logger.emit(logger, %{body: "e2e test", severity_number: 9})
+      Otel.API.Logs.Logger.emit(logger, %{
+        body: Otel.API.Common.AnyValue.string("e2e test"),
+        severity_number: 9
+      })
+
       assert_receive {:exported, [record]}
-      assert record.body == "e2e test"
+      assert record.body == Otel.API.Common.AnyValue.string("e2e test")
       assert record.scope.name == "test_lib"
 
       GenServer.stop(proc_pid)

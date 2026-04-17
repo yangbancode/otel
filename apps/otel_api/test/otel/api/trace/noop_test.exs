@@ -2,8 +2,8 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
   use ExUnit.Case, async: true
 
   @valid_parent %Otel.API.Trace.SpanContext{
-    trace_id: 0xFF000000000000000000000000000001,
-    span_id: 0xFF00000000000001,
+    trace_id: Otel.API.Trace.TraceId.new(<<0xFF000000000000000000000000000001::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<0xFF00000000000001::64>>),
     trace_flags: 1,
     is_remote: true
   }
@@ -39,7 +39,11 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
     end
 
     test "returns invalid SpanContext when parent has zero trace_id" do
-      parent = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 1}
+      parent = %Otel.API.Trace.SpanContext{
+        trace_id: Otel.API.Trace.TraceId.invalid(),
+        span_id: Otel.API.Trace.SpanId.new(<<1::64>>)
+      }
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       result =

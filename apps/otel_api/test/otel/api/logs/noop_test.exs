@@ -6,7 +6,11 @@ defmodule Otel.API.Logs.NoopTest do
   describe "Noop Logger" do
     test "emit returns :ok" do
       ctx = Otel.API.Ctx.get_current()
-      assert :ok == Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %{body: "test"})
+
+      assert :ok ==
+               Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %{
+                 body: Otel.API.Common.AnyValue.string("test")
+               })
     end
 
     test "enabled? returns false" do
@@ -22,8 +26,13 @@ defmodule Otel.API.Logs.NoopTest do
                  observed_timestamp: 1_000_000,
                  severity_number: 9,
                  severity_text: "INFO",
-                 body: %{nested: "value"},
-                 attributes: %{"key" => "val"},
+                 body:
+                   Otel.API.Common.AnyValue.kvlist(%{
+                     "nested" => Otel.API.Common.AnyValue.string("value")
+                   }),
+                 attributes: [
+                   Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+                 ],
                  event_name: "my.event"
                })
     end

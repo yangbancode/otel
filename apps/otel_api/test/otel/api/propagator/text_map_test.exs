@@ -89,7 +89,13 @@ defmodule Otel.API.Propagator.TextMapTest do
     test "dispatches to global propagator" do
       Otel.API.Propagator.set_text_map_propagator(Otel.API.Propagator.TraceContext)
 
-      span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
+      span_ctx =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<123::128>>),
+          Otel.API.Trace.SpanId.new(<<456::64>>),
+          1
+        )
+
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.inject(ctx, [])

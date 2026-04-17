@@ -30,8 +30,8 @@ defmodule Otel.SDK.Trace.SpanExporterTest do
                Otel.SDK.Trace.SpanExporterTest.TestExporter.init(%{test_pid: self()})
 
       span = %Otel.SDK.Trace.Span{
-        trace_id: 1,
-        span_id: 1,
+        trace_id: Otel.API.Trace.TraceId.new(<<1::128>>),
+        span_id: Otel.API.Trace.SpanId.new(<<1::64>>),
         name: "test"
       }
 

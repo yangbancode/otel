@@ -46,6 +46,10 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     :ok
   end
 
+  defp attr(k, v) when is_binary(v) do
+    Otel.API.Common.Attribute.new(k, Otel.API.Common.AnyValue.string(v))
+  end
+
   defp setup_default_provider do
     {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
     {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
@@ -75,8 +79,8 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "requests", [])
-      Otel.SDK.Metrics.Meter.record(meter, "requests", 5, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "requests", 3, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "requests", 5, [])
+      Otel.SDK.Metrics.Meter.record(meter, "requests", 3, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert metric.temporality == :cumulative
@@ -84,7 +88,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       [dp] = metric.datapoints
       assert dp.value == 8
 
-      Otel.SDK.Metrics.Meter.record(meter, "requests", 2, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "requests", 2, [])
       [metric2] = Otel.SDK.Metrics.MetricReader.collect(config)
       [dp2] = metric2.datapoints
       assert dp2.value == 10
@@ -97,7 +101,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
       Otel.SDK.Metrics.Meter.create_updown_counter(meter, "conns", [])
-      Otel.SDK.Metrics.Meter.record(meter, "conns", 5, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "conns", 5, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert metric.temporality == :cumulative
@@ -110,7 +114,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
       Otel.SDK.Metrics.Meter.create_gauge(meter, "temp", [])
-      Otel.SDK.Metrics.Meter.record(meter, "temp", 22, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "temp", 22, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert metric.temporality == nil
@@ -123,14 +127,14 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
       Otel.SDK.Metrics.Meter.create_histogram(meter, "latency", [])
-      Otel.SDK.Metrics.Meter.record(meter, "latency", 50, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "latency", 150, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "latency", 50, [])
+      Otel.SDK.Metrics.Meter.record(meter, "latency", 150, [])
 
       [m1] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert m1.temporality == :cumulative
       assert m1.is_monotonic == false
 
-      Otel.SDK.Metrics.Meter.record(meter, "latency", 200, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "latency", 200, [])
       [m2] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert hd(m2.datapoints).value.count == 3
       assert hd(m2.datapoints).value.sum == 400
@@ -141,7 +145,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     test "observable_counter is cumulative and monotonic" do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
-      cb = fn _args -> [{100, %{}}] end
+      cb = fn _args -> [{100, []}] end
       Otel.SDK.Metrics.Meter.create_observable_counter(meter, "bytes", cb, nil, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
@@ -154,7 +158,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     test "observable_gauge has no temporality" do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
-      cb = fn _args -> [{42, %{}}] end
+      cb = fn _args -> [{42, []}] end
       Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
@@ -167,7 +171,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     test "observable_updown_counter is not monotonic" do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
-      cb = fn _args -> [{10, %{}}] end
+      cb = fn _args -> [{10, []}] end
 
       Otel.SDK.Metrics.Meter.create_observable_updown_counter(
         meter,
@@ -188,12 +192,12 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "stable", [])
-      Otel.SDK.Metrics.Meter.record(meter, "stable", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "stable", 1, [])
 
       [m1] = Otel.SDK.Metrics.MetricReader.collect(config)
       start1 = hd(m1.datapoints).start_time
 
-      Otel.SDK.Metrics.Meter.record(meter, "stable", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "stable", 1, [])
       [m2] = Otel.SDK.Metrics.MetricReader.collect(config)
       start2 = hd(m2.datapoints).start_time
 
@@ -208,8 +212,8 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "delta_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "delta_counter", 5, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "delta_counter", 3, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "delta_counter", 5, [])
+      Otel.SDK.Metrics.Meter.record(meter, "delta_counter", 3, [])
 
       {:ok, [metric]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -219,7 +223,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       [dp1] = metric.datapoints
       assert dp1.value == 8
 
-      Otel.SDK.Metrics.Meter.record(meter, "delta_counter", 2, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "delta_counter", 2, [])
 
       {:ok, [metric2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -235,7 +239,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "empty_delta", [])
-      Otel.SDK.Metrics.Meter.record(meter, "empty_delta", 5, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "empty_delta", 5, [])
 
       {:ok, [_]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -252,7 +256,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_histogram(meter, "empty_hist", [])
-      Otel.SDK.Metrics.Meter.record(meter, "empty_hist", 10, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "empty_hist", 10, [])
 
       {:ok, [_]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -269,8 +273,8 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_histogram(meter, "delta_latency", [])
-      Otel.SDK.Metrics.Meter.record(meter, "delta_latency", 50, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "delta_latency", 150, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "delta_latency", 50, [])
+      Otel.SDK.Metrics.Meter.record(meter, "delta_latency", 150, [])
 
       {:ok, [m1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -282,7 +286,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       assert dp1.value.min == 50
       assert dp1.value.max == 150
 
-      Otel.SDK.Metrics.Meter.record(meter, "delta_latency", 300, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "delta_latency", 300, [])
 
       {:ok, [m2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -300,15 +304,15 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_histogram(meter, "float_hist", [])
-      Otel.SDK.Metrics.Meter.record(meter, "float_hist", 1.5, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "float_hist", 2.5, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "float_hist", 1.5, [])
+      Otel.SDK.Metrics.Meter.record(meter, "float_hist", 2.5, [])
 
       {:ok, [m1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
 
       assert_in_delta hd(m1.datapoints).value.sum, 4.0, 0.001
 
-      Otel.SDK.Metrics.Meter.record(meter, "float_hist", 3.0, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "float_hist", 3.0, [])
 
       {:ok, [m2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -322,8 +326,8 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_updown_counter(meter, "delta_updown", [])
-      Otel.SDK.Metrics.Meter.record(meter, "delta_updown", 10, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "delta_updown", -3, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "delta_updown", 10, [])
+      Otel.SDK.Metrics.Meter.record(meter, "delta_updown", -3, [])
 
       {:ok, [m1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -332,7 +336,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       assert m1.is_monotonic == false
       assert hd(m1.datapoints).value == 7
 
-      Otel.SDK.Metrics.Meter.record(meter, "delta_updown", -5, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "delta_updown", -5, [])
 
       {:ok, [m2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -346,14 +350,14 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "advancing", [])
-      Otel.SDK.Metrics.Meter.record(meter, "advancing", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "advancing", 1, [])
 
       {:ok, [m1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
 
       dp1 = hd(m1.datapoints)
 
-      Otel.SDK.Metrics.Meter.record(meter, "advancing", 1, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "advancing", 1, [])
 
       {:ok, [m2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -368,21 +372,21 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "multi", [])
-      Otel.SDK.Metrics.Meter.record(meter, "multi", 5, %{"method" => "GET"})
-      Otel.SDK.Metrics.Meter.record(meter, "multi", 3, %{"method" => "POST"})
+      Otel.SDK.Metrics.Meter.record(meter, "multi", 5, [attr("method", "GET")])
+      Otel.SDK.Metrics.Meter.record(meter, "multi", 3, [attr("method", "POST")])
 
       {:ok, [m1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
 
       assert length(m1.datapoints) == 2
 
-      Otel.SDK.Metrics.Meter.record(meter, "multi", 2, %{"method" => "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "multi", 2, [attr("method", "GET")])
 
       {:ok, [m2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
 
       assert length(m2.datapoints) == 1
-      assert hd(m2.datapoints).attributes == %{"method" => "GET"}
+      assert hd(m2.datapoints).attributes == [attr("method", "GET")]
       assert hd(m2.datapoints).value == 2
 
       GenServer.stop(pid)
@@ -392,7 +396,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_gauge(meter, "delta_gauge", [])
-      Otel.SDK.Metrics.Meter.record(meter, "delta_gauge", 42, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "delta_gauge", 42, [])
 
       {:ok, [metric]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -408,15 +412,15 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "float_delta", [])
-      Otel.SDK.Metrics.Meter.record(meter, "float_delta", 1.5, %{})
-      Otel.SDK.Metrics.Meter.record(meter, "float_delta", 2.5, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "float_delta", 1.5, [])
+      Otel.SDK.Metrics.Meter.record(meter, "float_delta", 2.5, [])
 
       {:ok, [m1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
 
       assert_in_delta hd(m1.datapoints).value, 4.0, 0.001
 
-      Otel.SDK.Metrics.Meter.record(meter, "float_delta", 1.0, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "float_delta", 1.0, [])
 
       {:ok, [m2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
@@ -451,7 +455,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       meter = {Otel.SDK.Metrics.Meter, meter_config}
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "multi_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "multi_counter", 10, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "multi_counter", 10, [])
 
       {:ok, [cm1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(cumulative_pid)
@@ -464,7 +468,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       assert hd(cm1.datapoints).value == 10
       assert hd(dm1.datapoints).value == 10
 
-      Otel.SDK.Metrics.Meter.record(meter, "multi_counter", 5, %{})
+      Otel.SDK.Metrics.Meter.record(meter, "multi_counter", 5, [])
 
       {:ok, [cm2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(cumulative_pid)

@@ -9,21 +9,21 @@ defmodule Otel.SDK.Metrics.Exemplar do
   @type t :: %__MODULE__{
           value: number(),
           time: integer(),
-          filtered_attributes: map(),
-          span_id: binary() | nil,
-          trace_id: binary() | nil
+          filtered_attributes: [Otel.API.Common.Attribute.t()],
+          span_id: Otel.API.Trace.SpanId.t() | nil,
+          trace_id: Otel.API.Trace.TraceId.t() | nil
         }
 
   defstruct value: 0,
             time: 0,
-            filtered_attributes: %{},
+            filtered_attributes: [],
             span_id: nil,
             trace_id: nil
 
   @spec new(
           value :: number(),
           time :: integer(),
-          filtered_attributes :: map(),
+          filtered_attributes :: [Otel.API.Common.Attribute.t()],
           ctx :: Otel.API.Ctx.t()
         ) :: t()
   def new(value, time, filtered_attributes, ctx) do
@@ -39,12 +39,12 @@ defmodule Otel.SDK.Metrics.Exemplar do
   end
 
   @spec extract_trace_info(ctx :: Otel.API.Ctx.t()) ::
-          {non_neg_integer() | nil, non_neg_integer() | nil}
+          {Otel.API.Trace.TraceId.t() | nil, Otel.API.Trace.SpanId.t() | nil}
   defp extract_trace_info(ctx) do
     %Otel.API.Trace.SpanContext{trace_id: trace_id, span_id: span_id} =
       Otel.API.Trace.current_span(ctx)
 
-    if trace_id != 0 and span_id != 0 do
+    if Otel.API.Trace.TraceId.valid?(trace_id) do
       {trace_id, span_id}
     else
       {nil, nil}

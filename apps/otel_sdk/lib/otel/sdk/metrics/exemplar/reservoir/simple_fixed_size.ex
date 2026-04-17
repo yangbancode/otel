@@ -32,7 +32,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize do
           state :: state(),
           value :: number(),
           time :: integer(),
-          filtered_attributes :: map(),
+          filtered_attributes :: [Otel.API.Common.Attribute.t()],
           ctx :: Otel.API.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do

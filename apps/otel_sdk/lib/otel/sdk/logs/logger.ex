@@ -62,7 +62,7 @@ defmodule Otel.SDK.Logs.Logger do
     now = System.system_time(:nanosecond)
     {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
 
-    attributes = Map.get(log_record, :attributes, %{})
+    attributes = Map.get(log_record, :attributes, [])
 
     {limited_attrs, dropped_count} =
       Otel.SDK.Logs.LogRecordLimits.apply(attributes, config.log_record_limits)
@@ -85,26 +85,69 @@ defmodule Otel.SDK.Logs.Logger do
 
   @spec apply_exception_attributes(log_record :: map()) :: map()
   defp apply_exception_attributes(%{exception: %{__exception__: true} = exception} = log_record) do
-    exception_attrs = %{
-      "exception.type" => exception.__struct__ |> Atom.to_string(),
-      "exception.message" => Exception.message(exception)
-    }
+    base = [
+      Otel.API.Common.Attribute.new(
+        "exception.type",
+        Otel.API.Common.AnyValue.string(Atom.to_string(exception.__struct__))
+      ),
+      Otel.API.Common.Attribute.new(
+        "exception.message",
+        Otel.API.Common.AnyValue.string(Exception.message(exception))
+      )
+    ]
 
     exception_attrs =
       case Map.get(log_record, :stacktrace) do
         nil ->
-          exception_attrs
+          base
 
         stacktrace ->
-          Map.put(exception_attrs, "exception.stacktrace", format_stacktrace(stacktrace))
+          base ++
+            [
+              Otel.API.Common.Attribute.new(
+                "exception.stacktrace",
+                Otel.API.Common.AnyValue.string(format_stacktrace(stacktrace))
+              )
+            ]
       end
 
-    user_attrs = Map.get(log_record, :attributes, %{})
-    merged = Map.merge(exception_attrs, user_attrs)
+    user_attrs = Map.get(log_record, :attributes, [])
+    merged = merge_attribute_lists(exception_attrs, user_attrs)
     Map.put(log_record, :attributes, merged)
   end
 
   defp apply_exception_attributes(log_record), do: log_record
+
+  @spec merge_attribute_lists(
+          base :: [Otel.API.Common.Attribute.t()],
+          overrides :: [Otel.API.Common.Attribute.t()]
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp merge_attribute_lists(base, overrides) do
+    Enum.reduce(overrides, base, &put_attribute/2)
+  end
+
+  @spec put_attribute(
+          attr :: Otel.API.Common.Attribute.t(),
+          acc :: [Otel.API.Common.Attribute.t()]
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp put_attribute(%Otel.API.Common.Attribute{key: key} = attr, acc) do
+    if Enum.any?(acc, fn %Otel.API.Common.Attribute{key: k} -> k == key end) do
+      Enum.map(acc, &replace_if_key_match(&1, key, attr))
+    else
+      acc ++ [attr]
+    end
+  end
+
+  @spec replace_if_key_match(
+          existing :: Otel.API.Common.Attribute.t(),
+          key :: String.t(),
+          replacement :: Otel.API.Common.Attribute.t()
+        ) :: Otel.API.Common.Attribute.t()
+  defp replace_if_key_match(%Otel.API.Common.Attribute{key: existing_key}, key, replacement)
+       when existing_key == key,
+       do: replacement
+
+  defp replace_if_key_match(other, _key, _replacement), do: other
 
   @spec format_stacktrace(stacktrace :: list()) :: String.t()
   defp format_stacktrace(stacktrace) do
@@ -112,7 +155,7 @@ defmodule Otel.SDK.Logs.Logger do
   end
 
   @spec extract_trace_context(ctx :: Otel.API.Ctx.t()) ::
-          {non_neg_integer(), non_neg_integer(), non_neg_integer()}
+          {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(), non_neg_integer()}
   defp extract_trace_context(ctx) do
     %Otel.API.Trace.SpanContext{
       trace_id: trace_id,

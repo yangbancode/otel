@@ -46,9 +46,12 @@ defmodule Otel.API.Metrics.HistogramTest do
 
     test "records with attributes", %{meter: meter} do
       assert :ok ==
-               Otel.API.Metrics.Histogram.record(meter, "request_duration", 150, %{
-                 "http.method" => "POST"
-               })
+               Otel.API.Metrics.Histogram.record(meter, "request_duration", 150, [
+                 Otel.API.Common.Attribute.new(
+                   "http.method",
+                   Otel.API.Common.AnyValue.string("POST")
+                 )
+               ])
     end
 
     test "accepts zero", %{meter: meter} do

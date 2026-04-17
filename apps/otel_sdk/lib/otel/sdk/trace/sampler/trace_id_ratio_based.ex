@@ -35,11 +35,11 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
 
   @spec should_sample(
           ctx :: Otel.API.Ctx.t(),
-          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
-          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          trace_id :: Otel.API.Trace.TraceId.t(),
+          links :: [{Otel.API.Trace.SpanContext.t(), [Otel.API.Common.Attribute.t()]}],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map(),
+          attributes :: [Otel.API.Common.Attribute.t()],
           config :: Otel.SDK.Trace.Sampler.config()
         ) :: Otel.SDK.Trace.Sampler.sampling_result()
   @impl true
@@ -52,17 +52,18 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
       |> Map.get(:tracestate, %Otel.API.Trace.TraceState{})
 
     decision = decide(trace_id, id_upper_bound)
-    {decision, %{}, tracestate}
+    {decision, [], tracestate}
   end
 
-  @spec decide(trace_id :: non_neg_integer(), id_upper_bound :: non_neg_integer()) ::
+  @spec decide(trace_id :: Otel.API.Trace.TraceId.t(), id_upper_bound :: non_neg_integer()) ::
           :record_and_sample | :drop
-  defp decide(trace_id, _id_upper_bound) when trace_id == 0, do: :drop
+  defp decide(%Otel.API.Trace.TraceId{bytes: <<0::128>>}, _id_upper_bound), do: :drop
 
-  defp decide(trace_id, id_upper_bound) do
-    lower_64_bits = Bitwise.band(trace_id, @max_value)
-
-    if lower_64_bits < id_upper_bound do
+  defp decide(
+         %Otel.API.Trace.TraceId{bytes: <<_::64, lower_64::unsigned-integer-64>>},
+         id_upper_bound
+       ) do
+    if Bitwise.band(lower_64, @max_value) < id_upper_bound do
       :record_and_sample
     else
       :drop

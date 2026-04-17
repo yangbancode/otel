@@ -1,6 +1,17 @@
 defmodule Otel.SDK.ResourceTest do
   use ExUnit.Case
 
+  defp attr_value(attributes, key) do
+    case Enum.find(attributes, &(&1.key == key)) do
+      nil -> nil
+      %Otel.API.Common.Attribute{value: %Otel.API.Common.AnyValue{value: value}} -> value
+    end
+  end
+
+  defp has_key?(attributes, key) do
+    Enum.any?(attributes, &(&1.key == key))
+  end
+
   setup do
     System.delete_env("OTEL_RESOURCE_ATTRIBUTES")
     System.delete_env("OTEL_SERVICE_NAME")
@@ -16,13 +27,13 @@ defmodule Otel.SDK.ResourceTest do
   describe "create/2" do
     test "creates from map" do
       resource = Otel.SDK.Resource.create(%{"key" => "value"})
-      assert resource.attributes["key"] == "value"
+      assert attr_value(resource.attributes, "key") == "value"
       assert resource.schema_url == ""
     end
 
     test "creates from keyword list" do
       resource = Otel.SDK.Resource.create([{"key", "value"}])
-      assert resource.attributes["key"] == "value"
+      assert attr_value(resource.attributes, "key") == "value"
     end
 
     test "creates with schema_url" do
@@ -37,9 +48,9 @@ defmodule Otel.SDK.ResourceTest do
       updating = Otel.SDK.Resource.create(%{"b" => "new", "c" => "3"})
       merged = Otel.SDK.Resource.merge(old, updating)
 
-      assert merged.attributes["a"] == "1"
-      assert merged.attributes["b"] == "new"
-      assert merged.attributes["c"] == "3"
+      assert attr_value(merged.attributes, "a") == "1"
+      assert attr_value(merged.attributes, "b") == "new"
+      assert attr_value(merged.attributes, "c") == "3"
     end
 
     test "empty old schema_url uses updating's" do
@@ -70,11 +81,11 @@ defmodule Otel.SDK.ResourceTest do
   describe "default/0" do
     test "includes SDK attributes" do
       resource = Otel.SDK.Resource.default()
-      assert resource.attributes["telemetry.sdk.name"] == "otel"
-      assert resource.attributes["telemetry.sdk.language"] == "elixir"
-      assert is_binary(resource.attributes["telemetry.sdk.version"])
-      assert resource.attributes["telemetry.sdk.version"] != ""
-      assert resource.attributes["service.name"] == "unknown_service"
+      assert attr_value(resource.attributes, "telemetry.sdk.name") == "otel"
+      assert attr_value(resource.attributes, "telemetry.sdk.language") == "elixir"
+      assert is_binary(attr_value(resource.attributes, "telemetry.sdk.version"))
+      assert attr_value(resource.attributes, "telemetry.sdk.version") != ""
+      assert attr_value(resource.attributes, "service.name") == "unknown_service"
     end
   end
 
@@ -82,46 +93,46 @@ defmodule Otel.SDK.ResourceTest do
     test "parses OTEL_RESOURCE_ATTRIBUTES" do
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "key1=value1,key2=value2")
       resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["key1"] == "value1"
-      assert resource.attributes["key2"] == "value2"
+      assert attr_value(resource.attributes, "key1") == "value1"
+      assert attr_value(resource.attributes, "key2") == "value2"
     end
 
     test "handles percent-encoded values" do
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "key=hello%20world")
       resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["key"] == "hello world"
+      assert attr_value(resource.attributes, "key") == "hello world"
     end
 
     test "OTEL_SERVICE_NAME overrides service.name" do
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "service.name=from_attrs")
       System.put_env("OTEL_SERVICE_NAME", "from_env")
       resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["service.name"] == "from_env"
+      assert attr_value(resource.attributes, "service.name") == "from_env"
     end
 
     test "returns empty resource when no env vars set" do
       resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes == %{}
+      assert resource.attributes == []
     end
 
     test "skips invalid pairs" do
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "valid=yes,=invalid,also=ok")
       resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["valid"] == "yes"
-      assert resource.attributes["also"] == "ok"
-      assert map_size(resource.attributes) == 2
+      assert attr_value(resource.attributes, "valid") == "yes"
+      assert attr_value(resource.attributes, "also") == "ok"
+      assert length(resource.attributes) == 2
     end
 
     test "handles empty OTEL_RESOURCE_ATTRIBUTES" do
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "")
       resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes == %{}
+      assert resource.attributes == []
     end
 
     test "handles empty OTEL_SERVICE_NAME" do
       System.put_env("OTEL_SERVICE_NAME", "")
       resource = Otel.SDK.Resource.from_env()
-      refute Map.has_key?(resource.attributes, "service.name")
+      refute has_key?(resource.attributes, "service.name")
     end
   end
 
@@ -129,8 +140,8 @@ defmodule Otel.SDK.ResourceTest do
     test "default config includes SDK resource with env override" do
       System.put_env("OTEL_SERVICE_NAME", "my-service")
       config = Otel.SDK.Configuration.merge(%{})
-      assert config.resource.attributes["service.name"] == "my-service"
-      assert config.resource.attributes["telemetry.sdk.name"] == "otel"
+      assert attr_value(config.resource.attributes, "service.name") == "my-service"
+      assert attr_value(config.resource.attributes, "telemetry.sdk.name") == "otel"
     end
   end
 end

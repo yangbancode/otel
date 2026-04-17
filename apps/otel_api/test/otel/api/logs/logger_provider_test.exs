@@ -38,7 +38,9 @@ defmodule Otel.API.Logs.LoggerProviderTest do
 
     test "accepts attributes" do
       logger =
-        Otel.API.Logs.LoggerProvider.get_logger("my_lib", "1.0.0", nil, %{"key" => "val"})
+        Otel.API.Logs.LoggerProvider.get_logger("my_lib", "1.0.0", nil, [
+          Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+        ])
 
       assert {Otel.API.Logs.Logger.Noop, []} == logger
     end
@@ -68,21 +70,23 @@ defmodule Otel.API.Logs.LoggerProviderTest do
                name: "my_lib",
                version: "",
                schema_url: nil,
-               attributes: %{}
+               attributes: []
              } == scope
     end
 
     test "creates InstrumentationScope with all fields" do
       scope =
-        Otel.API.Logs.LoggerProvider.scope("my_lib", "1.0.0", "https://example.com", %{
-          "key" => "val"
-        })
+        Otel.API.Logs.LoggerProvider.scope("my_lib", "1.0.0", "https://example.com", [
+          Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+        ])
 
       assert %Otel.API.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com",
-               attributes: %{"key" => "val"}
+               attributes: [
+                 Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+               ]
              } == scope
     end
   end

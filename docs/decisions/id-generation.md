@@ -1,7 +1,5 @@
 # ID Generation
 
-> **Note:** Type representations in this document predate [Spec-First Type System](spec-first-type-system.md). Generator callbacks return `TraceId.t()` and `SpanId.t()` structs; native-integer examples below will be revised when that phase PR lands.
-
 ## Question
 
 How to generate trace IDs and span IDs on BEAM? Which random source to use and how to support custom generators?
@@ -10,21 +8,21 @@ How to generate trace IDs and span IDs on BEAM? Which random source to use and h
 
 ### Behaviour + Default Implementation
 
-Same pattern as opentelemetry-erlang: define a behaviour with two callbacks, and provide a default implementation using `rand:uniform`.
+Define a behaviour with two callbacks returning Spec-First Type System structs, and provide a default implementation backed by `:crypto.strong_rand_bytes/1`.
 
 ### Callbacks
 
 | Callback | Return type | Description |
 |---|---|---|
-| `generate_trace_id/0` | `non_neg_integer()` | 128-bit random integer |
-| `generate_span_id/0` | `non_neg_integer()` | 64-bit random integer |
+| `generate_trace_id/0` | `Otel.API.Trace.TraceId.t()` | 16-byte random TraceId |
+| `generate_span_id/0` | `Otel.API.Trace.SpanId.t()` | 8-byte random SpanId |
 
 ### Default Implementation
 
-`Otel.SDK.Trace.IdGenerator.Default` generates random IDs using Erlang's `:rand.uniform/1`. IDs are non-zero positive integers.
+`Otel.SDK.Trace.IdGenerator.Default` generates random IDs using `:crypto.strong_rand_bytes/1` and wraps the bytes in the opaque TraceId/SpanId structs. Zero-value IDs are invalid, so the generator re-rolls until a non-zero result is obtained.
 
-- trace_id: `rand:uniform(2^128 - 1)` — 128-bit
-- span_id: `rand:uniform(2^64 - 1)` — 64-bit
+- trace_id: `:crypto.strong_rand_bytes(16)` with zero-reroll, wrapped as `TraceId.t()`
+- span_id: `:crypto.strong_rand_bytes(8)` with zero-reroll, wrapped as `SpanId.t()`
 
 ### Custom Generators
 

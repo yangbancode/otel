@@ -11,6 +11,13 @@ end
 defmodule Otel.SDK.Trace.TracerProviderTest do
   use ExUnit.Case
 
+  defp attr_value(attributes, key) do
+    case Enum.find(attributes, &(&1.key == key)) do
+      nil -> nil
+      %Otel.API.Common.Attribute{value: %Otel.API.Common.AnyValue{value: value}} -> value
+    end
+  end
+
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
@@ -42,7 +49,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
         Otel.SDK.Trace.TracerProvider.start_link(config: %{resource: custom_resource})
 
       resource = Otel.SDK.Trace.TracerProvider.resource(pid)
-      assert resource.attributes["service.name"] == "test"
+      assert attr_value(resource.attributes, "service.name") == "test"
     end
   end
 
@@ -103,7 +110,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
       config = Otel.SDK.Trace.TracerProvider.config(pid)
       assert config.sampler == {Otel.SDK.Trace.Sampler.AlwaysOff, []}
-      assert config.resource.attributes["service.name"] == "custom"
+      assert attr_value(config.resource.attributes, "service.name") == "custom"
       # defaults preserved for unset keys
       assert config.processors == []
     end
@@ -113,8 +120,8 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     test "returns SDK default resource", %{provider: pid} do
       resource = Otel.SDK.Trace.TracerProvider.resource(pid)
       assert %Otel.SDK.Resource{} = resource
-      assert resource.attributes["telemetry.sdk.name"] == "otel"
-      assert resource.attributes["telemetry.sdk.language"] == "elixir"
+      assert attr_value(resource.attributes, "telemetry.sdk.name") == "otel"
+      assert attr_value(resource.attributes, "telemetry.sdk.language") == "elixir"
     end
   end
 

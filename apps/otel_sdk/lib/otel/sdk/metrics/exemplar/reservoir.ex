@@ -14,7 +14,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
               state :: term(),
               value :: number(),
               time :: integer(),
-              filtered_attributes :: map(),
+              filtered_attributes :: [Otel.API.Common.Attribute.t()],
               ctx :: Otel.API.Ctx.t()
             ) :: state :: term()
 
@@ -25,7 +25,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
           filter :: Otel.SDK.Metrics.Exemplar.Filter.t(),
           value :: number(),
           time :: integer(),
-          filtered_attributes :: map(),
+          filtered_attributes :: [Otel.API.Common.Attribute.t()],
           ctx :: Otel.API.Ctx.t()
         ) :: {module(), term()} | nil
   def offer_to(nil, _filter, _value, _time, _attrs, _ctx), do: nil

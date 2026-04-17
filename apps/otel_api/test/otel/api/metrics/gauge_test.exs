@@ -37,9 +37,9 @@ defmodule Otel.API.Metrics.GaugeTest do
 
     test "records with attributes", %{meter: meter} do
       assert :ok ==
-               Otel.API.Metrics.Gauge.record(meter, "cpu_temperature", 72.5, %{
-                 "cpu.id" => 0
-               })
+               Otel.API.Metrics.Gauge.record(meter, "cpu_temperature", 72.5, [
+                 Otel.API.Common.Attribute.new("cpu.id", Otel.API.Common.AnyValue.int(0))
+               ])
     end
 
     test "accepts negative value", %{meter: meter} do

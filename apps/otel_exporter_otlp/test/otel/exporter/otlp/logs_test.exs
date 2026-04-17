@@ -4,17 +4,19 @@ defmodule Otel.Exporter.OTLP.LogsTest do
   @test_resource Otel.SDK.Resource.create(%{"service.name" => "test"})
 
   @test_log_record %{
-    body: "test log message",
+    body: Otel.API.Common.AnyValue.string("test log message"),
     severity_number: 9,
     severity_text: "INFO",
     timestamp: 1_000_000,
     observed_timestamp: 2_000_000,
-    attributes: %{"key" => "value"},
+    attributes: [
+      Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("value"))
+    ],
     event_name: nil,
     scope: %Otel.API.InstrumentationScope{name: "test_lib"},
     resource: @test_resource,
-    trace_id: 0,
-    span_id: 0,
+    trace_id: Otel.API.Trace.TraceId.invalid(),
+    span_id: Otel.API.Trace.SpanId.invalid(),
     trace_flags: 0,
     dropped_attributes_count: 0
   }

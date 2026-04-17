@@ -41,8 +41,8 @@ defmodule Otel.SDK.Logs.Exporter.Console do
   defp format_log_record(record) do
     severity = format_severity(record)
     scope = format_scope(record)
-    body = inspect(Map.get(record, :body))
-    attrs = inspect(Map.get(record, :attributes, %{}))
+    body = format_body(Map.get(record, :body))
+    attrs = format_attributes(Map.get(record, :attributes, []))
     trace = format_trace(record)
 
     "[otel] #{severity} #{scope}#{trace} body=#{body} attributes=#{attrs}"
@@ -65,12 +65,47 @@ defmodule Otel.SDK.Logs.Exporter.Console do
   defp format_scope(_record), do: ""
 
   @spec format_trace(record :: map()) :: String.t()
-  defp format_trace(%{trace_id: trace_id, span_id: span_id})
-       when trace_id != 0 and span_id != 0 do
-    tid = trace_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(32, "0")
-    sid = span_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(16, "0")
-    " trace=#{tid} span=#{sid}"
+  defp format_trace(%{
+         trace_id: %Otel.API.Trace.TraceId{} = tid,
+         span_id: %Otel.API.Trace.SpanId{} = sid
+       }) do
+    case {Otel.API.Trace.TraceId.valid?(tid), Otel.API.Trace.SpanId.valid?(sid)} do
+      {true, true} ->
+        " trace=#{Otel.API.Trace.TraceId.to_hex(tid)} span=#{Otel.API.Trace.SpanId.to_hex(sid)}"
+
+      _ ->
+        ""
+    end
   end
 
   defp format_trace(_record), do: ""
+
+  @spec format_body(body :: Otel.API.Common.AnyValue.t() | nil) :: String.t()
+  defp format_body(nil), do: "nil"
+  defp format_body(%Otel.API.Common.AnyValue{} = v), do: display_any_value(v)
+
+  @spec format_attributes(attrs :: [Otel.API.Common.Attribute.t()]) :: String.t()
+  defp format_attributes([]), do: "[]"
+
+  defp format_attributes(attrs) when is_list(attrs) do
+    rendered =
+      Enum.map_join(attrs, ", ", fn %Otel.API.Common.Attribute{key: k, value: v} ->
+        "#{k}=#{display_any_value(v)}"
+      end)
+
+    "[#{rendered}]"
+  end
+
+  @spec display_any_value(value :: Otel.API.Common.AnyValue.t()) :: String.t()
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :string, value: v}), do: v
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :int, value: v}), do: to_string(v)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :double, value: v}), do: to_string(v)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :bool, value: v}), do: to_string(v)
+
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :bytes, value: v}),
+    do: "<#{byte_size(v)} bytes>"
+
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :array, value: v}), do: inspect(v)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :kvlist, value: v}), do: inspect(v)
+  defp display_any_value(%Otel.API.Common.AnyValue{type: :empty}), do: "nil"
 end

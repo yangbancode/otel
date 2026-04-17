@@ -65,22 +65,37 @@ defmodule Otel.SDK.Metrics.View do
   @spec filter_attributes(
           view :: t(),
           instrument :: Otel.SDK.Metrics.Instrument.t(),
-          attributes :: map()
-        ) :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
+        ) :: [Otel.API.Common.Attribute.t()]
   def filter_attributes(%__MODULE__{config: config}, instrument, attributes) do
     case Map.get(config, :attribute_keys) do
-      {:include, keys} ->
-        Map.take(attributes, keys)
-
-      {:exclude, keys} ->
-        Map.drop(attributes, keys)
-
-      nil ->
-        case Keyword.get(instrument.advisory, :attributes) do
-          nil -> attributes
-          keys -> Map.take(attributes, keys)
-        end
+      {:include, keys} -> keep_attrs(attributes, keys)
+      {:exclude, keys} -> drop_attrs(attributes, keys)
+      nil -> apply_advisory_filter(attributes, instrument)
     end
+  end
+
+  @spec apply_advisory_filter(
+          attributes :: [Otel.API.Common.Attribute.t()],
+          instrument :: Otel.SDK.Metrics.Instrument.t()
+        ) :: [Otel.API.Common.Attribute.t()]
+  defp apply_advisory_filter(attributes, instrument) do
+    case Keyword.get(instrument.advisory, :attributes) do
+      nil -> attributes
+      keys -> keep_attrs(attributes, keys)
+    end
+  end
+
+  @spec keep_attrs(attributes :: [Otel.API.Common.Attribute.t()], keys :: [String.t()]) ::
+          [Otel.API.Common.Attribute.t()]
+  defp keep_attrs(attributes, keys) do
+    Enum.filter(attributes, fn %Otel.API.Common.Attribute{key: k} -> k in keys end)
+  end
+
+  @spec drop_attrs(attributes :: [Otel.API.Common.Attribute.t()], keys :: [String.t()]) ::
+          [Otel.API.Common.Attribute.t()]
+  defp drop_attrs(attributes, keys) do
+    Enum.reject(attributes, fn %Otel.API.Common.Attribute{key: k} -> k in keys end)
   end
 
   @spec validate_wildcard_name(criteria :: criteria(), config :: config()) ::

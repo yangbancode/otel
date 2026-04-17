@@ -28,16 +28,16 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
   use ExUnit.Case
 
   @sampled_span %Otel.SDK.Trace.Span{
-    trace_id: 1,
-    span_id: 1,
+    trace_id: Otel.API.Trace.TraceId.new(<<1::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<1::64>>),
     name: "sampled",
     trace_flags: 1,
     is_recording: true
   }
 
   @unsampled_span %Otel.SDK.Trace.Span{
-    trace_id: 2,
-    span_id: 2,
+    trace_id: Otel.API.Trace.TraceId.new(<<2::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<2::64>>),
     name: "unsampled",
     trace_flags: 0,
     is_recording: true
@@ -84,7 +84,12 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
       config = start_processor(max_export_batch_size: 3)
 
       for i <- 1..3 do
-        span = %{@sampled_span | span_id: i, name: "span_#{i}"}
+        span = %{
+          @sampled_span
+          | span_id: Otel.API.Trace.SpanId.new(<<i::64>>),
+            name: "span_#{i}"
+        }
+
         Otel.SDK.Trace.BatchProcessor.on_end(span, config)
       end
 
@@ -95,7 +100,12 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
       config = start_processor(max_queue_size: 2, max_export_batch_size: 100)
 
       for i <- 1..5 do
-        span = %{@sampled_span | span_id: i, name: "span_#{i}"}
+        span = %{
+          @sampled_span
+          | span_id: Otel.API.Trace.SpanId.new(<<i::64>>),
+            name: "span_#{i}"
+        }
+
         Otel.SDK.Trace.BatchProcessor.on_end(span, config)
       end
 
@@ -121,7 +131,12 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
       config = start_processor()
 
       for i <- 1..5 do
-        span = %{@sampled_span | span_id: i, name: "span_#{i}"}
+        span = %{
+          @sampled_span
+          | span_id: Otel.API.Trace.SpanId.new(<<i::64>>),
+            name: "span_#{i}"
+        }
+
         Otel.SDK.Trace.BatchProcessor.on_end(span, config)
       end
 

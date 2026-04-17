@@ -630,13 +630,13 @@
 ### AnyValue
 - [ ] Homogeneous array MUST NOT contain values of different types — [L45](../references/opentelemetry-specification/specification/common/README.md#L45)
 - [ ] APIs SHOULD be documented that using array and map values may carry higher performance overhead — [L56](../references/opentelemetry-specification/specification/common/README.md#L56)
-- [ ] Empty value, zero, empty string, or empty array are meaningful and MUST be stored and passed on to processors/exporters — [L60](../references/opentelemetry-specification/specification/common/README.md#L60)
+- [x] Empty value, zero, empty string, or empty array are meaningful and MUST be stored and passed on to processors/exporters — [L60](../references/opentelemetry-specification/specification/common/README.md#L60)
 - [ ] `null` values within arrays SHOULD generally be avoided unless language constraints make this impossible — [L64](../references/opentelemetry-specification/specification/common/README.md#L64)
-- [ ] If impossible to prevent null in arrays, null values MUST be preserved as-is — [L67](../references/opentelemetry-specification/specification/common/README.md#L67)
+- [x] If impossible to prevent null in arrays, null values MUST be preserved as-is — [L67](../references/opentelemetry-specification/specification/common/README.md#L67)
 
 ### map<string, AnyValue>
-- [ ] Case sensitivity of keys MUST be preserved — [L80](../references/opentelemetry-specification/specification/common/README.md#L80)
-- [ ] Implementation MUST by default enforce that exported maps contain only unique keys — [L85](../references/opentelemetry-specification/specification/common/README.md#L85)
+- [x] Case sensitivity of keys MUST be preserved — [L80](../references/opentelemetry-specification/specification/common/README.md#L80)
+- [x] Implementation MUST by default enforce that exported maps contain only unique keys — [L85](../references/opentelemetry-specification/specification/common/README.md#L85)
 - [ ] If option to allow duplicate keys is provided, it MUST be documented that handling is unpredictable — [L93](../references/opentelemetry-specification/specification/common/README.md#L93)
 
 ### AnyValue Representation for Non-OTLP Protocols
@@ -662,13 +662,13 @@
 - [ ] Nested NaN/Infinity in maps SHOULD be JSON strings — [L174](../references/opentelemetry-specification/specification/common/README.md#L174)
 
 ### Attribute
-- [ ] Attribute MUST have key-value pair properties — [L183](../references/opentelemetry-specification/specification/common/README.md#L183)
-- [ ] Attribute key MUST be a non-null and non-empty string — [L185](../references/opentelemetry-specification/specification/common/README.md#L185)
-- [ ] Attribute value MUST be one of types defined in AnyValue — [L187](../references/opentelemetry-specification/specification/common/README.md#L187)
+- [x] Attribute MUST have key-value pair properties — [L183](../references/opentelemetry-specification/specification/common/README.md#L183)
+- [x] Attribute key MUST be a non-null and non-empty string — [L185](../references/opentelemetry-specification/specification/common/README.md#L185)
+- [x] Attribute value MUST be one of types defined in AnyValue — [L187](../references/opentelemetry-specification/specification/common/README.md#L187)
 
 ### Attribute Collections
-- [ ] Implementation MUST by default enforce that exported attribute collections contain only unique keys — [L215](../references/opentelemetry-specification/specification/common/README.md#L215)
-- [ ] Setting attribute with same key SHOULD overwrite existing value — [L223](../references/opentelemetry-specification/specification/common/README.md#L223)
+- [x] Implementation MUST by default enforce that exported attribute collections contain only unique keys — [L215](../references/opentelemetry-specification/specification/common/README.md#L215)
+- [x] Setting attribute with same key SHOULD overwrite existing value — [L223](../references/opentelemetry-specification/specification/common/README.md#L223)
 - [ ] If option to allow duplicate keys is provided, it MUST be documented that handling is unpredictable — [L241](../references/opentelemetry-specification/specification/common/README.md#L241)
 
 ### Attribute Limits

@@ -2,8 +2,8 @@ defmodule Otel.API.TraceTest do
   use ExUnit.Case
 
   @valid_span_ctx %Otel.API.Trace.SpanContext{
-    trace_id: 0xFF000000000000000000000000000001,
-    span_id: 0xFF00000000000001,
+    trace_id: Otel.API.Trace.TraceId.new(<<0xFF000000000000000000000000000001::128>>),
+    span_id: Otel.API.Trace.SpanId.new(<<0xFF00000000000001::64>>),
     trace_flags: 1
   }
 
@@ -24,7 +24,11 @@ defmodule Otel.API.TraceTest do
     end
 
     test "delegates to TracerProvider with attributes" do
-      {module, _} = Otel.API.Trace.get_tracer("my_lib", "1.0.0", nil, %{"key" => "val"})
+      {module, _} =
+        Otel.API.Trace.get_tracer("my_lib", "1.0.0", nil, [
+          Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+        ])
+
       assert module == Otel.API.Trace.Tracer.Noop
     end
   end
@@ -89,7 +93,9 @@ defmodule Otel.API.TraceTest do
       span_ctx =
         Otel.API.Trace.start_span(tracer, "test_span",
           kind: :server,
-          attributes: %{"key" => "val"}
+          attributes: [
+            Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+          ]
         )
 
       assert %Otel.API.Trace.SpanContext{} = span_ctx

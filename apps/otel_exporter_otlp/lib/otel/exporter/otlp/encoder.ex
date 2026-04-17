@@ -76,15 +76,15 @@ defmodule Otel.Exporter.OTLP.Encoder do
           Opentelemetry.Proto.Trace.V1.Span.t()
   defp encode_span(span) do
     %Opentelemetry.Proto.Trace.V1.Span{
-      trace_id: encode_id(span.trace_id, 16),
-      span_id: encode_id(span.span_id, 8),
+      trace_id: encode_trace_id(span.trace_id),
+      span_id: encode_span_id(span.span_id),
       parent_span_id: encode_parent_span_id(span.parent_span_id),
       trace_state: Otel.API.Trace.TraceState.encode(span.tracestate),
       name: span.name,
       kind: encode_span_kind(span.kind),
       start_time_unix_nano: span.start_time,
       end_time_unix_nano: span.end_time || 0,
-      attributes: encode_attributes(span.attributes || %{}),
+      attributes: encode_attributes(span.attributes || []),
       events: Enum.map(span.events || [], &encode_event/1),
       links: Enum.map(span.links || [], &encode_link/1),
       status: encode_status(span.status),
@@ -94,26 +94,28 @@ defmodule Otel.Exporter.OTLP.Encoder do
 
   # --- Event ---
 
-  @spec encode_event(event :: %{name: term(), time: integer(), attributes: map()}) ::
+  @spec encode_event(
+          event :: %{name: term(), time: integer(), attributes: [Otel.API.Common.Attribute.t()]}
+        ) ::
           Opentelemetry.Proto.Trace.V1.Span.Event.t()
   defp encode_event(event) do
     %Opentelemetry.Proto.Trace.V1.Span.Event{
       time_unix_nano: event.time,
       name: to_string(event.name),
-      attributes: encode_attributes(event.attributes || %{})
+      attributes: encode_attributes(event.attributes || [])
     }
   end
 
   # --- Link ---
 
-  @spec encode_link(link :: {Otel.API.Trace.SpanContext.t(), map()}) ::
+  @spec encode_link(link :: {Otel.API.Trace.SpanContext.t(), [Otel.API.Common.Attribute.t()]}) ::
           Opentelemetry.Proto.Trace.V1.Span.Link.t()
   defp encode_link({span_ctx, attrs}) do
     %Opentelemetry.Proto.Trace.V1.Span.Link{
-      trace_id: encode_id(span_ctx.trace_id, 16),
-      span_id: encode_id(span_ctx.span_id, 8),
+      trace_id: encode_trace_id(span_ctx.trace_id),
+      span_id: encode_span_id(span_ctx.span_id),
       trace_state: Otel.API.Trace.TraceState.encode(span_ctx.tracestate),
-      attributes: encode_attributes(attrs || %{})
+      attributes: encode_attributes(attrs || [])
     }
   end
 
@@ -133,9 +135,13 @@ defmodule Otel.Exporter.OTLP.Encoder do
 
   # --- Attributes ---
 
-  @spec encode_attributes(attrs :: map()) :: [Opentelemetry.Proto.Common.V1.KeyValue.t()]
-  defp encode_attributes(attrs) when is_map(attrs) do
-    Enum.map(attrs, fn {key, value} ->
+  @spec encode_attributes(attributes :: [Otel.API.Common.Attribute.t()]) ::
+          [Opentelemetry.Proto.Common.V1.KeyValue.t()]
+  defp encode_attributes(attributes) when is_list(attributes) do
+    Enum.map(attributes, fn %Otel.API.Common.Attribute{
+                              key: key,
+                              value: %Otel.API.Common.AnyValue{} = value
+                            } ->
       %Opentelemetry.Proto.Common.V1.KeyValue{
         key: key,
         value: encode_any_value(value)
@@ -143,37 +149,49 @@ defmodule Otel.Exporter.OTLP.Encoder do
     end)
   end
 
-  @spec encode_any_value(value :: term()) :: Opentelemetry.Proto.Common.V1.AnyValue.t()
-  defp encode_any_value(value) when is_binary(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, value}}
+  @spec encode_any_value(any_value :: Otel.API.Common.AnyValue.t()) ::
+          Opentelemetry.Proto.Common.V1.AnyValue.t()
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :string, value: v}) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, v}}
   end
 
-  defp encode_any_value(value) when is_integer(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:int_value, value}}
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :bool, value: v}) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:bool_value, v}}
   end
 
-  defp encode_any_value(value) when is_float(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:double_value, value}}
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :int, value: v}) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:int_value, v}}
   end
 
-  defp encode_any_value(value) when is_boolean(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:bool_value, value}}
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :double, value: v}) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:double_value, v}}
   end
 
-  defp encode_any_value(value) when is_atom(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, Atom.to_string(value)}}
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :bytes, value: v}) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:bytes_value, v}}
   end
 
-  defp encode_any_value(value) when is_list(value) do
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :array, value: v}) do
     array = %Opentelemetry.Proto.Common.V1.ArrayValue{
-      values: Enum.map(value, &encode_any_value/1)
+      values: Enum.map(v, &encode_any_value/1)
     }
 
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:array_value, array}}
   end
 
-  defp encode_any_value(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, inspect(value)}}
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :kvlist, value: v}) do
+    kvlist = %Opentelemetry.Proto.Common.V1.KeyValueList{
+      values:
+        Enum.map(v, fn {k, vv} ->
+          %Opentelemetry.Proto.Common.V1.KeyValue{key: k, value: encode_any_value(vv)}
+        end)
+    }
+
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:kvlist_value, kvlist}}
+  end
+
+  defp encode_any_value(%Otel.API.Common.AnyValue{type: :empty}) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: nil}
   end
 
   # --- Metrics ---
@@ -325,14 +343,18 @@ defmodule Otel.Exporter.OTLP.Encoder do
       filtered_attributes: encode_attributes(exemplar.filtered_attributes),
       time_unix_nano: exemplar.time,
       value: encode_number_value(exemplar.value),
-      span_id: encode_optional_id(exemplar.span_id, 8),
-      trace_id: encode_optional_id(exemplar.trace_id, 16)
+      span_id: encode_optional_span_id(exemplar.span_id),
+      trace_id: encode_optional_trace_id(exemplar.trace_id)
     }
   end
 
-  @spec encode_optional_id(id :: non_neg_integer() | nil, byte_size :: pos_integer()) :: binary()
-  defp encode_optional_id(nil, _byte_size), do: <<>>
-  defp encode_optional_id(id, byte_size), do: <<id::unsigned-integer-size(byte_size * 8)>>
+  @spec encode_optional_trace_id(trace_id :: Otel.API.Trace.TraceId.t() | nil) :: binary()
+  defp encode_optional_trace_id(nil), do: <<>>
+  defp encode_optional_trace_id(%Otel.API.Trace.TraceId{bytes: bytes}), do: bytes
+
+  @spec encode_optional_span_id(span_id :: Otel.API.Trace.SpanId.t() | nil) :: binary()
+  defp encode_optional_span_id(nil), do: <<>>
+  defp encode_optional_span_id(%Otel.API.Trace.SpanId{bytes: bytes}), do: bytes
 
   # --- Logs ---
 
@@ -386,10 +408,10 @@ defmodule Otel.Exporter.OTLP.Encoder do
       severity_number: encode_severity_number(record.severity_number),
       severity_text: record.severity_text || "",
       body: encode_log_body(record.body),
-      attributes: encode_attributes(record.attributes || %{}),
+      attributes: encode_attributes(record.attributes || []),
       dropped_attributes_count: Map.get(record, :dropped_attributes_count, 0),
-      trace_id: encode_optional_id(nonzero_or_nil(record.trace_id), 16),
-      span_id: encode_optional_id(nonzero_or_nil(record.span_id), 8),
+      trace_id: encode_log_trace_id(record.trace_id),
+      span_id: encode_log_span_id(record.span_id),
       flags: Map.get(record, :trace_flags, 0),
       event_name: record.event_name || ""
     }
@@ -401,25 +423,36 @@ defmodule Otel.Exporter.OTLP.Encoder do
   defp encode_severity_number(n) when is_integer(n) and n in 1..24, do: n
   defp encode_severity_number(_), do: :SEVERITY_NUMBER_UNSPECIFIED
 
-  @spec encode_log_body(body :: term()) :: Opentelemetry.Proto.Common.V1.AnyValue.t() | nil
+  @spec encode_log_body(body :: Otel.API.Common.AnyValue.t() | nil) ::
+          Opentelemetry.Proto.Common.V1.AnyValue.t() | nil
   defp encode_log_body(nil), do: nil
-  defp encode_log_body(body), do: encode_any_value(body)
+  defp encode_log_body(%Otel.API.Common.AnyValue{} = body), do: encode_any_value(body)
 
-  @spec nonzero_or_nil(id :: non_neg_integer() | nil) :: non_neg_integer() | nil
-  defp nonzero_or_nil(0), do: nil
-  defp nonzero_or_nil(id), do: id
+  @spec encode_log_trace_id(trace_id :: Otel.API.Trace.TraceId.t() | nil) :: binary()
+  defp encode_log_trace_id(nil), do: <<>>
+
+  defp encode_log_trace_id(%Otel.API.Trace.TraceId{} = trace_id) do
+    if Otel.API.Trace.TraceId.valid?(trace_id), do: trace_id.bytes, else: <<>>
+  end
+
+  @spec encode_log_span_id(span_id :: Otel.API.Trace.SpanId.t() | nil) :: binary()
+  defp encode_log_span_id(nil), do: <<>>
+
+  defp encode_log_span_id(%Otel.API.Trace.SpanId{} = span_id) do
+    if Otel.API.Trace.SpanId.valid?(span_id), do: span_id.bytes, else: <<>>
+  end
 
   # --- Helpers ---
 
-  @spec encode_id(id :: non_neg_integer(), byte_size :: pos_integer()) :: binary()
-  defp encode_id(id, byte_size) do
-    <<id::unsigned-integer-size(byte_size * 8)>>
-  end
+  @spec encode_trace_id(trace_id :: Otel.API.Trace.TraceId.t()) :: <<_::128>>
+  defp encode_trace_id(%Otel.API.Trace.TraceId{bytes: bytes}), do: bytes
 
-  @spec encode_parent_span_id(span_id :: non_neg_integer() | nil) :: binary()
+  @spec encode_span_id(span_id :: Otel.API.Trace.SpanId.t()) :: <<_::64>>
+  defp encode_span_id(%Otel.API.Trace.SpanId{bytes: bytes}), do: bytes
+
+  @spec encode_parent_span_id(span_id :: Otel.API.Trace.SpanId.t() | nil) :: binary()
   defp encode_parent_span_id(nil), do: <<>>
-  defp encode_parent_span_id(0), do: <<>>
-  defp encode_parent_span_id(span_id), do: encode_id(span_id, 8)
+  defp encode_parent_span_id(%Otel.API.Trace.SpanId{bytes: bytes}), do: bytes
 
   @spec encode_span_kind(kind :: atom()) :: Opentelemetry.Proto.Trace.V1.Span.SpanKind.t()
   defp encode_span_kind(:internal), do: :SPAN_KIND_INTERNAL

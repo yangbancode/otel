@@ -5,13 +5,13 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           key :: String.t(),
-          value :: term()
+          value :: Otel.API.Common.AnyValue.t()
         ) :: :ok
   def set_attribute(_span_ctx, _key, _value), do: :ok
 
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map() | [{String.t(), term()}]
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
   def set_attributes(_span_ctx, _attributes), do: :ok
 
@@ -25,7 +25,7 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           linked_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
   def add_link(_span_ctx, _linked_ctx, _attributes), do: :ok
 
@@ -46,7 +46,7 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
   def record_exception(_span_ctx, _exception, _stacktrace, _attributes), do: :ok
 end
@@ -55,8 +55,8 @@ defmodule Otel.API.Trace.SpanTest do
   use ExUnit.Case, async: false
 
   @valid_ctx Otel.API.Trace.SpanContext.new(
-               0xFF000000000000000000000000000001,
-               0xFF00000000000001,
+               Otel.API.Trace.TraceId.new(<<0xFF000000000000000000000000000001::128>>),
+               Otel.API.Trace.SpanId.new(<<0xFF00000000000001::64>>),
                1
              )
   @invalid_ctx %Otel.API.Trace.SpanContext{}
@@ -83,16 +83,24 @@ defmodule Otel.API.Trace.SpanTest do
 
   describe "no-op operations on API level" do
     test "set_attribute returns :ok" do
-      assert Otel.API.Trace.Span.set_attribute(@valid_ctx, "key", "value") == :ok
+      assert Otel.API.Trace.Span.set_attribute(
+               @valid_ctx,
+               "key",
+               Otel.API.Common.AnyValue.string("value")
+             ) == :ok
     end
 
-    test "set_attributes with map returns :ok" do
-      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{"key" => "value"}) == :ok
+    test "set_attributes with list returns :ok" do
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, [
+               Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("value"))
+             ]) == :ok
     end
 
-    test "set_attributes with list of tuples returns :ok" do
-      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, [{"key", "value"}, {"other", 42}]) ==
-               :ok
+    test "set_attributes with multiple entries returns :ok" do
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, [
+               Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("value")),
+               Otel.API.Common.Attribute.new("other", Otel.API.Common.AnyValue.int(42))
+             ]) == :ok
     end
 
     test "add_event returns :ok" do
@@ -101,20 +109,34 @@ defmodule Otel.API.Trace.SpanTest do
 
     test "add_event with opts returns :ok" do
       assert Otel.API.Trace.Span.add_event(@valid_ctx, "event_name",
-               attributes: %{"key" => "val"},
+               attributes: [
+                 Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+               ],
                time: 1_000
              ) ==
                :ok
     end
 
     test "add_link returns :ok" do
-      other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
+      other =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<0xAA::128>>),
+          Otel.API.Trace.SpanId.new(<<0xBB::64>>)
+        )
+
       assert Otel.API.Trace.Span.add_link(@valid_ctx, other) == :ok
     end
 
     test "add_link with attributes returns :ok" do
-      other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      assert Otel.API.Trace.Span.add_link(@valid_ctx, other, %{"key" => "val"}) == :ok
+      other =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<0xAA::128>>),
+          Otel.API.Trace.SpanId.new(<<0xBB::64>>)
+        )
+
+      assert Otel.API.Trace.Span.add_link(@valid_ctx, other, [
+               Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+             ]) == :ok
     end
 
     test "set_status :ok returns :ok" do
@@ -163,14 +185,18 @@ defmodule Otel.API.Trace.SpanTest do
                @valid_ctx,
                %RuntimeError{message: "oops"},
                [{__MODULE__, :test, 0, []}],
-               %{extra: "info"}
+               [Otel.API.Common.Attribute.new("extra", Otel.API.Common.AnyValue.string("info"))]
              ) == :ok
     end
   end
 
   describe "operations on invalid span" do
     test "set_attribute on invalid span returns :ok" do
-      assert Otel.API.Trace.Span.set_attribute(@invalid_ctx, "key", "value") == :ok
+      assert Otel.API.Trace.Span.set_attribute(
+               @invalid_ctx,
+               "key",
+               Otel.API.Common.AnyValue.string("value")
+             ) == :ok
     end
 
     test "add_event on invalid span returns :ok" do
@@ -211,11 +237,17 @@ defmodule Otel.API.Trace.SpanTest do
     end
 
     test "set_attribute dispatches to module" do
-      assert Otel.API.Trace.Span.set_attribute(@valid_ctx, "key", "val") == :ok
+      assert Otel.API.Trace.Span.set_attribute(
+               @valid_ctx,
+               "key",
+               Otel.API.Common.AnyValue.string("val")
+             ) == :ok
     end
 
     test "set_attributes dispatches to module" do
-      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{"key" => "val"}) == :ok
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, [
+               Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+             ]) == :ok
     end
 
     test "add_event dispatches to module" do
@@ -223,7 +255,12 @@ defmodule Otel.API.Trace.SpanTest do
     end
 
     test "add_link dispatches to module" do
-      other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
+      other =
+        Otel.API.Trace.SpanContext.new(
+          Otel.API.Trace.TraceId.new(<<0xAA::128>>),
+          Otel.API.Trace.SpanId.new(<<0xBB::64>>)
+        )
+
       assert Otel.API.Trace.Span.add_link(@valid_ctx, other) == :ok
     end
 

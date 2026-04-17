@@ -4,14 +4,16 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
   import ExUnit.CaptureIO
 
   @record %{
-    body: "Hello, world!",
+    body: Otel.API.Common.AnyValue.string("Hello, world!"),
     severity_number: 9,
     severity_text: "INFO",
-    attributes: %{"method" => "GET"},
+    attributes: [
+      Otel.API.Common.Attribute.new("method", Otel.API.Common.AnyValue.string("GET"))
+    ],
     scope: %Otel.API.InstrumentationScope{name: "test_lib"},
     resource: Otel.SDK.Resource.create(%{}),
-    trace_id: 0,
-    span_id: 0,
+    trace_id: Otel.API.Trace.TraceId.invalid(),
+    span_id: Otel.API.Trace.SpanId.invalid(),
     trace_flags: 0,
     timestamp: nil,
     observed_timestamp: 1_000_000,
@@ -40,7 +42,12 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     end
 
     test "outputs multiple records" do
-      record2 = %{@record | body: "Second log", severity_text: "ERROR", severity_number: 17}
+      record2 = %{
+        @record
+        | body: Otel.API.Common.AnyValue.string("Second log"),
+          severity_text: "ERROR",
+          severity_number: 17
+      }
 
       output =
         capture_io(fn ->
@@ -85,8 +92,8 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     test "includes trace context when present" do
       record = %{
         @record
-        | trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
-          span_id: 0xB7AD6B7169203331
+        | trace_id: Otel.API.Trace.TraceId.new(<<0x0AF7651916CD43DD8448EB211C80319C::128>>),
+          span_id: Otel.API.Trace.SpanId.new(<<0xB7AD6B7169203331::64>>)
       }
 
       output =

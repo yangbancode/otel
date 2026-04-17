@@ -96,11 +96,14 @@ defmodule Otel.API.Propagator.TraceContext do
            span_id_hex::binary-size(16), "-", flags_hex::binary-size(2), _rest::binary>>
        ) do
     with true <- version >= "00" and version != "ff",
-         {trace_id, ""} <- Integer.parse(trace_id_hex, 16),
-         {span_id, ""} <- Integer.parse(span_id_hex, 16),
+         true <- hex_only?(trace_id_hex),
+         true <- hex_only?(span_id_hex),
+         true <- hex_only?(flags_hex),
          {trace_flags, ""} <- Integer.parse(flags_hex, 16),
-         true <- trace_id != 0,
-         true <- span_id != 0 do
+         trace_id = Otel.API.Trace.TraceId.from_hex(trace_id_hex),
+         span_id = Otel.API.Trace.SpanId.from_hex(span_id_hex),
+         true <- Otel.API.Trace.TraceId.valid?(trace_id),
+         true <- Otel.API.Trace.SpanId.valid?(span_id) do
       %Otel.API.Trace.SpanContext{
         trace_id: trace_id,
         span_id: span_id,
@@ -112,4 +115,9 @@ defmodule Otel.API.Propagator.TraceContext do
   end
 
   defp decode_traceparent(_), do: nil
+
+  @spec hex_only?(s :: String.t()) :: boolean()
+  defp hex_only?(s) do
+    s == String.downcase(s) and s =~ ~r/\A[0-9a-f]+\z/
+  end
 end

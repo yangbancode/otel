@@ -19,6 +19,14 @@ defmodule Otel.SDK.Metrics.ViewTest do
     )
   end
 
+  defp attr(k, v) when is_binary(v) do
+    Otel.API.Common.Attribute.new(k, Otel.API.Common.AnyValue.string(v))
+  end
+
+  defp attr(k, v) when is_integer(v) do
+    Otel.API.Common.Attribute.new(k, Otel.API.Common.AnyValue.int(v))
+  end
+
   describe "new/2" do
     test "creates view with empty criteria" do
       assert {:ok, %Otel.SDK.Metrics.View{criteria: %{}, config: %{}}} =
@@ -159,55 +167,69 @@ defmodule Otel.SDK.Metrics.ViewTest do
 
   describe "filter_attributes/3" do
     test "include list keeps only listed keys" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:include, [:method]}})
+      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:include, ["method"]}})
 
-      assert %{method: "GET"} ==
-               Otel.SDK.Metrics.View.filter_attributes(view, instrument(), %{
-                 method: "GET",
-                 path: "/api",
-                 status: 200
-               })
+      result =
+        Otel.SDK.Metrics.View.filter_attributes(view, instrument(), [
+          attr("method", "GET"),
+          attr("path", "/api"),
+          attr("status", 200)
+        ])
+
+      assert [attr("method", "GET")] == result
     end
 
     test "exclude list removes listed keys" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:exclude, [:path]}})
+      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:exclude, ["path"]}})
 
-      assert %{method: "GET", status: 200} ==
-               Otel.SDK.Metrics.View.filter_attributes(view, instrument(), %{
-                 method: "GET",
-                 path: "/api",
-                 status: 200
-               })
+      result =
+        Otel.SDK.Metrics.View.filter_attributes(view, instrument(), [
+          attr("method", "GET"),
+          attr("path", "/api"),
+          attr("status", 200)
+        ])
+
+      assert [attr("method", "GET"), attr("status", 200)] == result
     end
 
     test "no attribute_keys with advisory attributes uses advisory" do
       {:ok, view} = Otel.SDK.Metrics.View.new()
-      inst = instrument(%{advisory: [attributes: [:method, :status]]})
+      inst = instrument(%{advisory: [attributes: ["method", "status"]]})
 
-      assert %{method: "GET", status: 200} ==
-               Otel.SDK.Metrics.View.filter_attributes(view, inst, %{
-                 method: "GET",
-                 path: "/api",
-                 status: 200
-               })
+      result =
+        Otel.SDK.Metrics.View.filter_attributes(view, inst, [
+          attr("method", "GET"),
+          attr("path", "/api"),
+          attr("status", 200)
+        ])
+
+      assert [attr("method", "GET"), attr("status", 200)] == result
     end
 
     test "no attribute_keys and no advisory keeps all" do
       {:ok, view} = Otel.SDK.Metrics.View.new()
-      attrs = %{method: "GET", path: "/api", status: 200}
+
+      attrs = [
+        attr("method", "GET"),
+        attr("path", "/api"),
+        attr("status", 200)
+      ]
+
       assert attrs == Otel.SDK.Metrics.View.filter_attributes(view, instrument(), attrs)
     end
 
     test "view attribute_keys take precedence over advisory" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:include, [:method]}})
-      inst = instrument(%{advisory: [attributes: [:method, :status]]})
+      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:include, ["method"]}})
+      inst = instrument(%{advisory: [attributes: ["method", "status"]]})
 
-      assert %{method: "GET"} ==
-               Otel.SDK.Metrics.View.filter_attributes(view, inst, %{
-                 method: "GET",
-                 path: "/api",
-                 status: 200
-               })
+      result =
+        Otel.SDK.Metrics.View.filter_attributes(view, inst, [
+          attr("method", "GET"),
+          attr("path", "/api"),
+          attr("status", 200)
+        ])
+
+      assert [attr("method", "GET")] == result
     end
   end
 end

@@ -19,11 +19,11 @@ defmodule Otel.SDK.Trace.Sampler.AlwaysOn do
 
   @spec should_sample(
           ctx :: Otel.API.Ctx.t(),
-          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
-          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          trace_id :: Otel.API.Trace.TraceId.t(),
+          links :: [{Otel.API.Trace.SpanContext.t(), [Otel.API.Common.Attribute.t()]}],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map(),
+          attributes :: [Otel.API.Common.Attribute.t()],
           config :: Otel.SDK.Trace.Sampler.config()
         ) :: Otel.SDK.Trace.Sampler.sampling_result()
   @impl true
@@ -33,6 +33,6 @@ defmodule Otel.SDK.Trace.Sampler.AlwaysOn do
       |> Otel.API.Trace.current_span()
       |> Map.get(:tracestate, %Otel.API.Trace.TraceState{})
 
-    {:record_and_sample, %{}, tracestate}
+    {:record_and_sample, [], tracestate}
   end
 end

@@ -54,7 +54,12 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
         })
 
       config = %{reg_name: :batch_no_immediate}
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "hello"}, config)
+
+      Otel.SDK.Logs.BatchProcessor.on_emit(
+        %{body: Otel.API.Common.AnyValue.string("hello")},
+        config
+      )
+
       refute_receive {:exported, _}, 100
     end
 
@@ -68,13 +73,18 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
         })
 
       config = %{reg_name: :batch_size_test}
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "1"}, config)
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "2"}, config)
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "3"}, config)
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: Otel.API.Common.AnyValue.string("1")}, config)
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: Otel.API.Common.AnyValue.string("2")}, config)
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: Otel.API.Common.AnyValue.string("3")}, config)
 
       assert_receive {:exported, records}, 1000
       assert length(records) == 3
-      assert Enum.map(records, & &1.body) == ["1", "2", "3"]
+
+      assert Enum.map(records, & &1.body) == [
+               Otel.API.Common.AnyValue.string("1"),
+               Otel.API.Common.AnyValue.string("2"),
+               Otel.API.Common.AnyValue.string("3")
+             ]
     end
 
     test "drops records when queue full" do
@@ -88,9 +98,9 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
         })
 
       config = %{reg_name: :batch_queue_full}
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "1"}, config)
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "2"}, config)
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "3"}, config)
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: Otel.API.Common.AnyValue.string("1")}, config)
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: Otel.API.Common.AnyValue.string("2")}, config)
+      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: Otel.API.Common.AnyValue.string("3")}, config)
 
       Otel.SDK.Logs.BatchProcessor.force_flush(config)
       assert_receive {:exported, records}
@@ -108,9 +118,15 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
         })
 
       config = %{reg_name: :batch_flush_test}
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "pending"}, config)
+
+      Otel.SDK.Logs.BatchProcessor.on_emit(
+        %{body: Otel.API.Common.AnyValue.string("pending")},
+        config
+      )
+
       :ok = Otel.SDK.Logs.BatchProcessor.force_flush(config)
-      assert_receive {:exported, [%{body: "pending"}]}
+      pending_body = Otel.API.Common.AnyValue.string("pending")
+      assert_receive {:exported, [%{body: ^pending_body}]}
     end
 
     test "returns error after shutdown" do
@@ -137,10 +153,16 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
         })
 
       config = %{reg_name: :batch_shutdown_test}
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "final"}, config)
+
+      Otel.SDK.Logs.BatchProcessor.on_emit(
+        %{body: Otel.API.Common.AnyValue.string("final")},
+        config
+      )
+
       :ok = Otel.SDK.Logs.BatchProcessor.shutdown(config)
 
-      assert_receive {:exported, [%{body: "final"}]}
+      final_body = Otel.API.Common.AnyValue.string("final")
+      assert_receive {:exported, [%{body: ^final_body}]}
       assert_receive :exporter_shutdown
     end
 
@@ -168,8 +190,14 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
         })
 
       config = %{reg_name: :batch_timer_test}
-      Otel.SDK.Logs.BatchProcessor.on_emit(%{body: "timed"}, config)
-      assert_receive {:exported, [%{body: "timed"}]}, 500
+
+      Otel.SDK.Logs.BatchProcessor.on_emit(
+        %{body: Otel.API.Common.AnyValue.string("timed")},
+        config
+      )
+
+      timed_body = Otel.API.Common.AnyValue.string("timed")
+      assert_receive {:exported, [%{body: ^timed_body}]}, 500
     end
   end
 
@@ -201,13 +229,13 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
       {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(provider_pid, "test_lib")
       logger = {Otel.SDK.Logs.Logger, config}
 
-      Otel.API.Logs.Logger.emit(logger, %{body: "log 1"})
-      Otel.API.Logs.Logger.emit(logger, %{body: "log 2"})
+      Otel.API.Logs.Logger.emit(logger, %{body: Otel.API.Common.AnyValue.string("log 1")})
+      Otel.API.Logs.Logger.emit(logger, %{body: Otel.API.Common.AnyValue.string("log 2")})
 
       assert_receive {:exported, records}, 1000
       bodies = Enum.map(records, & &1.body)
-      assert "log 1" in bodies
-      assert "log 2" in bodies
+      assert Otel.API.Common.AnyValue.string("log 1") in bodies
+      assert Otel.API.Common.AnyValue.string("log 2") in bodies
 
       GenServer.stop(proc_pid)
     end

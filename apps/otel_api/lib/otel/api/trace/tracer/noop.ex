@@ -18,12 +18,12 @@ defmodule Otel.API.Trace.Tracer.Noop do
         ) :: Otel.API.Trace.SpanContext.t()
   @impl true
   def start_span(ctx, _tracer, _name, _opts) do
-    case Otel.API.Trace.current_span(ctx) do
-      %Otel.API.Trace.SpanContext{trace_id: trace_id} = parent when trace_id != 0 ->
-        parent
+    parent = Otel.API.Trace.current_span(ctx)
 
-      _ ->
-        @invalid_ctx
+    if Otel.API.Trace.SpanContext.valid?(parent) do
+      parent
+    else
+      @invalid_ctx
     end
   end
 

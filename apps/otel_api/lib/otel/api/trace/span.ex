@@ -15,8 +15,8 @@ defmodule Otel.API.Trace.Span do
 
   @type start_opts :: [
           kind: Otel.API.Trace.SpanKind.t(),
-          attributes: map(),
-          links: [{Otel.API.Trace.SpanContext.t(), map()}],
+          attributes: [Otel.API.Common.Attribute.t()],
+          links: [{Otel.API.Trace.SpanContext.t(), [Otel.API.Common.Attribute.t()]}],
           start_time: integer(),
           is_root: boolean()
         ]
@@ -72,9 +72,14 @@ defmodule Otel.API.Trace.Span do
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           key :: String.t(),
-          value :: term()
+          value :: Otel.API.Common.AnyValue.t()
         ) :: :ok
-  def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
+  def set_attribute(
+        %Otel.API.Trace.SpanContext{} = span_ctx,
+        key,
+        %Otel.API.Common.AnyValue{} = value
+      )
+      when is_binary(key) do
     case get_span_module() do
       nil -> :ok
       module -> module.set_attribute(span_ctx, key, value)
@@ -86,10 +91,10 @@ defmodule Otel.API.Trace.Span do
   """
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map() | [{String.t(), term()}]
-        ) ::
-          :ok
-  def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
+          attributes :: [Otel.API.Common.Attribute.t()]
+        ) :: :ok
+  def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes)
+      when is_list(attributes) do
     case get_span_module() do
       nil -> :ok
       module -> module.set_attributes(span_ctx, attributes)
@@ -127,9 +132,10 @@ defmodule Otel.API.Trace.Span do
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           linked_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
-  def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, linked_ctx, attributes \\ %{}) do
+  def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, linked_ctx, attributes \\ [])
+      when is_list(attributes) do
     case get_span_module() do
       nil -> :ok
       module -> module.add_link(span_ctx, linked_ctx, attributes)
@@ -202,14 +208,15 @@ defmodule Otel.API.Trace.Span do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: map()
+          attributes :: [Otel.API.Common.Attribute.t()]
         ) :: :ok
   def record_exception(
         %Otel.API.Trace.SpanContext{} = span_ctx,
         exception,
         stacktrace \\ [],
-        attributes \\ %{}
-      ) do
+        attributes \\ []
+      )
+      when is_list(attributes) do
     case get_span_module() do
       nil -> :ok
       module -> module.record_exception(span_ctx, exception, stacktrace, attributes)

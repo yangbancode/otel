@@ -83,9 +83,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
       {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "test_lib")
       logger = {Otel.SDK.Logs.Logger, config}
 
-      Otel.API.Logs.Logger.emit(logger, %{body: "hello"})
+      Otel.API.Logs.Logger.emit(logger, %{body: Otel.API.Common.AnyValue.string("hello")})
       assert_receive {:on_emit, record}
-      assert record.body == "hello"
+      assert record.body == Otel.API.Common.AnyValue.string("hello")
       assert record.scope.name == "test_lib"
       assert %Otel.SDK.Resource{} = record.resource
     end
@@ -184,8 +184,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
         timestamp: 1_000_000,
         severity_number: 9,
         severity_text: "INFO",
-        body: "structured",
-        attributes: %{"key" => "val"},
+        body: Otel.API.Common.AnyValue.string("structured"),
+        attributes: [
+          Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+        ],
         event_name: "my.event"
       })
 
@@ -193,8 +195,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
       assert record.timestamp == 1_000_000
       assert record.severity_number == 9
       assert record.severity_text == "INFO"
-      assert record.body == "structured"
-      assert record.attributes == %{"key" => "val"}
+      assert record.body == Otel.API.Common.AnyValue.string("structured")
+
+      assert record.attributes == [
+               Otel.API.Common.Attribute.new("key", Otel.API.Common.AnyValue.string("val"))
+             ]
+
       assert record.event_name == "my.event"
       assert record.scope.name == "test_lib"
       assert record.scope.version == "1.0.0"
