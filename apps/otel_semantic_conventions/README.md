@@ -6,7 +6,7 @@
 
 Pure Elixir implementation of [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/).
 
-Part of the [`otel`](https://github.com/yangbancode/otel) umbrella project, a pure Elixir implementation of the OpenTelemetry SDK.
+Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure Elixir implementation of OpenTelemetry.
 
 ## Spec Version Mapping
 
