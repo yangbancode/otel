@@ -67,9 +67,9 @@ defmodule Otel.SDK.Metrics.StreamTest do
     end
 
     test "uses view attribute_keys when configured" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:include, [:method]}})
+      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:include, ["method"]}})
       stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
-      assert stream.attribute_keys == {:include, [:method]}
+      assert stream.attribute_keys == {:include, ["method"]}
     end
 
     test "falls back to advisory attributes" do

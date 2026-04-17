@@ -86,8 +86,8 @@ defmodule Otel.SDK.Logs.Logger do
   @spec apply_exception_attributes(log_record :: map()) :: map()
   defp apply_exception_attributes(%{exception: %{__exception__: true} = exception} = log_record) do
     exception_attrs = %{
-      :"exception.type" => exception.__struct__ |> Atom.to_string(),
-      :"exception.message" => Exception.message(exception)
+      "exception.type" => exception.__struct__ |> Atom.to_string(),
+      "exception.message" => Exception.message(exception)
     }
 
     exception_attrs =
@@ -96,7 +96,7 @@ defmodule Otel.SDK.Logs.Logger do
           exception_attrs
 
         stacktrace ->
-          Map.put(exception_attrs, :"exception.stacktrace", format_stacktrace(stacktrace))
+          Map.put(exception_attrs, "exception.stacktrace", format_stacktrace(stacktrace))
       end
 
     user_attrs = Map.get(log_record, :attributes, %{})

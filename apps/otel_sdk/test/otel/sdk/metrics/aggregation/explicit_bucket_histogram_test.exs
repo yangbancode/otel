@@ -142,14 +142,14 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogramTest do
     test "separate entries for different attributes", %{tab: tab, opts: opts} do
       Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(
         tab,
-        key(%{m: "GET"}),
+        key(%{"m" => "GET"}),
         5,
         opts
       )
 
       Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(
         tab,
-        key(%{m: "POST"}),
+        key(%{"m" => "POST"}),
         15,
         opts
       )

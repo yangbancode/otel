@@ -31,8 +31,8 @@ defmodule Otel.SDK.Metrics.Aggregation.LastValueTest do
     end
 
     test "separate entries for different attributes", %{tab: tab} do
-      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{host: "a"}), 1, %{})
-      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{host: "b"}), 2, %{})
+      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{"host" => "a"}), 1, %{})
+      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{"host" => "b"}), 2, %{})
       assert length(:ets.tab2list(tab)) == 2
     end
   end
@@ -48,8 +48,8 @@ defmodule Otel.SDK.Metrics.Aggregation.LastValueTest do
     end
 
     test "returns multiple datapoints", %{tab: tab} do
-      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{h: "a"}), 1, %{})
-      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{h: "b"}), 2, %{})
+      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{"h" => "a"}), 1, %{})
+      Otel.SDK.Metrics.Aggregation.LastValue.aggregate(tab, key(%{"h" => "b"}), 2, %{})
 
       dps = Otel.SDK.Metrics.Aggregation.LastValue.collect(tab, {"gauge", @scope}, %{})
       assert length(dps) == 2

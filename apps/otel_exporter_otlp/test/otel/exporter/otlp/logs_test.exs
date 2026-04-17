@@ -9,7 +9,7 @@ defmodule Otel.Exporter.OTLP.LogsTest do
     severity_text: "INFO",
     timestamp: 1_000_000,
     observed_timestamp: 2_000_000,
-    attributes: %{key: "value"},
+    attributes: %{"key" => "value"},
     event_name: nil,
     scope: %Otel.API.InstrumentationScope{name: "test_lib"},
     resource: @test_resource,

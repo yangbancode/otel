@@ -4,20 +4,20 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
 
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          key :: String.t() | atom(),
+          key :: String.t(),
           value :: term()
         ) :: :ok
   def set_attribute(_span_ctx, _key, _value), do: :ok
 
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map() | [{String.t() | atom(), term()}]
+          attributes :: map() | [{String.t(), term()}]
         ) :: :ok
   def set_attributes(_span_ctx, _attributes), do: :ok
 
   @spec add_event(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          name :: String.t() | atom(),
+          name :: String.t(),
           opts :: keyword()
         ) :: :ok
   def add_event(_span_ctx, _name, _opts), do: :ok
@@ -82,33 +82,26 @@ defmodule Otel.API.Trace.SpanTest do
   end
 
   describe "no-op operations on API level" do
-    test "set_attribute with string key returns :ok" do
+    test "set_attribute returns :ok" do
       assert Otel.API.Trace.Span.set_attribute(@valid_ctx, "key", "value") == :ok
     end
 
-    test "set_attribute with atom key returns :ok" do
-      assert Otel.API.Trace.Span.set_attribute(@valid_ctx, :key, "value") == :ok
-    end
-
     test "set_attributes with map returns :ok" do
-      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{key: "value"}) == :ok
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{"key" => "value"}) == :ok
     end
 
-    test "set_attributes with keyword list returns :ok" do
-      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, key: "value", other: 42) == :ok
+    test "set_attributes with list of tuples returns :ok" do
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, [{"key", "value"}, {"other", 42}]) ==
+               :ok
     end
 
-    test "add_event with string name returns :ok" do
+    test "add_event returns :ok" do
       assert Otel.API.Trace.Span.add_event(@valid_ctx, "event_name") == :ok
-    end
-
-    test "add_event with atom name returns :ok" do
-      assert Otel.API.Trace.Span.add_event(@valid_ctx, :event_name) == :ok
     end
 
     test "add_event with opts returns :ok" do
       assert Otel.API.Trace.Span.add_event(@valid_ctx, "event_name",
-               attributes: %{key: "val"},
+               attributes: %{"key" => "val"},
                time: 1_000
              ) ==
                :ok
@@ -121,7 +114,7 @@ defmodule Otel.API.Trace.SpanTest do
 
     test "add_link with attributes returns :ok" do
       other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      assert Otel.API.Trace.Span.add_link(@valid_ctx, other, %{key: "val"}) == :ok
+      assert Otel.API.Trace.Span.add_link(@valid_ctx, other, %{"key" => "val"}) == :ok
     end
 
     test "set_status :ok returns :ok" do
@@ -218,11 +211,11 @@ defmodule Otel.API.Trace.SpanTest do
     end
 
     test "set_attribute dispatches to module" do
-      assert Otel.API.Trace.Span.set_attribute(@valid_ctx, :key, "val") == :ok
+      assert Otel.API.Trace.Span.set_attribute(@valid_ctx, "key", "val") == :ok
     end
 
     test "set_attributes dispatches to module" do
-      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{key: "val"}) == :ok
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{"key" => "val"}) == :ok
     end
 
     test "add_event dispatches to module" do

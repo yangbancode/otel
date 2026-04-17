@@ -19,7 +19,7 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
   - [x] OTLP HTTP
   - [ ] OTLP gRPC
 - **Semantic Conventions** — [semantic-conventions v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0)
-  - [ ] Auto-generated constants
+  - [x] Auto-generated constants (stable only)
 - **Integrations**
   - [x] Erlang `:logger` bridge
 
@@ -231,8 +231,8 @@ defmodule MyApp.PaymentService do
       severity_text: "INFO",
       body: "Processing payment for order #{order.id}",
       attributes: %{
-        "order.id": order.id,
-        "payment.amount": order.total
+        "order.id" => order.id,
+        "payment.amount" => order.total
       }
     })
 
