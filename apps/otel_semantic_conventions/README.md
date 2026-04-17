@@ -6,8 +6,6 @@
 
 Pure Elixir implementation of [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/).
 
-Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure Elixir implementation of OpenTelemetry.
-
 ## Requirements
 
 - Elixir 1.18+
