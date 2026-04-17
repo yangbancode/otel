@@ -60,12 +60,12 @@ Adapted from the opentelemetry-erlang templates. Differences:
 
 ### Generated Code Pattern
 
-Each attribute becomes a zero-arity function returning the key as an atom:
+Each attribute becomes a zero-arity function returning the key as a string:
 
 ```elixir
-@spec http_request_method :: :"http.request.method"
+@spec http_request_method :: String.t()
 def http_request_method do
-  :"http.request.method"
+  "http.request.method"
 end
 ```
 
@@ -73,15 +73,27 @@ Enum attributes additionally get a `_values()` function returning a member-to-va
 
 ```elixir
 @type http_request_method_values :: %{
-        :connect => :CONNECT,
+        "connect" => String.t(),
         ...
       }
 
 @spec http_request_method_values :: http_request_method_values()
 def http_request_method_values do
-  %{connect: :CONNECT, ...}
+  %{"connect" => "CONNECT", ...}
 end
 ```
+
+### Key Type: String.t()
+
+The OTel spec (v1.55.0, [common/README.md L185](../../references/opentelemetry-specification/specification/common/README.md#L185)) requires:
+
+> The attribute key MUST be a non-`null` and non-empty string.
+
+All generated attribute and metric constants return `String.t()` to match the spec verbatim. Enum map keys and values are also strings for consistency.
+
+This differs from opentelemetry-erlang, which emits atoms. The trade-off: atoms give O(1) pointer equality and singleton literal types for Dialyzer, but introduce a footgun where `:"http.method"` and `"http.method"` are distinct map keys. For a spec-strict project, strings remove ambiguity and align with the wire format without conversion.
+
+API signatures (`Otel.API.Trace.Span.set_attribute/3`, `set_attributes/2`, `add_event/3`) accept `String.t()` only — atoms were removed from the union.
 
 ### Generation Command
 

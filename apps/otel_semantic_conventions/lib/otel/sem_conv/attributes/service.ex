@@ -8,43 +8,43 @@ defmodule Otel.SemConv.Attributes.Service do
   The string ID of the service instance.
 
       iex> Otel.SemConv.Attributes.Service.service_instance_id()
-      :"service.instance.id"
+      "service.instance.id"
   """
-  @spec service_instance_id :: :"service.instance.id"
+  @spec service_instance_id :: String.t()
   def service_instance_id do
-    :"service.instance.id"
+    "service.instance.id"
   end
 
   @doc """
   Logical name of the service.
 
       iex> Otel.SemConv.Attributes.Service.service_name()
-      :"service.name"
+      "service.name"
   """
-  @spec service_name :: :"service.name"
+  @spec service_name :: String.t()
   def service_name do
-    :"service.name"
+    "service.name"
   end
 
   @doc """
   A namespace for `service.name`.
 
       iex> Otel.SemConv.Attributes.Service.service_namespace()
-      :"service.namespace"
+      "service.namespace"
   """
-  @spec service_namespace :: :"service.namespace"
+  @spec service_namespace :: String.t()
   def service_namespace do
-    :"service.namespace"
+    "service.namespace"
   end
 
   @doc """
   The version string of the service component. The format is not defined by these conventions.
 
       iex> Otel.SemConv.Attributes.Service.service_version()
-      :"service.version"
+      "service.version"
   """
-  @spec service_version :: :"service.version"
+  @spec service_version :: String.t()
   def service_version do
-    :"service.version"
+    "service.version"
   end
 end

@@ -132,17 +132,17 @@ defmodule Otel.Logger.Handler do
   defp extract_attributes(meta) do
     %{}
     |> put_mfa_attrs(meta)
-    |> put_meta_attr(meta, :file, :"code.filepath", &IO.chardata_to_string/1)
-    |> put_meta_attr(meta, :line, :"code.lineno", & &1)
-    |> put_meta_attr(meta, :pid, :"process.pid", &inspect/1)
-    |> put_meta_attr(meta, :domain, :"log.domain", &inspect/1)
+    |> put_meta_attr(meta, :file, "code.filepath", &IO.chardata_to_string/1)
+    |> put_meta_attr(meta, :line, "code.lineno", & &1)
+    |> put_meta_attr(meta, :pid, "process.pid", &inspect/1)
+    |> put_meta_attr(meta, :domain, "log.domain", &inspect/1)
   end
 
   @spec put_mfa_attrs(attrs :: map(), meta :: map()) :: map()
   defp put_mfa_attrs(attrs, %{mfa: {module, function, arity}}) do
     attrs
-    |> Map.put(:"code.namespace", Atom.to_string(module))
-    |> Map.put(:"code.function", "#{function}/#{arity}")
+    |> Map.put("code.namespace", Atom.to_string(module))
+    |> Map.put("code.function", "#{function}/#{arity}")
   end
 
   defp put_mfa_attrs(attrs, _meta), do: attrs
@@ -151,7 +151,7 @@ defmodule Otel.Logger.Handler do
           attrs :: map(),
           meta :: map(),
           key :: atom(),
-          attr_key :: atom(),
+          attr_key :: String.t(),
           transform :: function()
         ) ::
           map()

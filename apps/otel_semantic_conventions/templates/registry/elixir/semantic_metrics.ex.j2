@@ -17,11 +17,11 @@ defmodule {{ module_namespace }}.{{ module_name }} do
   Unit: `{{ metric.unit }}`
 
       iex> {{ module_namespace }}.{{ module_name }}.{{ c.func_name(metric.metric_name) }}()
-      {{ c.to_atom(metric.metric_name) }}
+      {{ c.to_string_literal(metric.metric_name) }}
   """
-  @spec {{ c.func_name(metric.metric_name) }} :: {{ c.to_atom(metric.metric_name) }}
+  @spec {{ c.func_name(metric.metric_name) }} :: String.t()
   def {{ c.func_name(metric.metric_name) }} do
-    {{ c.to_atom(metric.metric_name) }}
+    {{ c.to_string_literal(metric.metric_name) }}
   end
 {% endfor %}
 end
