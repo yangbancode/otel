@@ -38,7 +38,7 @@ defmodule Otel.SemConv.MixProject do
   end
 
   defp description do
-    "Pure Elixir implementation of Semantic Conventions. " <>
+    "Pure Elixir implementation of OpenTelemetry Semantic Conventions. " <>
       "Part of the Otel umbrella project, a pure Elixir implementation of OpenTelemetry."
   end
 
