@@ -7,7 +7,20 @@ defmodule Otel.SemConv.Attributes.Telemetry do
   @typedoc """
   The language of the telemetry SDK.
   """
-  @type telemetry_sdk_language_values :: %{optional(String.t()) => String.t()}
+  @type telemetry_sdk_language_values :: %{
+          :cpp => String.t(),
+          :dotnet => String.t(),
+          :erlang => String.t(),
+          :go => String.t(),
+          :java => String.t(),
+          :nodejs => String.t(),
+          :php => String.t(),
+          :python => String.t(),
+          :ruby => String.t(),
+          :rust => String.t(),
+          :swift => String.t(),
+          :webjs => String.t()
+        }
 
   @doc """
   The language of the telemetry SDK.
@@ -23,24 +36,24 @@ defmodule Otel.SemConv.Attributes.Telemetry do
   @doc """
   Enum values for `telemetry_sdk_language`.
 
-      iex> Otel.SemConv.Attributes.Telemetry.telemetry_sdk_language_values()["cpp"]
+      iex> Otel.SemConv.Attributes.Telemetry.telemetry_sdk_language_values()[:cpp]
       "cpp"
   """
   @spec telemetry_sdk_language_values :: telemetry_sdk_language_values()
   def telemetry_sdk_language_values do
     %{
-      "cpp" => "cpp",
-      "dotnet" => "dotnet",
-      "erlang" => "erlang",
-      "go" => "go",
-      "java" => "java",
-      "nodejs" => "nodejs",
-      "php" => "php",
-      "python" => "python",
-      "ruby" => "ruby",
-      "rust" => "rust",
-      "swift" => "swift",
-      "webjs" => "webjs"
+      :cpp => "cpp",
+      :dotnet => "dotnet",
+      :erlang => "erlang",
+      :go => "go",
+      :java => "java",
+      :nodejs => "nodejs",
+      :php => "php",
+      :python => "python",
+      :ruby => "ruby",
+      :rust => "rust",
+      :swift => "swift",
+      :webjs => "webjs"
     }
   end
 

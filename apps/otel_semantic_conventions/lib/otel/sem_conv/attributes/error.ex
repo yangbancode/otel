@@ -7,7 +7,9 @@ defmodule Otel.SemConv.Attributes.Error do
   @typedoc """
   Describes a class of error the operation ended with.
   """
-  @type error_type_values :: %{optional(String.t()) => String.t()}
+  @type error_type_values :: %{
+          :other => String.t()
+        }
 
   @doc """
   Describes a class of error the operation ended with.
@@ -23,13 +25,13 @@ defmodule Otel.SemConv.Attributes.Error do
   @doc """
   Enum values for `error_type`.
 
-      iex> Otel.SemConv.Attributes.Error.error_type_values()["other"]
+      iex> Otel.SemConv.Attributes.Error.error_type_values()[:other]
       "_OTHER"
   """
   @spec error_type_values :: error_type_values()
   def error_type_values do
     %{
-      "other" => "_OTHER"
+      :other => "_OTHER"
     }
   end
 end

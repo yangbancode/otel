@@ -7,7 +7,10 @@ defmodule Otel.SemConv.Attributes.Otel do
   @typedoc """
   Name of the code, either "OK" or "ERROR". **MUST** NOT be set if the status code is UNSET.
   """
-  @type otel_status_code_values :: %{optional(String.t()) => String.t()}
+  @type otel_status_code_values :: %{
+          :ok => String.t(),
+          :error => String.t()
+        }
 
   @doc """
   Name of the code, either "OK" or "ERROR". **MUST** NOT be set if the status code is UNSET.
@@ -23,14 +26,14 @@ defmodule Otel.SemConv.Attributes.Otel do
   @doc """
   Enum values for `otel_status_code`.
 
-      iex> Otel.SemConv.Attributes.Otel.otel_status_code_values()["ok"]
+      iex> Otel.SemConv.Attributes.Otel.otel_status_code_values()[:ok]
       "OK"
   """
   @spec otel_status_code_values :: otel_status_code_values()
   def otel_status_code_values do
     %{
-      "ok" => "OK",
-      "error" => "ERROR"
+      :ok => "OK",
+      :error => "ERROR"
     }
   end
 
