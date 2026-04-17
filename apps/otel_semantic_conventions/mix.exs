@@ -4,7 +4,6 @@ defmodule Otel.SemConv.MixProject do
   @version "0.1.0"
   @repo_url "https://github.com/yangbancode/otel"
   @source_url "#{@repo_url}/tree/main/apps/otel_semantic_conventions"
-  @changelog_url "#{@repo_url}/blob/main/apps/otel_semantic_conventions/CHANGELOG.md"
 
   def project do
     [
@@ -46,11 +45,8 @@ defmodule Otel.SemConv.MixProject do
   defp package do
     [
       licenses: ["Unlicense"],
-      links: %{
-        "GitHub" => @source_url,
-        "Changelog" => @changelog_url
-      },
-      files: ~w(lib mix.exs README.md CHANGELOG.md LICENSE .formatter.exs)
+      links: %{"GitHub" => @source_url},
+      files: ~w(lib mix.exs README.md LICENSE .formatter.exs)
     ]
   end
 
