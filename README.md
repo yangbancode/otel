@@ -20,8 +20,6 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 | [`otel_exporter_otlp`](apps/otel_exporter_otlp) | OTLP HTTP exporter for traces, metrics, and logs |
 | [`otel_logger_handler`](apps/otel_logger_handler) | Elixir `:logger` handler that forwards logs to OTel |
 
-Each app is published independently on hex.pm. Refer to the per-app README for installation and usage.
-
 ## Features
 
 - **Specification**
