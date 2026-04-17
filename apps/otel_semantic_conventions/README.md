@@ -19,6 +19,8 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 |---|---|
 | `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
 
+Generates **stable** items only.
+
 ## Installation
 
 Add the dependency to your `mix.exs`:
