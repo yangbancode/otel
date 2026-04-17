@@ -10,8 +10,8 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 
 ## Requirements
 
-- Elixir ~> 1.19
-- Erlang/OTP ~> 28
+- Elixir 1.15+
+- Erlang/OTP 25+
 
 ## Compatibility
 
