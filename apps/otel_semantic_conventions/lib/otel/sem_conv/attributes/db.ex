@@ -95,7 +95,12 @@ defmodule Otel.SemConv.Attributes.DB do
   @typedoc """
   The database management system (DBMS) product as identified by the client instrumentation.
   """
-  @type db_system_name_values :: %{optional(String.t()) => String.t()}
+  @type db_system_name_values :: %{
+          :mariadb => String.t(),
+          :"microsoft.sql_server" => String.t(),
+          :mysql => String.t(),
+          :postgresql => String.t()
+        }
 
   @doc """
   The database management system (DBMS) product as identified by the client instrumentation.
@@ -111,16 +116,16 @@ defmodule Otel.SemConv.Attributes.DB do
   @doc """
   Enum values for `db_system_name`.
 
-      iex> Otel.SemConv.Attributes.DB.db_system_name_values()["mariadb"]
+      iex> Otel.SemConv.Attributes.DB.db_system_name_values()[:mariadb]
       "mariadb"
   """
   @spec db_system_name_values :: db_system_name_values()
   def db_system_name_values do
     %{
-      "mariadb" => "mariadb",
-      "microsoft.sql_server" => "microsoft.sql_server",
-      "mysql" => "mysql",
-      "postgresql" => "postgresql"
+      :mariadb => "mariadb",
+      :"microsoft.sql_server" => "microsoft.sql_server",
+      :mysql => "mysql",
+      :postgresql => "postgresql"
     }
   end
 end

@@ -32,7 +32,7 @@ defmodule {{ module_namespace }}.{{ module_name }} do
   @doc """
   Enum values for `{{ c.func_name(attribute.name) }}`.
 
-      iex> {{ module_namespace }}.{{ module_name }}.{{ c.func_name(attribute.name) }}_values()[{{ c.to_string_literal(c.first_stable_member(attribute.type.members)) }}]
+      iex> {{ module_namespace }}.{{ module_name }}.{{ c.func_name(attribute.name) }}_values()[{{ c.to_atom(c.first_stable_member(attribute.type.members)) }}]
       {{ c.first_stable_member_value(attribute.type.members) }}
   """
   @spec {{ c.func_name(attribute.name) }}_values :: {{ c.func_name(attribute.name) }}_values()

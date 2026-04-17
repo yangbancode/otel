@@ -18,7 +18,18 @@ defmodule Otel.SemConv.Attributes.HTTP do
   @typedoc """
   HTTP request method.
   """
-  @type http_request_method_values :: %{optional(String.t()) => String.t()}
+  @type http_request_method_values :: %{
+          :connect => String.t(),
+          :delete => String.t(),
+          :get => String.t(),
+          :head => String.t(),
+          :options => String.t(),
+          :patch => String.t(),
+          :post => String.t(),
+          :put => String.t(),
+          :trace => String.t(),
+          :other => String.t()
+        }
 
   @doc """
   HTTP request method.
@@ -34,22 +45,22 @@ defmodule Otel.SemConv.Attributes.HTTP do
   @doc """
   Enum values for `http_request_method`.
 
-      iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()["connect"]
+      iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()[:connect]
       "CONNECT"
   """
   @spec http_request_method_values :: http_request_method_values()
   def http_request_method_values do
     %{
-      "connect" => "CONNECT",
-      "delete" => "DELETE",
-      "get" => "GET",
-      "head" => "HEAD",
-      "options" => "OPTIONS",
-      "patch" => "PATCH",
-      "post" => "POST",
-      "put" => "PUT",
-      "trace" => "TRACE",
-      "other" => "_OTHER"
+      :connect => "CONNECT",
+      :delete => "DELETE",
+      :get => "GET",
+      :head => "HEAD",
+      :options => "OPTIONS",
+      :patch => "PATCH",
+      :post => "POST",
+      :put => "PUT",
+      :trace => "TRACE",
+      :other => "_OTHER"
     }
   end
 

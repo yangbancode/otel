@@ -73,7 +73,13 @@ defmodule Otel.SemConv.Attributes.Network do
   @typedoc """
   [OSI transport layer](https://wikipedia.org/wiki/Transport_layer) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
   """
-  @type network_transport_values :: %{optional(String.t()) => String.t()}
+  @type network_transport_values :: %{
+          :tcp => String.t(),
+          :udp => String.t(),
+          :pipe => String.t(),
+          :unix => String.t(),
+          :quic => String.t()
+        }
 
   @doc """
   [OSI transport layer](https://wikipedia.org/wiki/Transport_layer) or [inter-process communication method](https://wikipedia.org/wiki/Inter-process_communication).
@@ -89,24 +95,27 @@ defmodule Otel.SemConv.Attributes.Network do
   @doc """
   Enum values for `network_transport`.
 
-      iex> Otel.SemConv.Attributes.Network.network_transport_values()["tcp"]
+      iex> Otel.SemConv.Attributes.Network.network_transport_values()[:tcp]
       "tcp"
   """
   @spec network_transport_values :: network_transport_values()
   def network_transport_values do
     %{
-      "tcp" => "tcp",
-      "udp" => "udp",
-      "pipe" => "pipe",
-      "unix" => "unix",
-      "quic" => "quic"
+      :tcp => "tcp",
+      :udp => "udp",
+      :pipe => "pipe",
+      :unix => "unix",
+      :quic => "quic"
     }
   end
 
   @typedoc """
   [OSI network layer](https://wikipedia.org/wiki/Network_layer) or non-OSI equivalent.
   """
-  @type network_type_values :: %{optional(String.t()) => String.t()}
+  @type network_type_values :: %{
+          :ipv4 => String.t(),
+          :ipv6 => String.t()
+        }
 
   @doc """
   [OSI network layer](https://wikipedia.org/wiki/Network_layer) or non-OSI equivalent.
@@ -122,14 +131,14 @@ defmodule Otel.SemConv.Attributes.Network do
   @doc """
   Enum values for `network_type`.
 
-      iex> Otel.SemConv.Attributes.Network.network_type_values()["ipv4"]
+      iex> Otel.SemConv.Attributes.Network.network_type_values()[:ipv4]
       "ipv4"
   """
   @spec network_type_values :: network_type_values()
   def network_type_values do
     %{
-      "ipv4" => "ipv4",
-      "ipv6" => "ipv6"
+      :ipv4 => "ipv4",
+      :ipv6 => "ipv6"
     }
   end
 end
