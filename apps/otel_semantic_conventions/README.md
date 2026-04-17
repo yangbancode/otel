@@ -4,7 +4,7 @@
 [![Hexdocs.pm](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/otel_semantic_conventions)
 [![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://unlicense.org/)
 
-Pure Elixir implementation of [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/).
+Pure Elixir implementation of [OpenTelemetry Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/).
 
 ## Requirements
 
