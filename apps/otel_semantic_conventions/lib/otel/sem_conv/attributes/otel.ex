@@ -7,33 +7,30 @@ defmodule Otel.SemConv.Attributes.Otel do
   @typedoc """
   Name of the code, either "OK" or "ERROR". **MUST** NOT be set if the status code is UNSET.
   """
-  @type otel_status_code_values :: %{
-          :ok => :OK,
-          :error => :ERROR
-        }
+  @type otel_status_code_values :: %{optional(String.t()) => String.t()}
 
   @doc """
   Name of the code, either "OK" or "ERROR". **MUST** NOT be set if the status code is UNSET.
 
       iex> Otel.SemConv.Attributes.Otel.otel_status_code()
-      :"otel.status_code"
+      "otel.status_code"
   """
-  @spec otel_status_code :: :"otel.status_code"
+  @spec otel_status_code :: String.t()
   def otel_status_code do
-    :"otel.status_code"
+    "otel.status_code"
   end
 
   @doc """
   Enum values for `otel_status_code`.
 
-      iex> Otel.SemConv.Attributes.Otel.otel_status_code_values().ok
-      :OK
+      iex> Otel.SemConv.Attributes.Otel.otel_status_code_values()["ok"]
+      "OK"
   """
   @spec otel_status_code_values :: otel_status_code_values()
   def otel_status_code_values do
     %{
-      :ok => :OK,
-      :error => :ERROR
+      "ok" => "OK",
+      "error" => "ERROR"
     }
   end
 
@@ -41,32 +38,32 @@ defmodule Otel.SemConv.Attributes.Otel do
   Description of the Status if it has a value, otherwise not set.
 
       iex> Otel.SemConv.Attributes.Otel.otel_status_description()
-      :"otel.status_description"
+      "otel.status_description"
   """
-  @spec otel_status_description :: :"otel.status_description"
+  @spec otel_status_description :: String.t()
   def otel_status_description do
-    :"otel.status_description"
+    "otel.status_description"
   end
 
   @doc """
   The name of the instrumentation scope - (`InstrumentationScope.Name` in OTLP).
 
       iex> Otel.SemConv.Attributes.Otel.otel_scope_name()
-      :"otel.scope.name"
+      "otel.scope.name"
   """
-  @spec otel_scope_name :: :"otel.scope.name"
+  @spec otel_scope_name :: String.t()
   def otel_scope_name do
-    :"otel.scope.name"
+    "otel.scope.name"
   end
 
   @doc """
   The version of the instrumentation scope - (`InstrumentationScope.Version` in OTLP).
 
       iex> Otel.SemConv.Attributes.Otel.otel_scope_version()
-      :"otel.scope.version"
+      "otel.scope.version"
   """
-  @spec otel_scope_version :: :"otel.scope.version"
+  @spec otel_scope_version :: String.t()
   def otel_scope_version do
-    :"otel.scope.version"
+    "otel.scope.version"
   end
 end

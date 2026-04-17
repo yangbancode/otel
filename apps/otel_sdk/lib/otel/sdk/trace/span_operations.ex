@@ -20,7 +20,7 @@ defmodule Otel.SDK.Trace.SpanOperations do
   """
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          key :: String.t() | atom(),
+          key :: String.t(),
           value :: term()
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{span_id: span_id}, key, value) do
@@ -54,7 +54,7 @@ defmodule Otel.SDK.Trace.SpanOperations do
   """
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map() | [{String.t() | atom(), term()}]
+          attributes :: map() | [{String.t(), term()}]
         ) :: :ok
   def set_attributes(%Otel.API.Trace.SpanContext{span_id: span_id}, new_attributes) do
     new_attributes = to_map(new_attributes)
@@ -75,7 +75,7 @@ defmodule Otel.SDK.Trace.SpanOperations do
   """
   @spec add_event(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          name :: String.t() | atom(),
+          name :: String.t(),
           opts :: keyword()
         ) :: :ok
   def add_event(%Otel.API.Trace.SpanContext{span_id: span_id}, name, opts) do
@@ -238,7 +238,7 @@ defmodule Otel.SDK.Trace.SpanOperations do
 
   @spec put_attribute(
           attributes :: map(),
-          key :: String.t() | atom(),
+          key :: String.t(),
           value :: term(),
           count_limit :: pos_integer()
         ) :: map()
@@ -297,7 +297,7 @@ defmodule Otel.SDK.Trace.SpanOperations do
 
   defp truncate_value(value, _limit), do: value
 
-  @spec to_map(attributes :: map() | [{String.t() | atom(), term()}]) :: map()
+  @spec to_map(attributes :: map() | [{String.t(), term()}]) :: map()
   defp to_map(attributes) when is_map(attributes), do: attributes
   defp to_map(attributes) when is_list(attributes), do: Map.new(attributes)
 

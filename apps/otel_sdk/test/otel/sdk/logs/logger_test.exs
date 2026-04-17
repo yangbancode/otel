@@ -136,8 +136,8 @@ defmodule Otel.SDK.Logs.LoggerTest do
       })
 
       assert_receive {:log_record, record}
-      assert record.attributes[:"exception.type"] == "Elixir.RuntimeError"
-      assert record.attributes[:"exception.message"] == "something went wrong"
+      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
+      assert record.attributes["exception.message"] == "something went wrong"
     end
 
     test "user attributes take precedence over exception attributes", %{logger: logger} do
@@ -147,19 +147,19 @@ defmodule Otel.SDK.Logs.LoggerTest do
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
         body: "error",
         exception: exception,
-        attributes: %{:"exception.message" => "user override"}
+        attributes: %{"exception.message" => "user override"}
       })
 
       assert_receive {:log_record, record}
-      assert record.attributes[:"exception.message"] == "user override"
-      assert record.attributes[:"exception.type"] == "Elixir.RuntimeError"
+      assert record.attributes["exception.message"] == "user override"
+      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
     end
 
     test "no exception does not set exception attributes", %{logger: logger} do
       ctx = Otel.API.Ctx.get_current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "normal"})
       assert_receive {:log_record, record}
-      refute Map.has_key?(record.attributes, :"exception.type")
+      refute Map.has_key?(record.attributes, "exception.type")
     end
   end
 

@@ -11,10 +11,10 @@ defmodule Otel.SemConv.Metrics.DB do
   Unit: `s`
 
       iex> Otel.SemConv.Metrics.DB.db_client_operation_duration()
-      :"db.client.operation.duration"
+      "db.client.operation.duration"
   """
-  @spec db_client_operation_duration :: :"db.client.operation.duration"
+  @spec db_client_operation_duration :: String.t()
   def db_client_operation_duration do
-    :"db.client.operation.duration"
+    "db.client.operation.duration"
   end
 end

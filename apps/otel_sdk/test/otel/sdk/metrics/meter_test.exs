@@ -416,13 +416,13 @@ defmodule Otel.SDK.Metrics.MeterTest do
       dps = Otel.SDK.Metrics.Aggregation.Sum.collect(cfg.metrics_tab, stream_key, %{})
 
       overflow_dp =
-        Enum.find(dps, fn dp -> dp.attributes == %{:"otel.metric.overflow" => true} end)
+        Enum.find(dps, fn dp -> dp.attributes == %{"otel.metric.overflow" => true} end)
 
       assert overflow_dp != nil
       assert overflow_dp.value == 2
 
       normal_dps =
-        Enum.reject(dps, fn dp -> dp.attributes == %{:"otel.metric.overflow" => true} end)
+        Enum.reject(dps, fn dp -> dp.attributes == %{"otel.metric.overflow" => true} end)
 
       assert length(normal_dps) == 3
     end
