@@ -8,7 +8,12 @@ Pure Elixir implementation of [Semantic Conventions](https://opentelemetry.io/do
 
 Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure Elixir implementation of OpenTelemetry.
 
-## Version Mapping
+## Requirements
+
+- Elixir ~> 1.19
+- Erlang/OTP ~> 28
+
+## Compatibility
 
 | Package | OTel Semantic Conventions |
 |---|---|
