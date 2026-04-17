@@ -19,14 +19,7 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 |---|---|
 | `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
 
-Excluded:
-
-| Category | Contents |
-|---|---|
-| Stability | experimental/development, release_candidate, deprecated |
-| Domains | `aspnetcore`, `dotnet`, `jvm`, `kestrel`, `signalr` |
-
-See the [Overview](documentation/topics/overview.md) for the full rationale.
+For stability filtering and excluded domains, see the [Overview](documentation/topics/overview.md).
 
 ## Installation
 
