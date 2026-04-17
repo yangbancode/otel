@@ -8,7 +8,7 @@ How to generate Elixir modules for OpenTelemetry Semantic Conventions? What is t
 
 ### Code Generation Tool: OTel Weaver v0.22.1
 
-OTel Weaver is the official OpenTelemetry code generation CLI. Managed via `.mise.toml` as `github:open-telemetry/weaver`.
+OTel Weaver is the official OpenTelemetry code generation CLI. Pinned via `.mise.toml` as `github:open-telemetry/weaver` = `0.22.1`. Source is checked in as a submodule at `references/weaver` for offline reference.
 
 Chosen over a custom Mix task because Weaver handles YAML model resolution (`ref:`, `extends:`, multi-file group aggregation) internally. The same tool is used by opentelemetry-erlang.
 
@@ -121,6 +121,6 @@ mix format apps/otel_semantic_conventions/lib/otel/sem_conv/attributes/*.ex \
 
 ## References
 
-- [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions)
-- [OTel Weaver](https://github.com/open-telemetry/weaver)
+- [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions) — source YAML model, also vendored at [`references/semantic-conventions/`](../../references/semantic-conventions/)
+- [OTel Weaver](https://github.com/open-telemetry/weaver) — generation CLI, also vendored at [`references/weaver/`](../../references/weaver/) (v0.22.1)
 - [opentelemetry-erlang semconv templates](../../references/opentelemetry-erlang/apps/opentelemetry_semantic_conventions/templates/registry/elixir/)
