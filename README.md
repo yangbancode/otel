@@ -14,7 +14,7 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/)
 - **Exporters**
   - Console (stdout)
   - OTLP HTTP
-  - OTLP gRPC
+  - [ ] OTLP gRPC
 - **Semantic Conventions**
   - Attributes
   - Metrics
