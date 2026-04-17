@@ -11,7 +11,7 @@ defmodule {{ module_namespace }}.{{ module_name }} do
 {%- for metric in ctx.metrics | sort(attribute="metric_name") %}
 
   @doc """
-  {{ c.strong_reqs(metric.brief | trim | replace("\n", "\n  ")) }}
+  {{ c.strong_reqs(c.strip_spec_links(metric.brief | trim | replace("\n", "\n  "))) }}
 
   Instrument: `{{ metric.instrument }}`
   Unit: `{{ metric.unit }}`

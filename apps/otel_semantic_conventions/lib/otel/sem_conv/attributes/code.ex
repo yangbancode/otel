@@ -49,7 +49,7 @@ defmodule Otel.SemConv.Attributes.Code do
   end
 
   @doc """
-  A stacktrace as a string in the natural representation for the language runtime. The representation is identical to [`exception.stacktrace`](/docs/exceptions/exceptions-spans.md#stacktrace-representation). This attribute **MUST** NOT be used on the Profile signal since the data is already captured in 'message Location'. This constraint is imposed to prevent redundancy and maintain data integrity.
+  A stacktrace as a string in the natural representation for the language runtime. The representation is identical to `exception.stacktrace`. This attribute **MUST** NOT be used on the Profile signal since the data is already captured in 'message Location'. This constraint is imposed to prevent redundancy and maintain data integrity.
 
       iex> Otel.SemConv.Attributes.Code.code_stacktrace()
       "code.stacktrace"
