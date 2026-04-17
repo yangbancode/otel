@@ -19,9 +19,7 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 |---|---|
 | `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
 
-> #### Scope {: .info}
->
-> Generates **stable** attributes and metrics only.
+> **Note:** Generates **stable** attributes and metrics only.
 
 ## Installation
 
