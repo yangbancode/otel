@@ -15,17 +15,9 @@ Part of the [Otel](https://github.com/yangbancode/otel) umbrella project, a pure
 
 ## Compatibility
 
-Version mapping:
-
-- `0.1.x` → [semantic-conventions v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0)
-
-Included in generated code:
-
-| Category | Contents |
+| Package | Semantic Conventions |
 |---|---|
-| Stability | stable |
-| Attributes | `Client`, `Code`, `DB`, `Error`, `Exception`, `HTTP`, `Network`, `Otel`, `Server`, `Service`, `Telemetry`, `URL`, `UserAgent` |
-| Metrics | `DB`, `HTTP` |
+| `0.1.x` | [v1.40.0](https://github.com/open-telemetry/semantic-conventions/releases/tag/v1.40.0) |
 
 Excluded:
 
