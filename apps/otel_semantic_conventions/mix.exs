@@ -59,7 +59,6 @@ defmodule Otel.SemConv.MixProject do
       main: "readme",
       extras: [
         {"README.md", title: "README.md"},
-        {"CHANGELOG.md", title: "CHANGELOG"},
         {"LICENSE", title: "LICENSE"}
       ],
       source_url: @source_url,
