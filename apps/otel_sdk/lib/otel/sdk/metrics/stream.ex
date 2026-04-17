@@ -12,7 +12,7 @@ defmodule Otel.SDK.Metrics.Stream do
           name: String.t(),
           description: String.t(),
           instrument: Otel.SDK.Metrics.Instrument.t(),
-          attribute_keys: {:include, [atom()]} | {:exclude, [atom()]} | nil,
+          attribute_keys: {:include, [String.t()]} | {:exclude, [String.t()]} | nil,
           aggregation: module() | nil,
           aggregation_options: map(),
           exemplar_reservoir: module() | nil,
@@ -109,7 +109,7 @@ defmodule Otel.SDK.Metrics.Stream do
   end
 
   @spec advisory_attribute_keys(instrument :: Otel.SDK.Metrics.Instrument.t()) ::
-          {:include, [atom()]} | nil
+          {:include, [String.t()]} | nil
   defp advisory_attribute_keys(instrument) do
     case Keyword.get(instrument.advisory, :attributes) do
       nil -> nil

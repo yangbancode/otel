@@ -55,13 +55,13 @@ Contains:
 
 #### `otel_semantic_conventions` — Otel.SemConv
 
-Attribute key constants auto-generated from the OpenTelemetry Semantic Conventions repository. Zero dependencies. Follows the `SemConv` abbreviation convention used by the Erlang ecosystem.
+Attribute key constants and metric names auto-generated from the OpenTelemetry Semantic Conventions repository via OTel Weaver. Zero dependencies. Follows the `SemConv` abbreviation convention used by the Erlang ecosystem.
 
-Stable and incubating conventions are separated by namespace:
+Attributes and metrics live under separate sub-namespaces, stable items only (incubating/development is out of scope per tech-spec):
 
 ```elixir
-Otel.SemConv.HTTP              # Stable
-Otel.SemConv.Incubating.DB     # Incubating
+Otel.SemConv.Attributes.HTTP   # http.* attribute keys
+Otel.SemConv.Metrics.HTTP      # http.* metric names
 ```
 
 #### Console Exporter (in `otel_sdk`)

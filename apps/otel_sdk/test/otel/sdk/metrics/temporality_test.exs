@@ -368,21 +368,21 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, reader_pid: reader_pid, provider: pid} = setup_delta_provider()
 
       Otel.SDK.Metrics.Meter.create_counter(meter, "multi", [])
-      Otel.SDK.Metrics.Meter.record(meter, "multi", 5, %{method: "GET"})
-      Otel.SDK.Metrics.Meter.record(meter, "multi", 3, %{method: "POST"})
+      Otel.SDK.Metrics.Meter.record(meter, "multi", 5, %{"method" => "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "multi", 3, %{"method" => "POST"})
 
       {:ok, [m1]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
 
       assert length(m1.datapoints) == 2
 
-      Otel.SDK.Metrics.Meter.record(meter, "multi", 2, %{method: "GET"})
+      Otel.SDK.Metrics.Meter.record(meter, "multi", 2, %{"method" => "GET"})
 
       {:ok, [m2]} =
         Otel.SDK.Metrics.TemporalityTest.DeltaReader.collect(reader_pid)
 
       assert length(m2.datapoints) == 1
-      assert hd(m2.datapoints).attributes == %{method: "GET"}
+      assert hd(m2.datapoints).attributes == %{"method" => "GET"}
       assert hd(m2.datapoints).value == 2
 
       GenServer.stop(pid)

@@ -54,8 +54,8 @@ defmodule Otel.SDK.Metrics.Aggregation.SumTest do
 
   describe "aggregate/4 with different attributes" do
     test "separate entries for different attributes", %{tab: tab} do
-      k1 = key(%{method: "GET"})
-      k2 = key(%{method: "POST"})
+      k1 = key(%{"method" => "GET"})
+      k2 = key(%{"method" => "POST"})
       Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, k1, 1, %{})
       Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, k2, 2, %{})
       assert length(:ets.tab2list(tab)) == 2
@@ -64,20 +64,20 @@ defmodule Otel.SDK.Metrics.Aggregation.SumTest do
 
   describe "collect/3" do
     test "returns datapoints for stream", %{tab: tab} do
-      k = key(%{method: "GET"})
+      k = key(%{"method" => "GET"})
       Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, k, 10, %{})
       Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, k, 5, %{})
 
       [dp] = Otel.SDK.Metrics.Aggregation.Sum.collect(tab, {"counter", @scope}, %{})
-      assert dp.attributes == %{method: "GET"}
+      assert dp.attributes == %{"method" => "GET"}
       assert dp.value == 15
       assert is_integer(dp.start_time)
       assert is_integer(dp.time)
     end
 
     test "returns multiple datapoints for different attributes", %{tab: tab} do
-      Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, key(%{m: "GET"}), 1, %{})
-      Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, key(%{m: "POST"}), 2, %{})
+      Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, key(%{"m" => "GET"}), 1, %{})
+      Otel.SDK.Metrics.Aggregation.Sum.aggregate(tab, key(%{"m" => "POST"}), 2, %{})
 
       dps = Otel.SDK.Metrics.Aggregation.Sum.collect(tab, {"counter", @scope}, %{})
       assert length(dps) == 2
