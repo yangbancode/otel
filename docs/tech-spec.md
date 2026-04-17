@@ -6,7 +6,7 @@ Pure Elixir implementation of the OpenTelemetry SDK. This project implements the
 
 ## Tech Stack
 
-- **Language**: Erlang/OTP 28.4.2, Elixir 1.19.5-otp-28
+- **Language**: Erlang/OTP 26.2.5.19, Elixir 1.18.4-otp-26
 - **Version Management**: mise (pinned in `.mise.toml`)
 - **Build Tool**: Mix
 - **Target Spec**: [OpenTelemetry Specification v1.55.0](https://github.com/open-telemetry/opentelemetry-specification/releases/tag/v1.55.0)
