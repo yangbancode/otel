@@ -8,10 +8,6 @@ OpenTelemetry [Semantic Conventions](https://opentelemetry.io/docs/specs/semconv
 
 Part of the [`otel`](https://github.com/yangbancode/otel) umbrella project, a pure Elixir implementation of the OpenTelemetry SDK.
 
-> ### Status: Alpha {: .warning}
->
-> API may change in `0.x` minor releases. Not recommended for production use yet.
-
 ## Spec Version Mapping
 
 | Package Version | OTel Semantic Conventions Spec |
