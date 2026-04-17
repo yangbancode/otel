@@ -45,17 +45,6 @@ iex> Otel.SemConv.Attributes.HTTP.http_request_method_values()[:post]
 "POST"
 ```
 
-## Module Organization
-
-Constants are organized into two namespaces, visible in the sidebar:
-
-| Namespace | Contents |
-|---|---|
-| `Otel.SemConv.Attributes.*` | attribute key constants (e.g., `HTTP`, `DB`, `URL`, `K8S`) |
-| `Otel.SemConv.Metrics.*` | metric name constants (e.g., `HTTP`, `DB`) |
-
-Module names preserve common acronyms exactly (`HTTP`, not `Http`).
-
 ## License
 
 Released into the public domain under the [Unlicense](LICENSE).
