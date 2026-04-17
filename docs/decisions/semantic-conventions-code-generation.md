@@ -38,24 +38,18 @@ Example modules:
 
 Per tech-spec, experimental/incubating attributes are out of scope. One generation pass with `--param stability=stable`.
 
-### Runtime/Framework Exclusion
+### Domain Inclusion
 
-Five domains are excluded via the `excluded` list in `weaver.yaml`:
+All stable domains in the spec are generated, including runtime/framework-specific ones (`aspnetcore`, `dotnet`, `jvm`, `kestrel`, `signalr`) that an Elixir application would not natively emit. The reasoning:
 
-| Domain | Reason |
-|---|---|
-| `aspnetcore` | ASP.NET Core framework internals (rate limiting, routing) — .NET-only |
-| `dotnet` | .NET runtime (GC, assemblies, exceptions) — CLR-only |
-| `jvm` | JVM runtime (memory, GC, threads, classes) — JVM-only |
-| `kestrel` | Kestrel HTTP server — .NET-only |
-| `signalr` | SignalR realtime framework — .NET-only |
+- The package is a constants library, not a runtime — exposing extra modules has zero cost beyond compile time.
+- An OTel Collector or polyglot pipeline running inside an Elixir app may legitimately forward foreign-runtime telemetry and benefit from the constants.
+- Filtering by domain duplicates judgment that the upstream spec already encodes via stability — anything truly irrelevant is unlikely to be marked stable.
+- Maintenance simplicity: one less list to update when the spec adds a new domain.
 
-These describe their own runtime/framework internals and cannot be observed from the BEAM. The project is a **pure Elixir SDK** for instrumenting Elixir applications, not an OTel Collector that proxies polyglot telemetry. Including these groups would offer modules (`Otel.SemConv.Attributes.JVM`, etc.) that an Elixir developer has no legitimate way to populate.
+For modules whose lowercase domain ID needs CamelCase normalization (e.g. `aspnetcore` → `AspNetCore`), the `acronyms` list in `weaver.yaml` carries the canonical capitalization alongside true acronyms like `HTTP` and `JVM`.
 
-Not excluded:
-
-- `go`, `ios`, `nodejs`, `v8js` — have no stable items in v1.40.0; the `stability` filter suffices. Revisit if the spec promotes any to stable.
-- `webengine` — generic web-framework descriptor (`webengine.name`, `webengine.version`) applicable to Phoenix/Cowboy/Bandit. Currently all `development`, so nothing is generated today; when promoted to stable, inclusion is desired.
+Other language/platform domains (`go`, `ios`, `nodejs`, `v8js`) currently have no stable items in v1.40.0 and produce nothing under the `stability=stable` filter. They will appear automatically when the spec promotes any of their items to stable.
 
 ### Templates
 
