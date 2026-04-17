@@ -11,11 +11,8 @@ defmodule Otel.SemConv do
   * `Otel.SemConv.Metrics.*` — metric name constants (e.g., `Otel.SemConv.Metrics.HTTP`)
 
   Module names preserve canonical acronym casing — `HTTP`, `DB`, `URL`,
-  `K8S`, `JVM`, `AspNetCore`, `DotNet`, `SignalR`, etc. — rather than
-  Pascal-cased variants (`Http`, `Db`, `Jvm`, `Aspnetcore`).
-
-  Only stable items are generated. See the
-  [generation decision](https://github.com/yangbancode/otel/blob/main/docs/decisions/semantic-conventions-code-generation.md)
-  for the pipeline.
+  `JVM`, `AspNetCore`, `DotNet`, `SignalR` — rather than Pascal-cased
+  variants (`Http`, `Db`, `Url`, `Jvm`, `Aspnetcore`, `Dotnet`,
+  `Signalr`).
   """
 end
