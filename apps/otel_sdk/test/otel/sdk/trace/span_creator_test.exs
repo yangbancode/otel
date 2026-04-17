@@ -262,10 +262,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           @span_limits,
-          attributes: %{key: "val"}
+          attributes: %{"key" => "val"}
         )
 
-      assert span.attributes.key == "val"
+      assert span.attributes["key"] == "val"
     end
 
     test "passes custom start_time" do
@@ -309,7 +309,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     test "enforces attribute_count_limit" do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2}
-      attrs = %{a: 1, b: 2, c: 3, d: 4}
+      attrs = %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
 
       {_span_ctx, span} =
         Otel.SDK.Trace.SpanCreator.start_span(
@@ -335,10 +335,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{key: "hello world"}
+          attributes: %{"key" => "hello world"}
         )
 
-      assert String.length(span.attributes.key) <= 5
+      assert String.length(span.attributes["key"]) <= 5
     end
 
     test "infinity value length limit does not truncate" do
@@ -353,10 +353,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{key: long_value}
+          attributes: %{"key" => long_value}
         )
 
-      assert span.attributes.key == long_value
+      assert span.attributes["key"] == long_value
     end
 
     test "non-string values are not truncated" do
@@ -370,10 +370,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{num: 12_345}
+          attributes: %{"num" => 12_345}
         )
 
-      assert span.attributes.num == 12_345
+      assert span.attributes["num"] == 12_345
     end
 
     test "truncates strings inside arrays" do
@@ -387,10 +387,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           @always_on_sampler,
           @id_generator,
           limits,
-          attributes: %{tags: ["hello", "world"]}
+          attributes: %{"tags" => ["hello", "world"]}
         )
 
-      assert span.attributes.tags == ["hel", "wor"]
+      assert span.attributes["tags"] == ["hel", "wor"]
     end
 
     test "enforces link_count_limit" do
@@ -420,7 +420,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1}
 
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{a: 1, b: 2, c: 3}}
+        {Otel.API.Trace.SpanContext.new(1, 1), %{"a" => 1, "b" => 2, "c" => 3}}
       ]
 
       {_span_ctx, span} =
@@ -442,7 +442,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{key: "hello world"}}
+        {Otel.API.Trace.SpanContext.new(1, 1), %{"key" => "hello world"}}
       ]
 
       {_span_ctx, span} =
@@ -456,7 +456,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
         )
 
       {_ctx, attrs} = hd(span.links)
-      assert attrs.key == "hel"
+      assert attrs["key"] == "hel"
     end
   end
 end

@@ -79,14 +79,14 @@ defmodule Otel.API.Metrics.MeterProviderTest do
     test "creates InstrumentationScope with all fields" do
       scope =
         Otel.API.Metrics.MeterProvider.scope("my_lib", "1.0.0", "https://example.com", %{
-          key: "val"
+          "key" => "val"
         })
 
       assert %Otel.API.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com",
-               attributes: %{key: "val"}
+               attributes: %{"key" => "val"}
              } == scope
     end
   end

@@ -20,7 +20,7 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
         resource: @resource,
         kind: :counter,
         datapoints: [
-          %{attributes: %{method: "GET"}, value: 42, start_time: 1000, time: 2000}
+          %{attributes: %{"method" => "GET"}, value: 42, start_time: 1000, time: 2000}
         ]
       }
 
@@ -80,8 +80,8 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
         resource: @resource,
         kind: :gauge,
         datapoints: [
-          %{attributes: %{host: "a"}, value: 20, start_time: 1000, time: 2000},
-          %{attributes: %{host: "b"}, value: 25, start_time: 1000, time: 2000}
+          %{attributes: %{"host" => "a"}, value: 20, start_time: 1000, time: 2000},
+          %{attributes: %{"host" => "b"}, value: 25, start_time: 1000, time: 2000}
         ]
       }
 
@@ -90,8 +90,8 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
           Otel.SDK.Metrics.Exporter.Console.export([metric], %{})
         end)
 
-      assert output =~ "host: \"a\""
-      assert output =~ "host: \"b\""
+      assert output =~ "\"host\" => \"a\""
+      assert output =~ "\"host\" => \"b\""
     end
   end
 

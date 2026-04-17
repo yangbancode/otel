@@ -15,7 +15,7 @@ defmodule Otel.API.Logs.LoggerTest do
         severity_number: 9,
         severity_text: "INFO",
         body: "Hello, world!",
-        attributes: %{key: "value"},
+        attributes: %{"key" => "value"},
         event_name: "my.event"
       }
 
