@@ -25,8 +25,8 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 
 ## Requirements
 
-- Elixir 1.15+
-- Erlang/OTP 25+
+- Elixir 1.18+
+- Erlang/OTP 26+
 
 ## Installation
 

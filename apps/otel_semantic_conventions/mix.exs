@@ -13,7 +13,7 @@ defmodule Otel.SemConv.MixProject do
       build_path: "../../_build",
       deps_path: "../../deps",
       lockfile: "../../mix.lock",
-      elixir: "~> 1.15",
+      elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_coverage: [summary: [threshold: 95]],
