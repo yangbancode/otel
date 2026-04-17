@@ -10,8 +10,8 @@ defmodule Otel.SemConv do
   * `Otel.SemConv.Attributes.*` — attribute key constants (e.g., `Otel.SemConv.Attributes.HTTP`)
   * `Otel.SemConv.Metrics.*` — metric name constants (e.g., `Otel.SemConv.Metrics.HTTP`)
 
-  Only stable items are generated. See
-  [`docs/decisions/semantic-conventions-code-generation.md`](../../docs/decisions/semantic-conventions-code-generation.md)
-  for the generation pipeline.
+  Only stable items are generated. See the
+  [generation decision](https://github.com/yangbancode/otel/blob/main/docs/decisions/semantic-conventions-code-generation.md)
+  for the pipeline.
   """
 end
