@@ -61,7 +61,6 @@ defmodule Otel.SemConv.MixProject do
       source_ref: "otel_semantic_conventions-v#{@version}",
       source_url_pattern:
         "#{@repo_url}/blob/otel_semantic_conventions-v#{@version}/apps/otel_semantic_conventions/%{path}#L%{line}",
-      before_closing_head_tag: &before_closing_head_tag/1,
       groups_for_modules: [
         Attributes: ~r/^Otel\.SemConv\.Attributes\./,
         Metrics: ~r/^Otel\.SemConv\.Metrics\./
@@ -72,10 +71,4 @@ defmodule Otel.SemConv.MixProject do
       ]
     ]
   end
-
-  defp before_closing_head_tag(:html) do
-    ~S(<meta name="exdoc:autocomplete-limit" content="25">)
-  end
-
-  defp before_closing_head_tag(_), do: ""
 end
