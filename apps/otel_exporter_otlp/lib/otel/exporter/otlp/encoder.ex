@@ -137,7 +137,7 @@ defmodule Otel.Exporter.OTLP.Encoder do
   defp encode_attributes(attrs) when is_map(attrs) do
     Enum.map(attrs, fn {key, value} ->
       %Opentelemetry.Proto.Common.V1.KeyValue{
-        key: to_string(key),
+        key: key,
         value: encode_any_value(value)
       }
     end)

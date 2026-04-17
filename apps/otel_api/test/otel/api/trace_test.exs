@@ -87,7 +87,10 @@ defmodule Otel.API.TraceTest do
       tracer = {Otel.API.Trace.Tracer.Noop, []}
 
       span_ctx =
-        Otel.API.Trace.start_span(tracer, "test_span", kind: :server, attributes: %{key: "val"})
+        Otel.API.Trace.start_span(tracer, "test_span",
+          kind: :server,
+          attributes: %{"key" => "val"}
+        )
 
       assert %Otel.API.Trace.SpanContext{} = span_ctx
     end
