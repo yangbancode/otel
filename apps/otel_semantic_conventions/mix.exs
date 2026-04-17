@@ -38,8 +38,8 @@ defmodule Otel.SemConv.MixProject do
   end
 
   defp description do
-    "OpenTelemetry Semantic Conventions for Elixir — " <>
-      "auto-generated attribute and metric key constants from the OpenTelemetry spec."
+    "Pure Elixir implementation of Semantic Conventions. " <>
+      "Part of the Otel umbrella project, a pure Elixir implementation of OpenTelemetry."
   end
 
   defp package do
