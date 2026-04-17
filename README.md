@@ -40,4 +40,4 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 
 ## License
 
-Released into the public domain under the [Unlicense](LICENSE).
+Each app is released into the public domain under the [Unlicense](https://unlicense.org/). See the `LICENSE` file inside each `apps/<name>/` directory.
