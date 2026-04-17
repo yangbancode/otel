@@ -85,29 +85,34 @@ def http_request_method do
 end
 ```
 
-Enum attributes additionally get a `_values()` function returning a member-to-value map:
+Enum attributes additionally get a `_values()` helper returning a member-to-value map. Member ids (left-hand side) are atoms for type precision; member values (right-hand side) are strings because those are what callers emit as the attribute value:
 
 ```elixir
 @type http_request_method_values :: %{
-        "connect" => String.t(),
+        :connect => String.t(),
+        :delete => String.t(),
         ...
       }
 
 @spec http_request_method_values :: http_request_method_values()
 def http_request_method_values do
-  %{"connect" => "CONNECT", ...}
+  %{:connect => "CONNECT", :delete => "DELETE", ...}
 end
 ```
 
-### Key Type: String.t()
+Dotted member ids use quoted-atom form, e.g. `:"microsoft.sql_server" => "microsoft.sql_server"`.
+
+### Key Type: String.t() on the Wire
 
 The OTel spec (v1.55.0, [common/README.md L185](../../references/opentelemetry-specification/specification/common/README.md#L185)) requires:
 
 > The attribute key MUST be a non-`null` and non-empty string.
 
-All generated attribute and metric constants return `String.t()` to match the spec verbatim. Enum map keys and values are also strings for consistency.
+Everything the caller emits as an OTel attribute — the key returned by `http_request_method()`, and the value returned by `http_request_method_values()[:connect]` — is a `String.t()`, matching the spec verbatim.
 
-This differs from opentelemetry-erlang, which emits atoms. The trade-off: atoms give O(1) pointer equality and singleton literal types for Dialyzer, but introduce a footgun where `:"http.method"` and `"http.method"` are distinct map keys. For a spec-strict project, strings remove ambiguity and align with the wire format without conversion.
+The helper-map member ids (`:connect`, `:delete`, ...) are **not** OTel attribute keys. They are Elixir-side navigation handles for the caller to look up an allowed value in a finite enum; they never appear on the wire. Keeping them as atoms lets the typespec enumerate the exact valid keys (`%{:connect => String.t(), ...}`) so Dialyzer can catch typos like `values()[:conect]`, which a `%{optional(String.t()) => String.t()}` type cannot.
+
+This differs from opentelemetry-erlang, which emits atoms for attribute keys themselves. The trade-off for that approach: atoms give O(1) pointer equality and singleton literal types, but introduce a footgun where `:"http.method"` and `"http.method"` are distinct map keys. For a spec-strict project, strings on the wire remove that ambiguity and align with the OTLP format without conversion.
 
 API signatures (`Otel.API.Trace.Span.set_attribute/3`, `set_attributes/2`, `add_event/3`) accept `String.t()` only — atoms were removed from the union.
 
