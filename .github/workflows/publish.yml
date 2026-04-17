@@ -20,27 +20,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Parse release tag
+      - name: Resolve package and version from tag
         id: tag
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          if [[ ! "$TAG" =~ ^([a-z_]+)-v([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
-            echo "::error::Tag '$TAG' does not match <package>-v<version> pattern"
+          PACKAGE="${TAG%-v*}"
+          VERSION="${TAG##*-v}"
+          if [ ! -d "apps/$PACKAGE" ] || [ "$TAG" != "${PACKAGE}-v${VERSION}" ]; then
+            echo "::error::Tag '$TAG' must be <package>-v<version> where <package> matches an app in apps/"
             exit 1
           fi
-          PACKAGE="${BASH_REMATCH[1]}"
-          VERSION="${BASH_REMATCH[2]}"
           echo "package=$PACKAGE" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Parsed: package=$PACKAGE, version=$VERSION"
-
-      - name: Verify app directory exists
-        run: |
-          APP_DIR="apps/${{ steps.tag.outputs.package }}"
-          if [ ! -d "$APP_DIR" ]; then
-            echo "::error::App directory $APP_DIR does not exist"
-            exit 1
-          fi
+          echo "Publishing: apps/$PACKAGE version $VERSION"
 
       - uses: erlef/setup-beam@v1
         with:
