@@ -2,8 +2,7 @@ defmodule Otel.SDK.Metrics.Meter do
   @moduledoc """
   SDK implementation of the Meter behaviour.
 
-  Handles instrument creation with name validation, duplicate
-  detection (case-insensitive), and advisory parameter validation.
+  Handles instrument creation with case-insensitive duplicate detection.
   Instruments are stored in a shared ETS table owned by the
   MeterProvider.
 
@@ -148,25 +147,10 @@ defmodule Otel.SDK.Metrics.Meter do
           kind :: Otel.API.Metrics.Instrument.kind(),
           opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
-  defp register_instrument(meter, name, kind, opts) do
-    case Otel.API.Metrics.Instrument.validate_name(name) do
-      {:ok, validated_name} -> do_register(meter, validated_name, kind, opts)
-      {:error, _reason} -> do_register(meter, name || "", kind, opts)
-    end
-  end
-
-  @spec do_register(
-          meter :: Otel.API.Metrics.Meter.t(),
-          name :: String.t(),
-          kind :: Otel.API.Metrics.Instrument.kind(),
-          opts :: Otel.API.Metrics.Instrument.create_opts()
-        ) :: Otel.API.Metrics.Instrument.t()
-  defp do_register({_module, config} = meter, name, kind, opts) do
+  defp register_instrument({_module, config} = meter, name, kind, opts) do
     unit = Keyword.get(opts, :unit, "") || ""
     description = Keyword.get(opts, :description, "") || ""
-
-    advisory =
-      Otel.API.Metrics.Instrument.validate_advisory(kind, Keyword.get(opts, :advisory, []))
+    advisory = Keyword.get(opts, :advisory, [])
 
     instrument = %Otel.API.Metrics.Instrument{
       meter: meter,

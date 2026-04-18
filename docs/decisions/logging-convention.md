@@ -47,6 +47,10 @@ The following compliance rows are marked `[ ]` with the annotation
 - `metrics/sdk.md` L133 — Invalid meter name SHOULD be logged
 - `logs/sdk.md` L81 — Invalid logger name SHOULD be logged
 - `metrics/sdk.md` L942 — Duplicate instrument registration SHOULD warn
+- `metrics/sdk.md` L962 — Instrument name SHOULD be validated
+- `metrics/sdk.md` L965 — Invalid instrument name SHOULD emit error
+- `metrics/sdk.md` L985 — Instrument advisory parameters SHOULD be validated
+- `metrics/sdk.md` L986 — Invalid advisory parameter SHOULD emit error
 - `logs/sdk.md` L345 — LogRecord attribute drop SHOULD warn
 - `common/README.md` L284 — Attribute truncation MAY warn (already MAY, skipped trivially)
 

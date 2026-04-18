@@ -12,27 +12,24 @@ ETS table owned by MeterProvider, shared across all Meters from the same provide
 
 ### Name Validation
 
-Meter validates instrument name against the ABNF syntax:
-- First character must be alphabetic
-- Subsequent: alphanumeric, `_`, `.`, `-`, `/`
-- Max 255 characters
-- Not null or empty
-
-Invalid names log a warning but still register (non-fatal, per erlang reference).
+Per the happy-path policy (see [logging-convention.md](logging-convention.md)),
+instrument names are not validated at registration time — the SHOULD-log
+clauses at `metrics/sdk.md` L962/L965 are not implemented. Callers are
+expected to supply valid names.
 
 ### Duplicate Detection
 
 On `create_*`, the SDK checks if an instrument with the same downcased name exists for the same Meter scope:
 - **First registration**: inserts into ETS, returns instrument reference
-- **Identical instrument** (same kind, unit, description): returns existing instrument, no warning
-- **Duplicate with conflicts** (different kind/unit/description): returns existing instrument, logs warning
+- **Existing instrument**: returns the existing instrument unchanged
 
 First-seen wins for name casing and advisory parameters.
 
 ### Advisory Parameter Validation
 
-- `explicit_bucket_boundaries`: only valid for Histogram, must be sorted list of numbers
-- Invalid advisory params: log warning, proceed without them
+Advisory parameters pass through unvalidated. Per the happy-path policy,
+the SHOULD-log clauses at `metrics/sdk.md` L985/L986 are not implemented.
+Callers are expected to supply well-formed advisory keyword lists.
 
 ### Unit and Description
 

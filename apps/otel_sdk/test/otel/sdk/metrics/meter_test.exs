@@ -139,23 +139,6 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
   end
 
-  describe "name validation" do
-    test "valid name accepted", %{meter: meter} do
-      result = Otel.SDK.Metrics.Meter.create_counter(meter, "valid_name", [])
-      assert result.name == "valid_name"
-    end
-
-    test "invalid name still registers with warning", %{meter: meter} do
-      result = Otel.SDK.Metrics.Meter.create_counter(meter, "1invalid", [])
-      assert %Otel.API.Metrics.Instrument{name: "1invalid"} = result
-    end
-
-    test "nil name registers with empty string", %{meter: meter} do
-      result = Otel.SDK.Metrics.Meter.create_counter(meter, nil, [])
-      assert %Otel.API.Metrics.Instrument{name: ""} = result
-    end
-  end
-
   describe "duplicate detection" do
     test "identical instrument returns same struct", %{meter: meter} do
       first = Otel.SDK.Metrics.Meter.create_counter(meter, "dup_counter", unit: "1")
