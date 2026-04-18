@@ -2,16 +2,10 @@ defmodule Otel.API.CtxTest do
   use ExUnit.Case, async: true
 
   describe "create_key/1" do
-    test "returns a tuple with name and reference" do
-      {name, ref} = Otel.API.Ctx.create_key("test")
-      assert name == "test"
-      assert is_reference(ref)
-    end
-
-    test "accepts atom name" do
-      {name, ref} = Otel.API.Ctx.create_key(:span)
-      assert name == :span
-      assert is_reference(ref)
+    test "returns a usable key for an atom name" do
+      key = Otel.API.Ctx.create_key(:span)
+      ctx = Otel.API.Ctx.set_value(Otel.API.Ctx.new(), key, "value")
+      assert Otel.API.Ctx.get_value(ctx, key, nil) == "value"
     end
 
     test "same name returns different keys" do

@@ -12,7 +12,23 @@ defmodule Otel.API.Ctx do
   """
 
   @type t :: map()
-  @type key :: term()
+  @typedoc """
+  A context key. Any term may be used — Trace and Baggage use predefined
+  atoms, while user-level code typically obtains a `create_key/1` result
+  and MUST treat it as opaque (see `key/0`).
+  """
+  @type raw_key :: term()
+
+  @typedoc """
+  An opaque context key returned by `create_key/1`.
+
+  Per `context/README.md` L43, the return value MUST be an opaque
+  object. External modules receive values of this type and pass them
+  verbatim to `set_value`/`get_value`/`remove`; they MUST NOT inspect
+  the internal structure.
+  """
+  @opaque key :: {term(), reference()}
+
   @type value :: term()
   @opaque token :: t() | nil
 
@@ -39,7 +55,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Sets a value in the current process context.
   """
-  @spec set_value(key :: key(), value :: value()) :: :ok
+  @spec set_value(key :: raw_key(), value :: value()) :: :ok
   def set_value(key, value) do
     Process.put(@ctx_key, Map.put(get_current(), key, value))
     :ok
@@ -50,7 +66,7 @@ defmodule Otel.API.Ctx do
 
   Returns `nil` if the key is not found.
   """
-  @spec get_value(key :: key()) :: value()
+  @spec get_value(key :: raw_key()) :: value()
   def get_value(key) do
     Map.get(get_current(), key)
   end
@@ -58,7 +74,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Gets a value from the current process context with a default.
   """
-  @spec get_value(key :: key(), default :: value()) :: value()
+  @spec get_value(key :: raw_key(), default :: value()) :: value()
   def get_value(key, default) when not is_map(key) do
     Map.get(get_current(), key, default)
   end
@@ -66,7 +82,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Removes a key from the current process context.
   """
-  @spec remove(key :: key()) :: :ok
+  @spec remove(key :: raw_key()) :: :ok
   def remove(key) do
     Process.put(@ctx_key, Map.delete(get_current(), key))
     :ok
@@ -86,7 +102,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Sets a value in the given context, returning a new context.
   """
-  @spec set_value(ctx :: t(), key :: key(), value :: value()) :: t()
+  @spec set_value(ctx :: t(), key :: raw_key(), value :: value()) :: t()
   def set_value(ctx, key, value) when is_map(ctx) do
     Map.put(ctx, key, value)
   end
@@ -94,7 +110,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Gets a value from the given context.
   """
-  @spec get_value(ctx :: t(), key :: key(), default :: value()) :: value()
+  @spec get_value(ctx :: t(), key :: raw_key(), default :: value()) :: value()
   def get_value(ctx, key, default) when is_map(ctx) do
     Map.get(ctx, key, default)
   end
@@ -102,7 +118,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Removes a key from the given context, returning a new context.
   """
-  @spec remove(ctx :: t(), key :: key()) :: t()
+  @spec remove(ctx :: t(), key :: raw_key()) :: t()
   def remove(ctx, key) when is_map(ctx), do: Map.delete(ctx, key)
 
   @doc """
