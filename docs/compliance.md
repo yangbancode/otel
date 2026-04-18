@@ -626,50 +626,56 @@
 # Common
 
 > Ref: [common/README.md](../references/opentelemetry-specification/specification/common/README.md)
+> Decision: [Attribute and AnyValue Types](decisions/attribute-and-anyvalue-types.md)
 
 ### AnyValue
 - [ ] Homogeneous array MUST NOT contain values of different types — [L45](../references/opentelemetry-specification/specification/common/README.md#L45)
-- [ ] APIs SHOULD be documented that using array and map values may carry higher performance overhead — [L56](../references/opentelemetry-specification/specification/common/README.md#L56)
-- [ ] Empty value, zero, empty string, or empty array are meaningful and MUST be stored and passed on to processors/exporters — [L60](../references/opentelemetry-specification/specification/common/README.md#L60)
-- [ ] `null` values within arrays SHOULD generally be avoided unless language constraints make this impossible — [L64](../references/opentelemetry-specification/specification/common/README.md#L64)
-- [ ] If impossible to prevent null in arrays, null values MUST be preserved as-is — [L67](../references/opentelemetry-specification/specification/common/README.md#L67)
+- [x] Arbitrary deep nesting of values for arrays and maps is allowed — [L53](../references/opentelemetry-specification/specification/common/README.md#L53)
+- [x] APIs SHOULD be documented that using array and map values may carry higher performance overhead — [L56](../references/opentelemetry-specification/specification/common/README.md#L56)
+- [x] Empty value, zero, empty string, or empty array are meaningful and MUST be stored and passed on to processors/exporters — [L60](../references/opentelemetry-specification/specification/common/README.md#L60)
+- [x] `null` values within arrays SHOULD generally be avoided unless language constraints make this impossible — [L64](../references/opentelemetry-specification/specification/common/README.md#L64)
+- [x] If impossible to prevent null in arrays, null values MUST be preserved as-is — [L67](../references/opentelemetry-specification/specification/common/README.md#L67)
 
 ### map<string, AnyValue>
-- [ ] Case sensitivity of keys MUST be preserved — [L80](../references/opentelemetry-specification/specification/common/README.md#L80)
-- [ ] Implementation MUST by default enforce that exported maps contain only unique keys — [L85](../references/opentelemetry-specification/specification/common/README.md#L85)
+- [x] Case sensitivity of keys MUST be preserved — [L80](../references/opentelemetry-specification/specification/common/README.md#L80)
+- [x] Implementation MUST by default enforce that exported maps contain only unique keys — [L85](../references/opentelemetry-specification/specification/common/README.md#L85)
 - [ ] If option to allow duplicate keys is provided, it MUST be documented that handling is unpredictable — [L93](../references/opentelemetry-specification/specification/common/README.md#L93)
+- [x] Maps are equal when they contain the same key-value pairs, irrespective of order (unordered collection equality) — [L96](../references/opentelemetry-specification/specification/common/README.md#L96)
 
 ### AnyValue Representation for Non-OTLP Protocols
-- [ ] Values SHOULD be represented as strings following the encoding rules — [L103](../references/opentelemetry-specification/specification/common/README.md#L103)
-- [ ] Strings SHOULD be represented as-is without additional encoding — [L113](../references/opentelemetry-specification/specification/common/README.md#L113)
-- [ ] Strings SHOULD NOT be encoded as JSON strings (with surrounding quotes) — [L114](../references/opentelemetry-specification/specification/common/README.md#L114)
-- [ ] Booleans SHOULD be represented as JSON booleans — [L120](../references/opentelemetry-specification/specification/common/README.md#L120)
-- [ ] Integers SHOULD be represented as JSON numbers — [L127](../references/opentelemetry-specification/specification/common/README.md#L127)
-- [ ] Floating point numbers SHOULD be represented as JSON numbers — [L134](../references/opentelemetry-specification/specification/common/README.md#L134)
-- [ ] NaN and Infinity SHOULD be represented as `NaN`, `Infinity`, `-Infinity` — [L137](../references/opentelemetry-specification/specification/common/README.md#L137)
-- [ ] NaN/Infinity SHOULD NOT be encoded as JSON strings — [L139](../references/opentelemetry-specification/specification/common/README.md#L139)
-- [ ] Byte arrays SHOULD be Base64-encoded — [L145](../references/opentelemetry-specification/specification/common/README.md#L145)
-- [ ] Byte arrays SHOULD NOT be encoded as JSON strings — [L146](../references/opentelemetry-specification/specification/common/README.md#L146)
-- [ ] Empty values SHOULD be represented as the empty string — [L152](../references/opentelemetry-specification/specification/common/README.md#L152)
-- [ ] Empty values SHOULD NOT be encoded as JSON string — [L153](../references/opentelemetry-specification/specification/common/README.md#L153)
-- [ ] Arrays SHOULD be represented as JSON arrays — [L157](../references/opentelemetry-specification/specification/common/README.md#L157)
-- [ ] Nested byte arrays SHOULD be represented as Base64-encoded JSON strings — [L159](../references/opentelemetry-specification/specification/common/README.md#L159)
-- [ ] Nested empty values SHOULD be represented as JSON null — [L161](../references/opentelemetry-specification/specification/common/README.md#L161)
-- [ ] Nested NaN/Infinity in arrays SHOULD be represented as JSON strings — [L162](../references/opentelemetry-specification/specification/common/README.md#L162)
-- [ ] Maps SHOULD be represented as JSON objects — [L169](../references/opentelemetry-specification/specification/common/README.md#L169)
-- [ ] Nested byte arrays in maps SHOULD be Base64-encoded JSON strings — [L171](../references/opentelemetry-specification/specification/common/README.md#L171)
-- [ ] Nested empty values in maps SHOULD be JSON null — [L173](../references/opentelemetry-specification/specification/common/README.md#L173)
-- [ ] Nested NaN/Infinity in maps SHOULD be JSON strings — [L174](../references/opentelemetry-specification/specification/common/README.md#L174)
+- [ ] Values SHOULD be represented as strings following the encoding rules — [L103](../references/opentelemetry-specification/specification/common/README.md#L103) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Strings SHOULD be represented as-is without additional encoding — [L113](../references/opentelemetry-specification/specification/common/README.md#L113) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Strings SHOULD NOT be encoded as JSON strings (with surrounding quotes) — [L114](../references/opentelemetry-specification/specification/common/README.md#L114) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Booleans SHOULD be represented as JSON booleans — [L120](../references/opentelemetry-specification/specification/common/README.md#L120) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Integers SHOULD be represented as JSON numbers — [L127](../references/opentelemetry-specification/specification/common/README.md#L127) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Floating point numbers SHOULD be represented as JSON numbers — [L134](../references/opentelemetry-specification/specification/common/README.md#L134) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] NaN and Infinity SHOULD be represented as `NaN`, `Infinity`, `-Infinity` — [L137](../references/opentelemetry-specification/specification/common/README.md#L137) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] NaN/Infinity SHOULD NOT be encoded as JSON strings — [L139](../references/opentelemetry-specification/specification/common/README.md#L139) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Byte arrays SHOULD be Base64-encoded — [L145](../references/opentelemetry-specification/specification/common/README.md#L145) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Byte arrays SHOULD NOT be encoded as JSON strings — [L146](../references/opentelemetry-specification/specification/common/README.md#L146) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Empty values SHOULD be represented as the empty string — [L152](../references/opentelemetry-specification/specification/common/README.md#L152) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Empty values SHOULD NOT be encoded as JSON string — [L153](../references/opentelemetry-specification/specification/common/README.md#L153) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Arrays SHOULD be represented as JSON arrays — [L157](../references/opentelemetry-specification/specification/common/README.md#L157) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Nested byte arrays SHOULD be represented as Base64-encoded JSON strings — [L159](../references/opentelemetry-specification/specification/common/README.md#L159) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Nested empty values SHOULD be represented as JSON null — [L161](../references/opentelemetry-specification/specification/common/README.md#L161) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Nested NaN/Infinity in arrays SHOULD be represented as JSON strings — [L162](../references/opentelemetry-specification/specification/common/README.md#L162) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Maps SHOULD be represented as JSON objects — [L169](../references/opentelemetry-specification/specification/common/README.md#L169) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Nested byte arrays in maps SHOULD be Base64-encoded JSON strings — [L171](../references/opentelemetry-specification/specification/common/README.md#L171) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Nested empty values in maps SHOULD be JSON null — [L173](../references/opentelemetry-specification/specification/common/README.md#L173) — [SDK/Exporter concern; not applicable to API layer]
+- [ ] Nested NaN/Infinity in maps SHOULD be JSON strings — [L174](../references/opentelemetry-specification/specification/common/README.md#L174) — [SDK/Exporter concern; not applicable to API layer]
 
 ### Attribute
-- [ ] Attribute MUST have key-value pair properties — [L183](../references/opentelemetry-specification/specification/common/README.md#L183)
-- [ ] Attribute key MUST be a non-null and non-empty string — [L185](../references/opentelemetry-specification/specification/common/README.md#L185)
-- [ ] Attribute value MUST be one of types defined in AnyValue — [L187](../references/opentelemetry-specification/specification/common/README.md#L187)
+- [x] Attribute MUST have key-value pair properties — [L183](../references/opentelemetry-specification/specification/common/README.md#L183)
+- [x] Attribute key MUST be a non-null and non-empty string — [L185](../references/opentelemetry-specification/specification/common/README.md#L185)
+- [x] Case sensitivity of keys is preserved; keys that differ in casing are treated as distinct keys — [L186](../references/opentelemetry-specification/specification/common/README.md#L186)
+- [x] Attribute value MUST be one of types defined in AnyValue — [L187](../references/opentelemetry-specification/specification/common/README.md#L187)
+- [x] Attributes are equal when their keys and values are equal — [L189](../references/opentelemetry-specification/specification/common/README.md#L189)
 
 ### Attribute Collections
-- [ ] Implementation MUST by default enforce that exported attribute collections contain only unique keys — [L215](../references/opentelemetry-specification/specification/common/README.md#L215)
+- [x] Implementation MUST by default enforce that exported attribute collections contain only unique keys — [L215](../references/opentelemetry-specification/specification/common/README.md#L215)
 - [ ] Setting attribute with same key SHOULD overwrite existing value — [L223](../references/opentelemetry-specification/specification/common/README.md#L223)
 - [ ] If option to allow duplicate keys is provided, it MUST be documented that handling is unpredictable — [L241](../references/opentelemetry-specification/specification/common/README.md#L241)
+- [x] Collections of attributes are equal when they contain the same attributes, irrespective of order (unordered collection equality) — [L245](../references/opentelemetry-specification/specification/common/README.md#L245)
 
 ### Attribute Limits
 - [ ] SDK SHOULD apply truncation as per configurable parameters by default — [L255](../references/opentelemetry-specification/specification/common/README.md#L255)
@@ -685,6 +691,17 @@
 - [ ] If neither are defined, SDK MUST try model-specific default, then global default — [L296](../references/opentelemetry-specification/specification/common/README.md#L296)
 - [ ] `AttributeCountLimit` default=128, `AttributeValueLengthLimit` default=Infinity — [L305](../references/opentelemetry-specification/specification/common/README.md#L305)
 - [ ] Resource attributes SHOULD be exempt from attribute limits — [L310](../references/opentelemetry-specification/specification/common/README.md#L310)
+
+## InstrumentationScope
+
+> Ref: [common/instrumentation-scope.md](../references/opentelemetry-specification/specification/common/instrumentation-scope.md)
+
+- [x] Instrumentation scope is defined by the (name, version, schema_url, attributes) tuple — [L17](../references/opentelemetry-specification/specification/common/instrumentation-scope.md#L17)
+- [x] version, schema_url, and attributes are optional fields — [L18](../references/opentelemetry-specification/specification/common/instrumentation-scope.md#L18)
+- [x] Tuple SHOULD uniquely identify the logical unit of software that emits the telemetry — [L19](../references/opentelemetry-specification/specification/common/instrumentation-scope.md#L19)
+- [x] Instrumentation scope's name SHOULD be specified to identify the InstrumentationScope name — [L27](../references/opentelemetry-specification/specification/common/instrumentation-scope.md#L27)
+- [x] Optional Schema URL SHOULD identify the Telemetry Schema that emitted telemetry conforms to — [L30](../references/opentelemetry-specification/specification/common/instrumentation-scope.md#L30)
+- [x] Optional attributes provide additional information about the scope (since 1.13.0) — [L34](../references/opentelemetry-specification/specification/common/instrumentation-scope.md#L34)
 
 ---
 

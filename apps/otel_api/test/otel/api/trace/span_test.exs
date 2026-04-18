@@ -4,14 +4,14 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
 
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          key :: String.t(),
-          value :: term()
+          key :: Otel.API.Attribute.key(),
+          value :: Otel.API.Attribute.value()
         ) :: :ok
   def set_attribute(_span_ctx, _key, _value), do: :ok
 
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map() | [{String.t(), term()}]
+          attributes :: Otel.API.Attribute.attributes()
         ) :: :ok
   def set_attributes(_span_ctx, _attributes), do: :ok
 
@@ -25,7 +25,7 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           linked_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map()
+          attributes :: Otel.API.Attribute.attributes()
         ) :: :ok
   def add_link(_span_ctx, _linked_ctx, _attributes), do: :ok
 
@@ -46,7 +46,7 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: map()
+          attributes :: Otel.API.Attribute.attributes()
         ) :: :ok
   def record_exception(_span_ctx, _exception, _stacktrace, _attributes), do: :ok
 end
@@ -90,8 +90,8 @@ defmodule Otel.API.Trace.SpanTest do
       assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{"key" => "value"}) == :ok
     end
 
-    test "set_attributes with list of tuples returns :ok" do
-      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, [{"key", "value"}, {"other", 42}]) ==
+    test "set_attributes with multiple map entries returns :ok" do
+      assert Otel.API.Trace.Span.set_attributes(@valid_ctx, %{"key" => "value", "other" => 42}) ==
                :ok
     end
 
@@ -163,7 +163,7 @@ defmodule Otel.API.Trace.SpanTest do
                @valid_ctx,
                %RuntimeError{message: "oops"},
                [{__MODULE__, :test, 0, []}],
-               %{extra: "info"}
+               %{"extra" => "info"}
              ) == :ok
     end
   end
