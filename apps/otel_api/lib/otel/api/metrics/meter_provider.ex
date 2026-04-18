@@ -13,20 +13,56 @@ defmodule Otel.API.Metrics.MeterProvider do
   @provider_key {__MODULE__, :global}
   @meter_key_prefix {__MODULE__, :meter}
 
-  @doc """
-  Returns the global MeterProvider module, or `nil` if none is set.
+  @typedoc """
+  A `{dispatcher_module, state}` pair.
+
+  The API layer treats the state as opaque; only `dispatcher_module`
+  knows how to use it. This mirrors `Otel.API.Metrics.Meter.t/0` and
+  keeps the API decoupled from SDK internals.
+
+  `dispatcher_module` MUST implement the `Otel.API.Metrics.MeterProvider`
+  behaviour.
   """
-  @spec get_provider() :: module() | nil
+  @type t :: {module(), term()}
+
+  @doc """
+  Returns a meter for the given instrumentation scope.
+
+  Called by the API layer when no cached meter matches the scope.
+  Implementations receive the opaque `state` they registered via
+  `set_provider/1`.
+  """
+  @callback get_meter(
+              state :: term(),
+              name :: String.t(),
+              version :: String.t(),
+              schema_url :: String.t() | nil,
+              attributes :: Otel.API.Attribute.attributes()
+            ) :: Otel.API.Metrics.Meter.t()
+
+  @doc """
+  Returns the global MeterProvider, or `nil` if none is set.
+  """
+  @spec get_provider() :: t() | nil
   def get_provider do
     :persistent_term.get(@provider_key, nil)
   end
 
   @doc """
-  Sets the global MeterProvider module.
+  Sets the global MeterProvider.
+
+  Accepts a `{module, state}` tuple. The SDK MeterProvider calls this
+  from its `init/1` with `{__MODULE__, server_ref}`. `nil` clears the
+  registration.
   """
-  @spec set_provider(provider :: module()) :: :ok
-  def set_provider(provider) when is_atom(provider) do
+  @spec set_provider(provider :: t() | nil) :: :ok
+  def set_provider({module, _state} = provider) when is_atom(module) do
     :persistent_term.put(@provider_key, provider)
+    :ok
+  end
+
+  def set_provider(nil) do
+    :persistent_term.put(@provider_key, nil)
     :ok
   end
 
@@ -44,7 +80,7 @@ defmodule Otel.API.Metrics.MeterProvider do
         ) :: Otel.API.Metrics.Meter.t()
   def get_meter(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
-    key = {@meter_key_prefix, {name, version, schema_url}}
+    key = {@meter_key_prefix, {name, version, schema_url, attributes}}
 
     case :persistent_term.get(key, nil) do
       nil ->
@@ -104,7 +140,13 @@ defmodule Otel.API.Metrics.MeterProvider do
           schema_url :: String.t() | nil,
           attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Metrics.Meter.t()
-  defp fetch_or_default(_name, _version, _schema_url, _attributes) do
-    @default_meter
+  defp fetch_or_default(name, version, schema_url, attributes) do
+    case get_provider() do
+      nil ->
+        @default_meter
+
+      {module, state} ->
+        module.get_meter(state, name, version, schema_url, attributes)
+    end
   end
 end

@@ -2,6 +2,7 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
   use ExUnit.Case
 
   setup do
+    :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
     meter = Otel.API.Metrics.MeterProvider.get_meter("test_lib")
     %{meter: meter}
   end

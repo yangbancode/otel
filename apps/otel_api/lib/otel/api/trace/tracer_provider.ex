@@ -11,20 +11,57 @@ defmodule Otel.API.Trace.TracerProvider do
   @provider_key {__MODULE__, :global}
   @tracer_key_prefix {__MODULE__, :tracer}
 
-  @doc """
-  Returns the global TracerProvider module, or `nil` if none is set.
+  @typedoc """
+  A `{dispatcher_module, state}` pair.
+
+  The API layer treats the state as opaque; only `dispatcher_module`
+  knows how to use it. This mirrors `Otel.API.Trace.Tracer.t/0` and
+  keeps the API decoupled from SDK internals (GenServer, Registry,
+  etc.).
+
+  `dispatcher_module` MUST implement the `Otel.API.Trace.TracerProvider`
+  behaviour.
   """
-  @spec get_provider() :: module() | nil
+  @type t :: {module(), term()}
+
+  @doc """
+  Returns a tracer for the given instrumentation scope.
+
+  Called by the API layer when no cached tracer matches the scope.
+  Implementations receive the opaque `state` they registered via
+  `set_provider/1`.
+  """
+  @callback get_tracer(
+              state :: term(),
+              name :: String.t(),
+              version :: String.t(),
+              schema_url :: String.t() | nil,
+              attributes :: Otel.API.Attribute.attributes()
+            ) :: Otel.API.Trace.Tracer.t()
+
+  @doc """
+  Returns the global TracerProvider, or `nil` if none is set.
+  """
+  @spec get_provider() :: t() | nil
   def get_provider do
     :persistent_term.get(@provider_key, nil)
   end
 
   @doc """
-  Sets the global TracerProvider module.
+  Sets the global TracerProvider.
+
+  Accepts a `{module, state}` tuple. The SDK TracerProvider calls this
+  from its `init/1` with `{__MODULE__, server_ref}`. `nil` clears the
+  registration.
   """
-  @spec set_provider(provider :: module()) :: :ok
-  def set_provider(provider) when is_atom(provider) do
+  @spec set_provider(provider :: t() | nil) :: :ok
+  def set_provider({module, _state} = provider) when is_atom(module) do
     :persistent_term.put(@provider_key, provider)
+    :ok
+  end
+
+  def set_provider(nil) do
+    :persistent_term.put(@provider_key, nil)
     :ok
   end
 
@@ -42,7 +79,7 @@ defmodule Otel.API.Trace.TracerProvider do
         ) :: Otel.API.Trace.Tracer.t()
   def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
-    key = {@tracer_key_prefix, {name, version, schema_url}}
+    key = {@tracer_key_prefix, {name, version, schema_url, attributes}}
 
     case :persistent_term.get(key, nil) do
       nil ->
@@ -102,7 +139,13 @@ defmodule Otel.API.Trace.TracerProvider do
           schema_url :: String.t() | nil,
           attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Trace.Tracer.t()
-  defp fetch_or_default(_name, _version, _schema_url, _attributes) do
-    @default_tracer
+  defp fetch_or_default(name, version, schema_url, attributes) do
+    case get_provider() do
+      nil ->
+        @default_tracer
+
+      {module, state} ->
+        module.get_tracer(state, name, version, schema_url, attributes)
+    end
   end
 end

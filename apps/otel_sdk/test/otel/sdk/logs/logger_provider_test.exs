@@ -19,8 +19,8 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       assert Process.alive?(pid)
     end
 
-    test "registers as global provider" do
-      assert Otel.API.Logs.LoggerProvider.get_provider() == Otel.SDK.Logs.LoggerProvider
+    test "registers as global provider", %{provider: pid} do
+      assert Otel.API.Logs.LoggerProvider.get_provider() == {Otel.SDK.Logs.LoggerProvider, pid}
     end
   end
 

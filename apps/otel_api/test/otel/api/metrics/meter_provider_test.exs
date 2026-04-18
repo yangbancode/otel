@@ -12,8 +12,8 @@ defmodule Otel.API.Metrics.MeterProviderTest do
     end
 
     test "returns the set provider" do
-      Otel.API.Metrics.MeterProvider.set_provider(SomeProvider)
-      assert Otel.API.Metrics.MeterProvider.get_provider() == SomeProvider
+      Otel.API.Metrics.MeterProvider.set_provider({SomeProvider, :opaque_state})
+      assert Otel.API.Metrics.MeterProvider.get_provider() == {SomeProvider, :opaque_state}
     end
   end
 

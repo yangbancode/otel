@@ -10,6 +10,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   """
 
   use GenServer
+  @behaviour Otel.API.Metrics.MeterProvider
 
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
@@ -30,17 +31,29 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @doc """
   Returns a meter for the given instrumentation scope.
+
+  Falls back to the Noop meter if `server` is no longer alive.
   """
   @spec get_meter(
           server :: GenServer.server(),
           name :: String.t(),
           version :: String.t(),
-          schema_url :: String.t() | nil
+          schema_url :: String.t() | nil,
+          attributes :: Otel.API.Attribute.attributes()
         ) ::
           Otel.API.Metrics.Meter.t()
-  def get_meter(server, name, version \\ "", schema_url \\ nil) do
-    GenServer.call(server, {:get_meter, name, version, schema_url})
+  @impl Otel.API.Metrics.MeterProvider
+  def get_meter(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+    if alive?(server) do
+      GenServer.call(server, {:get_meter, name, version, schema_url, attributes})
+    else
+      {Otel.API.Metrics.Meter.Noop, []}
+    end
   end
+
+  @spec alive?(server :: GenServer.server()) :: boolean()
+  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 
   @doc """
   Returns the resource associated with this provider.
@@ -135,20 +148,33 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     config = Map.put(config, :readers, started_readers)
     config = Map.put(config, :reader_configs, reader_configs)
 
-    Otel.API.Metrics.MeterProvider.set_provider(__MODULE__)
+    Otel.API.Metrics.MeterProvider.set_provider({__MODULE__, self_ref()})
     {:ok, config}
   end
 
+  @spec self_ref() :: atom() | pid()
+  defp self_ref do
+    case Process.info(self(), :registered_name) do
+      {:registered_name, name} when is_atom(name) -> name
+      _ -> self()
+    end
+  end
+
   @impl true
-  def handle_call({:get_meter, _name, _version, _schema_url}, _from, %{shut_down: true} = config) do
+  def handle_call(
+        {:get_meter, _name, _version, _schema_url, _attributes},
+        _from,
+        %{shut_down: true} = config
+      ) do
     {:reply, {Otel.API.Metrics.Meter.Noop, []}, config}
   end
 
-  def handle_call({:get_meter, name, version, schema_url}, _from, config) do
+  def handle_call({:get_meter, name, version, schema_url, attributes}, _from, config) do
     scope = %Otel.API.InstrumentationScope{
       name: name,
       version: version,
-      schema_url: schema_url
+      schema_url: schema_url,
+      attributes: attributes
     }
 
     reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
