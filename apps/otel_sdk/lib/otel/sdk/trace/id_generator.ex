@@ -9,10 +9,10 @@ defmodule Otel.SDK.Trace.IdGenerator do
   @doc """
   Generates a 128-bit trace ID.
   """
-  @callback generate_trace_id() :: non_neg_integer()
+  @callback generate_trace_id() :: Otel.API.Trace.TraceId.t()
 
   @doc """
   Generates a 64-bit span ID.
   """
-  @callback generate_span_id() :: non_neg_integer()
+  @callback generate_span_id() :: Otel.API.Trace.SpanId.t()
 end

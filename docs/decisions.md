@@ -16,6 +16,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 
 ## Common Types
 
+- [x] [Type Representation Policy](decisions/type-representation-policy.md)
 - [x] [Attribute and AnyValue Types](decisions/attribute-and-anyvalue-types.md)
 
 ## Phase 1: Traces

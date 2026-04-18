@@ -12,15 +12,15 @@ defmodule Otel.SDK.Trace.IdGenerator.Default do
   @trace_id_max Bitwise.bsl(2, 127) - 1
   @span_id_max Bitwise.bsl(2, 63) - 1
 
-  @spec generate_trace_id() :: non_neg_integer()
+  @spec generate_trace_id() :: Otel.API.Trace.TraceId.t()
   @impl true
   def generate_trace_id do
-    :rand.uniform(@trace_id_max)
+    Otel.API.Trace.TraceId.new(:rand.uniform(@trace_id_max))
   end
 
-  @spec generate_span_id() :: non_neg_integer()
+  @spec generate_span_id() :: Otel.API.Trace.SpanId.t()
   @impl true
   def generate_span_id do
-    :rand.uniform(@span_id_max)
+    Otel.API.Trace.SpanId.new(:rand.uniform(@span_id_max))
   end
 end
