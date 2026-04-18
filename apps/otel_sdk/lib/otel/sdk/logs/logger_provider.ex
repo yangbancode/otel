@@ -10,6 +10,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   """
 
   use GenServer
+  @behaviour Otel.API.Logs.LoggerProvider
 
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
@@ -40,6 +41,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
           attributes :: Otel.API.Attribute.attributes()
         ) ::
           Otel.API.Logs.Logger.t()
+  @impl Otel.API.Logs.LoggerProvider
   def get_logger(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     if alive?(server) do
       GenServer.call(server, {:get_logger, name, version, schema_url, attributes})

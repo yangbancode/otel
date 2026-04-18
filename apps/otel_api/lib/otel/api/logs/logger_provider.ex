@@ -20,8 +20,26 @@ defmodule Otel.API.Logs.LoggerProvider do
   The API layer treats the state as opaque; only `dispatcher_module`
   knows how to use it. This mirrors `Otel.API.Logs.Logger.t/0` and
   keeps the API decoupled from SDK internals.
+
+  `dispatcher_module` MUST implement the `Otel.API.Logs.LoggerProvider`
+  behaviour.
   """
   @type t :: {module(), term()}
+
+  @doc """
+  Returns a logger for the given instrumentation scope.
+
+  Called by the API layer when no cached logger matches the scope.
+  Implementations receive the opaque `state` they registered via
+  `set_provider/1`.
+  """
+  @callback get_logger(
+              state :: term(),
+              name :: String.t(),
+              version :: String.t(),
+              schema_url :: String.t() | nil,
+              attributes :: Otel.API.Attribute.attributes()
+            ) :: Otel.API.Logs.Logger.t()
 
   @doc """
   Returns the global LoggerProvider, or `nil` if none is set.

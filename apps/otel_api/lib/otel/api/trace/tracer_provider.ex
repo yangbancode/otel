@@ -18,8 +18,26 @@ defmodule Otel.API.Trace.TracerProvider do
   knows how to use it. This mirrors `Otel.API.Trace.Tracer.t/0` and
   keeps the API decoupled from SDK internals (GenServer, Registry,
   etc.).
+
+  `dispatcher_module` MUST implement the `Otel.API.Trace.TracerProvider`
+  behaviour.
   """
   @type t :: {module(), term()}
+
+  @doc """
+  Returns a tracer for the given instrumentation scope.
+
+  Called by the API layer when no cached tracer matches the scope.
+  Implementations receive the opaque `state` they registered via
+  `set_provider/1`.
+  """
+  @callback get_tracer(
+              state :: term(),
+              name :: String.t(),
+              version :: String.t(),
+              schema_url :: String.t() | nil,
+              attributes :: Otel.API.Attribute.attributes()
+            ) :: Otel.API.Trace.Tracer.t()
 
   @doc """
   Returns the global TracerProvider, or `nil` if none is set.

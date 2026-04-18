@@ -10,6 +10,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   """
 
   use GenServer
+  @behaviour Otel.API.Metrics.MeterProvider
 
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
@@ -41,6 +42,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
           attributes :: Otel.API.Attribute.attributes()
         ) ::
           Otel.API.Metrics.Meter.t()
+  @impl Otel.API.Metrics.MeterProvider
   def get_meter(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     if alive?(server) do
       GenServer.call(server, {:get_meter, name, version, schema_url, attributes})

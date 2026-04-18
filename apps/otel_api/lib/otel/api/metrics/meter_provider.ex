@@ -19,8 +19,26 @@ defmodule Otel.API.Metrics.MeterProvider do
   The API layer treats the state as opaque; only `dispatcher_module`
   knows how to use it. This mirrors `Otel.API.Metrics.Meter.t/0` and
   keeps the API decoupled from SDK internals.
+
+  `dispatcher_module` MUST implement the `Otel.API.Metrics.MeterProvider`
+  behaviour.
   """
   @type t :: {module(), term()}
+
+  @doc """
+  Returns a meter for the given instrumentation scope.
+
+  Called by the API layer when no cached meter matches the scope.
+  Implementations receive the opaque `state` they registered via
+  `set_provider/1`.
+  """
+  @callback get_meter(
+              state :: term(),
+              name :: String.t(),
+              version :: String.t(),
+              schema_url :: String.t() | nil,
+              attributes :: Otel.API.Attribute.attributes()
+            ) :: Otel.API.Metrics.Meter.t()
 
   @doc """
   Returns the global MeterProvider, or `nil` if none is set.

@@ -8,6 +8,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   """
 
   use GenServer
+  @behaviour Otel.API.Trace.TracerProvider
 
   @type config :: %{
           sampler: {module(), term()},
@@ -41,6 +42,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
           attributes :: Otel.API.Attribute.attributes()
         ) ::
           Otel.API.Trace.Tracer.t()
+  @impl Otel.API.Trace.TracerProvider
   def get_tracer(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     if alive?(server) do
       GenServer.call(server, {:get_tracer, name, version, schema_url, attributes})

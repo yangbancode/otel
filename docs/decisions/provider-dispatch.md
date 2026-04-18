@@ -12,16 +12,31 @@ API layer's contract?
 ### `{dispatcher_module, state}` — the API's Provider abstraction
 
 The API layer models a Provider the same way it already models Tracers,
-Meters, and Loggers — as a `{module, state}` tuple:
+Meters, and Loggers — as a `{module, state}` tuple backed by a
+behaviour:
 
 ```elixir
 @type t :: {module(), term()}
+
+@callback get_tracer(
+            state :: term(),
+            name :: String.t(),
+            version :: String.t(),
+            schema_url :: String.t() | nil,
+            attributes :: Otel.API.Attribute.attributes()
+          ) :: Otel.API.Trace.Tracer.t()
 ```
 
-- `module` is the dispatcher — it implements `get_<signal>/5` and the
-  API calls into it blindly.
+- `module` is the dispatcher — it implements the Provider behaviour
+  and the API calls into its `get_<signal>/5` callback blindly.
 - `state` is opaque to the API. It's whatever the dispatcher needs to
   do its work (a pid, a registered name, a config, a reference, …).
+
+The type stays `{module(), term()}` because Elixir has no way to
+express "a module that implements behaviour X" at the type level. The
+behaviour contract lives at the `@callback` layer and is checked by
+the compiler via `@behaviour` and `@impl true` on the implementing
+module.
 
 The API never does `GenServer.call/3`. The API never checks liveness.
 The API doesn't know or care whether the SDK uses GenServer at all.
@@ -29,11 +44,27 @@ Everything about dispatch lives inside the SDK's dispatcher module.
 
 ### Registration
 
-The SDK's `init/1` builds the tuple and hands it to the API:
+The SDK declares the behaviour and builds the tuple in its `init/1`:
 
 ```elixir
-Otel.API.Trace.TracerProvider.set_provider({__MODULE__, self_ref()})
+defmodule Otel.SDK.Trace.TracerProvider do
+  use GenServer
+  @behaviour Otel.API.Trace.TracerProvider
+
+  @impl Otel.API.Trace.TracerProvider
+  def get_tracer(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+    # ...
+  end
+
+  def init(_user_config) do
+    Otel.API.Trace.TracerProvider.set_provider({__MODULE__, self_ref()})
+    {:ok, ...}
+  end
+end
 ```
+
+`@behaviour` + `@impl true` give compile-time verification that the SDK
+supplies the callback the API expects.
 
 `self_ref/0` is the SDK's helper — it returns the registered name if the
 GenServer started with `name: __MODULE__` (the supervised path), or the
