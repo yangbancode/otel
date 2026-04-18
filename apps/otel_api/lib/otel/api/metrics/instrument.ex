@@ -27,13 +27,61 @@ defmodule Otel.API.Metrics.Instrument do
 
   @type temporality :: :cumulative | :delta
 
+  @typedoc """
+  Advisory parameters accepted by `Meter.create_*` and by `validate_advisory/2`.
+
+  Keys defined by the OpenTelemetry spec:
+  - `:explicit_bucket_boundaries` — sorted list of boundary numbers.
+    Only valid for `:histogram`; ignored with a warning for other kinds.
+  - `:attributes` — list of attribute keys to retain. The SDK applies
+    this as a view-less attribute filter.
+  """
+  @type advisory_opt ::
+          {:explicit_bucket_boundaries, [number()]}
+          | {:attributes, [String.t()]}
+
+  @type advisory :: [advisory_opt()]
+
+  @typedoc """
+  Options accepted by `Meter.create_counter/3`, `create_histogram/3`,
+  `create_gauge/3`, `create_updown_counter/3`, and the three observable
+  `create_*/3` variants. Keys follow the OpenTelemetry Metrics API spec.
+  """
+  @type create_opt ::
+          {:unit, String.t()}
+          | {:description, String.t()}
+          | {:advisory, advisory()}
+
+  @type create_opts :: [create_opt()]
+
+  @typedoc """
+  Options accepted by per-instrument `enabled?/2` and by `Meter.enabled?/2`.
+
+  Spec-defined keys (MAY-support; SDKs may ignore):
+  - `:context` — evaluation context
+  - `:attributes` — attributes that would be recorded with the measurement
+  """
+  @type enabled_opt ::
+          {:context, Otel.API.Ctx.t()}
+          | {:attributes, Otel.API.Attribute.attributes()}
+
+  @type enabled_opts :: [enabled_opt()]
+
+  @typedoc """
+  Options accepted by `Meter.register_callback/5`.
+
+  The spec does not define specific keys; kept as a keyword list for
+  SDK-specific extensions.
+  """
+  @type register_callback_opts :: keyword()
+
   @type t :: %__MODULE__{
           meter: Otel.API.Metrics.Meter.t() | nil,
           name: String.t(),
           kind: kind(),
           unit: String.t(),
           description: String.t(),
-          advisory: keyword(),
+          advisory: advisory(),
           scope: Otel.API.InstrumentationScope.t()
         }
 
@@ -110,12 +158,13 @@ defmodule Otel.API.Metrics.Instrument do
   Returns validated advisory keyword list. Invalid params are dropped
   with a logger warning.
   """
-  @spec validate_advisory(kind :: kind(), advisory :: keyword()) :: keyword()
+  @spec validate_advisory(kind :: kind(), advisory :: advisory()) :: advisory()
   def validate_advisory(kind, advisory) do
     Enum.flat_map(advisory, fn param -> validate_advisory_param(kind, param) end)
   end
 
-  @spec validate_advisory_param(kind :: kind(), param :: {atom(), term()}) :: keyword()
+  @spec validate_advisory_param(kind :: kind(), param :: advisory_opt() | {atom(), term()}) ::
+          advisory()
   defp validate_advisory_param(:histogram, {:explicit_bucket_boundaries, boundaries})
        when is_list(boundaries) do
     if sorted?(boundaries) do

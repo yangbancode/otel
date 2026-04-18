@@ -8,14 +8,30 @@ defmodule Otel.API.Trace.Tracer do
 
   @type t :: {module(), term()}
 
+  @typedoc """
+  Options accepted by `enabled?/2`.
+
+  The spec (L209) requires the API to accept optional parameters for
+  future extensibility. Keys (all MAY-support):
+  - `:context` — evaluation context
+  - `:attributes` — attributes that would be attached to the span
+  """
+  @type enabled_opt ::
+          {:context, Otel.API.Ctx.t()}
+          | {:attributes, Otel.API.Attribute.attributes()}
+
+  @type enabled_opts :: [enabled_opt()]
+
   @doc """
   Starts a new span. Returns the SpanContext of the created span.
+
+  Options: see `Otel.API.Trace.Span.start_opts/0`.
   """
   @callback start_span(
               ctx :: Otel.API.Ctx.t(),
               tracer :: t(),
               name :: String.t(),
-              opts :: keyword()
+              opts :: Otel.API.Trace.Span.start_opts()
             ) ::
               Otel.API.Trace.SpanContext.t()
 
@@ -26,5 +42,5 @@ defmodule Otel.API.Trace.Tracer do
   (L209: "the API MUST be structured in a way for parameters to
   be added").
   """
-  @callback enabled?(tracer :: t(), opts :: keyword()) :: boolean()
+  @callback enabled?(tracer :: t(), opts :: enabled_opts()) :: boolean()
 end

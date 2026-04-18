@@ -70,7 +70,7 @@ defmodule Otel.SDK.Trace.Span do
           sampler :: Otel.SDK.Trace.Sampler.t(),
           id_generator :: module(),
           span_limits :: Otel.SDK.Trace.SpanLimits.t(),
-          opts :: keyword()
+          opts :: Otel.API.Trace.Span.start_opts()
         ) :: {Otel.API.Trace.SpanContext.t(), t() | nil}
   def start_span(ctx, name, sampler, id_generator, span_limits, opts) do
     kind = Keyword.get(opts, :kind, :internal)
@@ -347,7 +347,7 @@ defmodule Otel.SDK.Trace.Span do
   @spec new_span_ctx(
           ctx :: Otel.API.Ctx.t(),
           id_generator :: module(),
-          opts :: keyword()
+          opts :: Otel.API.Trace.Span.start_opts()
         ) :: {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t() | nil, boolean() | nil}
   defp new_span_ctx(ctx, id_generator, opts) do
     parent = Otel.API.Trace.current_span(ctx)

@@ -13,7 +13,7 @@ defmodule Otel.SDK.Trace.Tracer do
           ctx :: Otel.API.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Trace.Span.start_opts()
         ) :: Otel.API.Trace.SpanContext.t()
   @impl true
   def start_span(ctx, {__MODULE__, config}, name, opts) do
@@ -45,7 +45,10 @@ defmodule Otel.SDK.Trace.Tracer do
     end
   end
 
-  @spec enabled?(tracer :: Otel.API.Trace.Tracer.t(), opts :: keyword()) :: boolean()
+  @spec enabled?(
+          tracer :: Otel.API.Trace.Tracer.t(),
+          opts :: Otel.API.Trace.Tracer.enabled_opts()
+        ) :: boolean()
   @impl true
   def enabled?(_tracer, _opts \\ []), do: true
 

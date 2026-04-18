@@ -22,7 +22,7 @@ defmodule Otel.API.Metrics.Histogram do
   @spec create(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create(meter, name, opts \\ []) do
     Otel.API.Metrics.Meter.create_histogram(meter, name, opts)
@@ -35,7 +35,10 @@ defmodule Otel.API.Metrics.Histogram do
   to avoid expensive computation when disabled. The return value
   can change over time.
   """
-  @spec enabled?(instrument :: Otel.API.Metrics.Instrument.t(), opts :: keyword()) :: boolean()
+  @spec enabled?(
+          instrument :: Otel.API.Metrics.Instrument.t(),
+          opts :: Otel.API.Metrics.Instrument.enabled_opts()
+        ) :: boolean()
   def enabled?(instrument, opts \\ []) do
     Otel.API.Metrics.Meter.enabled?(instrument, opts)
   end

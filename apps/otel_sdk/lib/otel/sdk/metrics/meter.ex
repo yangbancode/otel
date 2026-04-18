@@ -146,7 +146,7 @@ defmodule Otel.SDK.Metrics.Meter do
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
           kind :: Otel.API.Metrics.Instrument.kind(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   defp register_instrument(meter, name, kind, opts) do
     case Otel.API.Metrics.Instrument.validate_name(name) do
@@ -163,7 +163,7 @@ defmodule Otel.SDK.Metrics.Meter do
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
           kind :: Otel.API.Metrics.Instrument.kind(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   defp do_register({_module, config} = meter, name, kind, opts) do
     unit = Keyword.get(opts, :unit, "") || ""
