@@ -51,13 +51,16 @@ defmodule Otel.SDK.Trace.SpanCreator do
       limited_links =
         links
         |> Enum.take(span_limits.link_count_limit)
-        |> Enum.map(fn {ctx, attrs} ->
-          {ctx,
-           apply_link_attribute_limits(
-             attrs,
-             span_limits.attribute_per_link_limit,
-             span_limits.attribute_value_length_limit
-           )}
+        |> Enum.map(fn %Otel.API.Trace.Link{} = link ->
+          %{
+            link
+            | attributes:
+                apply_link_attribute_limits(
+                  link.attributes,
+                  span_limits.attribute_per_link_limit,
+                  span_limits.attribute_value_length_limit
+                )
+          }
         end)
 
       span = %Otel.SDK.Trace.Span{
@@ -178,7 +181,7 @@ defmodule Otel.SDK.Trace.SpanCreator do
           ctx :: Otel.API.Ctx.t(),
           sampler :: Otel.SDK.Trace.Sampler.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
-          links :: list(),
+          links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
           attributes :: map()

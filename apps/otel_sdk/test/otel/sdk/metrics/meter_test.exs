@@ -45,7 +45,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "create_observable_counter with callback returns struct", %{meter: meter} do
-      cb = fn _args -> [{1, %{}}] end
+      cb = fn _args -> [Otel.API.Metrics.Measurement.new(1)] end
 
       result =
         Otel.SDK.Metrics.Meter.create_observable_counter(meter, "obs_counter2", cb, nil, [])
@@ -59,7 +59,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "create_observable_gauge with callback returns struct", %{meter: meter} do
-      cb = fn _args -> [{1, %{}}] end
+      cb = fn _args -> [Otel.API.Metrics.Measurement.new(1)] end
       result = Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "obs_gauge2", cb, nil, [])
       assert %Otel.SDK.Metrics.Instrument{kind: :observable_gauge} = result
     end
@@ -72,7 +72,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "create_observable_updown_counter with callback returns struct", %{meter: meter} do
-      cb = fn _args -> [{1, %{}}] end
+      cb = fn _args -> [Otel.API.Metrics.Measurement.new(1)] end
 
       result =
         Otel.SDK.Metrics.Meter.create_observable_updown_counter(
@@ -318,7 +318,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
   describe "callback registration" do
     test "inline callback stored on creation", %{meter: meter} do
-      cb = fn _args -> [{42, %{}}] end
+      cb = fn _args -> [Otel.API.Metrics.Measurement.new(42)] end
 
       Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
 
@@ -331,7 +331,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
       inst =
         Otel.SDK.Metrics.Meter.create_observable_counter(meter, "cb_counter", [])
 
-      cb = fn _args -> [{1, %{}}] end
+      cb = fn _args -> [Otel.API.Metrics.Measurement.new(1)] end
       result = Otel.SDK.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
       assert {ref, _tab} = result
       assert is_reference(ref)
@@ -341,7 +341,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
       inst =
         Otel.SDK.Metrics.Meter.create_observable_counter(meter, "unreg_counter", [])
 
-      cb = fn _args -> [{1, %{}}] end
+      cb = fn _args -> [Otel.API.Metrics.Measurement.new(1)] end
       registration = Otel.SDK.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
 
       {_module, config} = meter
@@ -354,7 +354,13 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "run_callbacks aggregates observations", %{meter: meter} do
-      cb = fn _args -> [{100, %{"host" => "a"}}, {200, %{"host" => "b"}}] end
+      cb = fn _args ->
+        [
+          Otel.API.Metrics.Measurement.new(100, %{"host" => "a"}),
+          Otel.API.Metrics.Measurement.new(200, %{"host" => "b"})
+        ]
+      end
+
       Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "mem", cb, nil, [])
 
       {_module, config} = meter

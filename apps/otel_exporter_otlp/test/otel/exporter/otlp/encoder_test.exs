@@ -12,10 +12,14 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end_time: 2_000_000_000,
     attributes: %{"http.method" => "GET", "http.status_code" => 200},
     events: [
-      %{name: "event1", time: 1_500_000_000, attributes: %{"key" => "val"}}
+      %Otel.API.Trace.Event{
+        name: "event1",
+        timestamp: 1_500_000_000,
+        attributes: %{"key" => "val"}
+      }
     ],
     links: [],
-    status: {:ok, ""},
+    status: %Otel.API.Trace.Status{code: :ok},
     trace_flags: 1,
     is_recording: false,
     instrumentation_scope: %Otel.API.InstrumentationScope{
@@ -109,7 +113,11 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes status error" do
-      error_span = %{@span | status: {:error, "something failed"}}
+      error_span = %{
+        @span
+        | status: %Otel.API.Trace.Status{code: :error, description: "something failed"}
+      }
+
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([error_span], @resource)
 
       decoded =
@@ -120,9 +128,9 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert span.status.message == "something failed"
     end
 
-    test "encodes nil status as no status" do
-      nil_status_span = %{@span | status: nil}
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([nil_status_span], @resource)
+    test "encodes unset status as no status" do
+      unset_status_span = %{@span | status: %Otel.API.Trace.Status{code: :unset}}
+      binary = Otel.Exporter.OTLP.Encoder.encode_traces([unset_status_span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -133,7 +141,14 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes links" do
       linked_ctx = Otel.API.Trace.SpanContext.new(100, 200, 1)
-      span_with_link = %{@span | links: [{linked_ctx, %{"link.key" => "val"}}]}
+
+      span_with_link = %{
+        @span
+        | links: [
+            %Otel.API.Trace.Link{context: linked_ctx, attributes: %{"link.key" => "val"}}
+          ]
+      }
+
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([span_with_link], @resource)
 
       decoded =

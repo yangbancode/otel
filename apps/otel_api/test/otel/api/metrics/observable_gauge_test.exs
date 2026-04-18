@@ -22,7 +22,7 @@ defmodule Otel.API.Metrics.ObservableGaugeTest do
 
   describe "create/5 (with inline callback)" do
     test "creates observable gauge with callback", %{meter: meter} do
-      callback = fn _args -> [{22.5, %{}}] end
+      callback = fn _args -> [%Otel.API.Metrics.Measurement{value: 22.5, attributes: %{}}] end
 
       assert :ok ==
                Otel.API.Metrics.ObservableGauge.create(
@@ -35,7 +35,9 @@ defmodule Otel.API.Metrics.ObservableGaugeTest do
     end
 
     test "passes callback_args for state", %{meter: meter} do
-      callback = fn sensor_id -> [{21.0, %{"sensor.id" => sensor_id}}] end
+      callback = fn sensor_id ->
+        [Otel.API.Metrics.Measurement.new(21.0, %{"sensor.id" => sensor_id})]
+      end
 
       assert :ok ==
                Otel.API.Metrics.ObservableGauge.create(

@@ -13,7 +13,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest.RecordOnlySampler do
   @spec should_sample(
           ctx :: Otel.API.Ctx.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
-          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
           attributes :: map(),
@@ -398,8 +398,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{link_count_limit: 1}
 
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{}},
-        {Otel.API.Trace.SpanContext.new(2, 2), %{}}
+        Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(1, 1)),
+        Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(2, 2))
       ]
 
       {_span_ctx, span} =
@@ -420,7 +420,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1}
 
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{"a" => 1, "b" => 2, "c" => 3}}
+        Otel.API.Trace.Link.new(
+          Otel.API.Trace.SpanContext.new(1, 1),
+          %{"a" => 1, "b" => 2, "c" => 3}
+        )
       ]
 
       {_span_ctx, span} =
@@ -433,8 +436,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           links: links
         )
 
-      {_ctx, attrs} = hd(span.links)
-      assert map_size(attrs) == 1
+      stored = hd(span.links)
+      assert map_size(stored.attributes) == 1
     end
 
     test "truncates link attribute values at creation" do
@@ -442,7 +445,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
       links = [
-        {Otel.API.Trace.SpanContext.new(1, 1), %{"key" => "hello world"}}
+        Otel.API.Trace.Link.new(
+          Otel.API.Trace.SpanContext.new(1, 1),
+          %{"key" => "hello world"}
+        )
       ]
 
       {_span_ctx, span} =
@@ -455,8 +461,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           links: links
         )
 
-      {_ctx, attrs} = hd(span.links)
-      assert attrs["key"] == "hel"
+      stored = hd(span.links)
+      assert stored.attributes["key"] == "hel"
     end
   end
 end

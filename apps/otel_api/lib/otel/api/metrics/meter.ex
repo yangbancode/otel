@@ -10,6 +10,14 @@ defmodule Otel.API.Metrics.Meter do
   All functions are safe for concurrent use.
   """
 
+  # Follow-up: an `Otel.API.Metrics.Instrument` struct is planned (see
+  # docs/decisions/type-representation-policy.md entity catalog). `create_*`
+  # callbacks currently return `term()` — the SDK returns an
+  # `Otel.SDK.Metrics.Instrument.t()` while the Noop meter returns `:ok`.
+  # Unifying the handle type is a larger API redesign that touches every
+  # synchronous recording call site (Counter.add/4, Histogram.record/4, etc.)
+  # and is tracked separately from the Measurement struct PR.
+
   @type t :: {module(), term()}
 
   # --- Synchronous Instruments ---

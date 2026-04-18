@@ -46,7 +46,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
   @spec should_sample(
           ctx :: Otel.API.Ctx.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
-          links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+          links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
           attributes :: map(),

@@ -342,7 +342,7 @@ defmodule Otel.SDK.Metrics.Meter do
   aggregates the observations into the metrics pipeline.
 
   Called by MetricReader during collection. Each callback returns
-  a list of `{value, attributes}` tuples.
+  a list of `Otel.API.Metrics.Measurement.t()`.
   """
   @spec run_callbacks(config :: map()) :: :ok
   def run_callbacks(config) do
@@ -353,22 +353,25 @@ defmodule Otel.SDK.Metrics.Meter do
       {ref, callback, callback_args}
     end)
     |> Enum.each(fn {{_ref, callback, callback_args}, entries} ->
-      observations = callback.(callback_args)
-      apply_observations(config, entries, observations)
+      measurements = callback.(callback_args)
+      apply_observations(config, entries, measurements)
     end)
   end
 
   @spec apply_observations(
           config :: map(),
           entries :: [tuple()],
-          observations :: [{number(), map()}]
+          measurements :: [Otel.API.Metrics.Measurement.t()]
         ) :: :ok
-  defp apply_observations(config, entries, observations) do
+  defp apply_observations(config, entries, measurements) do
     streams = lookup_callback_streams(config, entries)
     ctx = Otel.API.Ctx.get_current()
     now = System.system_time(:nanosecond)
 
-    Enum.each(observations, fn {value, attributes} ->
+    Enum.each(measurements, fn %Otel.API.Metrics.Measurement{
+                                 value: value,
+                                 attributes: attributes
+                               } ->
       Enum.each(streams, fn stream ->
         filtered_attrs = filter_stream_attributes(stream, attributes)
         agg_key = {stream.name, stream.instrument.scope, stream.reader_id, filtered_attrs}

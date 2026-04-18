@@ -36,7 +36,7 @@ defmodule Otel.SDK.Trace.Sampler do
   @callback should_sample(
               ctx :: Otel.API.Ctx.t(),
               trace_id :: Otel.API.Trace.TraceId.t(),
-              links :: [{Otel.API.Trace.SpanContext.t(), map()}],
+              links :: [Otel.API.Trace.Link.t()],
               name :: String.t(),
               kind :: Otel.API.Trace.SpanKind.t(),
               attributes :: map(),
@@ -61,7 +61,7 @@ defmodule Otel.SDK.Trace.Sampler do
           sampler :: t(),
           ctx :: Otel.API.Ctx.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
-          links :: list(),
+          links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
           attributes :: map()
