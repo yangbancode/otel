@@ -163,14 +163,23 @@ defmodule Otel.API.Metrics.MeterTest do
       assert :ok == Otel.API.Metrics.Meter.record(instrument, 1, %{"key" => "val"})
     end
 
-    test "register_callback returns :ok", %{meter: meter} do
+    test "register_callback returns tagged registration handle", %{meter: meter} do
       callback = fn _args -> [] end
-      assert :ok == Otel.API.Metrics.Meter.register_callback(meter, [], callback, nil)
+      registration = Otel.API.Metrics.Meter.register_callback(meter, [], callback, nil)
+      assert {Otel.API.Metrics.Meter.Noop, :noop} = registration
     end
 
     test "register_callback accepts opts", %{meter: meter} do
       callback = fn _args -> [] end
-      assert :ok == Otel.API.Metrics.Meter.register_callback(meter, [], callback, nil, [])
+
+      assert {Otel.API.Metrics.Meter.Noop, :noop} =
+               Otel.API.Metrics.Meter.register_callback(meter, [], callback, nil, [])
+    end
+
+    test "unregister_callback is a no-op on noop registration", %{meter: meter} do
+      callback = fn _args -> [] end
+      registration = Otel.API.Metrics.Meter.register_callback(meter, [], callback, nil)
+      assert :ok == Otel.API.Metrics.Meter.unregister_callback(registration)
     end
 
     test "enabled? returns false for noop", %{meter: meter} do

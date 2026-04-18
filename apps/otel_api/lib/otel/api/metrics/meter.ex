@@ -12,6 +12,16 @@ defmodule Otel.API.Metrics.Meter do
 
   @type t :: {module(), term()}
 
+  @typedoc """
+  Handle returned by `register_callback/5`. Pass to
+  `unregister_callback/1` to undo the registration.
+
+  Carries the dispatcher module plus SDK-specific state; the API
+  layer treats the state as opaque. Callers should not rely on the
+  internal shape.
+  """
+  @type registration :: {module(), term()}
+
   # --- Synchronous Instruments ---
 
   @callback create_counter(
@@ -82,7 +92,9 @@ defmodule Otel.API.Metrics.Meter do
               callback :: function(),
               callback_args :: term(),
               opts :: Otel.API.Metrics.Instrument.register_callback_opts()
-            ) :: term()
+            ) :: registration()
+
+  @callback unregister_callback(state :: term()) :: :ok
 
   # --- Recording ---
 
@@ -259,9 +271,20 @@ defmodule Otel.API.Metrics.Meter do
           callback :: function(),
           callback_args :: term(),
           opts :: Otel.API.Metrics.Instrument.register_callback_opts()
-        ) :: term()
+        ) :: registration()
   def register_callback({module, _} = meter, instruments, callback, callback_args, opts \\ []) do
     module.register_callback(meter, instruments, callback, callback_args, opts)
+  end
+
+  @doc """
+  Undoes a prior `register_callback/5` registration.
+
+  `registration` is the opaque handle returned by `register_callback/5`.
+  After this call, the callback is no longer evaluated during collection.
+  """
+  @spec unregister_callback(registration :: registration()) :: :ok
+  def unregister_callback({module, state}) do
+    module.unregister_callback(state)
   end
 
   @doc """

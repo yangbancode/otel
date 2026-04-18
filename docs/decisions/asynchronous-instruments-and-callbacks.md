@@ -27,6 +27,18 @@ Callback evaluation is an SDK responsibility. The API layer only handles registr
 
 Unlike synchronous instruments, async instruments have no `add` or `record` functions. Observations are produced exclusively through callbacks invoked by the SDK during collection.
 
+### Callback Unregistration
+
+`Meter.register_callback/5` returns an opaque `{module, state}` registration
+handle (the same `{dispatcher_module, state}` shape used by Tracer/Meter/Logger
+themselves). `Meter.unregister_callback/1` takes that handle, unwraps it, and
+dispatches to `module.unregister_callback(state)`. After this call the callback
+is no longer evaluated during collection. This satisfies the Spec MUST at
+`metrics/api.md` L419.
+
+Noop returns `{Noop, :noop}` from `register_callback/5` and `:ok` from
+`unregister_callback/1`.
+
 ### Instrument Modules
 
 | Module | Semantics | Value |
@@ -37,7 +49,7 @@ Unlike synchronous instruments, async instruments have no `add` or `record` func
 
 ### No-op Behavior
 
-Without SDK: creation returns an `Otel.API.Metrics.Instrument.t()` with only identifying fields, `register_callback` returns `:ok`. Callbacks are never invoked.
+Without SDK: creation returns an `Otel.API.Metrics.Instrument.t()` with only identifying fields; `register_callback` returns an opaque `{Noop, :noop}` registration handle (which `unregister_callback/1` accepts and no-ops on). Callbacks are never invoked.
 
 ### Modules
 

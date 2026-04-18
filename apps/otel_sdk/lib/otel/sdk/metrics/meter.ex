@@ -130,7 +130,7 @@ defmodule Otel.SDK.Metrics.Meter do
       })
     end)
 
-    {ref, config.callbacks_tab}
+    {__MODULE__, {ref, config.callbacks_tab}}
   end
 
   # --- Enabled ---
@@ -326,9 +326,12 @@ defmodule Otel.SDK.Metrics.Meter do
   @doc """
   Removes a previously registered callback.
 
-  Accepts the `{ref, callbacks_tab}` tuple returned by `register_callback/5`.
+  Called indirectly via `Otel.API.Metrics.Meter.unregister_callback/1`,
+  which unwraps the opaque `{module, state}` handle and passes the
+  inner state `{ref, callbacks_tab}` here.
   """
-  @spec unregister_callback(registration :: {reference(), :ets.table()}) :: :ok
+  @impl true
+  @spec unregister_callback(state :: {reference(), :ets.table()}) :: :ok
   def unregister_callback({ref, callbacks_tab}) do
     :ets.match_delete(callbacks_tab, {:_, ref, :_, :_, :_})
     :ok
