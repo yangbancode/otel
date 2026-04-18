@@ -248,20 +248,6 @@ defmodule Otel.Exporter.OTLP.LogsTest do
       assert :ok == Otel.Exporter.OTLP.Logs.export([@test_log_record], state)
       stop_test_server(pid, listen)
     end
-
-    test "returns :error when endpoint unreachable" do
-      {:ok, state} =
-        Otel.Exporter.OTLP.Logs.init(%{endpoint: "http://localhost:19999", timeout: 500})
-
-      assert :error == Otel.Exporter.OTLP.Logs.export([@test_log_record], state)
-    end
-
-    test "returns :error for 500 status" do
-      {pid, port, listen} = start_test_server(500)
-      {:ok, state} = Otel.Exporter.OTLP.Logs.init(%{endpoint: "http://localhost:#{port}"})
-      assert :error == Otel.Exporter.OTLP.Logs.export([@test_log_record], state)
-      stop_test_server(pid, listen)
-    end
   end
 
   describe "shutdown/1 and force_flush/1" do

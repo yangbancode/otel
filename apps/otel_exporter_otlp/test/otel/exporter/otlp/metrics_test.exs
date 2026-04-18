@@ -241,22 +241,6 @@ defmodule Otel.Exporter.OTLP.MetricsTest do
     end
   end
 
-  describe "export/2 errors" do
-    test "returns :error when endpoint unreachable" do
-      {:ok, state} =
-        Otel.Exporter.OTLP.Metrics.init(%{endpoint: "http://localhost:19999", timeout: 500})
-
-      assert Otel.Exporter.OTLP.Metrics.export([@test_metric], state) == :error
-    end
-
-    test "returns :error for 500 status" do
-      {pid, port, listen} = start_test_server(500)
-      {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{endpoint: "http://localhost:#{port}"})
-      assert Otel.Exporter.OTLP.Metrics.export([@test_metric], state) == :error
-      stop_test_server(pid, listen)
-    end
-  end
-
   describe "force_flush/1 and shutdown/1" do
     test "force_flush returns :ok" do
       {:ok, state} = Otel.Exporter.OTLP.Metrics.init(%{})

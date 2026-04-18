@@ -14,7 +14,7 @@ defmodule Otel.API.Ctx do
   @type t :: map()
   @type key :: term()
   @type value :: term()
-  @opaque token :: t()
+  @opaque token :: t() | nil
 
   @ctx_key :"__otel.ctx__"
 
@@ -41,7 +41,7 @@ defmodule Otel.API.Ctx do
   """
   @spec set_value(key :: key(), value :: value()) :: :ok
   def set_value(key, value) do
-    Process.put(@ctx_key, set_value(get_current(), key, value))
+    Process.put(@ctx_key, Map.put(get_current(), key, value))
     :ok
   end
 
@@ -52,7 +52,7 @@ defmodule Otel.API.Ctx do
   """
   @spec get_value(key :: key()) :: value()
   def get_value(key) do
-    get_value(get_current(), key, nil)
+    Map.get(get_current(), key)
   end
 
   @doc """
@@ -60,7 +60,7 @@ defmodule Otel.API.Ctx do
   """
   @spec get_value(key :: key(), default :: value()) :: value()
   def get_value(key, default) when not is_map(key) do
-    get_value(get_current(), key, default)
+    Map.get(get_current(), key, default)
   end
 
   @doc """
@@ -68,14 +68,8 @@ defmodule Otel.API.Ctx do
   """
   @spec remove(key :: key()) :: :ok
   def remove(key) do
-    case Process.get(@ctx_key) do
-      ctx when is_map(ctx) ->
-        Process.put(@ctx_key, Map.delete(ctx, key))
-        :ok
-
-      _ ->
-        :ok
-    end
+    Process.put(@ctx_key, Map.delete(get_current(), key))
+    :ok
   end
 
   @doc """
@@ -97,10 +91,6 @@ defmodule Otel.API.Ctx do
     Map.put(ctx, key, value)
   end
 
-  def set_value(_, key, value) do
-    %{key => value}
-  end
-
   @doc """
   Gets a value from the given context.
   """
@@ -109,14 +99,11 @@ defmodule Otel.API.Ctx do
     Map.get(ctx, key, default)
   end
 
-  def get_value(_, _, default), do: default
-
   @doc """
   Removes a key from the given context, returning a new context.
   """
   @spec remove(ctx :: t(), key :: key()) :: t()
   def remove(ctx, key) when is_map(ctx), do: Map.delete(ctx, key)
-  def remove(_, _), do: new()
 
   @doc """
   Clears all values from the given context.
@@ -131,10 +118,7 @@ defmodule Otel.API.Ctx do
   """
   @spec get_current() :: t()
   def get_current do
-    case Process.get(@ctx_key) do
-      ctx when is_map(ctx) -> ctx
-      _ -> %{}
-    end
+    Process.get(@ctx_key) || %{}
   end
 
   @doc """

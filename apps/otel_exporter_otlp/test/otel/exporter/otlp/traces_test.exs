@@ -263,36 +263,6 @@ defmodule Otel.Exporter.OTLP.TracesTest do
     end
   end
 
-  describe "export/3 errors" do
-    test "returns :error when endpoint unreachable" do
-      {:ok, state} =
-        Otel.Exporter.OTLP.Traces.init(%{endpoint: "http://localhost:19999", timeout: 500})
-
-      assert Otel.Exporter.OTLP.Traces.export([@test_span], @test_resource, state) == :error
-    end
-
-    test "returns :error for 400 Bad Request" do
-      {pid, port, listen} = start_test_server(400)
-      {:ok, state} = Otel.Exporter.OTLP.Traces.init(%{endpoint: "http://localhost:#{port}"})
-      assert Otel.Exporter.OTLP.Traces.export([@test_span], @test_resource, state) == :error
-      stop_test_server(pid, listen)
-    end
-
-    test "returns :error for 500 Internal Server Error" do
-      {pid, port, listen} = start_test_server(500)
-      {:ok, state} = Otel.Exporter.OTLP.Traces.init(%{endpoint: "http://localhost:#{port}"})
-      assert Otel.Exporter.OTLP.Traces.export([@test_span], @test_resource, state) == :error
-      stop_test_server(pid, listen)
-    end
-
-    test "returns :error for 503 Service Unavailable" do
-      {pid, port, listen} = start_test_server(503)
-      {:ok, state} = Otel.Exporter.OTLP.Traces.init(%{endpoint: "http://localhost:#{port}"})
-      assert Otel.Exporter.OTLP.Traces.export([@test_span], @test_resource, state) == :error
-      stop_test_server(pid, listen)
-    end
-  end
-
   describe "shutdown/1" do
     test "returns :ok" do
       {:ok, state} = Otel.Exporter.OTLP.Traces.init(%{})

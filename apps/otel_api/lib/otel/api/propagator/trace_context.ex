@@ -52,14 +52,15 @@ defmodule Otel.API.Propagator.TraceContext do
           getter :: Otel.API.Propagator.TextMap.getter()
         ) :: Otel.API.Ctx.t()
   def extract(ctx, carrier, getter) do
-    with traceparent_value when traceparent_value != nil <- getter.(carrier, @traceparent_header),
-         %Otel.API.Trace.SpanContext{} = span_ctx <-
-           decode_traceparent(String.trim(traceparent_value)) do
-      tracestate = extract_tracestate(carrier, getter)
-      span_ctx = %{span_ctx | tracestate: tracestate, is_remote: true}
-      Otel.API.Trace.set_current_span(ctx, span_ctx)
-    else
-      _ -> ctx
+    case getter.(carrier, @traceparent_header) do
+      nil ->
+        ctx
+
+      traceparent_value ->
+        span_ctx = decode_traceparent(String.trim(traceparent_value))
+        tracestate = extract_tracestate(carrier, getter)
+        span_ctx = %{span_ctx | tracestate: tracestate, is_remote: true}
+        Otel.API.Trace.set_current_span(ctx, span_ctx)
     end
   end
 
@@ -90,26 +91,21 @@ defmodule Otel.API.Propagator.TraceContext do
 
   # --- Decoding ---
 
-  @spec decode_traceparent(value :: String.t()) :: Otel.API.Trace.SpanContext.t() | nil
+  @spec decode_traceparent(value :: String.t()) :: Otel.API.Trace.SpanContext.t()
   defp decode_traceparent(
          <<version::binary-size(2), "-", trace_id_hex::binary-size(32), "-",
            span_id_hex::binary-size(16), "-", flags_hex::binary-size(2), _rest::binary>>
        ) do
-    with true <- version >= "00" and version != "ff",
-         {trace_id, ""} <- Integer.parse(trace_id_hex, 16),
-         {span_id, ""} <- Integer.parse(span_id_hex, 16),
-         {trace_flags, ""} <- Integer.parse(flags_hex, 16),
-         true <- trace_id != 0,
-         true <- span_id != 0 do
-      %Otel.API.Trace.SpanContext{
-        trace_id: trace_id,
-        span_id: span_id,
-        trace_flags: trace_flags
-      }
-    else
-      _ -> nil
-    end
-  end
+    true = version >= "00" and version != "ff"
+    {trace_id, ""} = Integer.parse(trace_id_hex, 16)
+    {span_id, ""} = Integer.parse(span_id_hex, 16)
+    {trace_flags, ""} = Integer.parse(flags_hex, 16)
+    true = trace_id != 0 and span_id != 0
 
-  defp decode_traceparent(_), do: nil
+    %Otel.API.Trace.SpanContext{
+      trace_id: trace_id,
+      span_id: span_id,
+      trace_flags: trace_flags
+    }
+  end
 end

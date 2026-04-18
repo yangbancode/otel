@@ -58,7 +58,7 @@ defmodule Otel.Exporter.OTLP.Metrics do
   @spec export(
           metrics :: [Otel.SDK.Metrics.MetricReader.metric()],
           state :: Otel.SDK.Metrics.MetricExporter.state()
-        ) :: :ok | :error
+        ) :: :ok
   def export([], _state), do: :ok
 
   def export(metrics, state) do
@@ -69,13 +69,11 @@ defmodule Otel.Exporter.OTLP.Metrics do
     url = String.to_charlist(state.endpoint)
     http_options = build_http_options(state)
 
-    case :httpc.request(:post, {url, headers, ~c"application/x-protobuf", body}, http_options, []) do
-      {:ok, {{_version, status, _reason}, _headers, _body}} when status in 200..299 ->
-        :ok
+    {:ok, {{_version, status, _reason}, _headers, _body}} =
+      :httpc.request(:post, {url, headers, ~c"application/x-protobuf", body}, http_options, [])
 
-      _ ->
-        :error
-    end
+    true = status in 200..299
+    :ok
   end
 
   @impl true

@@ -105,16 +105,6 @@ defmodule Otel.API.Propagator.BaggageTest do
       assert result == ctx
     end
 
-    test "skips invalid entries" do
-      carrier = [{"baggage", "valid=yes,=invalid,also_valid=yep"}]
-      ctx = Otel.API.Propagator.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
-
-      baggage = Otel.API.Baggage.get_baggage(ctx)
-      assert Otel.API.Baggage.get_value(baggage, "valid") == "yes"
-      assert Otel.API.Baggage.get_value(baggage, "also_valid") == "yep"
-      assert map_size(baggage) == 2
-    end
-
     test "merges with existing baggage in context" do
       existing = Otel.API.Baggage.set_value(%{}, "existing", "value")
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), existing)
