@@ -5,7 +5,7 @@ defmodule Otel.API.AttributeTest do
     {:ok, types} = Code.Typespec.fetch_types(Otel.API.Attribute)
     names = for {kind, {name, _, _}} <- types, do: {kind, name}
 
-    for type <- [:key, :scalar, :value, :t, :attributes] do
+    for type <- [:key, :scalar, :value, :attributes] do
       assert {:type, type} in names, "missing type: #{type}"
     end
   end

@@ -91,9 +91,14 @@ maps, no heterogeneous arrays, no nested recursion.
 @type scalar ::
         String.t() | binary() | boolean() | integer() | float() | nil
 @type value :: scalar() | [scalar()]
-@type t :: {key(), value()}
 @type attributes :: %{key() => value()}
 ```
+
+We intentionally do not define a `t/0` alias for a single `{key, value}` pair.
+With the list-of-pairs collection form rejected (see below) and Elixir's
+`Enum` treating maps as `{k, v}` enumerables without a declared pair type,
+no `@spec` in the codebase references a single pair. Adding an unused alias
+would be dead weight.
 
 #### Keys are strings only
 

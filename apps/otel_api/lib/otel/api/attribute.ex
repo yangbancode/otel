@@ -1,6 +1,6 @@
 defmodule Otel.API.Attribute do
   @moduledoc """
-  Represents a single attribute (`{key, value}`) and a collection of attributes.
+  Types for an attribute key, an attribute value, and a collection of attributes.
 
   An attribute is a key-value pair whose value is a strict subset of
   `Otel.API.AnyValue.t/0`: scalars and homogeneous scalar arrays only. Maps,
@@ -67,9 +67,6 @@ defmodule Otel.API.Attribute do
   Homogeneity is a spec constraint not enforced at the type level.
   """
   @type value :: scalar() | [scalar()]
-
-  @typedoc "A single attribute as a `{key, value}` pair."
-  @type t :: {key(), value()}
 
   @typedoc """
   A collection of attributes.
