@@ -31,8 +31,8 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "registers as global provider on start" do
-      {:ok, _pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
-      assert Otel.API.Trace.TracerProvider.get_provider() == Otel.SDK.Trace.TracerProvider
+      {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
+      assert Otel.API.Trace.TracerProvider.get_provider() == pid
     end
 
     test "starts with custom config" do

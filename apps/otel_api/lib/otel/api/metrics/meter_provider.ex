@@ -14,18 +14,24 @@ defmodule Otel.API.Metrics.MeterProvider do
   @meter_key_prefix {__MODULE__, :meter}
 
   @doc """
-  Returns the global MeterProvider module, or `nil` if none is set.
+  Returns the global MeterProvider, or `nil` if none is set.
+
+  The provider is a pid or a registered name pointing to the SDK
+  MeterProvider GenServer.
   """
-  @spec get_provider() :: module() | nil
+  @spec get_provider() :: GenServer.server() | nil
   def get_provider do
     :persistent_term.get(@provider_key, nil)
   end
 
   @doc """
-  Sets the global MeterProvider module.
+  Sets the global MeterProvider.
+
+  Accepts a pid or a registered name (module atom). The SDK
+  MeterProvider calls this from its `init/1` with `self()`.
   """
-  @spec set_provider(provider :: module()) :: :ok
-  def set_provider(provider) when is_atom(provider) do
+  @spec set_provider(provider :: GenServer.server() | nil) :: :ok
+  def set_provider(provider) when is_atom(provider) or is_pid(provider) do
     :persistent_term.put(@provider_key, provider)
     :ok
   end
@@ -44,7 +50,7 @@ defmodule Otel.API.Metrics.MeterProvider do
         ) :: Otel.API.Metrics.Meter.t()
   def get_meter(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
-    key = {@meter_key_prefix, {name, version, schema_url}}
+    key = {@meter_key_prefix, {name, version, schema_url, attributes}}
 
     case :persistent_term.get(key, nil) do
       nil ->
@@ -104,7 +110,21 @@ defmodule Otel.API.Metrics.MeterProvider do
           schema_url :: String.t() | nil,
           attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Metrics.Meter.t()
-  defp fetch_or_default(_name, _version, _schema_url, _attributes) do
-    @default_meter
+  defp fetch_or_default(name, version, schema_url, attributes) do
+    case get_provider() do
+      nil ->
+        @default_meter
+
+      provider ->
+        if provider_alive?(provider) do
+          GenServer.call(provider, {:get_meter, name, version, schema_url, attributes})
+        else
+          @default_meter
+        end
+    end
   end
+
+  @spec provider_alive?(provider :: GenServer.server()) :: boolean()
+  defp provider_alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp provider_alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 end

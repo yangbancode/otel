@@ -19,6 +19,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Type Representation Policy](decisions/type-representation-policy.md)
 - [x] [Attribute and AnyValue Types](decisions/attribute-and-anyvalue-types.md)
 - [x] [Composite Entity Structs](decisions/composite-entity-structs.md)
+- [x] [Provider Dispatch](decisions/provider-dispatch.md)
 
 ## Phase 1: Traces
 

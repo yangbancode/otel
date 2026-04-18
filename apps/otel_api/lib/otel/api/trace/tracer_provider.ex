@@ -12,18 +12,24 @@ defmodule Otel.API.Trace.TracerProvider do
   @tracer_key_prefix {__MODULE__, :tracer}
 
   @doc """
-  Returns the global TracerProvider module, or `nil` if none is set.
+  Returns the global TracerProvider, or `nil` if none is set.
+
+  The provider is a pid or a registered name pointing to the SDK
+  TracerProvider GenServer.
   """
-  @spec get_provider() :: module() | nil
+  @spec get_provider() :: GenServer.server() | nil
   def get_provider do
     :persistent_term.get(@provider_key, nil)
   end
 
   @doc """
-  Sets the global TracerProvider module.
+  Sets the global TracerProvider.
+
+  Accepts a pid or a registered name (module atom). The SDK
+  TracerProvider calls this from its `init/1` with `self()`.
   """
-  @spec set_provider(provider :: module()) :: :ok
-  def set_provider(provider) when is_atom(provider) do
+  @spec set_provider(provider :: GenServer.server() | nil) :: :ok
+  def set_provider(provider) when is_atom(provider) or is_pid(provider) do
     :persistent_term.put(@provider_key, provider)
     :ok
   end
@@ -42,7 +48,7 @@ defmodule Otel.API.Trace.TracerProvider do
         ) :: Otel.API.Trace.Tracer.t()
   def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
-    key = {@tracer_key_prefix, {name, version, schema_url}}
+    key = {@tracer_key_prefix, {name, version, schema_url, attributes}}
 
     case :persistent_term.get(key, nil) do
       nil ->
@@ -102,7 +108,21 @@ defmodule Otel.API.Trace.TracerProvider do
           schema_url :: String.t() | nil,
           attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Trace.Tracer.t()
-  defp fetch_or_default(_name, _version, _schema_url, _attributes) do
-    @default_tracer
+  defp fetch_or_default(name, version, schema_url, attributes) do
+    case get_provider() do
+      nil ->
+        @default_tracer
+
+      provider ->
+        if provider_alive?(provider) do
+          GenServer.call(provider, {:get_tracer, name, version, schema_url, attributes})
+        else
+          @default_tracer
+        end
+    end
   end
+
+  @spec provider_alive?(provider :: GenServer.server()) :: boolean()
+  defp provider_alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp provider_alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 end

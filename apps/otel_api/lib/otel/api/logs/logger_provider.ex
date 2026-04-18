@@ -15,18 +15,24 @@ defmodule Otel.API.Logs.LoggerProvider do
   @logger_key_prefix {__MODULE__, :logger}
 
   @doc """
-  Returns the global LoggerProvider module, or `nil` if none is set.
+  Returns the global LoggerProvider, or `nil` if none is set.
+
+  The provider is a pid or a registered name pointing to the SDK
+  LoggerProvider GenServer.
   """
-  @spec get_provider() :: module() | nil
+  @spec get_provider() :: GenServer.server() | nil
   def get_provider do
     :persistent_term.get(@provider_key, nil)
   end
 
   @doc """
-  Sets the global LoggerProvider module.
+  Sets the global LoggerProvider.
+
+  Accepts a pid or a registered name (module atom). The SDK
+  LoggerProvider calls this from its `init/1` with `self()`.
   """
-  @spec set_provider(provider :: module()) :: :ok
-  def set_provider(provider) when is_atom(provider) do
+  @spec set_provider(provider :: GenServer.server() | nil) :: :ok
+  def set_provider(provider) when is_atom(provider) or is_pid(provider) do
     :persistent_term.put(@provider_key, provider)
     :ok
   end
@@ -45,7 +51,7 @@ defmodule Otel.API.Logs.LoggerProvider do
         ) :: Otel.API.Logs.Logger.t()
   def get_logger(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
-    key = {@logger_key_prefix, {name, version, schema_url}}
+    key = {@logger_key_prefix, {name, version, schema_url, attributes}}
 
     case :persistent_term.get(key, nil) do
       nil ->
@@ -105,7 +111,21 @@ defmodule Otel.API.Logs.LoggerProvider do
           schema_url :: String.t() | nil,
           attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Logs.Logger.t()
-  defp fetch_or_default(_name, _version, _schema_url, _attributes) do
-    @default_logger
+  defp fetch_or_default(name, version, schema_url, attributes) do
+    case get_provider() do
+      nil ->
+        @default_logger
+
+      provider ->
+        if provider_alive?(provider) do
+          GenServer.call(provider, {:get_logger, name, version, schema_url, attributes})
+        else
+          @default_logger
+        end
+    end
   end
+
+  @spec provider_alive?(provider :: GenServer.server()) :: boolean()
+  defp provider_alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp provider_alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 end

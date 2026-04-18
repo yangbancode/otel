@@ -34,11 +34,12 @@ defmodule Otel.SDK.Logs.LoggerProvider do
           server :: GenServer.server(),
           name :: String.t(),
           version :: String.t(),
-          schema_url :: String.t() | nil
+          schema_url :: String.t() | nil,
+          attributes :: Otel.API.Attribute.attributes()
         ) ::
           Otel.API.Logs.Logger.t()
-  def get_logger(server, name, version \\ "", schema_url \\ nil) do
-    GenServer.call(server, {:get_logger, name, version, schema_url})
+  def get_logger(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+    GenServer.call(server, {:get_logger, name, version, schema_url, attributes})
   end
 
   @doc """
@@ -90,22 +91,35 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
     :persistent_term.put(processors_key, config.processors)
 
-    Otel.API.Logs.LoggerProvider.set_provider(__MODULE__)
+    Otel.API.Logs.LoggerProvider.set_provider(self_ref())
     {:ok, config}
   end
 
+  @spec self_ref() :: atom() | pid()
+  defp self_ref do
+    case Process.info(self(), :registered_name) do
+      {:registered_name, name} when is_atom(name) -> name
+      _ -> self()
+    end
+  end
+
   @impl true
-  def handle_call({:get_logger, _name, _version, _schema_url}, _from, %{shut_down: true} = config) do
+  def handle_call(
+        {:get_logger, _name, _version, _schema_url, _attributes},
+        _from,
+        %{shut_down: true} = config
+      ) do
     {:reply, {Otel.API.Logs.Logger.Noop, []}, config}
   end
 
-  def handle_call({:get_logger, name, version, schema_url}, _from, config) do
+  def handle_call({:get_logger, name, version, schema_url, attributes}, _from, config) do
     validated_name = validate_logger_name(name)
 
     scope = %Otel.API.InstrumentationScope{
       name: validated_name,
       version: version,
-      schema_url: schema_url
+      schema_url: schema_url,
+      attributes: attributes
     }
 
     logger_config = %{
