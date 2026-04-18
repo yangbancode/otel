@@ -105,6 +105,40 @@ defmodule Otel.API.Propagator.TraceContextTest do
       assert Otel.API.Trace.SpanContext.valid?(span_ctx)
     end
 
+    test "accepts future version with trailing forward-compat bytes" do
+      # Version 01 with a trailing "-future-field" per W3C Level 2 forward-compat
+      carrier = [
+        {"traceparent", "01-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01-fg00"}
+      ]
+
+      ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      span_ctx = Otel.API.Trace.current_span(ctx)
+
+      assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
+      assert span_ctx.span_id == 0xB7AD6B7169203331
+    end
+
+    test "rejects version 00 with trailing bytes (W3C strict length)" do
+      # v00 MUST be exactly 55 chars; any trailing bytes are invalid
+      carrier = [
+        {"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01-extra"}
+      ]
+
+      assert_raise FunctionClauseError, fn ->
+        Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      end
+    end
+
+    test "rejects reserved version ff" do
+      carrier = [
+        {"traceparent", "ff-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}
+      ]
+
+      assert_raise FunctionClauseError, fn ->
+        Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      end
+    end
+
     test "extracts unsampled span" do
       carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00"}]
       ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)

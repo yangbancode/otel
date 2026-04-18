@@ -641,10 +641,42 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       end
 
       assert_receive {:on_end, ended_span}
-      assert %Otel.API.Trace.Status{code: :error} = ended_span.status
+      # Status description is the raw exception message per spec
+      # (trace/exceptions.md L35: `e.getMessage()`), not the formatted
+      # "** (RuntimeError) boom" Elixir rendering.
+      assert %Otel.API.Trace.Status{code: :error, description: "boom"} = ended_span.status
       assert length(ended_span.events) == 1
       event = hd(ended_span.events)
       assert event.name == "exception"
+      assert event.attributes["exception.message"] == "boom"
+      assert event.attributes["exception.type"] == "RuntimeError"
+    end
+
+    test "with_span normalizes non-exception raise to ErlangError" do
+      {:ok, provider} =
+        Otel.SDK.Trace.TracerProvider.start_link(
+          config: %{
+            processors: [
+              {Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}
+            ]
+          }
+        )
+
+      {_module, tracer_config} =
+        Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
+
+      tracer = {Otel.SDK.Trace.Tracer, tracer_config}
+
+      assert_raise ErlangError, fn ->
+        Otel.API.Trace.with_span(tracer, "error_span", [], fn _span_ctx ->
+          :erlang.error(:some_atom_reason)
+        end)
+      end
+
+      assert_receive {:on_end, ended_span}
+      assert %Otel.API.Trace.Status{code: :error} = ended_span.status
+      # Description must be a human-readable message, not the raw atom
+      assert is_binary(ended_span.status.description)
     end
   end
 end
