@@ -4,6 +4,8 @@ defmodule Otel.API.Trace.Tracer do
 
   A Tracer is represented as a `{module, config}` tuple where
   the module implements this behaviour.
+
+  All functions are safe for concurrent use.
   """
 
   @type t :: {module(), term()}

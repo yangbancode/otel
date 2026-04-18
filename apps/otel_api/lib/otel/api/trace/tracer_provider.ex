@@ -4,6 +4,8 @@ defmodule Otel.API.Trace.TracerProvider do
 
   Uses `persistent_term` for storage, matching opentelemetry-erlang.
   When no SDK is installed, all operations return no-op tracers.
+
+  All functions are safe for concurrent use.
   """
 
   @default_tracer {Otel.API.Trace.Tracer.Noop, []}

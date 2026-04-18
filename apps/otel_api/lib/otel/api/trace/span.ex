@@ -9,6 +9,8 @@ defmodule Otel.API.Trace.Span do
   At the API level (without SDK), all operations are no-ops.
   When an SDK is installed, it registers a span module via
   `set_span_module/1` and operations are dispatched to it.
+
+  All functions are safe for concurrent use.
   """
 
   @type start_opts :: [

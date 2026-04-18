@@ -7,7 +7,11 @@ defmodule Otel.API.Propagator.Baggage do
 
   Header format: `key1=value1;metadata1,key2=value2;metadata2`
 
-  Values are percent-encoded for safe HTTP transport.
+  Names and values are percent-encoded (`URI.encode_www_form/1`) for
+  safe HTTP transport. Metadata is written verbatim — per W3C
+  Baggage § 3.3 / RFC 9110 it MUST be a valid US-ASCII property
+  string and callers are responsible for supplying conforming input
+  (see `Otel.API.Baggage.metadata/0`).
   """
 
   @behaviour Otel.API.Propagator.TextMap
