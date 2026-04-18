@@ -85,43 +85,22 @@ defmodule Otel.API.Trace.SpanIdTest do
     test "roundtrips via from_bytes/1" do
       value = 0x0123456789ABCDEF
       bytes = Otel.API.Trace.SpanId.to_bytes(value)
-      assert {:ok, ^value} = Otel.API.Trace.SpanId.from_bytes(bytes)
+      assert Otel.API.Trace.SpanId.from_bytes(bytes) == value
     end
   end
 
   describe "from_hex/1" do
     test "parses 16-character lowercase hex" do
-      assert {:ok, 0} = Otel.API.Trace.SpanId.from_hex("0000000000000000")
-      assert {:ok, 1} = Otel.API.Trace.SpanId.from_hex("0000000000000001")
-      assert {:ok, @max_span_id} = Otel.API.Trace.SpanId.from_hex("ffffffffffffffff")
-    end
-
-    test "returns :error on wrong length" do
-      assert :error = Otel.API.Trace.SpanId.from_hex("")
-      assert :error = Otel.API.Trace.SpanId.from_hex("1")
-      assert :error = Otel.API.Trace.SpanId.from_hex(String.duplicate("0", 17))
-    end
-
-    test "returns :error on non-hex characters" do
-      assert :error = Otel.API.Trace.SpanId.from_hex(String.duplicate("z", 16))
-    end
-
-    test "returns :error on non-binary input" do
-      assert :error = Otel.API.Trace.SpanId.from_hex(42)
-      assert :error = Otel.API.Trace.SpanId.from_hex(nil)
+      assert Otel.API.Trace.SpanId.from_hex("0000000000000000") == 0
+      assert Otel.API.Trace.SpanId.from_hex("0000000000000001") == 1
+      assert Otel.API.Trace.SpanId.from_hex("ffffffffffffffff") == @max_span_id
     end
   end
 
   describe "from_bytes/1" do
     test "parses 8-byte binary" do
-      assert {:ok, 0} = Otel.API.Trace.SpanId.from_bytes(<<0::64>>)
-      assert {:ok, 1} = Otel.API.Trace.SpanId.from_bytes(<<1::64>>)
-    end
-
-    test "returns :error on wrong byte size" do
-      assert :error = Otel.API.Trace.SpanId.from_bytes(<<>>)
-      assert :error = Otel.API.Trace.SpanId.from_bytes(<<0::32>>)
-      assert :error = Otel.API.Trace.SpanId.from_bytes(<<0::128>>)
+      assert Otel.API.Trace.SpanId.from_bytes(<<0::64>>) == 0
+      assert Otel.API.Trace.SpanId.from_bytes(<<1::64>>) == 1
     end
   end
 end

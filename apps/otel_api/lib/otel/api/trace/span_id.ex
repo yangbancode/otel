@@ -86,28 +86,18 @@ defmodule Otel.API.Trace.SpanId do
 
   @doc """
   Parses a 16-character lowercase hex string into a `t()`.
-
-  Returns `{:ok, span_id}` or `:error` on malformed input.
   """
-  @spec from_hex(hex :: binary()) :: {:ok, t()} | :error
+  @spec from_hex(hex :: <<_::128>>) :: t()
   def from_hex(hex) when is_binary(hex) and byte_size(hex) == @hex_length do
-    case Integer.parse(hex, 16) do
-      {integer, ""} when integer >= 0 and integer <= @max_value -> {:ok, integer}
-      _ -> :error
-    end
+    {integer, ""} = Integer.parse(hex, 16)
+    integer
   end
-
-  def from_hex(_), do: :error
 
   @doc """
   Parses an 8-byte binary into a `t()`.
-
-  Returns `{:ok, span_id}` or `:error` on malformed input.
   """
-  @spec from_bytes(bytes :: binary()) :: {:ok, t()} | :error
+  @spec from_bytes(bytes :: <<_::64>>) :: t()
   def from_bytes(<<span_id::unsigned-integer-size(64)>>) do
-    {:ok, span_id}
+    span_id
   end
-
-  def from_bytes(_), do: :error
 end

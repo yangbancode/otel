@@ -87,45 +87,24 @@ defmodule Otel.API.Trace.TraceIdTest do
     test "roundtrips via from_bytes/1" do
       value = 0x0123456789ABCDEF_0123456789ABCDEF
       bytes = Otel.API.Trace.TraceId.to_bytes(value)
-      assert {:ok, ^value} = Otel.API.Trace.TraceId.from_bytes(bytes)
+      assert Otel.API.Trace.TraceId.from_bytes(bytes) == value
     end
   end
 
   describe "from_hex/1" do
     test "parses 32-character lowercase hex" do
-      assert {:ok, 0} = Otel.API.Trace.TraceId.from_hex("00000000000000000000000000000000")
-      assert {:ok, 1} = Otel.API.Trace.TraceId.from_hex("00000000000000000000000000000001")
+      assert Otel.API.Trace.TraceId.from_hex("00000000000000000000000000000000") == 0
+      assert Otel.API.Trace.TraceId.from_hex("00000000000000000000000000000001") == 1
 
-      assert {:ok, @max_trace_id} =
-               Otel.API.Trace.TraceId.from_hex("ffffffffffffffffffffffffffffffff")
-    end
-
-    test "returns :error on wrong length" do
-      assert :error = Otel.API.Trace.TraceId.from_hex("")
-      assert :error = Otel.API.Trace.TraceId.from_hex("1")
-      assert :error = Otel.API.Trace.TraceId.from_hex(String.duplicate("0", 33))
-    end
-
-    test "returns :error on non-hex characters" do
-      assert :error = Otel.API.Trace.TraceId.from_hex(String.duplicate("z", 32))
-    end
-
-    test "returns :error on non-binary input" do
-      assert :error = Otel.API.Trace.TraceId.from_hex(42)
-      assert :error = Otel.API.Trace.TraceId.from_hex(nil)
+      assert Otel.API.Trace.TraceId.from_hex("ffffffffffffffffffffffffffffffff") ==
+               @max_trace_id
     end
   end
 
   describe "from_bytes/1" do
     test "parses 16-byte binary" do
-      assert {:ok, 0} = Otel.API.Trace.TraceId.from_bytes(<<0::128>>)
-      assert {:ok, 1} = Otel.API.Trace.TraceId.from_bytes(<<1::128>>)
-    end
-
-    test "returns :error on wrong byte size" do
-      assert :error = Otel.API.Trace.TraceId.from_bytes(<<>>)
-      assert :error = Otel.API.Trace.TraceId.from_bytes(<<0::64>>)
-      assert :error = Otel.API.Trace.TraceId.from_bytes(<<0::256>>)
+      assert Otel.API.Trace.TraceId.from_bytes(<<0::128>>) == 0
+      assert Otel.API.Trace.TraceId.from_bytes(<<1::128>>) == 1
     end
   end
 

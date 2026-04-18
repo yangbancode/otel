@@ -99,28 +99,18 @@ defmodule Otel.API.Trace.TraceId do
 
   @doc """
   Parses a 32-character lowercase hex string into a `t()`.
-
-  Returns `{:ok, trace_id}` or `:error` on malformed input.
   """
-  @spec from_hex(hex :: binary()) :: {:ok, t()} | :error
+  @spec from_hex(hex :: <<_::256>>) :: t()
   def from_hex(hex) when is_binary(hex) and byte_size(hex) == @hex_length do
-    case Integer.parse(hex, 16) do
-      {integer, ""} when integer >= 0 and integer <= @max_value -> {:ok, integer}
-      _ -> :error
-    end
+    {integer, ""} = Integer.parse(hex, 16)
+    integer
   end
-
-  def from_hex(_), do: :error
 
   @doc """
   Parses a 16-byte binary into a `t()`.
-
-  Returns `{:ok, trace_id}` or `:error` on malformed input.
   """
-  @spec from_bytes(bytes :: binary()) :: {:ok, t()} | :error
+  @spec from_bytes(bytes :: <<_::128>>) :: t()
   def from_bytes(<<trace_id::unsigned-integer-size(128)>>) do
-    {:ok, trace_id}
+    trace_id
   end
-
-  def from_bytes(_), do: :error
 end
