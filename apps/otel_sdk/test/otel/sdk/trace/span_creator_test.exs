@@ -52,7 +52,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
 
       {span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "root_span",
           @always_on_sampler,
@@ -74,7 +74,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, _span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "root_span",
           @always_on_sampler,
@@ -91,7 +91,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, _span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "root_span",
           @always_on_sampler,
@@ -108,7 +108,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "forced_root",
           @always_on_sampler,
@@ -128,7 +128,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "child_span",
           @always_on_sampler,
@@ -148,7 +148,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       {span_ctx, _span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "child_span",
           @always_on_sampler,
@@ -167,7 +167,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
 
       {span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "sampled",
           @always_on_sampler,
@@ -186,7 +186,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
 
       {span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "record_only",
           @record_only_sampler,
@@ -205,7 +205,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
 
       {span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "dropped",
           @always_off_sampler,
@@ -222,7 +222,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
 
       {span_ctx, _span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "dropped",
           @always_off_sampler,
@@ -240,7 +240,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "server_span",
           @always_on_sampler,
@@ -256,7 +256,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ctx = Otel.API.Ctx.new()
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -273,7 +273,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ts = 1_000_000_000
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -290,7 +290,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       before = System.system_time(:nanosecond)
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -312,7 +312,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       attrs = %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -329,7 +329,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 5}
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -347,7 +347,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       long_value = String.duplicate("a", 10_000)
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -364,7 +364,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 1}
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -381,7 +381,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -403,7 +403,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ]
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -427,7 +427,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ]
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,
@@ -452,7 +452,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ]
 
       {_span_ctx, span} =
-        Otel.SDK.Trace.SpanCreator.start_span(
+        Otel.SDK.Trace.Span.start_span(
           ctx,
           "span",
           @always_on_sampler,

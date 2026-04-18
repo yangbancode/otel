@@ -11,14 +11,21 @@ How to implement SDK-level span operations (set_attribute, add_event, set_status
 The API module `Otel.API.Trace.Span` dispatches to a registered SDK module via `persistent_term`, following the same pattern as `TracerProvider`.
 
 - `Otel.API.Trace.Span.set_span_module/1` / `get_span_module/0` — register/lookup
-- SDK registers `Otel.SDK.Trace.SpanOperations` in `Otel.SDK.Application.start/2`
+- SDK registers `Otel.SDK.Trace.Span` in `Otel.SDK.Application.start/2`
 - Without SDK, all operations are no-ops (return `:ok`)
 
-### SDK Module: `Otel.SDK.Trace.SpanOperations`
+### SDK Module: `Otel.SDK.Trace.Span`
 
-Location: `apps/otel_sdk/lib/otel/sdk/trace/span_operations.ex`
+Location: `apps/otel_sdk/lib/otel/sdk/trace/span.ex`
 
-All operations follow the pattern:
+One module holds the `%Otel.SDK.Trace.Span{}` struct definition, the
+creation flow (`start_span/6`, previously in `SpanCreator`), and all
+lifecycle operations. This matches the single-module "one entity = one
+module" pattern we adopted for
+[`Otel.API.Metrics.Instrument`](api-instrument-struct.md); the struct
+and the pure operations that read/write its fields live together.
+
+All lifecycle operations follow the pattern:
 1. `SpanStorage.get(span_id)` — if nil (ended or dropped), silently return `:ok`
 2. Apply operation with limit enforcement
 3. `SpanStorage.insert(updated_span)` — write back

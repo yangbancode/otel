@@ -58,25 +58,25 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
   describe "recording?/1" do
     test "returns true for active span" do
       span_ctx = start_span()
-      assert Otel.SDK.Trace.SpanOperations.recording?(span_ctx) == true
+      assert Otel.SDK.Trace.Span.recording?(span_ctx) == true
     end
 
     test "returns false after end_span" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
-      assert Otel.SDK.Trace.SpanOperations.recording?(span_ctx) == false
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
+      assert Otel.SDK.Trace.Span.recording?(span_ctx) == false
     end
 
     test "returns false for unknown span_id" do
       span_ctx = %Otel.API.Trace.SpanContext{span_id: 999_999}
-      assert Otel.SDK.Trace.SpanOperations.recording?(span_ctx) == false
+      assert Otel.SDK.Trace.Span.recording?(span_ctx) == false
     end
   end
 
   describe "set_attribute/3" do
     test "sets a single attribute" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "key", "value")
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "key", "value")
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["key"] == "value"
@@ -84,7 +84,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "overwrites existing attribute" do
       span_ctx = start_span(attributes: %{"key" => "old"})
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "key", "new")
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "key", "new")
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["key"] == "new"
@@ -92,15 +92,15 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "no-op on ended span" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
-      assert Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "key", "value") == :ok
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
+      assert Otel.SDK.Trace.Span.set_attribute(span_ctx, "key", "value") == :ok
     end
 
     test "enforces attribute_count_limit" do
       span_ctx = start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2})
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "a", 1)
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "b", 2)
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "c", 3)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "a", 1)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "b", 2)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "c", 3)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert map_size(span.attributes) == 2
@@ -110,8 +110,8 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "allows overwrite even when at limit" do
       span_ctx = start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 1})
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "a", 1)
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "a", 2)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "a", 1)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "a", 2)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["a"] == 2
@@ -121,7 +121,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx =
         start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 5})
 
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "key", "hello world")
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "key", "hello world")
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["key"] == "hello"
@@ -131,7 +131,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx =
         start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 1})
 
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "num", 12_345)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "num", 12_345)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["num"] == 12_345
@@ -141,7 +141,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx =
         start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3})
 
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "tags", ["hello", "world"])
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "tags", ["hello", "world"])
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["tags"] == ["hel", "wor"]
@@ -154,7 +154,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
         )
 
       long_value = String.duplicate("a", 10_000)
-      Otel.SDK.Trace.SpanOperations.set_attribute(span_ctx, "key", long_value)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "key", long_value)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["key"] == long_value
@@ -164,7 +164,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
   describe "set_attributes/2" do
     test "sets multiple attributes" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.set_attributes(span_ctx, %{"a" => 1, "b" => 2})
+      Otel.SDK.Trace.Span.set_attributes(span_ctx, %{"a" => 1, "b" => 2})
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["a"] == 1
@@ -173,7 +173,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "accepts list of tuples" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.set_attributes(span_ctx, [{"a", 1}, {"b", 2}])
+      Otel.SDK.Trace.Span.set_attributes(span_ctx, [{"a", 1}, {"b", 2}])
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["a"] == 1
@@ -182,13 +182,13 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "no-op on ended span" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
-      assert Otel.SDK.Trace.SpanOperations.set_attributes(span_ctx, %{"a" => 1}) == :ok
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
+      assert Otel.SDK.Trace.Span.set_attributes(span_ctx, %{"a" => 1}) == :ok
     end
 
     test "overwrites existing keys" do
       span_ctx = start_span(attributes: %{"key" => "old"})
-      Otel.SDK.Trace.SpanOperations.set_attributes(span_ctx, %{"key" => "new"})
+      Otel.SDK.Trace.Span.set_attributes(span_ctx, %{"key" => "new"})
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["key"] == "new"
@@ -196,7 +196,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "enforces attribute_count_limit" do
       span_ctx = start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2})
-      Otel.SDK.Trace.SpanOperations.set_attributes(span_ctx, %{"a" => 1, "b" => 2, "c" => 3})
+      Otel.SDK.Trace.Span.set_attributes(span_ctx, %{"a" => 1, "b" => 2, "c" => 3})
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert map_size(span.attributes) <= 2
@@ -207,7 +207,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "adds an event" do
       span_ctx = start_span()
       event = Otel.API.Trace.Event.new("my_event")
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, event)
+      Otel.SDK.Trace.Span.add_event(span_ctx, event)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert length(span.events) == 1
@@ -219,7 +219,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx = start_span()
       ts = 1_000_000_000
       event = Otel.API.Trace.Event.new("event", %{"key" => "val"}, ts)
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, event)
+      Otel.SDK.Trace.Span.add_event(span_ctx, event)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       stored = hd(span.events)
@@ -229,8 +229,8 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "preserves insertion order" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, Otel.API.Trace.Event.new("first"))
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, Otel.API.Trace.Event.new("second"))
+      Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("first"))
+      Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("second"))
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert Enum.map(span.events, & &1.name) == ["first", "second"]
@@ -238,8 +238,8 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "enforces event_count_limit" do
       span_ctx = start_span(span_limits: %Otel.SDK.Trace.SpanLimits{event_count_limit: 1})
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, Otel.API.Trace.Event.new("first"))
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, Otel.API.Trace.Event.new("second"))
+      Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("first"))
+      Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("second"))
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert length(span.events) == 1
@@ -250,7 +250,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
         start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3})
 
       event = Otel.API.Trace.Event.new("event", %{"key" => "hello world"})
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, event)
+      Otel.SDK.Trace.Span.add_event(span_ctx, event)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       stored = hd(span.events)
@@ -262,7 +262,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
         start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_per_event_limit: 1})
 
       event = Otel.API.Trace.Event.new("event", %{"a" => 1, "b" => 2, "c" => 3})
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, event)
+      Otel.SDK.Trace.Span.add_event(span_ctx, event)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       stored = hd(span.events)
@@ -271,8 +271,8 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "no-op on ended span" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
-      Otel.SDK.Trace.SpanOperations.add_event(span_ctx, Otel.API.Trace.Event.new("event"))
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
+      Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("event"))
       # span removed from ETS, so no way to check — just verify no crash
     end
   end
@@ -282,7 +282,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx = start_span()
       linked_ctx = Otel.API.Trace.SpanContext.new(100, 200)
       link = Otel.API.Trace.Link.new(linked_ctx, %{"key" => "val"})
-      Otel.SDK.Trace.SpanOperations.add_link(span_ctx, link)
+      Otel.SDK.Trace.Span.add_link(span_ctx, link)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert length(span.links) == 1
@@ -294,12 +294,12 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "enforces link_count_limit" do
       span_ctx = start_span(span_limits: %Otel.SDK.Trace.SpanLimits{link_count_limit: 1})
 
-      Otel.SDK.Trace.SpanOperations.add_link(
+      Otel.SDK.Trace.Span.add_link(
         span_ctx,
         Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(1, 1))
       )
 
-      Otel.SDK.Trace.SpanOperations.add_link(
+      Otel.SDK.Trace.Span.add_link(
         span_ctx,
         Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(2, 2))
       )
@@ -310,10 +310,10 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "no-op on ended span" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
 
       link = Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(1, 1))
-      assert Otel.SDK.Trace.SpanOperations.add_link(span_ctx, link) == :ok
+      assert Otel.SDK.Trace.Span.add_link(span_ctx, link) == :ok
     end
 
     test "truncates link attribute values" do
@@ -326,7 +326,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
           %{"key" => "hello world"}
         )
 
-      Otel.SDK.Trace.SpanOperations.add_link(span_ctx, link)
+      Otel.SDK.Trace.Span.add_link(span_ctx, link)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       stored = hd(span.links)
@@ -343,7 +343,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
           %{"a" => 1, "b" => 2}
         )
 
-      Otel.SDK.Trace.SpanOperations.add_link(span_ctx, link)
+      Otel.SDK.Trace.Span.add_link(span_ctx, link)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       stored = hd(span.links)
@@ -355,7 +355,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "sets error status with description" do
       span_ctx = start_span()
 
-      Otel.SDK.Trace.SpanOperations.set_status(
+      Otel.SDK.Trace.Span.set_status(
         span_ctx,
         Otel.API.Trace.Status.new(:error, "something failed")
       )
@@ -366,7 +366,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "sets ok status" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
+      Otel.SDK.Trace.Span.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.status == %Otel.API.Trace.Status{code: :ok, description: ""}
@@ -374,9 +374,9 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "no-op on ended span" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
 
-      assert Otel.SDK.Trace.SpanOperations.set_status(
+      assert Otel.SDK.Trace.Span.set_status(
                span_ctx,
                Otel.API.Trace.Status.new(:error, "fail")
              ) == :ok
@@ -385,12 +385,12 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "setting unset is ignored" do
       span_ctx = start_span()
 
-      Otel.SDK.Trace.SpanOperations.set_status(
+      Otel.SDK.Trace.Span.set_status(
         span_ctx,
         Otel.API.Trace.Status.new(:error, "fail")
       )
 
-      Otel.SDK.Trace.SpanOperations.set_status(span_ctx, Otel.API.Trace.Status.new(:unset))
+      Otel.SDK.Trace.Span.set_status(span_ctx, Otel.API.Trace.Status.new(:unset))
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.status == %Otel.API.Trace.Status{code: :error, description: "fail"}
@@ -398,9 +398,9 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "ok is final — error after ok is ignored" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
+      Otel.SDK.Trace.Span.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
 
-      Otel.SDK.Trace.SpanOperations.set_status(
+      Otel.SDK.Trace.Span.set_status(
         span_ctx,
         Otel.API.Trace.Status.new(:error, "fail")
       )
@@ -412,7 +412,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "error overrides unset (default)" do
       span_ctx = start_span()
 
-      Otel.SDK.Trace.SpanOperations.set_status(
+      Otel.SDK.Trace.Span.set_status(
         span_ctx,
         Otel.API.Trace.Status.new(:error, "fail")
       )
@@ -424,12 +424,12 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "ok overrides error" do
       span_ctx = start_span()
 
-      Otel.SDK.Trace.SpanOperations.set_status(
+      Otel.SDK.Trace.Span.set_status(
         span_ctx,
         Otel.API.Trace.Status.new(:error, "fail")
       )
 
-      Otel.SDK.Trace.SpanOperations.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
+      Otel.SDK.Trace.Span.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.status == %Otel.API.Trace.Status{code: :ok, description: ""}
@@ -439,7 +439,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
   describe "update_name/2" do
     test "updates the span name" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.update_name(span_ctx, "new_name")
+      Otel.SDK.Trace.Span.update_name(span_ctx, "new_name")
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.name == "new_name"
@@ -447,15 +447,15 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "no-op on ended span" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
-      assert Otel.SDK.Trace.SpanOperations.update_name(span_ctx, "new_name") == :ok
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
+      assert Otel.SDK.Trace.Span.update_name(span_ctx, "new_name") == :ok
     end
   end
 
   describe "end_span/2" do
     test "removes span from ETS" do
       span_ctx = start_span()
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
       assert Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id) == nil
     end
 
@@ -468,7 +468,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
         )
 
       before = System.system_time(:nanosecond)
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
       after_time = System.system_time(:nanosecond)
 
       assert_receive {:on_end, ended_span}
@@ -484,7 +484,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
           ]
         )
 
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, 42)
+      Otel.SDK.Trace.Span.end_span(span_ctx, 42)
 
       assert_receive {:on_end, ended_span}
       assert ended_span.end_time == 42
@@ -498,7 +498,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
           ]
         )
 
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
 
       assert_receive {:on_end, ended_span}
       assert ended_span.is_recording == false
@@ -513,7 +513,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
           ]
         )
 
-      Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil)
+      Otel.SDK.Trace.Span.end_span(span_ctx, nil)
 
       assert_receive {:on_end, _}
       assert_receive {:on_end, _}
@@ -521,8 +521,8 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "second end_span is no-op" do
       span_ctx = start_span()
-      assert Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil) == :ok
-      assert Otel.SDK.Trace.SpanOperations.end_span(span_ctx, nil) == :ok
+      assert Otel.SDK.Trace.Span.end_span(span_ctx, nil) == :ok
+      assert Otel.SDK.Trace.Span.end_span(span_ctx, nil) == :ok
     end
   end
 
@@ -530,7 +530,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "adds exception event" do
       span_ctx = start_span()
 
-      Otel.SDK.Trace.SpanOperations.record_exception(
+      Otel.SDK.Trace.Span.record_exception(
         span_ctx,
         %RuntimeError{message: "boom"},
         [],
@@ -549,7 +549,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx = start_span()
       stacktrace = [{__MODULE__, :test, 0, [file: ~c"test.exs", line: 1]}]
 
-      Otel.SDK.Trace.SpanOperations.record_exception(
+      Otel.SDK.Trace.Span.record_exception(
         span_ctx,
         %RuntimeError{message: "boom"},
         stacktrace,
@@ -564,7 +564,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "merges additional attributes" do
       span_ctx = start_span()
 
-      Otel.SDK.Trace.SpanOperations.record_exception(
+      Otel.SDK.Trace.Span.record_exception(
         span_ctx,
         %RuntimeError{message: "boom"},
         [],

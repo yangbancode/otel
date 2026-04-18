@@ -31,15 +31,21 @@ What is the full span creation sequence in the SDK? How do sampling, ID generati
 
 `Otel.SDK.Trace.Tracer.start_span/4` implements this flow by:
 1. Using pre-cached config from tracer tuple (sampler, id_generator, span_limits, scope)
-2. Calling `Otel.SDK.Trace.SpanCreator.start_span/6` with config
+2. Calling `Otel.SDK.Trace.Span.start_span/6` with config
 3. Applying SpanLimits (attribute count/value length, link count)
 4. Running on_start processors, storing recording span in ETS
 
-### Module: `Otel.SDK.Trace.SpanCreator`
+### Module: `Otel.SDK.Trace.Span`
 
-Location: `apps/otel_sdk/lib/otel/sdk/trace/span_creator.ex`
+Location: `apps/otel_sdk/lib/otel/sdk/trace/span.ex`
 
-Pure function module (no GenServer) that orchestrates the creation flow. Same role as opentelemetry-erlang's `otel_span_utils`.
+`start_span/6` is a pure function on the Span module, alongside the
+struct definition and the lifecycle operations. We do not split the
+creation flow into a separate `SpanCreator` module — the creation flow
+operates on `%Otel.SDK.Trace.Span{}` and lives where that struct is
+defined, matching the single-module pattern we adopted for
+[`Otel.API.Metrics.Instrument`](api-instrument-struct.md). Same role
+as opentelemetry-erlang's `otel_span_utils`.
 
 ### Pending for next decisions
 

@@ -8,9 +8,9 @@ How to implement asynchronous instruments and callback registration/execution on
 
 ### Architecture
 
-Each async instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter` for creation. Follows the same pattern as synchronous instruments. Supports two creation styles:
+Each async instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter` for creation. Creation returns an `Otel.API.Metrics.Instrument.t()` handle — same struct as synchronous instruments; see [api-instrument-struct.md](api-instrument-struct.md). Supports two creation styles:
 
-1. **Without callback** (`create/3`) — instrument created, callback registered later via `Meter.register_callback/5`
+1. **Without callback** (`create/3`) — instrument created, callback registered later via `Meter.register_callback/5` passing the list of Instrument handles.
 2. **With inline callback** (`create/5`) — callback permanently attached at creation time
 
 ### Callback Model
@@ -37,7 +37,7 @@ Unlike synchronous instruments, async instruments have no `add` or `record` func
 
 ### No-op Behavior
 
-Without SDK: creation returns `:ok`, `register_callback` returns `:ok`. Callbacks are never invoked.
+Without SDK: creation returns an `Otel.API.Metrics.Instrument.t()` with only identifying fields, `register_callback` returns `:ok`. Callbacks are never invoked.
 
 ### Modules
 

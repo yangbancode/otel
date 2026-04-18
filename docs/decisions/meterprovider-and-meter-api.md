@@ -33,7 +33,8 @@ Plus `register_callback` for multi-instrument async callbacks and `enabled?` for
 
 When no SDK is installed:
 - `get_meter` returns the noop meter
-- Instrument creation returns `:ok` (no-op instrument reference)
+- Instrument creation returns an `Otel.API.Metrics.Instrument.t()` with identifying fields populated and `meter` pointing at the Noop meter (see [api-instrument-struct.md](api-instrument-struct.md))
+- `record/3` on that instrument is a no-op
 - `enabled?` returns `false`
 - `register_callback` returns `:ok`
 

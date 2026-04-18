@@ -11,19 +11,19 @@ defmodule Otel.SDK.Metrics.Stream do
   @type t :: %__MODULE__{
           name: String.t(),
           description: String.t(),
-          instrument: Otel.SDK.Metrics.Instrument.t(),
+          instrument: Otel.API.Metrics.Instrument.t(),
           attribute_keys: {:include, [String.t()]} | {:exclude, [String.t()]} | nil,
           aggregation: module() | nil,
           aggregation_options: map(),
           exemplar_reservoir: module() | nil,
           aggregation_cardinality_limit: pos_integer() | nil,
-          temporality: Otel.SDK.Metrics.Instrument.temporality(),
+          temporality: Otel.API.Metrics.Instrument.temporality(),
           reader_id: reference() | nil
         }
 
   defstruct name: "",
             description: "",
-            instrument: %Otel.SDK.Metrics.Instrument{},
+            instrument: %Otel.API.Metrics.Instrument{},
             attribute_keys: nil,
             aggregation: nil,
             aggregation_options: %{},
@@ -32,7 +32,7 @@ defmodule Otel.SDK.Metrics.Stream do
             temporality: :cumulative,
             reader_id: nil
 
-  @spec from_instrument(instrument :: Otel.SDK.Metrics.Instrument.t()) :: t()
+  @spec from_instrument(instrument :: Otel.API.Metrics.Instrument.t()) :: t()
   def from_instrument(instrument) do
     %__MODULE__{
       name: instrument.name,
@@ -44,7 +44,7 @@ defmodule Otel.SDK.Metrics.Stream do
 
   @spec from_view(
           view :: Otel.SDK.Metrics.View.t(),
-          instrument :: Otel.SDK.Metrics.Instrument.t()
+          instrument :: Otel.API.Metrics.Instrument.t()
         ) :: t()
   def from_view(view, instrument) do
     config = view.config
@@ -96,7 +96,7 @@ defmodule Otel.SDK.Metrics.Stream do
     Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize
   end
 
-  @spec merge_advisory_boundaries(opts :: map(), instrument :: Otel.SDK.Metrics.Instrument.t()) ::
+  @spec merge_advisory_boundaries(opts :: map(), instrument :: Otel.API.Metrics.Instrument.t()) ::
           map()
   defp merge_advisory_boundaries(opts, instrument) do
     case Keyword.get(instrument.advisory, :explicit_bucket_boundaries) do
@@ -108,7 +108,7 @@ defmodule Otel.SDK.Metrics.Stream do
     end
   end
 
-  @spec advisory_attribute_keys(instrument :: Otel.SDK.Metrics.Instrument.t()) ::
+  @spec advisory_attribute_keys(instrument :: Otel.API.Metrics.Instrument.t()) ::
           {:include, [String.t()]} | nil
   defp advisory_attribute_keys(instrument) do
     case Keyword.get(instrument.advisory, :attributes) do

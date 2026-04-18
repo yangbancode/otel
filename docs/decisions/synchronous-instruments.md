@@ -8,27 +8,28 @@ How to implement synchronous instruments (Counter, Histogram, Gauge, UpDownCount
 
 ### Architecture
 
-Each instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter` for both creation and recording. Following the opentelemetry-erlang pattern, instruments are identified by name through the Meter — no opaque instrument handle is needed at the API level.
+Each instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter`. Creation returns an `Otel.API.Metrics.Instrument.t()` handle; recording takes that handle and dispatches via the meter embedded in it. See
+[api-instrument-struct.md](api-instrument-struct.md) for the handle shape.
 
 ### Recording Path
 
-All synchronous instruments record through a single `Meter.record/5` dispatch:
+All synchronous instruments record through a single `Meter.record/3` dispatch:
 
 ```
-Counter.add/4        \
-Histogram.record/4    |-->  Meter.record/5  -->  module.record/5
-Gauge.record/4        |
-UpDownCounter.add/4  /
+Counter.add/3        \
+Histogram.record/3    |-->  Meter.record/3  -->  module.record/3
+Gauge.record/3        |
+UpDownCounter.add/3  /
 ```
 
 ### Instrument Modules
 
 | Module | Create via | Record via | Value |
 |---|---|---|---|
-| `Otel.API.Metrics.Counter` | `Meter.create_counter/3` | `add/4` | non-negative |
-| `Otel.API.Metrics.Histogram` | `Meter.create_histogram/3` | `record/4` | non-negative |
-| `Otel.API.Metrics.Gauge` | `Meter.create_gauge/3` | `record/4` | any |
-| `Otel.API.Metrics.UpDownCounter` | `Meter.create_updown_counter/3` | `add/4` | any |
+| `Otel.API.Metrics.Counter` | `Meter.create_counter/3` | `add/3` | non-negative |
+| `Otel.API.Metrics.Histogram` | `Meter.create_histogram/3` | `record/3` | non-negative |
+| `Otel.API.Metrics.Gauge` | `Meter.create_gauge/3` | `record/3` | any |
+| `Otel.API.Metrics.UpDownCounter` | `Meter.create_updown_counter/3` | `add/3` | any |
 
 ### Common Parameters
 
@@ -37,11 +38,11 @@ Instrument creation accepts `name` (required) and optional keyword opts:
 - `:description` — opaque string, supports BMP, at least 1023 characters
 - `:advisory` — keyword list (e.g. `explicit_bucket_boundaries` for Histogram)
 
-Recording accepts `meter`, `name`, `value` (number), and `attributes` (map, optional).
+Recording accepts `instrument`, `value` (number), and `attributes` (map, optional). The instrument carries its own meter reference — no separate meter argument at the call site.
 
 ### No-op Behavior
 
-Without SDK: creation returns `:ok`, recording returns `:ok`, `enabled?` returns `false`. No validation at the API level — name/unit/value validation is deferred to SDK.
+Without SDK: creation returns an `Otel.API.Metrics.Instrument.t()` with only identifying fields populated (and `meter` pointing at the Noop meter). `record/3` is a no-op, `enabled?/2` returns `false`. No validation at the API level — name/unit/value validation is deferred to SDK.
 
 ### Modules
 

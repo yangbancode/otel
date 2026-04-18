@@ -23,7 +23,7 @@ defmodule Otel.SDK.Metrics.Aggregation do
               opts :: map()
             ) :: [datapoint()]
 
-  @spec default_module(kind :: Otel.SDK.Metrics.Instrument.kind()) :: module()
+  @spec default_module(kind :: Otel.API.Metrics.Instrument.kind()) :: module()
   def default_module(:counter), do: Otel.SDK.Metrics.Aggregation.Sum
   def default_module(:updown_counter), do: Otel.SDK.Metrics.Aggregation.Sum
   def default_module(:histogram), do: Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram

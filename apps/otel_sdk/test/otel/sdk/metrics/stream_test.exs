@@ -3,7 +3,7 @@ defmodule Otel.SDK.Metrics.StreamTest do
 
   defp instrument(overrides \\ %{}) do
     Map.merge(
-      %Otel.SDK.Metrics.Instrument{
+      %Otel.API.Metrics.Instrument{
         name: "http.request.duration",
         kind: :histogram,
         unit: "ms",

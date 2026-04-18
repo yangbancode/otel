@@ -81,8 +81,12 @@ defmodule Otel.SDK.Metrics.Meter do
   # --- Recording ---
 
   @impl true
-  def record({_module, config}, name, value, attributes) do
-    instrument_key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(name)}
+  def record(
+        %Otel.API.Metrics.Instrument{meter: {_module, config}, name: name, scope: scope},
+        value,
+        attributes
+      ) do
+    instrument_key = {scope, Otel.API.Metrics.Instrument.downcased_name(name)}
 
     case :ets.lookup(config.streams_tab, instrument_key) do
       [] ->
@@ -118,7 +122,7 @@ defmodule Otel.SDK.Metrics.Meter do
 
     Enum.each(instruments, fn instrument ->
       :ets.insert(config.callbacks_tab, {
-        {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(instrument.name)},
+        {config.scope, Otel.API.Metrics.Instrument.downcased_name(instrument.name)},
         ref,
         callback,
         callback_args,
@@ -132,16 +136,8 @@ defmodule Otel.SDK.Metrics.Meter do
   # --- Enabled ---
 
   @impl true
-  def enabled?({_module, _config}, []), do: true
-
-  def enabled?({_module, config}, opts) do
-    case Keyword.get(opts, :instrument_name) do
-      nil ->
-        true
-
-      name ->
-        instrument_enabled?(config, name)
-    end
+  def enabled?(%Otel.API.Metrics.Instrument{meter: {_module, config}, name: name}, _opts) do
+    instrument_enabled?(config, name)
   end
 
   # --- Private ---
@@ -149,34 +145,35 @@ defmodule Otel.SDK.Metrics.Meter do
   @spec register_instrument(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          kind :: Otel.SDK.Metrics.Instrument.kind(),
+          kind :: Otel.API.Metrics.Instrument.kind(),
           opts :: keyword()
-        ) :: Otel.SDK.Metrics.Instrument.t()
-  defp register_instrument({_module, config}, name, kind, opts) do
-    case Otel.SDK.Metrics.Instrument.validate_name(name) do
+        ) :: Otel.API.Metrics.Instrument.t()
+  defp register_instrument(meter, name, kind, opts) do
+    case Otel.API.Metrics.Instrument.validate_name(name) do
       {:ok, validated_name} ->
-        do_register(config, validated_name, kind, opts)
+        do_register(meter, validated_name, kind, opts)
 
       {:error, reason} ->
         :logger.warning(reason, %{domain: [:otel, :metrics]})
-        do_register(config, name || "", kind, opts)
+        do_register(meter, name || "", kind, opts)
     end
   end
 
   @spec do_register(
-          config :: map(),
+          meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          kind :: Otel.SDK.Metrics.Instrument.kind(),
+          kind :: Otel.API.Metrics.Instrument.kind(),
           opts :: keyword()
-        ) :: Otel.SDK.Metrics.Instrument.t()
-  defp do_register(config, name, kind, opts) do
+        ) :: Otel.API.Metrics.Instrument.t()
+  defp do_register({_module, config} = meter, name, kind, opts) do
     unit = Keyword.get(opts, :unit, "") || ""
     description = Keyword.get(opts, :description, "") || ""
 
     advisory =
-      Otel.SDK.Metrics.Instrument.validate_advisory(kind, Keyword.get(opts, :advisory, []))
+      Otel.API.Metrics.Instrument.validate_advisory(kind, Keyword.get(opts, :advisory, []))
 
-    instrument = %Otel.SDK.Metrics.Instrument{
+    instrument = %Otel.API.Metrics.Instrument{
+      meter: meter,
       name: name,
       kind: kind,
       unit: unit,
@@ -185,7 +182,7 @@ defmodule Otel.SDK.Metrics.Meter do
       scope: config.scope
     }
 
-    key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(name)}
+    key = {config.scope, Otel.API.Metrics.Instrument.downcased_name(name)}
 
     case :ets.insert_new(config.instruments_tab, {key, instrument}) do
       true ->
@@ -202,7 +199,7 @@ defmodule Otel.SDK.Metrics.Meter do
   @doc false
   @spec match_views(
           views :: [Otel.SDK.Metrics.View.t()],
-          instrument :: Otel.SDK.Metrics.Instrument.t()
+          instrument :: Otel.API.Metrics.Instrument.t()
         ) :: [Otel.SDK.Metrics.Stream.t()]
   def match_views(views, instrument) do
     streams =
@@ -234,7 +231,7 @@ defmodule Otel.SDK.Metrics.Meter do
     :ok
   end
 
-  @spec create_streams(config :: map(), instrument :: Otel.SDK.Metrics.Instrument.t()) :: :ok
+  @spec create_streams(config :: map(), instrument :: Otel.API.Metrics.Instrument.t()) :: :ok
   defp create_streams(config, instrument) do
     base_streams =
       config.views
@@ -242,14 +239,14 @@ defmodule Otel.SDK.Metrics.Meter do
       |> Enum.map(&Otel.SDK.Metrics.Stream.resolve/1)
 
     reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
-    instrument_key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(instrument.name)}
+    instrument_key = {config.scope, Otel.API.Metrics.Instrument.downcased_name(instrument.name)}
 
     Enum.each(reader_configs, fn {reader_id, reader_opts} ->
       temporality_mapping =
         Map.get(
           reader_opts,
           :temporality_mapping,
-          Otel.SDK.Metrics.Instrument.default_temporality_mapping()
+          Otel.API.Metrics.Instrument.default_temporality_mapping()
         )
 
       temporality = Map.get(temporality_mapping, instrument.kind, :cumulative)
@@ -316,12 +313,12 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @spec store_callback(
           config :: map(),
-          instrument :: Otel.SDK.Metrics.Instrument.t(),
+          instrument :: Otel.API.Metrics.Instrument.t(),
           callback :: function(),
           callback_args :: term()
         ) :: true
   defp store_callback(config, instrument, callback, callback_args) do
-    key = {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(instrument.name)}
+    key = {config.scope, Otel.API.Metrics.Instrument.downcased_name(instrument.name)}
     ref = make_ref()
     :ets.insert(config.callbacks_tab, {key, ref, callback, callback_args, instrument})
   end
@@ -468,7 +465,7 @@ defmodule Otel.SDK.Metrics.Meter do
   @spec instrument_enabled?(config :: map(), name :: String.t()) :: boolean()
   defp instrument_enabled?(config, name) do
     instrument_key =
-      {config.scope, Otel.SDK.Metrics.Instrument.downcased_name(name)}
+      {config.scope, Otel.API.Metrics.Instrument.downcased_name(name)}
 
     case :ets.lookup(config.streams_tab, instrument_key) do
       [] ->
@@ -483,7 +480,7 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @spec all_views_drop?(views :: [Otel.SDK.Metrics.View.t()], name :: String.t()) :: boolean()
   defp all_views_drop?(views, name) do
-    dummy = %Otel.SDK.Metrics.Instrument{name: name}
+    dummy = %Otel.API.Metrics.Instrument{name: name}
 
     matching =
       Enum.filter(views, &Otel.SDK.Metrics.View.matches?(&1, dummy))
@@ -501,8 +498,8 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @spec warn_duplicate(
           config :: map(),
-          existing :: Otel.SDK.Metrics.Instrument.t(),
-          new_instrument :: Otel.SDK.Metrics.Instrument.t(),
+          existing :: Otel.API.Metrics.Instrument.t(),
+          new_instrument :: Otel.API.Metrics.Instrument.t(),
           name :: String.t()
         ) :: :ok
   defp warn_duplicate(_config, existing, new_instrument, name)
@@ -521,7 +518,7 @@ defmodule Otel.SDK.Metrics.Meter do
   end
 
   defp warn_duplicate(config, existing, new_instrument, name) do
-    case Otel.SDK.Metrics.Instrument.conflict_type(existing, new_instrument) do
+    case Otel.API.Metrics.Instrument.conflict_type(existing, new_instrument) do
       :description_only ->
         warn_description_conflict(config, existing, name)
 
@@ -544,7 +541,7 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @spec warn_description_conflict(
           config :: map(),
-          instrument :: Otel.SDK.Metrics.Instrument.t(),
+          instrument :: Otel.API.Metrics.Instrument.t(),
           name :: String.t()
         ) :: :ok
   defp warn_description_conflict(config, instrument, name) do
@@ -561,7 +558,7 @@ defmodule Otel.SDK.Metrics.Meter do
   end
 
   @spec description_resolved_by_view?(
-          instrument :: Otel.SDK.Metrics.Instrument.t(),
+          instrument :: Otel.API.Metrics.Instrument.t(),
           config :: map()
         ) :: boolean()
   defp description_resolved_by_view?(instrument, config) do

@@ -15,8 +15,8 @@ defmodule Otel.SDK.Metrics.MetricReader do
           unit: String.t(),
           scope: Otel.API.InstrumentationScope.t(),
           resource: Otel.SDK.Resource.t(),
-          kind: Otel.SDK.Metrics.Instrument.kind(),
-          temporality: Otel.SDK.Metrics.Instrument.temporality() | nil,
+          kind: Otel.API.Metrics.Instrument.kind(),
+          temporality: Otel.API.Metrics.Instrument.temporality() | nil,
           is_monotonic: boolean() | nil,
           datapoints: [Otel.SDK.Metrics.Aggregation.datapoint()]
         }
@@ -79,14 +79,14 @@ defmodule Otel.SDK.Metrics.MetricReader do
   end
 
   @spec metric_type_info(stream :: Otel.SDK.Metrics.Stream.t()) ::
-          {Otel.SDK.Metrics.Instrument.temporality() | nil, boolean() | nil}
+          {Otel.API.Metrics.Instrument.temporality() | nil, boolean() | nil}
   defp metric_type_info(stream) do
     case stream.instrument.kind do
       kind when kind in [:gauge, :observable_gauge] ->
         {nil, nil}
 
       kind ->
-        {stream.temporality, Otel.SDK.Metrics.Instrument.monotonic?(kind)}
+        {stream.temporality, Otel.API.Metrics.Instrument.monotonic?(kind)}
     end
   end
 

@@ -13,7 +13,7 @@ defmodule Otel.SDK.Metrics.View do
 
   @type criteria :: %{
           optional(:name) => String.t(),
-          optional(:type) => Otel.SDK.Metrics.Instrument.kind(),
+          optional(:type) => Otel.API.Metrics.Instrument.kind(),
           optional(:unit) => String.t(),
           optional(:meter_name) => String.t(),
           optional(:meter_version) => String.t(),
@@ -46,17 +46,17 @@ defmodule Otel.SDK.Metrics.View do
     end
   end
 
-  @spec matches?(view :: t(), instrument :: Otel.SDK.Metrics.Instrument.t()) :: boolean()
+  @spec matches?(view :: t(), instrument :: Otel.API.Metrics.Instrument.t()) :: boolean()
   def matches?(%__MODULE__{criteria: criteria}, instrument) do
     Enum.all?(criteria, fn {key, value} -> matches_criterion?(key, value, instrument) end)
   end
 
-  @spec stream_name(view :: t(), instrument :: Otel.SDK.Metrics.Instrument.t()) :: String.t()
+  @spec stream_name(view :: t(), instrument :: Otel.API.Metrics.Instrument.t()) :: String.t()
   def stream_name(%__MODULE__{config: config}, instrument) do
     Map.get(config, :name, instrument.name)
   end
 
-  @spec stream_description(view :: t(), instrument :: Otel.SDK.Metrics.Instrument.t()) ::
+  @spec stream_description(view :: t(), instrument :: Otel.API.Metrics.Instrument.t()) ::
           String.t()
   def stream_description(%__MODULE__{config: config}, instrument) do
     Map.get(config, :description, instrument.description)
@@ -64,7 +64,7 @@ defmodule Otel.SDK.Metrics.View do
 
   @spec filter_attributes(
           view :: t(),
-          instrument :: Otel.SDK.Metrics.Instrument.t(),
+          instrument :: Otel.API.Metrics.Instrument.t(),
           attributes :: map()
         ) :: map()
   def filter_attributes(%__MODULE__{config: config}, instrument, attributes) do
@@ -96,7 +96,7 @@ defmodule Otel.SDK.Metrics.View do
   @spec matches_criterion?(
           key :: atom(),
           value :: term(),
-          instrument :: Otel.SDK.Metrics.Instrument.t()
+          instrument :: Otel.API.Metrics.Instrument.t()
         ) :: boolean()
   defp matches_criterion?(:name, "*", _instrument), do: true
 

@@ -18,7 +18,7 @@ defmodule Otel.SDK.Trace.Tracer do
   @impl true
   def start_span(ctx, {__MODULE__, config}, name, opts) do
     {span_ctx, span} =
-      Otel.SDK.Trace.SpanCreator.start_span(
+      Otel.SDK.Trace.Span.start_span(
         ctx,
         name,
         config.sampler,
