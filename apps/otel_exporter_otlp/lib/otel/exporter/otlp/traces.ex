@@ -58,7 +58,7 @@ defmodule Otel.Exporter.OTLP.Traces do
           spans :: [Otel.SDK.Trace.Span.t()],
           resource :: Otel.SDK.Resource.t(),
           state :: Otel.SDK.Trace.SpanExporter.state()
-        ) :: :ok | :error
+        ) :: :ok
   @impl true
   def export([], _resource, _state), do: :ok
 
@@ -70,13 +70,11 @@ defmodule Otel.Exporter.OTLP.Traces do
     url = String.to_charlist(state.endpoint)
     http_options = build_http_options(state)
 
-    case :httpc.request(:post, {url, headers, ~c"application/x-protobuf", body}, http_options, []) do
-      {:ok, {{_version, status, _reason}, _headers, _body}} when status in 200..299 ->
-        :ok
+    {:ok, {{_version, status, _reason}, _headers, _body}} =
+      :httpc.request(:post, {url, headers, ~c"application/x-protobuf", body}, http_options, [])
 
-      _ ->
-        :error
-    end
+    true = status in 200..299
+    :ok
   end
 
   @spec shutdown(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok

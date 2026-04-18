@@ -80,14 +80,12 @@ defmodule Otel.API.Propagator.Baggage do
     |> Enum.map(&String.trim/1)
     |> Enum.reject(&(&1 == ""))
     |> Enum.reduce(%{}, fn pair, acc ->
-      case decode_entry(pair) do
-        {name, value, metadata} -> Map.put(acc, name, {value, metadata})
-        nil -> acc
-      end
+      {name, value, metadata} = decode_entry(pair)
+      Map.put(acc, name, {value, metadata})
     end)
   end
 
-  @spec decode_entry(pair :: String.t()) :: {String.t(), String.t(), String.t()} | nil
+  @spec decode_entry(pair :: String.t()) :: {String.t(), String.t(), String.t()}
   defp decode_entry(pair) do
     {key_value, metadata} =
       case String.split(pair, ";", parts: 2) do
@@ -95,13 +93,8 @@ defmodule Otel.API.Propagator.Baggage do
         [kv] -> {kv, ""}
       end
 
-    case String.split(String.trim(key_value), "=", parts: 2) do
-      [name, value] when name != "" ->
-        {URI.decode_www_form(String.trim(name)), URI.decode_www_form(String.trim(value)),
-         metadata}
+    [name, value] = String.split(String.trim(key_value), "=", parts: 2)
 
-      _ ->
-        nil
-    end
+    {URI.decode_www_form(String.trim(name)), URI.decode_www_form(String.trim(value)), metadata}
   end
 end

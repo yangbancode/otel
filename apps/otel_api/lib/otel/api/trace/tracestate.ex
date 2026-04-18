@@ -3,8 +3,7 @@ defmodule Otel.API.Trace.TraceState do
   W3C Trace Context TraceState.
 
   An immutable ordered list of vendor-specific key/value pairs
-  propagated across tracing systems. Keys and values are validated
-  against the W3C Trace Context specification.
+  propagated across tracing systems.
   """
 
   @type t :: %__MODULE__{members: [{String.t(), String.t()}]}
@@ -12,9 +11,6 @@ defmodule Otel.API.Trace.TraceState do
   defstruct members: []
 
   @max_members 32
-
-  @key_pattern ~r/^(([a-z][_0-9a-z\-*\/]{0,255})|([a-z0-9][_0-9a-z\-*\/]{0,240}@[a-z][_0-9a-z\-*\/]{0,13}))$/
-  @value_pattern ~r/^([\x20-\x2b\x2d-\x3c\x3e-\x7e]{0,255}[\x21-\x2b\x2d-\x3c\x3e-\x7e])$/
 
   @doc """
   Creates an empty TraceState.
@@ -24,17 +20,10 @@ defmodule Otel.API.Trace.TraceState do
 
   @doc """
   Creates a TraceState from a list of `{key, value}` pairs.
-
-  Invalid pairs are silently dropped.
   """
   @spec new(list :: [{String.t(), String.t()}]) :: t()
   def new(list) when is_list(list) do
-    members =
-      list
-      |> Enum.filter(fn {key, value} -> valid_key?(key) and valid_value?(value) end)
-      |> Enum.take(@max_members)
-
-    %__MODULE__{members: members}
+    %__MODULE__{members: Enum.take(list, @max_members)}
   end
 
   @doc """
@@ -57,11 +46,12 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   Adds a new key/value pair to the front of the list.
 
-  Returns the TraceState unchanged if key or value is invalid.
+  If the TraceState is already at the max member limit, returns
+  the TraceState unchanged.
   """
   @spec add(trace_state :: t(), key :: String.t(), value :: String.t()) :: t()
   def add(%__MODULE__{members: members} = ts, key, value) do
-    if valid_key?(key) and valid_value?(value) and length(members) < @max_members do
+    if length(members) < @max_members do
       %__MODULE__{ts | members: [{key, value} | members]}
     else
       ts
@@ -70,17 +60,10 @@ defmodule Otel.API.Trace.TraceState do
 
   @doc """
   Updates an existing key's value and moves it to the front.
-
-  Returns the TraceState unchanged if the key does not exist
-  or if key/value is invalid.
   """
   @spec update(trace_state :: t(), key :: String.t(), value :: String.t()) :: t()
   def update(%__MODULE__{members: members} = ts, key, value) do
-    if valid_key?(key) and valid_value?(value) and List.keymember?(members, key, 0) do
-      %__MODULE__{ts | members: [{key, value} | List.keydelete(members, key, 0)]}
-    else
-      ts
-    end
+    %__MODULE__{ts | members: [{key, value} | List.keydelete(members, key, 0)]}
   end
 
   @doc """
@@ -105,52 +88,26 @@ defmodule Otel.API.Trace.TraceState do
 
   @doc """
   Decodes a W3C `tracestate` header value into a TraceState.
-
-  Invalid entries cause the entire header to be rejected (returns
-  empty TraceState), per W3C spec.
   """
   @spec decode(header :: String.t()) :: t()
   def decode(header) when is_binary(header) do
-    pairs =
+    members =
       header
       |> String.split(",")
       |> Enum.map(&String.trim/1)
       |> Enum.reject(&(&1 == ""))
-      |> parse_pairs()
+      |> Enum.map(&parse_pair/1)
+      |> Enum.reduce([], fn {key, value}, acc ->
+        List.keystore(acc, key, 0, {key, value})
+      end)
+      |> Enum.take(@max_members)
 
-    case pairs do
-      :error -> new()
-      members when length(members) > @max_members -> new()
-      members -> %__MODULE__{members: members}
-    end
+    %__MODULE__{members: members}
   end
 
-  @spec parse_pairs(raw_pairs :: [String.t()]) :: [{String.t(), String.t()}] | :error
-  defp parse_pairs(raw_pairs) do
-    Enum.reduce_while(raw_pairs, [], fn pair, acc ->
-      case parse_pair(pair) do
-        {:ok, key, value} -> {:cont, List.keystore(acc, key, 0, {key, value})}
-        :error -> {:halt, :error}
-      end
-    end)
-  end
-
-  @spec parse_pair(pair :: String.t()) :: {:ok, String.t(), String.t()} | :error
+  @spec parse_pair(pair :: String.t()) :: {String.t(), String.t()}
   defp parse_pair(pair) do
-    case String.split(pair, "=", parts: 2) do
-      [key, value] when value != "" ->
-        if valid_key?(key) and valid_value?(value), do: {:ok, key, value}, else: :error
-
-      _ ->
-        :error
-    end
+    [key, value] = String.split(pair, "=", parts: 2)
+    {key, value}
   end
-
-  @spec valid_key?(key :: term()) :: boolean()
-  defp valid_key?(key) when is_binary(key), do: Regex.match?(@key_pattern, key)
-  defp valid_key?(_), do: false
-
-  @spec valid_value?(value :: term()) :: boolean()
-  defp valid_value?(value) when is_binary(value), do: Regex.match?(@value_pattern, value)
-  defp valid_value?(_), do: false
 end

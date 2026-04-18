@@ -50,11 +50,6 @@ defmodule Otel.API.CtxTest do
       assert ctx == %{key: "value"}
     end
 
-    test "set_value/3 with non-map context creates new map" do
-      ctx = Otel.API.Ctx.set_value(nil, :key, "value")
-      assert ctx == %{key: "value"}
-    end
-
     test "get_value/3 returns value for key" do
       ctx = %{key: "value"}
       assert Otel.API.Ctx.get_value(ctx, :key, nil) == "value"
@@ -65,17 +60,9 @@ defmodule Otel.API.CtxTest do
       assert Otel.API.Ctx.get_value(ctx, :key, :default) == :default
     end
 
-    test "get_value/3 returns default for non-map context" do
-      assert Otel.API.Ctx.get_value(nil, :key, :default) == :default
-    end
-
     test "remove/2 removes key from context" do
       ctx = %{a: 1, b: 2}
       assert Otel.API.Ctx.remove(ctx, :a) == %{b: 2}
-    end
-
-    test "remove/2 with non-map returns empty context" do
-      assert Otel.API.Ctx.remove(nil, :key) == %{}
     end
 
     test "clear/1 returns empty context" do

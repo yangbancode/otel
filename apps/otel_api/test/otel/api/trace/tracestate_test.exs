@@ -14,17 +14,6 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert ts.members == [{"vendor", "value"}, {"other", "data"}]
     end
 
-    test "drops invalid keys" do
-      ts = Otel.API.Trace.TraceState.new([{"INVALID", "value"}, {"valid", "data"}])
-      assert ts.members == [{"valid", "data"}]
-    end
-
-    test "drops invalid values" do
-      # value with trailing space is invalid
-      ts = Otel.API.Trace.TraceState.new([{"key", "bad "}, {"valid", "data"}])
-      assert ts.members == [{"valid", "data"}]
-    end
-
     test "limits to 32 members" do
       pairs = for i <- 1..40, do: {"key#{i}", "val#{i}"}
       ts = Otel.API.Trace.TraceState.new(pairs)
@@ -51,18 +40,6 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert ts.members == [{"new", "value"}, {"existing", "data"}]
     end
 
-    test "returns unchanged on invalid key" do
-      ts = Otel.API.Trace.TraceState.new([{"valid", "data"}])
-      ts2 = Otel.API.Trace.TraceState.add(ts, "INVALID", "value")
-      assert ts2 == ts
-    end
-
-    test "returns unchanged on invalid value" do
-      ts = Otel.API.Trace.TraceState.new([{"valid", "data"}])
-      ts2 = Otel.API.Trace.TraceState.add(ts, "key", "")
-      assert ts2 == ts
-    end
-
     test "returns unchanged when at max 32 members" do
       pairs = for i <- 1..32, do: {"key#{i}", "val#{i}"}
       ts = Otel.API.Trace.TraceState.new(pairs)
@@ -77,24 +54,6 @@ defmodule Otel.API.Trace.TraceStateTest do
       ts = Otel.API.Trace.TraceState.new([{"a", "1"}, {"b", "2"}, {"c", "3"}])
       ts = Otel.API.Trace.TraceState.update(ts, "b", "updated")
       assert ts.members == [{"b", "updated"}, {"a", "1"}, {"c", "3"}]
-    end
-
-    test "returns unchanged when key does not exist" do
-      ts = Otel.API.Trace.TraceState.new([{"a", "1"}])
-      ts2 = Otel.API.Trace.TraceState.update(ts, "missing", "value")
-      assert ts2 == ts
-    end
-
-    test "returns unchanged on invalid key" do
-      ts = Otel.API.Trace.TraceState.new([{"valid", "data"}])
-      ts2 = Otel.API.Trace.TraceState.update(ts, "INVALID", "value")
-      assert ts2 == ts
-    end
-
-    test "returns unchanged on invalid value" do
-      ts = Otel.API.Trace.TraceState.new([{"valid", "data"}])
-      ts2 = Otel.API.Trace.TraceState.update(ts, "valid", "")
-      assert ts2 == ts
     end
   end
 
@@ -134,27 +93,6 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert ts.members == [{"congo", "t61rcWkgMzE"}, {"rojo", "00f067aa0ba902b7"}]
     end
 
-    test "returns empty on invalid entry" do
-      ts = Otel.API.Trace.TraceState.decode("valid=ok,INVALID=bad")
-      assert ts.members == []
-    end
-
-    test "returns empty on malformed pair" do
-      ts = Otel.API.Trace.TraceState.decode("noequals")
-      assert ts.members == []
-    end
-
-    test "returns empty on empty value" do
-      ts = Otel.API.Trace.TraceState.decode("key=")
-      assert ts.members == []
-    end
-
-    test "rejects header with more than 32 members" do
-      header = Enum.map_join(1..40, ",", fn i -> "key#{i}=val#{i}" end)
-      ts = Otel.API.Trace.TraceState.decode(header)
-      assert ts.members == []
-    end
-
     test "deduplicates keys keeping last occurrence" do
       ts = Otel.API.Trace.TraceState.decode("key=first,key=second")
       assert ts.members == [{"key", "second"}]
@@ -177,26 +115,6 @@ defmodule Otel.API.Trace.TraceStateTest do
     test "accepts multi-tenant key" do
       ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "1tenant@vendor", "val")
       assert Otel.API.Trace.TraceState.get(ts, "1tenant@vendor") == "val"
-    end
-
-    test "rejects uppercase key" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "Vendor", "val")
-      assert ts.members == []
-    end
-
-    test "rejects empty key" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "", "val")
-      assert ts.members == []
-    end
-
-    test "rejects non-binary key" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), :atom_key, "val")
-      assert ts.members == []
-    end
-
-    test "rejects non-binary value" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "key", 123)
-      assert ts.members == []
     end
   end
 

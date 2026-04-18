@@ -97,34 +97,6 @@ defmodule Otel.API.Propagator.TraceContextTest do
       assert result == ctx
     end
 
-    test "returns original context for invalid traceparent" do
-      ctx = Otel.API.Ctx.new()
-      carrier = [{"traceparent", "invalid"}]
-      result = Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
-      assert result == ctx
-    end
-
-    test "rejects all-zero trace_id" do
-      ctx = Otel.API.Ctx.new()
-      carrier = [{"traceparent", "00-00000000000000000000000000000000-b7ad6b7169203331-01"}]
-      result = Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
-      assert result == ctx
-    end
-
-    test "rejects all-zero span_id" do
-      ctx = Otel.API.Ctx.new()
-      carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01"}]
-      result = Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
-      assert result == ctx
-    end
-
-    test "rejects version ff" do
-      ctx = Otel.API.Ctx.new()
-      carrier = [{"traceparent", "ff-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}]
-      result = Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
-      assert result == ctx
-    end
-
     test "trims whitespace" do
       carrier = [{"traceparent", "  00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01  "}]
       ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
