@@ -93,10 +93,29 @@ defmodule Otel.API.Propagator.TraceContext do
 
   @spec decode_traceparent(value :: String.t()) :: Otel.API.Trace.SpanContext.t()
   defp decode_traceparent(
-         <<version::binary-size(2), "-", trace_id_hex::binary-size(32), "-",
-           span_id_hex::binary-size(16), "-", flags_hex::binary-size(2), _rest::binary>>
+         <<"00-", trace_id_hex::binary-size(32), "-", span_id_hex::binary-size(16), "-",
+           flags_hex::binary-size(2)>>
        ) do
-    true = version >= "00" and version != "ff"
+    decode_span_ctx(trace_id_hex, span_id_hex, flags_hex)
+  end
+
+  # Forward-compat clause for future versions. W3C Trace Context requires a
+  # trailing "-" separator before any extra bytes; version "ff" is reserved
+  # and MUST be rejected.
+  defp decode_traceparent(
+         <<version::binary-size(2), "-", trace_id_hex::binary-size(32), "-",
+           span_id_hex::binary-size(16), "-", flags_hex::binary-size(2), "-", _rest::binary>>
+       )
+       when version > "00" and version != "ff" do
+    decode_span_ctx(trace_id_hex, span_id_hex, flags_hex)
+  end
+
+  @spec decode_span_ctx(
+          trace_id_hex :: String.t(),
+          span_id_hex :: String.t(),
+          flags_hex :: String.t()
+        ) :: Otel.API.Trace.SpanContext.t()
+  defp decode_span_ctx(trace_id_hex, span_id_hex, flags_hex) do
     {trace_id, ""} = Integer.parse(trace_id_hex, 16)
     {span_id, ""} = Integer.parse(span_id_hex, 16)
     {trace_flags, ""} = Integer.parse(flags_hex, 16)

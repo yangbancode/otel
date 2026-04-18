@@ -138,11 +138,12 @@ defmodule Otel.API.Trace do
 
         case kind do
           :error ->
-            Otel.API.Trace.Span.record_exception(span_ctx, reason, stacktrace)
+            normalized = Exception.normalize(:error, reason, stacktrace)
+            Otel.API.Trace.Span.record_exception(span_ctx, normalized, stacktrace)
 
             Otel.API.Trace.Span.set_status(
               span_ctx,
-              Otel.API.Trace.Status.new(:error, Exception.format(kind, reason))
+              Otel.API.Trace.Status.new(:error, Exception.message(normalized))
             )
 
           _ ->
