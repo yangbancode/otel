@@ -18,7 +18,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
 
     on_exit(fn ->
-      if Process.alive?(pid), do: GenServer.stop(pid)
+      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
     end)
 
     %{provider: pid}

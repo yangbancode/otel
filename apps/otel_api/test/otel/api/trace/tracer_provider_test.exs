@@ -3,6 +3,13 @@ defmodule Otel.API.Trace.TracerProviderTest do
 
   setup do
     :persistent_term.erase({Otel.API.Trace.TracerProvider, :global})
+
+    for {key, _} <- :persistent_term.get(),
+        is_tuple(key) and tuple_size(key) == 2 and
+          elem(key, 0) == {Otel.API.Trace.TracerProvider, :tracer} do
+      :persistent_term.erase(key)
+    end
+
     :ok
   end
 

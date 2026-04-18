@@ -27,7 +27,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     logger = {Otel.SDK.Logs.Logger, logger_config}
 
     on_exit(fn ->
-      if Process.alive?(pid), do: GenServer.stop(pid)
+      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
     end)
 
     %{logger: logger}
