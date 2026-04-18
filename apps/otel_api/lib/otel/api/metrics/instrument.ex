@@ -16,8 +16,6 @@ defmodule Otel.API.Metrics.Instrument do
   All functions are safe for concurrent use.
   """
 
-  require Logger
-
   @type kind ::
           :counter
           | :histogram
@@ -155,44 +153,15 @@ defmodule Otel.API.Metrics.Instrument do
   end
 
   @doc """
-  Validates advisory parameters for the given instrument kind.
+  Returns the advisory parameters unchanged.
 
-  Returns validated advisory keyword list. Invalid params are dropped
-  with a logger warning.
+  Per `metrics/api.md` L348 and L400 (SHOULD NOT validate advisory)
+  the API layer does not validate advisory input. Callers are expected
+  to supply well-formed advisory keyword lists; invalid shapes surface
+  at the point of use inside the SDK rather than here.
   """
   @spec validate_advisory(kind :: kind(), advisory :: advisory()) :: advisory()
-  def validate_advisory(kind, advisory) do
-    Enum.flat_map(advisory, fn param -> validate_advisory_param(kind, param) end)
-  end
-
-  @spec validate_advisory_param(kind :: kind(), param :: advisory_opt() | {atom(), term()}) ::
-          advisory()
-  defp validate_advisory_param(:histogram, {:explicit_bucket_boundaries, boundaries})
-       when is_list(boundaries) do
-    if sorted?(boundaries) do
-      [explicit_bucket_boundaries: boundaries]
-    else
-      Logger.warning(
-        "advisory explicit_bucket_boundaries must be a sorted list of numbers, ignoring"
-      )
-
-      []
-    end
-  end
-
-  defp validate_advisory_param(_kind, {:explicit_bucket_boundaries, _boundaries}) do
-    Logger.warning("advisory explicit_bucket_boundaries is only valid for histogram, ignoring")
-    []
-  end
-
-  defp validate_advisory_param(_kind, {:attributes, keys}) when is_list(keys) do
-    [attributes: keys]
-  end
-
-  defp validate_advisory_param(_kind, {key, _value}) do
-    Logger.warning("unknown advisory parameter #{inspect(key)}, ignoring")
-    []
-  end
+  def validate_advisory(_kind, advisory), do: advisory
 
   @spec temporality(kind :: kind()) :: temporality()
   def temporality(:counter), do: :delta
@@ -220,9 +189,4 @@ defmodule Otel.API.Metrics.Instrument do
   def monotonic?(:counter), do: true
   def monotonic?(:observable_counter), do: true
   def monotonic?(_kind), do: false
-
-  @spec sorted?(list :: [number()]) :: boolean()
-  defp sorted?([]), do: true
-  defp sorted?([_]), do: true
-  defp sorted?([a, b | rest]), do: a < b and sorted?([b | rest])
 end

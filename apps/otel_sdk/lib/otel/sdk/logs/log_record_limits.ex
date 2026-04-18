@@ -9,8 +9,6 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   are discarded.
   """
 
-  require Logger
-
   @type t :: %__MODULE__{
           attribute_count_limit: pos_integer(),
           attribute_value_length_limit: pos_integer() | :infinity
@@ -22,9 +20,8 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   @doc """
   Applies attribute limits to a map of attributes.
 
-  Truncates string values exceeding the length limit and
-  discards attributes beyond the count limit. Logs a warning
-  at most once per call when attributes are discarded.
+  Truncates string values exceeding the length limit and silently
+  discards attributes beyond the count limit.
   """
   @spec apply(attributes :: map(), limits :: t()) :: {map(), non_neg_integer()}
   def apply(attributes, %__MODULE__{} = limits) do
@@ -37,14 +34,7 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
         |> Enum.take(limits.attribute_count_limit)
         |> Map.new()
 
-      dropped = count - limits.attribute_count_limit
-
-      Logger.warning(
-        "LogRecord attributes exceeded limit of #{limits.attribute_count_limit}, " <>
-          "dropped #{dropped} attribute(s)"
-      )
-
-      {limited, dropped}
+      {limited, count - limits.attribute_count_limit}
     else
       {truncated, 0}
     end

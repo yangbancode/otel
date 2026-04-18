@@ -9,8 +9,6 @@ defmodule Otel.API.Logs.LoggerProvider do
   All functions are safe for concurrent use.
   """
 
-  require Logger
-
   @default_logger {Otel.API.Logs.Logger.Noop, []}
 
   @provider_key {__MODULE__, :global}
@@ -82,7 +80,6 @@ defmodule Otel.API.Logs.LoggerProvider do
           attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Logs.Logger.t()
   def get_logger(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    name = validate_name(name)
     key = {@logger_key_prefix, {name, version, schema_url, attributes}}
 
     case :persistent_term.get(key, nil) do
@@ -115,27 +112,6 @@ defmodule Otel.API.Logs.LoggerProvider do
       attributes: attributes
     }
   end
-
-  @spec validate_name(name :: String.t() | nil) :: String.t()
-  defp validate_name(nil) do
-    # Log only when an SDK is registered. Without a provider, the Noop spec
-    # (logs/noop.md L33-35) mandates no log output for any operation.
-    if get_provider() != nil do
-      Logger.warning("invalid logger name nil, using empty string")
-    end
-
-    ""
-  end
-
-  defp validate_name("") do
-    if get_provider() != nil do
-      Logger.warning("invalid logger name (empty string), using empty string")
-    end
-
-    ""
-  end
-
-  defp validate_name(name) when is_binary(name), do: name
 
   @spec fetch_or_default(
           name :: String.t(),

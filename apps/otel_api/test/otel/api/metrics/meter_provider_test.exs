@@ -91,11 +91,10 @@ defmodule Otel.API.Metrics.MeterProviderTest do
     end
   end
 
-  describe "invalid name handling (metrics/noop.md L63-64)" do
+  describe "invalid name handling (happy-path: no log, no coerce)" do
     import ExUnit.CaptureLog
 
     test "get_meter(nil) on Noop path does NOT log" do
-      # Spec: Noop MeterProvider MUST NOT log any message for any operation.
       assert capture_log(fn ->
                Otel.API.Metrics.MeterProvider.get_meter(nil)
              end) == ""
@@ -107,27 +106,9 @@ defmodule Otel.API.Metrics.MeterProviderTest do
              end) == ""
     end
 
-    test "get_meter(nil) on Noop path returns a working meter" do
-      # Spec api.md L126: invalid name MUST return a working Meter.
+    test "get_meter(nil) on Noop path returns a working meter (api.md L126 MUST)" do
       meter = Otel.API.Metrics.MeterProvider.get_meter(nil)
       assert {Otel.API.Metrics.Meter.Noop, _} = meter
-    end
-
-    test "get_meter(nil) with SDK provider DOES log" do
-      # When an SDK is registered, api.md L129 SHOULD-logs the invalid name.
-      Otel.API.Metrics.MeterProvider.set_provider({FakeProvider, :state})
-
-      log =
-        capture_log(fn ->
-          # The fake provider won't actually dispatch, but validate_name still runs.
-          try do
-            Otel.API.Metrics.MeterProvider.get_meter(nil)
-          rescue
-            _ -> :ok
-          end
-        end)
-
-      assert log =~ "invalid meter name nil"
     end
   end
 end

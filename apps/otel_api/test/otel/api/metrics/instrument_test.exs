@@ -100,56 +100,44 @@ defmodule Otel.API.Metrics.InstrumentTest do
     end
   end
 
-  describe "validate_advisory/2" do
-    test "valid histogram boundaries" do
+  describe "validate_advisory/2 (pass-through per api.md L348 SHOULD NOT validate)" do
+    test "valid histogram boundaries pass through" do
       assert [explicit_bucket_boundaries: [1, 5, 10]] =
                Otel.API.Metrics.Instrument.validate_advisory(:histogram,
                  explicit_bucket_boundaries: [1, 5, 10]
                )
     end
 
-    test "empty boundaries valid for histogram" do
-      assert [explicit_bucket_boundaries: []] =
-               Otel.API.Metrics.Instrument.validate_advisory(:histogram,
-                 explicit_bucket_boundaries: []
-               )
+    test "empty advisory returns empty" do
+      assert [] = Otel.API.Metrics.Instrument.validate_advisory(:counter, [])
     end
 
-    test "boundaries for non-histogram dropped" do
-      assert [] =
+    test "boundaries pass through even for non-histogram (no validation)" do
+      assert [explicit_bucket_boundaries: [1, 5, 10]] =
                Otel.API.Metrics.Instrument.validate_advisory(:counter,
                  explicit_bucket_boundaries: [1, 5, 10]
                )
     end
 
-    test "unsorted boundaries dropped" do
-      assert [] =
+    test "unsorted boundaries pass through (no validation)" do
+      assert [explicit_bucket_boundaries: [10, 5, 1]] =
                Otel.API.Metrics.Instrument.validate_advisory(:histogram,
                  explicit_bucket_boundaries: [10, 5, 1]
                )
     end
 
-    test "unknown advisory param dropped" do
-      assert [] = Otel.API.Metrics.Instrument.validate_advisory(:counter, foo: :bar)
+    test "unknown advisory param passes through" do
+      assert [foo: :bar] = Otel.API.Metrics.Instrument.validate_advisory(:counter, foo: :bar)
     end
 
-    test "empty advisory returns empty" do
-      assert [] = Otel.API.Metrics.Instrument.validate_advisory(:counter, [])
-    end
-
-    test "valid attributes advisory accepted for any kind" do
+    test "attributes advisory passes through for any kind" do
       assert [attributes: [:method, :status]] =
                Otel.API.Metrics.Instrument.validate_advisory(:counter,
                  attributes: [:method, :status]
                )
     end
 
-    test "attributes advisory accepted for histogram" do
-      assert [attributes: [:path]] =
-               Otel.API.Metrics.Instrument.validate_advisory(:histogram, attributes: [:path])
-    end
-
-    test "attributes and boundaries together" do
+    test "attributes and boundaries together preserved" do
       result =
         Otel.API.Metrics.Instrument.validate_advisory(:histogram,
           explicit_bucket_boundaries: [1, 5, 10],

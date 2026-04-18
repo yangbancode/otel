@@ -6,8 +6,6 @@ defmodule Otel.API.Trace.TracerProvider do
   When no SDK is installed, all operations return no-op tracers.
   """
 
-  require Logger
-
   @default_tracer {Otel.API.Trace.Tracer.Noop, []}
 
   @provider_key {__MODULE__, :global}
@@ -80,7 +78,6 @@ defmodule Otel.API.Trace.TracerProvider do
           attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Trace.Tracer.t()
   def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    name = validate_name(name)
     key = {@tracer_key_prefix, {name, version, schema_url, attributes}}
 
     case :persistent_term.get(key, nil) do
@@ -113,19 +110,6 @@ defmodule Otel.API.Trace.TracerProvider do
       attributes: attributes
     }
   end
-
-  @spec validate_name(name :: String.t() | nil) :: String.t()
-  defp validate_name(nil) do
-    Logger.warning("invalid tracer name nil, using empty string")
-    ""
-  end
-
-  defp validate_name("") do
-    Logger.warning("invalid tracer name (empty string), using empty string")
-    ""
-  end
-
-  defp validate_name(name) when is_binary(name), do: name
 
   @spec fetch_or_default(
           name :: String.t(),
