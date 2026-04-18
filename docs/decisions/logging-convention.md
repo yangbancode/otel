@@ -2,94 +2,76 @@
 
 ## Question
 
-How does the SDK emit its own diagnostic messages?
+Does the SDK emit its own diagnostic messages for spec SHOULD/MUST-log
+requirements?
 
 ## Decision
 
-### When to log
+**We only log for spec MUST requirements. SHOULD-level log
+requirements are not implemented.**
 
-Only log when the OTel spec explicitly requires it (SHOULD/MUST log). Do not add discretionary logs. Known spec-required log points:
+### Rationale
 
-| Spec location | Trigger | Strength |
-|---|---|---|
-| error-handling.md L52 | Suppressed error | SHOULD |
-| common/README.md L284 | Attribute truncated/discarded (max 1x per record) | MAY |
-| trace/api.md L129 | Invalid tracer name | SHOULD |
-| trace/sdk.md L873 | Span limit exceeded (max 1x per span) | SHOULD |
-| metrics/sdk.md L130 | Invalid meter name | SHOULD |
-| logs/sdk.md L78 | Invalid logger name | SHOULD |
-| logs/sdk.md L345 | LogRecord limit exceeded (max 1x per record) | SHOULD |
-| sdk-environment-variables.md L72 | Invalid boolean environment variable | SHOULD |
-| sdk-environment-variables.md L120 | Invalid OTEL_TRACES_SAMPLER_ARG | MUST |
+The OpenTelemetry specification has SHOULD-log clauses at several
+points (invalid tracer/meter/logger name, duplicate instrument
+registration, dropped LogRecord attributes, view conflicts, unknown
+advisory parameters, and others). We deliberately skip them for
+three reasons:
 
-### Noop path MUST NOT log
+1. **Happy-path policy.** The project assumes callers provide valid
+   input at every API boundary (`code-conventions.md`). Defensive
+   logging for SHOULD-violations is defensive code in disguise.
+2. **Spec inconsistency.** SHOULD clauses across signals contradict
+   each other (Trace API: log + coerce name to empty string; Metrics/
+   Logs SDK: log + keep original invalid value). Skipping all of
+   them produces internally consistent behavior across signals.
+3. **Noop conflicts.** `metrics/noop.md` L63-64 and `logs/noop.md`
+   L33-35 forbid any log output for any Noop operation. Implementing
+   the SDK-side SHOULD-log then requires gating on "is SDK present?",
+   which leaks SDK knowledge into the API layer.
 
-`metrics/noop.md` L63-64 and `logs/noop.md` L33-35 forbid the
-MeterProvider and LoggerProvider from emitting any log output when no
-SDK is registered. The `validate_name/1` helpers on both providers gate
-the SHOULD-log on `get_provider() != nil`, so the SDK path follows
-`api.md` L129 while the Noop path stays silent.
+### What about spec MUST-log?
 
-### Use Elixir `Logger`, not Erlang `:logger`
+We track spec MUST-log points in `compliance.md` as potential future
+work. As of now the only known MUST-log requirement is
+`sdk-environment-variables.md` L120 (Invalid `OTEL_TRACES_SAMPLER_ARG`).
+Environment-variable parsing lives outside the current code scope, so
+no active log call is required.
 
-All internal diagnostics go through Elixir's `Logger`:
+### Unchecked SHOULD-log items in `compliance.md`
 
-```elixir
-require Logger
+The following compliance rows are marked `[ ]` with the annotation
+`SHOULD not implemented per happy-path policy`:
 
-Logger.warning("invalid meter name nil, using empty string")
-```
+- `trace/api.md` L129 — Invalid tracer name SHOULD be logged
+- `metrics/sdk.md` L133 — Invalid meter name SHOULD be logged
+- `logs/sdk.md` L81 — Invalid logger name SHOULD be logged
+- `metrics/sdk.md` L942 — Duplicate instrument registration SHOULD warn
+- `logs/sdk.md` L345 — LogRecord attribute drop SHOULD warn
+- `common/README.md` L284 — Attribute truncation MAY warn (already MAY, skipped trivially)
 
-`Logger.warning/1` is a compile-time macro that captures the call site
-as `:mfa` metadata (`{Module, function, arity}`), plus `:file`, `:line`,
-and `:application`. These are available to formatters and log-collection
-tools without us repeating the information in the message text.
+### When we do use Elixir `Logger`
 
-The Erlang `:logger.warning/1,2` function form does not capture caller
-metadata and should be avoided in OTel-internal code.
-
-### Message body carries only the message
-
-The first argument of `Logger.warning` is a single natural-language
-sentence describing what happened and what the SDK did about it. It
-MUST NOT restate the module name, function name, or any other piece of
-information that `Logger` already captures as metadata.
-
-| Form | Rule |
-|---|---|
-| `"invalid meter name nil, using empty string"` | ✅ message only |
-| `"invalid meter name #{inspect(name)}, using empty string"` | ✅ interpolation OK |
-| `"MeterProvider: invalid meter name nil, using empty string"` | ❌ module name duplicates `:mfa` metadata |
-| `"[metrics] invalid meter name"` | ❌ category tag belongs in metadata, not the message |
-
-### No custom metadata keys
-
-We deliberately do not pass `:domain` or any other custom metadata
-beyond what `Logger` auto-captures. OpenTelemetry's own semantic
-conventions have no standard key for "OTel-internal component category",
-and the Erlang-specific `:domain` convention does not survive cleanly
-through an OTLP export. Keeping the metadata footprint minimal avoids
-forward-compatibility surprises. If callers want to filter OTel logs
-they can match on the `:mfa` metadata's module.
-
-### Log levels
-
-| Level | Usage |
-|---|---|
-| `error` | Unexpected internal failures (crashed callback, ETS corruption) |
-| `warning` | Operational issues (invalid name, exporter timeout, dropped spans) |
-| `info` | Lifecycle events (SDK started, exporter initialized) |
-| `debug` | Diagnostic info (configuration applied, sampler decisions) |
+If a future requirement adds a MUST-log call site, we use
+`require Logger` + `Logger.warning("message")` — Elixir's
+compile-time macro captures `:mfa`, `:file`, `:line`, `:application`
+as metadata automatically. The message body carries only the message
+text; it MUST NOT repeat module or function names (those duplicate
+the auto-captured metadata). No custom metadata keys (no `:domain`,
+no `:component`) — OTel semantic conventions define no standard key
+for "internal component category" and adding one would introduce
+forward-compat noise when logs are OTLP-exported.
 
 ### Comparison with opentelemetry-erlang
 
-opentelemetry-erlang uses `?LOG_WARNING("message")` macros, which also
-capture caller metadata at compile time and pass only the message body.
-Our approach mirrors that pattern in Elixir.
+The reference implementation uses `?LOG_WARNING` at a handful of
+call sites (invalid name, duplicate instrument, dropped attributes).
+We originally mirrored that pattern and have now stepped back from
+it in favor of the strict happy-path approach. This is a deliberate
+divergence documented here.
 
 ## Compliance
 
-No compliance checkboxes — this is a project-internal convention, not
-a spec mandate. The only spec-driven obligation is the Noop no-log rule
-tracked in `docs/compliance.md` under the Metrics Noop and Logs Noop
-sections.
+No compliance checkboxes — this is a project-internal convention.
+The spec-mandated Noop no-log rule is trivially satisfied because
+we emit no logs at all from OTel-internal code.

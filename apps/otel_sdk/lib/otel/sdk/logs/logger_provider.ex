@@ -12,8 +12,6 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   use GenServer
   @behaviour Otel.API.Logs.LoggerProvider
 
-  require Logger
-
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
           processors: [{module(), map()}]
@@ -127,10 +125,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   def handle_call({:get_logger, name, version, schema_url, attributes}, _from, config) do
-    validated_name = validate_logger_name(name)
-
     scope = %Otel.API.InstrumentationScope{
-      name: validated_name,
+      name: name,
       version: version,
       schema_url: schema_url,
       attributes: attributes
@@ -174,19 +170,6 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   # --- Private ---
-
-  @spec validate_logger_name(name :: String.t() | nil) :: String.t()
-  defp validate_logger_name(nil) do
-    Logger.warning("invalid logger name nil, using empty string")
-    ""
-  end
-
-  defp validate_logger_name("") do
-    Logger.warning("invalid logger name (empty string), using empty string")
-    ""
-  end
-
-  defp validate_logger_name(name) when is_binary(name), do: name
 
   @spec default_config() :: map()
   defp default_config do

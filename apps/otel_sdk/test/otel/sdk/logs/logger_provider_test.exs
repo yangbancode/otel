@@ -46,13 +46,13 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       assert Map.has_key?(config, :processors_key)
     end
 
-    test "returns working logger for nil name with warning", %{provider: pid} do
+    test "returns working logger for nil name (original value preserved)", %{provider: pid} do
       {module, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, nil)
       assert module == Otel.SDK.Logs.Logger
-      assert config.scope.name == ""
+      assert config.scope.name == nil
     end
 
-    test "returns working logger for empty name with warning", %{provider: pid} do
+    test "returns working logger for empty name (original value preserved)", %{provider: pid} do
       {module, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "")
       assert module == Otel.SDK.Logs.Logger
       assert config.scope.name == ""

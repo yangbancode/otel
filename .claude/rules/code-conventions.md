@@ -77,8 +77,9 @@ end
 **Not error handling** (keep these):
 
 - Spec-mandated behavior (e.g. Noop dispatcher when no SDK is registered,
-  provider name-validation fallback, `Propagator.Baggage.extract/3`
-  returning unchanged context on missing header).
+  `Propagator.Baggage.extract/3` returning unchanged context on missing
+  header, `Propagator.extract/3` returning original context on malformed
+  header per `context/api-propagators.md` L102).
 - Lifecycle (`:shut_down` flag, supervisor trees).
 - Flow control (batch processor queue overflow, load shedding).
 - Exception-recording contract — `Trace.with_span/5` uses `catch` to
@@ -88,3 +89,18 @@ end
   type gates, not failure handling.
 - BEAM return conventions — `{:ok, pid} = GenServer.start_link(...)`
   pattern matches the expected success shape.
+
+### No SHOULD-level diagnostics
+
+Spec `SHOULD`-log clauses (e.g. invalid tracer/meter/logger name,
+duplicate instrument registration, dropped attributes, view
+conflicts, unknown advisory parameters) are **not implemented**. The
+project emits logs only for spec `MUST`-log points, which today is
+zero active call sites.
+
+See [logging-convention.md](../../docs/decisions/logging-convention.md)
+for the full rationale. `compliance.md` marks the skipped SHOULDs as
+unchecked with a pointer to that decision.
+
+This rule follows from "happy path only": callers supply valid input,
+the SDK does not apologize for caller mistakes.
