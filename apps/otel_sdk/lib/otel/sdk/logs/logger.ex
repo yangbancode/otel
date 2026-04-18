@@ -112,7 +112,7 @@ defmodule Otel.SDK.Logs.Logger do
   end
 
   @spec extract_trace_context(ctx :: Otel.API.Ctx.t()) ::
-          {non_neg_integer(), non_neg_integer(), non_neg_integer()}
+          {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(), non_neg_integer()}
   defp extract_trace_context(ctx) do
     %Otel.API.Trace.SpanContext{
       trace_id: trace_id,

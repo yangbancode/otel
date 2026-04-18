@@ -2,18 +2,21 @@ defmodule Otel.API.Trace.SpanContext do
   @moduledoc """
   Immutable context of a Span.
 
-  Contains the trace_id, span_id, trace_flags, and tracestate needed
-  to propagate span identity across process and network boundaries.
-  IDs are stored as non-negative integers, matching opentelemetry-erlang.
+  Contains the trace_id, span_id, trace_flags, and tracestate needed to
+  propagate span identity across process and network boundaries. The
+  identifiers are stored as `Otel.API.Trace.TraceId` and
+  `Otel.API.Trace.SpanId` opaque types so that Dialyzer distinguishes them
+  from unrelated integers (and from each other).
+
+  Convenience functions on this module (`trace_id_hex/1`, `trace_id_bytes/1`,
+  etc.) delegate to the corresponding `TraceId` / `SpanId` module functions.
   """
 
-  @type trace_id :: non_neg_integer()
-  @type span_id :: non_neg_integer()
   @type trace_flags :: non_neg_integer()
 
   @type t :: %__MODULE__{
-          trace_id: trace_id(),
-          span_id: span_id(),
+          trace_id: Otel.API.Trace.TraceId.t(),
+          span_id: Otel.API.Trace.SpanId.t(),
           trace_flags: trace_flags(),
           tracestate: Otel.API.Trace.TraceState.t(),
           is_remote: boolean()
@@ -29,8 +32,8 @@ defmodule Otel.API.Trace.SpanContext do
   Creates a new SpanContext.
   """
   @spec new(
-          trace_id :: trace_id(),
-          span_id :: span_id(),
+          trace_id :: Otel.API.Trace.TraceId.t(),
+          span_id :: Otel.API.Trace.SpanId.t(),
           trace_flags :: trace_flags(),
           tracestate :: Otel.API.Trace.TraceState.t()
         ) :: t()
@@ -44,11 +47,11 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  Returns `true` if the SpanContext has a non-zero trace_id and span_id.
+  Returns `true` if the SpanContext has a valid (non-zero) trace_id and span_id.
   """
   @spec valid?(span_ctx :: t()) :: boolean()
   def valid?(%__MODULE__{trace_id: trace_id, span_id: span_id}) do
-    trace_id != 0 and span_id != 0
+    Otel.API.Trace.TraceId.valid?(trace_id) and Otel.API.Trace.SpanId.valid?(span_id)
   end
 
   @doc """
@@ -68,23 +71,17 @@ defmodule Otel.API.Trace.SpanContext do
   @doc """
   Returns the trace_id as a 32-character lowercase hex string.
   """
-  @spec trace_id_hex(span_ctx :: t()) :: binary()
+  @spec trace_id_hex(span_ctx :: t()) :: <<_::256>>
   def trace_id_hex(%__MODULE__{trace_id: trace_id}) do
-    trace_id
-    |> Integer.to_string(16)
-    |> String.downcase()
-    |> String.pad_leading(32, "0")
+    Otel.API.Trace.TraceId.to_hex(trace_id)
   end
 
   @doc """
   Returns the span_id as a 16-character lowercase hex string.
   """
-  @spec span_id_hex(span_ctx :: t()) :: binary()
+  @spec span_id_hex(span_ctx :: t()) :: <<_::128>>
   def span_id_hex(%__MODULE__{span_id: span_id}) do
-    span_id
-    |> Integer.to_string(16)
-    |> String.downcase()
-    |> String.pad_leading(16, "0")
+    Otel.API.Trace.SpanId.to_hex(span_id)
   end
 
   @doc """
@@ -92,7 +89,7 @@ defmodule Otel.API.Trace.SpanContext do
   """
   @spec trace_id_bytes(span_ctx :: t()) :: <<_::128>>
   def trace_id_bytes(%__MODULE__{trace_id: trace_id}) do
-    <<trace_id::unsigned-integer-size(128)>>
+    Otel.API.Trace.TraceId.to_bytes(trace_id)
   end
 
   @doc """
@@ -100,6 +97,6 @@ defmodule Otel.API.Trace.SpanContext do
   """
   @spec span_id_bytes(span_ctx :: t()) :: <<_::64>>
   def span_id_bytes(%__MODULE__{span_id: span_id}) do
-    <<span_id::unsigned-integer-size(64)>>
+    Otel.API.Trace.SpanId.to_bytes(span_id)
   end
 end

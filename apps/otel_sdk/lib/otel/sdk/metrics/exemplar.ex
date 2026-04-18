@@ -39,12 +39,12 @@ defmodule Otel.SDK.Metrics.Exemplar do
   end
 
   @spec extract_trace_info(ctx :: Otel.API.Ctx.t()) ::
-          {non_neg_integer() | nil, non_neg_integer() | nil}
+          {Otel.API.Trace.TraceId.t() | nil, Otel.API.Trace.SpanId.t() | nil}
   defp extract_trace_info(ctx) do
     %Otel.API.Trace.SpanContext{trace_id: trace_id, span_id: span_id} =
       Otel.API.Trace.current_span(ctx)
 
-    if trace_id != 0 and span_id != 0 do
+    if Otel.API.Trace.TraceId.valid?(trace_id) and Otel.API.Trace.SpanId.valid?(span_id) do
       {trace_id, span_id}
     else
       {nil, nil}

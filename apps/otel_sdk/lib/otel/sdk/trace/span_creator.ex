@@ -6,6 +6,9 @@ defmodule Otel.SDK.Trace.SpanCreator do
   `otel_span_utils`. Called by the SDK Tracer.
   """
 
+  require Otel.API.Trace.TraceId
+  require Otel.API.Trace.SpanId
+
   @doc """
   Creates a span following the SDK creation flow.
 
@@ -121,7 +124,7 @@ defmodule Otel.SDK.Trace.SpanCreator do
           ctx :: Otel.API.Ctx.t(),
           id_generator :: module(),
           opts :: keyword()
-        ) :: {Otel.API.Trace.SpanContext.t(), non_neg_integer() | nil, boolean() | nil}
+        ) :: {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t() | nil, boolean() | nil}
   defp new_span_ctx(ctx, id_generator, opts) do
     parent = Otel.API.Trace.current_span(ctx)
     is_root = Keyword.get(opts, :is_root, false)
@@ -130,10 +133,12 @@ defmodule Otel.SDK.Trace.SpanCreator do
       {true, _} ->
         root_span_ctx(id_generator)
 
-      {_, %Otel.API.Trace.SpanContext{trace_id: 0}} ->
+      {_, %Otel.API.Trace.SpanContext{trace_id: trace_id}}
+      when Otel.API.Trace.TraceId.is_invalid(trace_id) ->
         root_span_ctx(id_generator)
 
-      {_, %Otel.API.Trace.SpanContext{span_id: 0}} ->
+      {_, %Otel.API.Trace.SpanContext{span_id: span_id}}
+      when Otel.API.Trace.SpanId.is_invalid(span_id) ->
         root_span_ctx(id_generator)
 
       {_, %Otel.API.Trace.SpanContext{} = parent_ctx} ->
@@ -172,7 +177,7 @@ defmodule Otel.SDK.Trace.SpanCreator do
   @spec sample(
           ctx :: Otel.API.Ctx.t(),
           sampler :: Otel.SDK.Trace.Sampler.t(),
-          trace_id :: non_neg_integer(),
+          trace_id :: Otel.API.Trace.TraceId.t(),
           links :: list(),
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),

@@ -45,7 +45,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
 
   @spec should_sample(
           ctx :: Otel.API.Ctx.t(),
-          trace_id :: Otel.API.Trace.SpanContext.trace_id(),
+          trace_id :: Otel.API.Trace.TraceId.t(),
           links :: [{Otel.API.Trace.SpanContext.t(), map()}],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
@@ -66,8 +66,16 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
           | :remote_parent_not_sampled
           | :local_parent_sampled
           | :local_parent_not_sampled
-  defp select_sampler(%Otel.API.Trace.SpanContext{trace_id: 0}), do: :root
-  defp select_sampler(%Otel.API.Trace.SpanContext{span_id: 0}), do: :root
+  require Otel.API.Trace.TraceId
+  require Otel.API.Trace.SpanId
+
+  defp select_sampler(%Otel.API.Trace.SpanContext{trace_id: trace_id})
+       when Otel.API.Trace.TraceId.is_invalid(trace_id),
+       do: :root
+
+  defp select_sampler(%Otel.API.Trace.SpanContext{span_id: span_id})
+       when Otel.API.Trace.SpanId.is_invalid(span_id),
+       do: :root
 
   defp select_sampler(%Otel.API.Trace.SpanContext{is_remote: true, trace_flags: trace_flags}) do
     if Bitwise.band(trace_flags, 1) != 0 do
