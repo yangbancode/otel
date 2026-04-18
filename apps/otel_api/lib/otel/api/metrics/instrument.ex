@@ -8,10 +8,10 @@ defmodule Otel.API.Metrics.Instrument do
   functions such as `Counter.add/3`, `Histogram.record/3`, etc.
 
   The SDK stores the same struct in its instruments ETS table, and
-  extends it with advisory validation / temporality mapping / duplicate
-  detection helpers defined here. These helpers are pure functions and
-  have no runtime coupling to SDK state — colocating them with the
-  struct keeps "one entity = one module".
+  extends it with temporality mapping / duplicate detection helpers
+  defined here. These helpers are pure functions and have no runtime
+  coupling to SDK state — colocating them with the struct keeps
+  "one entity = one module".
 
   All functions are safe for concurrent use.
   """
@@ -28,11 +28,11 @@ defmodule Otel.API.Metrics.Instrument do
   @type temporality :: :cumulative | :delta
 
   @typedoc """
-  Advisory parameters accepted by `Meter.create_*` and by `validate_advisory/2`.
+  Advisory parameters accepted by `Meter.create_*`.
 
   Keys defined by the OpenTelemetry spec:
   - `:explicit_bucket_boundaries` — sorted list of boundary numbers.
-    Only valid for `:histogram`; ignored with a warning for other kinds.
+    Valid for `:histogram`.
   - `:attributes` — list of attribute keys to retain. The SDK applies
     this as a view-less attribute filter.
   """
@@ -93,25 +93,6 @@ defmodule Otel.API.Metrics.Instrument do
             advisory: [],
             scope: %Otel.API.InstrumentationScope{}
 
-  @name_regex ~r/^[A-Za-z][A-Za-z0-9_.\-\/]{0,254}$/
-
-  @doc """
-  Validates instrument name against the OTel ABNF syntax.
-
-  Returns `{:ok, name}` if valid, `{:error, reason}` if invalid.
-  """
-  @spec validate_name(name :: String.t() | nil) :: {:ok, String.t()} | {:error, String.t()}
-  def validate_name(nil), do: {:error, "instrument name must not be nil"}
-  def validate_name(""), do: {:error, "instrument name must not be empty"}
-
-  def validate_name(name) when is_binary(name) do
-    if Regex.match?(@name_regex, name) do
-      {:ok, name}
-    else
-      {:error, "instrument name #{inspect(name)} does not conform to syntax"}
-    end
-  end
-
   @doc """
   Returns the downcased name for case-insensitive comparison.
   """
@@ -151,17 +132,6 @@ defmodule Otel.API.Metrics.Instrument do
         :unresolvable
     end
   end
-
-  @doc """
-  Returns the advisory parameters unchanged.
-
-  Per `metrics/api.md` L348 and L400 (SHOULD NOT validate advisory)
-  the API layer does not validate advisory input. Callers are expected
-  to supply well-formed advisory keyword lists; invalid shapes surface
-  at the point of use inside the SDK rather than here.
-  """
-  @spec validate_advisory(kind :: kind(), advisory :: advisory()) :: advisory()
-  def validate_advisory(_kind, advisory), do: advisory
 
   @spec temporality(kind :: kind()) :: temporality()
   def temporality(:counter), do: :delta

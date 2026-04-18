@@ -76,22 +76,20 @@ include/otel_metrics.hrl:3-12`) that the SDK shares — same direction.
 | SDK → API coupling (struct store) | converts at boundary | stores API struct directly |
 
 The one real concession is that `api.md` and `sdk.md` split responsibility
-across documents. Functions like `temporality/1`, `conflict_type/2`,
-`validate_advisory/2` are specified in `sdk.md`. Consolidating them on
-the `Otel.API.Metrics.Instrument` module puts sdk.md logic physically
-inside the `Otel.API.*` namespace. This is a mild conceptual leak, not
-a technical one — these functions are stateless pure pattern matches
-with no runtime coupling to SDK state, and Erlang places the same
-helpers on its API-layer `otel_instrument` module for the same reason.
+across documents. Functions like `temporality/1`, `conflict_type/2` are
+specified in `sdk.md`. Consolidating them on the
+`Otel.API.Metrics.Instrument` module puts sdk.md logic physically inside
+the `Otel.API.*` namespace. This is a mild conceptual leak, not a
+technical one — these functions are stateless pure pattern matches with
+no runtime coupling to SDK state, and Erlang places the same helpers on
+its API-layer `otel_instrument` module for the same reason.
 
 ### All Instrument helpers live on `Otel.API.Metrics.Instrument`
 
 No separate SDK helper module. The following functions sit alongside
 the struct definition:
 
-- `validate_name/1` — api.md name syntax (ABNF)
 - `downcased_name/1` — case-insensitive comparison key
-- `validate_advisory/2` — advisory param validation (sdk.md)
 - `temporality/1`, `default_temporality_mapping/0` — kind → temporality (sdk.md)
 - `identical?/2`, `conflict_type/2` — duplicate detection (sdk.md)
 - `monotonic?/1` — aggregation hint (sdk.md)

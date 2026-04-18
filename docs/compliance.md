@@ -1295,8 +1295,8 @@
 
 ### Instrument Name
 
-- [x] Meter SHOULD validate instrument name conforms to syntax — [L962](../references/opentelemetry-specification/specification/metrics/sdk.md#L962)
-- [x] If instrument name does not conform, Meter SHOULD emit an error — [L965](../references/opentelemetry-specification/specification/metrics/sdk.md#L965)
+- [ ] Meter SHOULD validate instrument name conforms to syntax — [L962](../references/opentelemetry-specification/specification/metrics/sdk.md#L962) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
+- [ ] If instrument name does not conform, Meter SHOULD emit an error — [L965](../references/opentelemetry-specification/specification/metrics/sdk.md#L965) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
 
 ### Instrument Unit
 
@@ -1310,8 +1310,8 @@
 
 ### Instrument Advisory Parameters (Stable)
 
-- [x] Meter SHOULD validate instrument advisory parameters — [L985](../references/opentelemetry-specification/specification/metrics/sdk.md#L985)
-- [x] If advisory parameter is not valid, Meter SHOULD emit an error and proceed as if the parameter was not provided — [L986](../references/opentelemetry-specification/specification/metrics/sdk.md#L986)
+- [ ] Meter SHOULD validate instrument advisory parameters — [L985](../references/opentelemetry-specification/specification/metrics/sdk.md#L985) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
+- [ ] If advisory parameter is not valid, Meter SHOULD emit an error and proceed as if the parameter was not provided — [L986](../references/opentelemetry-specification/specification/metrics/sdk.md#L986) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
 - [x] If multiple identical Instruments have different advisory parameters, Meter MUST return instrument using first-seen advisory parameters and log an error — [L990](../references/opentelemetry-specification/specification/metrics/sdk.md#L990)
 - [x] If View and advisory parameters specify the same aspect, View MUST take precedence — [L996](../references/opentelemetry-specification/specification/metrics/sdk.md#L996)
 
