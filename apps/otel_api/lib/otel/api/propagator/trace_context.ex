@@ -57,10 +57,14 @@ defmodule Otel.API.Propagator.TraceContext do
         ctx
 
       traceparent_value ->
-        span_ctx = decode_traceparent(String.trim(traceparent_value))
-        tracestate = extract_tracestate(carrier, getter)
-        span_ctx = %{span_ctx | tracestate: tracestate, is_remote: true}
-        Otel.API.Trace.set_current_span(ctx, span_ctx)
+        try do
+          span_ctx = decode_traceparent(String.trim(traceparent_value))
+          tracestate = extract_tracestate(carrier, getter)
+          span_ctx = %{span_ctx | tracestate: tracestate, is_remote: true}
+          Otel.API.Trace.set_current_span(ctx, span_ctx)
+        rescue
+          _ -> ctx
+        end
     end
   end
 
@@ -116,6 +120,10 @@ defmodule Otel.API.Propagator.TraceContext do
           flags_hex :: String.t()
         ) :: Otel.API.Trace.SpanContext.t()
   defp decode_span_ctx(trace_id_hex, span_id_hex, flags_hex) do
+    true = lowercase_hex?(trace_id_hex)
+    true = lowercase_hex?(span_id_hex)
+    true = lowercase_hex?(flags_hex)
+
     {trace_id, ""} = Integer.parse(trace_id_hex, 16)
     {span_id, ""} = Integer.parse(span_id_hex, 16)
     {trace_flags, ""} = Integer.parse(flags_hex, 16)
@@ -127,4 +135,7 @@ defmodule Otel.API.Propagator.TraceContext do
       trace_flags: trace_flags
     }
   end
+
+  @spec lowercase_hex?(hex :: String.t()) :: boolean()
+  defp lowercase_hex?(hex), do: Regex.match?(~r/^[0-9a-f]+$/, hex)
 end

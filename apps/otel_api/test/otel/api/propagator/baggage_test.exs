@@ -105,6 +105,19 @@ defmodule Otel.API.Propagator.BaggageTest do
       assert result == ctx
     end
 
+    test "returns original context for missing `=`" do
+      # api-propagators.md L102 — Extract MUST NOT throw on parse failure.
+      carrier = [{"baggage", "noequals"}]
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.Baggage.extract(ctx, carrier, @getter)
+    end
+
+    test "returns original context for garbage header" do
+      carrier = [{"baggage", "!!@@##"}]
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.Baggage.extract(ctx, carrier, @getter)
+    end
+
     test "merges with existing baggage in context" do
       existing = Otel.API.Baggage.set_value(%{}, "existing", "value")
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), existing)

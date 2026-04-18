@@ -118,25 +118,50 @@ defmodule Otel.API.Propagator.TraceContextTest do
       assert span_ctx.span_id == 0xB7AD6B7169203331
     end
 
-    test "rejects version 00 with trailing bytes (W3C strict length)" do
-      # v00 MUST be exactly 55 chars; any trailing bytes are invalid
+    test "v00 with trailing bytes leaves ctx unchanged (W3C strict length)" do
+      # v00 MUST be exactly 55 chars; any trailing bytes are invalid per W3C.
+      # Extract MUST NOT throw (api-propagators.md L102) → returns ctx unchanged.
       carrier = [
         {"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01-extra"}
       ]
 
-      assert_raise FunctionClauseError, fn ->
-        Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
-      end
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
     end
 
-    test "rejects reserved version ff" do
+    test "reserved version ff leaves ctx unchanged" do
       carrier = [
         {"traceparent", "ff-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}
       ]
 
-      assert_raise FunctionClauseError, fn ->
-        Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
-      end
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+    end
+
+    test "uppercase hex in traceparent leaves ctx unchanged (W3C strict lowercase)" do
+      # W3C Trace Context § 3.2.2.2 requires lowercase hex.
+      carrier = [
+        {"traceparent", "00-0AF7651916CD43DD8448EB211C80319C-B7AD6B7169203331-01"}
+      ]
+
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+    end
+
+    test "all-zero trace_id leaves ctx unchanged" do
+      carrier = [
+        {"traceparent", "00-00000000000000000000000000000000-b7ad6b7169203331-01"}
+      ]
+
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+    end
+
+    test "garbage traceparent leaves ctx unchanged" do
+      carrier = [{"traceparent", "this is not a valid traceparent"}]
+
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
     end
 
     test "extracts unsampled span" do

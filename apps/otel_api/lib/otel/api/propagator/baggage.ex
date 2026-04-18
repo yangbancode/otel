@@ -43,10 +43,14 @@ defmodule Otel.API.Propagator.Baggage do
         ctx
 
       header_value ->
-        baggage = decode_baggage(String.trim(header_value))
-        existing = Otel.API.Baggage.get_baggage(ctx)
-        merged = Map.merge(existing, baggage)
-        Otel.API.Baggage.set_baggage(ctx, merged)
+        try do
+          baggage = decode_baggage(String.trim(header_value))
+          existing = Otel.API.Baggage.get_baggage(ctx)
+          merged = Map.merge(existing, baggage)
+          Otel.API.Baggage.set_baggage(ctx, merged)
+        rescue
+          _ -> ctx
+        end
     end
   end
 

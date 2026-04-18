@@ -6,6 +6,42 @@ defmodule Otel.API.Logs.LoggerProviderTest do
     :ok
   end
 
+  describe "invalid name handling (logs/noop.md L33-35)" do
+    import ExUnit.CaptureLog
+
+    test "get_logger(nil) on Noop path does NOT log" do
+      assert capture_log(fn ->
+               Otel.API.Logs.LoggerProvider.get_logger(nil)
+             end) == ""
+    end
+
+    test "get_logger(\"\") on Noop path does NOT log" do
+      assert capture_log(fn ->
+               Otel.API.Logs.LoggerProvider.get_logger("")
+             end) == ""
+    end
+
+    test "get_logger(nil) on Noop path returns a working logger" do
+      logger = Otel.API.Logs.LoggerProvider.get_logger(nil)
+      assert {Otel.API.Logs.Logger.Noop, _} = logger
+    end
+
+    test "get_logger(nil) with SDK provider DOES log" do
+      Otel.API.Logs.LoggerProvider.set_provider({FakeLoggerProvider, :state})
+
+      log =
+        capture_log(fn ->
+          try do
+            Otel.API.Logs.LoggerProvider.get_logger(nil)
+          rescue
+            _ -> :ok
+          end
+        end)
+
+      assert log =~ "LoggerProvider: invalid logger name nil"
+    end
+  end
+
   describe "get_provider/0 and set_provider/1" do
     test "returns nil when no provider is set" do
       assert Otel.API.Logs.LoggerProvider.get_provider() == nil

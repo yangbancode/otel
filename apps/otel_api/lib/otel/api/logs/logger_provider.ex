@@ -116,24 +116,30 @@ defmodule Otel.API.Logs.LoggerProvider do
 
   @spec validate_name(name :: String.t() | nil) :: String.t()
   defp validate_name(nil) do
-    :logger.warning(
-      "LoggerProvider: invalid logger name nil, using empty string",
-      %{domain: [:otel, :logs]}
-    )
-
+    maybe_warn("nil")
     ""
   end
 
   defp validate_name("") do
-    :logger.warning(
-      "LoggerProvider: invalid logger name (empty string)",
-      %{domain: [:otel, :logs]}
-    )
-
+    maybe_warn("(empty string)")
     ""
   end
 
   defp validate_name(name) when is_binary(name), do: name
+
+  # Log only when an SDK is registered. Without a provider the Noop spec
+  # (logs/noop.md L33-35) mandates no log output for any operation.
+  @spec maybe_warn(which :: String.t()) :: :ok
+  defp maybe_warn(which) do
+    if get_provider() != nil do
+      :logger.warning(
+        "LoggerProvider: invalid logger name #{which}, using empty string",
+        %{domain: [:otel, :logs]}
+      )
+    end
+
+    :ok
+  end
 
   @spec fetch_or_default(
           name :: String.t(),
