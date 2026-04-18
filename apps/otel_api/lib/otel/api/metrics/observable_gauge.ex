@@ -49,7 +49,7 @@ defmodule Otel.API.Metrics.ObservableGauge do
   @spec create(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          callback :: (term() -> [{number(), map()}]),
+          callback :: (term() -> [{number(), Otel.API.Attribute.attributes()}]),
           callback_args :: term(),
           opts :: keyword()
         ) :: term()

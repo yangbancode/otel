@@ -22,7 +22,7 @@ defmodule Otel.API.Logs.NoopTest do
                  observed_timestamp: 1_000_000,
                  severity_number: 9,
                  severity_text: "INFO",
-                 body: %{nested: "value"},
+                 body: %{"nested" => "value"},
                  attributes: %{"key" => "val"},
                  event_name: "my.event"
                })

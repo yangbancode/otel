@@ -38,7 +38,7 @@ defmodule Otel.API.Trace.TracerProvider do
           name :: String.t(),
           version :: String.t(),
           schema_url :: String.t() | nil,
-          attributes :: map()
+          attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Trace.Tracer.t()
   def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
     name = validate_name(name)
@@ -63,7 +63,7 @@ defmodule Otel.API.Trace.TracerProvider do
           name :: String.t(),
           version :: String.t(),
           schema_url :: String.t() | nil,
-          attributes :: map()
+          attributes :: Otel.API.Attribute.attributes()
         ) ::
           Otel.API.InstrumentationScope.t()
   def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
@@ -100,7 +100,7 @@ defmodule Otel.API.Trace.TracerProvider do
           name :: String.t(),
           version :: String.t(),
           schema_url :: String.t() | nil,
-          attributes :: map()
+          attributes :: Otel.API.Attribute.attributes()
         ) :: Otel.API.Trace.Tracer.t()
   defp fetch_or_default(_name, _version, _schema_url, _attributes) do
     @default_tracer

@@ -14,6 +14,10 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [GitHub Actions CI](decisions/github-actions-ci.md)
 - [x] [Application & Supervision Tree](decisions/application-and-supervision.md)
 
+## Common Types
+
+- [x] [Attribute and AnyValue Types](decisions/attribute-and-anyvalue-types.md)
+
 ## Phase 1: Traces
 
 ### Context

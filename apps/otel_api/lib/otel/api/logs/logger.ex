@@ -15,10 +15,10 @@ defmodule Otel.API.Logs.Logger do
   @type log_record :: %{
           optional(:timestamp) => integer() | nil,
           optional(:observed_timestamp) => integer() | nil,
-          optional(:severity_number) => 1..24 | nil,
+          optional(:severity_number) => 0..24 | nil,
           optional(:severity_text) => String.t() | nil,
-          optional(:body) => term() | nil,
-          optional(:attributes) => map(),
+          optional(:body) => Otel.API.AnyValue.t(),
+          optional(:attributes) => Otel.API.Attribute.attributes(),
           optional(:event_name) => String.t() | nil,
           optional(:exception) => Exception.t() | nil
         }
