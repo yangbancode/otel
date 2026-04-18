@@ -9,12 +9,19 @@ defmodule Otel.API.Metrics.ObservableUpDownCounterTest do
 
   describe "create/2,3 (without callback)" do
     test "creates observable updown counter via meter", %{meter: meter} do
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{
+               kind: :observable_updown_counter,
+               name: "process_heap_size"
+             } =
                Otel.API.Metrics.ObservableUpDownCounter.create(meter, "process_heap_size")
     end
 
     test "accepts opts", %{meter: meter} do
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{
+               kind: :observable_updown_counter,
+               unit: "By",
+               description: "Process heap size"
+             } =
                Otel.API.Metrics.ObservableUpDownCounter.create(meter, "process_heap_size",
                  unit: "By",
                  description: "Process heap size"
@@ -26,7 +33,7 @@ defmodule Otel.API.Metrics.ObservableUpDownCounterTest do
     test "creates observable updown counter with callback", %{meter: meter} do
       callback = fn _args -> [%Otel.API.Metrics.Measurement{value: 1024, attributes: %{}}] end
 
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{kind: :observable_updown_counter} =
                Otel.API.Metrics.ObservableUpDownCounter.create(
                  meter,
                  "heap_size",
@@ -41,7 +48,7 @@ defmodule Otel.API.Metrics.ObservableUpDownCounterTest do
         [Otel.API.Metrics.Measurement.new(Process.info(pid, :heap_size) |> elem(1))]
       end
 
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{kind: :observable_updown_counter, unit: "words"} =
                Otel.API.Metrics.ObservableUpDownCounter.create(
                  meter,
                  "heap_size",

@@ -9,11 +9,16 @@ defmodule Otel.API.Metrics.GaugeTest do
 
   describe "create/2,3" do
     test "creates gauge via meter", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
+      assert %Otel.API.Metrics.Instrument{kind: :gauge, name: "cpu_temperature"} =
+               Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
     end
 
     test "accepts opts", %{meter: meter} do
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{
+               kind: :gauge,
+               unit: "celsius",
+               description: "CPU temperature"
+             } =
                Otel.API.Metrics.Gauge.create(meter, "cpu_temperature",
                  unit: "celsius",
                  description: "CPU temperature"
@@ -23,36 +28,42 @@ defmodule Otel.API.Metrics.GaugeTest do
 
   describe "enabled?/1,2" do
     test "returns false for noop", %{meter: meter} do
-      assert false == Otel.API.Metrics.Gauge.enabled?(meter)
+      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
+      assert false == Otel.API.Metrics.Gauge.enabled?(instrument)
     end
 
     test "accepts opts", %{meter: meter} do
-      assert false == Otel.API.Metrics.Gauge.enabled?(meter, [])
+      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
+      assert false == Otel.API.Metrics.Gauge.enabled?(instrument, [])
     end
   end
 
-  describe "record/3,4" do
+  describe "record/2,3" do
     test "records a value", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.Gauge.record(meter, "cpu_temperature", 65)
+      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
+      assert :ok == Otel.API.Metrics.Gauge.record(instrument, 65)
     end
 
     test "records with attributes", %{meter: meter} do
+      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
+
       assert :ok ==
-               Otel.API.Metrics.Gauge.record(meter, "cpu_temperature", 72.5, %{
-                 "cpu.id" => 0
-               })
+               Otel.API.Metrics.Gauge.record(instrument, 72.5, %{"cpu.id" => 0})
     end
 
     test "accepts negative value", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.Gauge.record(meter, "temperature", -10)
+      instrument = Otel.API.Metrics.Gauge.create(meter, "temperature")
+      assert :ok == Otel.API.Metrics.Gauge.record(instrument, -10)
     end
 
     test "accepts zero", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.Gauge.record(meter, "temperature", 0)
+      instrument = Otel.API.Metrics.Gauge.create(meter, "temperature")
+      assert :ok == Otel.API.Metrics.Gauge.record(instrument, 0)
     end
 
     test "accepts float", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.Gauge.record(meter, "temperature", 36.6)
+      instrument = Otel.API.Metrics.Gauge.create(meter, "temperature")
+      assert :ok == Otel.API.Metrics.Gauge.record(instrument, 36.6)
     end
   end
 end

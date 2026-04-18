@@ -10,57 +10,54 @@ defmodule Otel.API.Metrics.Meter do
   All functions are safe for concurrent use.
   """
 
-  # Follow-up: an `Otel.API.Metrics.Instrument` struct is planned (see
-  # docs/decisions/type-representation-policy.md entity catalog). `create_*`
-  # callbacks currently return `term()` — the SDK returns an
-  # `Otel.SDK.Metrics.Instrument.t()` while the Noop meter returns `:ok`.
-  # Unifying the handle type is a larger API redesign that touches every
-  # synchronous recording call site (Counter.add/4, Histogram.record/4, etc.)
-  # and is tracked separately from the Measurement struct PR.
-
   @type t :: {module(), term()}
 
   # --- Synchronous Instruments ---
 
-  @callback create_counter(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
-  @callback create_histogram(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
-  @callback create_gauge(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
-  @callback create_updown_counter(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @callback create_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
+              Otel.API.Metrics.Instrument.t()
+  @callback create_histogram(meter :: t(), name :: String.t(), opts :: keyword()) ::
+              Otel.API.Metrics.Instrument.t()
+  @callback create_gauge(meter :: t(), name :: String.t(), opts :: keyword()) ::
+              Otel.API.Metrics.Instrument.t()
+  @callback create_updown_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
+              Otel.API.Metrics.Instrument.t()
 
   # --- Asynchronous Instruments ---
 
   @callback create_observable_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
-              term()
+              Otel.API.Metrics.Instrument.t()
   @callback create_observable_counter(
               meter :: t(),
               name :: String.t(),
               callback :: function(),
               callback_args :: term(),
               opts :: keyword()
-            ) :: term()
-  @callback create_observable_gauge(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+            ) :: Otel.API.Metrics.Instrument.t()
+  @callback create_observable_gauge(meter :: t(), name :: String.t(), opts :: keyword()) ::
+              Otel.API.Metrics.Instrument.t()
   @callback create_observable_gauge(
               meter :: t(),
               name :: String.t(),
               callback :: function(),
               callback_args :: term(),
               opts :: keyword()
-            ) :: term()
+            ) :: Otel.API.Metrics.Instrument.t()
   @callback create_observable_updown_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
-              term()
+              Otel.API.Metrics.Instrument.t()
   @callback create_observable_updown_counter(
               meter :: t(),
               name :: String.t(),
               callback :: function(),
               callback_args :: term(),
               opts :: keyword()
-            ) :: term()
+            ) :: Otel.API.Metrics.Instrument.t()
 
   # --- Callback Registration ---
 
   @callback register_callback(
               meter :: t(),
-              instruments :: [term()],
+              instruments :: [Otel.API.Metrics.Instrument.t()],
               callback :: function(),
               callback_args :: term(),
               opts :: keyword()
@@ -69,22 +66,23 @@ defmodule Otel.API.Metrics.Meter do
   # --- Recording ---
 
   @callback record(
-              meter :: t(),
-              name :: String.t(),
+              instrument :: Otel.API.Metrics.Instrument.t(),
               value :: number(),
               attributes :: Otel.API.Attribute.attributes()
             ) :: :ok
 
   # --- Enabled ---
 
-  @callback enabled?(meter :: t(), opts :: keyword()) :: boolean()
+  @callback enabled?(instrument :: Otel.API.Metrics.Instrument.t(), opts :: keyword()) ::
+              boolean()
 
   # --- Dispatch Functions ---
 
   @doc """
   Creates a Counter instrument.
   """
-  @spec create_counter(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @spec create_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
+          Otel.API.Metrics.Instrument.t()
   def create_counter({module, _} = meter, name, opts \\ []) do
     module.create_counter(meter, name, opts)
   end
@@ -92,7 +90,8 @@ defmodule Otel.API.Metrics.Meter do
   @doc """
   Creates a Histogram instrument.
   """
-  @spec create_histogram(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @spec create_histogram(meter :: t(), name :: String.t(), opts :: keyword()) ::
+          Otel.API.Metrics.Instrument.t()
   def create_histogram({module, _} = meter, name, opts \\ []) do
     module.create_histogram(meter, name, opts)
   end
@@ -100,7 +99,8 @@ defmodule Otel.API.Metrics.Meter do
   @doc """
   Creates a synchronous Gauge instrument.
   """
-  @spec create_gauge(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @spec create_gauge(meter :: t(), name :: String.t(), opts :: keyword()) ::
+          Otel.API.Metrics.Instrument.t()
   def create_gauge({module, _} = meter, name, opts \\ []) do
     module.create_gauge(meter, name, opts)
   end
@@ -108,7 +108,8 @@ defmodule Otel.API.Metrics.Meter do
   @doc """
   Creates an UpDownCounter instrument.
   """
-  @spec create_updown_counter(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @spec create_updown_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
+          Otel.API.Metrics.Instrument.t()
   def create_updown_counter({module, _} = meter, name, opts \\ []) do
     module.create_updown_counter(meter, name, opts)
   end
@@ -116,7 +117,8 @@ defmodule Otel.API.Metrics.Meter do
   @doc """
   Creates an observable (asynchronous) Counter instrument.
   """
-  @spec create_observable_counter(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @spec create_observable_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
+          Otel.API.Metrics.Instrument.t()
   def create_observable_counter({module, _} = meter, name, opts \\ []) do
     module.create_observable_counter(meter, name, opts)
   end
@@ -130,7 +132,7 @@ defmodule Otel.API.Metrics.Meter do
           callback :: function(),
           callback_args :: term(),
           opts :: keyword()
-        ) :: term()
+        ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_counter({module, _} = meter, name, callback, callback_args, opts) do
     module.create_observable_counter(meter, name, callback, callback_args, opts)
   end
@@ -138,7 +140,8 @@ defmodule Otel.API.Metrics.Meter do
   @doc """
   Creates an observable (asynchronous) Gauge instrument.
   """
-  @spec create_observable_gauge(meter :: t(), name :: String.t(), opts :: keyword()) :: term()
+  @spec create_observable_gauge(meter :: t(), name :: String.t(), opts :: keyword()) ::
+          Otel.API.Metrics.Instrument.t()
   def create_observable_gauge({module, _} = meter, name, opts \\ []) do
     module.create_observable_gauge(meter, name, opts)
   end
@@ -152,7 +155,7 @@ defmodule Otel.API.Metrics.Meter do
           callback :: function(),
           callback_args :: term(),
           opts :: keyword()
-        ) :: term()
+        ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_gauge({module, _} = meter, name, callback, callback_args, opts) do
     module.create_observable_gauge(meter, name, callback, callback_args, opts)
   end
@@ -161,7 +164,7 @@ defmodule Otel.API.Metrics.Meter do
   Creates an observable (asynchronous) UpDownCounter instrument.
   """
   @spec create_observable_updown_counter(meter :: t(), name :: String.t(), opts :: keyword()) ::
-          term()
+          Otel.API.Metrics.Instrument.t()
   def create_observable_updown_counter({module, _} = meter, name, opts \\ []) do
     module.create_observable_updown_counter(meter, name, opts)
   end
@@ -175,26 +178,29 @@ defmodule Otel.API.Metrics.Meter do
           callback :: function(),
           callback_args :: term(),
           opts :: keyword()
-        ) :: term()
+        ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_updown_counter({module, _} = meter, name, callback, callback_args, opts) do
     module.create_observable_updown_counter(meter, name, callback, callback_args, opts)
   end
 
   @doc """
-  Records a measurement for the named instrument.
+  Records a measurement for the given instrument.
 
   All synchronous instrument recording operations (Counter.add,
   Histogram.record, Gauge.record, UpDownCounter.add) route through
   this function.
   """
   @spec record(
-          meter :: t(),
-          name :: String.t(),
+          instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
           attributes :: Otel.API.Attribute.attributes()
         ) :: :ok
-  def record({module, _} = meter, name, value, attributes \\ %{}) do
-    module.record(meter, name, value, attributes)
+  def record(
+        %Otel.API.Metrics.Instrument{meter: {module, _}} = instrument,
+        value,
+        attributes \\ %{}
+      ) do
+    module.record(instrument, value, attributes)
   end
 
   @doc """
@@ -205,7 +211,7 @@ defmodule Otel.API.Metrics.Meter do
   """
   @spec register_callback(
           meter :: t(),
-          instruments :: [term()],
+          instruments :: [Otel.API.Metrics.Instrument.t()],
           callback :: function(),
           callback_args :: term(),
           opts :: keyword()
@@ -215,10 +221,10 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  Returns whether the meter is enabled.
+  Returns whether the given instrument is enabled.
   """
-  @spec enabled?(meter :: t(), opts :: keyword()) :: boolean()
-  def enabled?({module, _} = meter, opts \\ []) do
-    module.enabled?(meter, opts)
+  @spec enabled?(instrument :: Otel.API.Metrics.Instrument.t(), opts :: keyword()) :: boolean()
+  def enabled?(%Otel.API.Metrics.Instrument{meter: {module, _}} = instrument, opts \\ []) do
+    module.enabled?(instrument, opts)
   end
 end

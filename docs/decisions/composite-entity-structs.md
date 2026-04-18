@@ -77,18 +77,13 @@ affect the API boundary decided here.
 - `LogRecord` — all fields default to `nil` / `%{}`.
 - `Measurement` — `%Measurement{value: 0, attributes: %{}}`.
 
-### Deferred — `Otel.API.Metrics.Instrument`
+### `Otel.API.Metrics.Instrument` — landed separately
 
 The type-representation-policy entity catalog lists `Instrument` as a
-struct. Implementing it is a larger API redesign: today the metrics API
-is name-keyed (`Counter.create/3` returns `:ok`; recording calls pass
-`(meter, name, value, attrs)`). Promoting creation to return an
-`Instrument.t()` handle used in place of the name touches every
-synchronous and observable recording call site, the `Meter` behaviour's
-sync callbacks, the SDK's ETS key scheme, and the OTLP exporter. That
-redesign gets its own Decision and its own PR.
-
-A follow-up note is parked in the `Otel.API.Metrics.Meter` moduledoc.
+struct. It lands in its own Decision: see
+[api-instrument-struct.md](api-instrument-struct.md). Creation now
+returns an `Otel.API.Metrics.Instrument.t()` handle that carries its
+meter; synchronous recording takes `(instrument, value, attrs)`.
 
 ## Modules
 

@@ -45,7 +45,7 @@ First-seen wins for name casing and advisory parameters.
 | Module | Location | Description |
 |---|---|---|
 | `Otel.SDK.Metrics.Meter` | `apps/otel_sdk/lib/otel/sdk/metrics/meter.ex` | SDK Meter with registration |
-| `Otel.SDK.Metrics.Instrument` | `apps/otel_sdk/lib/otel/sdk/metrics/instrument.ex` | Instrument struct and helpers |
+| `Otel.API.Metrics.Instrument` | `apps/otel_api/lib/otel/api/metrics/instrument.ex` | Shared struct + helpers (see [api-instrument-struct.md](api-instrument-struct.md)) |
 
 ## Compliance
 

@@ -31,7 +31,7 @@ defmodule Otel.API.Metrics.ObservableUpDownCounter do
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
           opts :: keyword()
-        ) :: term()
+        ) :: Otel.API.Metrics.Instrument.t()
   def create(meter, name, opts \\ []) do
     Otel.API.Metrics.Meter.create_observable_updown_counter(meter, name, opts)
   end
@@ -53,7 +53,7 @@ defmodule Otel.API.Metrics.ObservableUpDownCounter do
           callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
           callback_args :: term(),
           opts :: keyword()
-        ) :: term()
+        ) :: Otel.API.Metrics.Instrument.t()
   def create(meter, name, callback, callback_args, opts) do
     Otel.API.Metrics.Meter.create_observable_updown_counter(
       meter,

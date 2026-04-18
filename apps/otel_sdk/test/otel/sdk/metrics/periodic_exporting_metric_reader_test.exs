@@ -49,8 +49,8 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
   describe "force_flush/1" do
     test "collects and exports metrics", %{config: config} do
       meter = {Otel.SDK.Metrics.Meter, config}
-      Otel.SDK.Metrics.Meter.create_counter(meter, "flush_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "flush_counter", 10, %{})
+      instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "flush_counter", [])
+      Otel.SDK.Metrics.Meter.record(instrument, 10, %{})
 
       exporter =
         {Otel.SDK.Metrics.PeriodicExportingMetricReaderTest.TestExporter, %{test_pid: self()}}
@@ -90,8 +90,8 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
   describe "shutdown/1" do
     test "performs final export and shuts down exporter", %{config: config} do
       meter = {Otel.SDK.Metrics.Meter, config}
-      Otel.SDK.Metrics.Meter.create_counter(meter, "shutdown_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "shutdown_counter", 5, %{})
+      instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "shutdown_counter", [])
+      Otel.SDK.Metrics.Meter.record(instrument, 5, %{})
 
       exporter =
         {Otel.SDK.Metrics.PeriodicExportingMetricReaderTest.TestExporter, %{test_pid: self()}}
@@ -129,8 +129,8 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
   describe "collect call" do
     test "returns metrics via GenServer call", %{config: config} do
       meter = {Otel.SDK.Metrics.Meter, config}
-      Otel.SDK.Metrics.Meter.create_counter(meter, "collect_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "collect_counter", 7, %{})
+      instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "collect_counter", [])
+      Otel.SDK.Metrics.Meter.record(instrument, 7, %{})
 
       {:ok, reader} =
         Otel.SDK.Metrics.PeriodicExportingMetricReader.start_link(%{
@@ -178,8 +178,8 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
   describe "periodic collection" do
     test "exports on interval", %{config: config} do
       meter = {Otel.SDK.Metrics.Meter, config}
-      Otel.SDK.Metrics.Meter.create_counter(meter, "periodic_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "periodic_counter", 1, %{})
+      instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "periodic_counter", [])
+      Otel.SDK.Metrics.Meter.record(instrument, 1, %{})
 
       exporter =
         {Otel.SDK.Metrics.PeriodicExportingMetricReaderTest.TestExporter, %{test_pid: self()}}
@@ -216,8 +216,8 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
 
       {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(provider, "lib")
       meter = {Otel.SDK.Metrics.Meter, config}
-      Otel.SDK.Metrics.Meter.create_counter(meter, "provider_counter", [])
-      Otel.SDK.Metrics.Meter.record(meter, "provider_counter", 1, %{})
+      instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "provider_counter", [])
+      Otel.SDK.Metrics.Meter.record(instrument, 1, %{})
 
       assert :ok == Otel.SDK.Metrics.MeterProvider.force_flush(provider)
       assert_receive {:exported, batch}

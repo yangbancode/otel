@@ -1,10 +1,19 @@
-defmodule Otel.SDK.Metrics.Instrument do
+defmodule Otel.API.Metrics.Instrument do
   @moduledoc """
-  SDK instrument record stored in ETS.
+  Instrument handle returned by `Meter.create_*` functions.
 
-  Holds instrument identity (name, kind, unit, description) and
-  advisory parameters. Instruments are keyed by `{scope, downcased_name}`
-  in ETS for case-insensitive duplicate detection.
+  Carries the meter dispatcher plus all identifying fields defined by
+  the OpenTelemetry spec (name, kind, unit, description, advisory,
+  scope). The instrument is the handle users pass to recording
+  functions such as `Counter.add/3`, `Histogram.record/3`, etc.
+
+  The SDK stores the same struct in its instruments ETS table, and
+  extends it with advisory validation / temporality mapping / duplicate
+  detection helpers defined here. These helpers are pure functions and
+  have no runtime coupling to SDK state — colocating them with the
+  struct keeps "one entity = one module".
+
+  All functions are safe for concurrent use.
   """
 
   @type kind ::
@@ -19,6 +28,7 @@ defmodule Otel.SDK.Metrics.Instrument do
   @type temporality :: :cumulative | :delta
 
   @type t :: %__MODULE__{
+          meter: Otel.API.Metrics.Meter.t() | nil,
           name: String.t(),
           kind: kind(),
           unit: String.t(),
@@ -27,7 +37,8 @@ defmodule Otel.SDK.Metrics.Instrument do
           scope: Otel.API.InstrumentationScope.t()
         }
 
-  defstruct name: "",
+  defstruct meter: nil,
+            name: "",
             kind: :counter,
             unit: "",
             description: "",
@@ -37,7 +48,7 @@ defmodule Otel.SDK.Metrics.Instrument do
   @name_regex ~r/^[A-Za-z][A-Za-z0-9_.\-\/]{0,254}$/
 
   @doc """
-  Validates instrument name against the ABNF syntax.
+  Validates instrument name against the OTel ABNF syntax.
 
   Returns `{:ok, name}` if valid, `{:error, reason}` if invalid.
   """

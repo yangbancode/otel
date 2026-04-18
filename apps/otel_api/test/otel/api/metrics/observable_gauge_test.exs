@@ -9,11 +9,16 @@ defmodule Otel.API.Metrics.ObservableGaugeTest do
 
   describe "create/2,3 (without callback)" do
     test "creates observable gauge via meter", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.ObservableGauge.create(meter, "room_temperature")
+      assert %Otel.API.Metrics.Instrument{kind: :observable_gauge, name: "room_temperature"} =
+               Otel.API.Metrics.ObservableGauge.create(meter, "room_temperature")
     end
 
     test "accepts opts", %{meter: meter} do
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{
+               kind: :observable_gauge,
+               unit: "celsius",
+               description: "Room temperature reading"
+             } =
                Otel.API.Metrics.ObservableGauge.create(meter, "room_temperature",
                  unit: "celsius",
                  description: "Room temperature reading"
@@ -25,7 +30,7 @@ defmodule Otel.API.Metrics.ObservableGaugeTest do
     test "creates observable gauge with callback", %{meter: meter} do
       callback = fn _args -> [%Otel.API.Metrics.Measurement{value: 22.5, attributes: %{}}] end
 
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{kind: :observable_gauge} =
                Otel.API.Metrics.ObservableGauge.create(
                  meter,
                  "room_temperature",
@@ -40,7 +45,7 @@ defmodule Otel.API.Metrics.ObservableGaugeTest do
         [Otel.API.Metrics.Measurement.new(21.0, %{"sensor.id" => sensor_id})]
       end
 
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{kind: :observable_gauge, unit: "celsius"} =
                Otel.API.Metrics.ObservableGauge.create(
                  meter,
                  "temperature",

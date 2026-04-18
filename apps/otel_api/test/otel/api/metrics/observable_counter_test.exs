@@ -9,11 +9,16 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
 
   describe "create/2,3 (without callback)" do
     test "creates observable counter via meter", %{meter: meter} do
-      assert :ok == Otel.API.Metrics.ObservableCounter.create(meter, "cpu_time")
+      assert %Otel.API.Metrics.Instrument{kind: :observable_counter, name: "cpu_time"} =
+               Otel.API.Metrics.ObservableCounter.create(meter, "cpu_time")
     end
 
     test "accepts opts", %{meter: meter} do
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{
+               kind: :observable_counter,
+               unit: "s",
+               description: "CPU time per thread"
+             } =
                Otel.API.Metrics.ObservableCounter.create(meter, "cpu_time",
                  unit: "s",
                  description: "CPU time per thread"
@@ -25,7 +30,7 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
     test "creates observable counter with callback", %{meter: meter} do
       callback = fn _args -> [%Otel.API.Metrics.Measurement{value: 100, attributes: %{}}] end
 
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{kind: :observable_counter} =
                Otel.API.Metrics.ObservableCounter.create(
                  meter,
                  "cpu_time",
@@ -40,7 +45,11 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
         [Otel.API.Metrics.Measurement.new(Process.info(pid, :reductions) |> elem(1))]
       end
 
-      assert :ok ==
+      assert %Otel.API.Metrics.Instrument{
+               kind: :observable_counter,
+               unit: "1",
+               description: "Process reductions"
+             } =
                Otel.API.Metrics.ObservableCounter.create(
                  meter,
                  "reductions",

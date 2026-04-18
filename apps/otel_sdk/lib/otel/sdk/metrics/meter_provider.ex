@@ -262,7 +262,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
           Map.get(
             reader_config,
             :temporality_mapping,
-            Otel.SDK.Metrics.Instrument.default_temporality_mapping()
+            Otel.API.Metrics.Instrument.default_temporality_mapping()
           )
 
         reader_opts = %{temporality_mapping: temporality_mapping}
