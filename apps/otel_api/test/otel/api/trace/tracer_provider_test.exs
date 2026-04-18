@@ -12,8 +12,8 @@ defmodule Otel.API.Trace.TracerProviderTest do
     end
 
     test "returns the set provider" do
-      Otel.API.Trace.TracerProvider.set_provider(SomeProvider)
-      assert Otel.API.Trace.TracerProvider.get_provider() == SomeProvider
+      Otel.API.Trace.TracerProvider.set_provider({SomeProvider, :opaque_state})
+      assert Otel.API.Trace.TracerProvider.get_provider() == {SomeProvider, :opaque_state}
     end
   end
 

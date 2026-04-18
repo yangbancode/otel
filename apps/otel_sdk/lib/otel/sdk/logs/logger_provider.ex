@@ -29,6 +29,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   @doc """
   Returns a logger for the given instrumentation scope.
+
+  Falls back to the Noop logger if `server` is no longer alive.
   """
   @spec get_logger(
           server :: GenServer.server(),
@@ -39,8 +41,16 @@ defmodule Otel.SDK.Logs.LoggerProvider do
         ) ::
           Otel.API.Logs.Logger.t()
   def get_logger(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    GenServer.call(server, {:get_logger, name, version, schema_url, attributes})
+    if alive?(server) do
+      GenServer.call(server, {:get_logger, name, version, schema_url, attributes})
+    else
+      {Otel.API.Logs.Logger.Noop, []}
+    end
   end
+
+  @spec alive?(server :: GenServer.server()) :: boolean()
+  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 
   @doc """
   Returns the resource associated with this provider.
@@ -91,7 +101,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
     :persistent_term.put(processors_key, config.processors)
 
-    Otel.API.Logs.LoggerProvider.set_provider(self_ref())
+    Otel.API.Logs.LoggerProvider.set_provider({__MODULE__, self_ref()})
     {:ok, config}
   end
 

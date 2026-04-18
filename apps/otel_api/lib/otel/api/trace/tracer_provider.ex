@@ -11,13 +11,20 @@ defmodule Otel.API.Trace.TracerProvider do
   @provider_key {__MODULE__, :global}
   @tracer_key_prefix {__MODULE__, :tracer}
 
+  @typedoc """
+  A `{dispatcher_module, state}` pair.
+
+  The API layer treats the state as opaque; only `dispatcher_module`
+  knows how to use it. This mirrors `Otel.API.Trace.Tracer.t/0` and
+  keeps the API decoupled from SDK internals (GenServer, Registry,
+  etc.).
+  """
+  @type t :: {module(), term()}
+
   @doc """
   Returns the global TracerProvider, or `nil` if none is set.
-
-  The provider is a pid or a registered name pointing to the SDK
-  TracerProvider GenServer.
   """
-  @spec get_provider() :: GenServer.server() | nil
+  @spec get_provider() :: t() | nil
   def get_provider do
     :persistent_term.get(@provider_key, nil)
   end
@@ -25,12 +32,18 @@ defmodule Otel.API.Trace.TracerProvider do
   @doc """
   Sets the global TracerProvider.
 
-  Accepts a pid or a registered name (module atom). The SDK
-  TracerProvider calls this from its `init/1` with `self()`.
+  Accepts a `{module, state}` tuple. The SDK TracerProvider calls this
+  from its `init/1` with `{__MODULE__, server_ref}`. `nil` clears the
+  registration.
   """
-  @spec set_provider(provider :: GenServer.server() | nil) :: :ok
-  def set_provider(provider) when is_atom(provider) or is_pid(provider) do
+  @spec set_provider(provider :: t() | nil) :: :ok
+  def set_provider({module, _state} = provider) when is_atom(module) do
     :persistent_term.put(@provider_key, provider)
+    :ok
+  end
+
+  def set_provider(nil) do
+    :persistent_term.put(@provider_key, nil)
     :ok
   end
 
@@ -113,16 +126,8 @@ defmodule Otel.API.Trace.TracerProvider do
       nil ->
         @default_tracer
 
-      provider ->
-        if provider_alive?(provider) do
-          GenServer.call(provider, {:get_tracer, name, version, schema_url, attributes})
-        else
-          @default_tracer
-        end
+      {module, state} ->
+        module.get_tracer(state, name, version, schema_url, attributes)
     end
   end
-
-  @spec provider_alive?(provider :: GenServer.server()) :: boolean()
-  defp provider_alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-  defp provider_alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 end

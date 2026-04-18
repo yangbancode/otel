@@ -48,7 +48,9 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
     test "registers as global provider on start" do
       {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-      assert Otel.API.Metrics.MeterProvider.get_provider() == pid
+
+      assert Otel.API.Metrics.MeterProvider.get_provider() ==
+               {Otel.SDK.Metrics.MeterProvider, pid}
     end
 
     test "starts with custom config" do

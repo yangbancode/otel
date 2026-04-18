@@ -14,13 +14,19 @@ defmodule Otel.API.Logs.LoggerProvider do
   @provider_key {__MODULE__, :global}
   @logger_key_prefix {__MODULE__, :logger}
 
+  @typedoc """
+  A `{dispatcher_module, state}` pair.
+
+  The API layer treats the state as opaque; only `dispatcher_module`
+  knows how to use it. This mirrors `Otel.API.Logs.Logger.t/0` and
+  keeps the API decoupled from SDK internals.
+  """
+  @type t :: {module(), term()}
+
   @doc """
   Returns the global LoggerProvider, or `nil` if none is set.
-
-  The provider is a pid or a registered name pointing to the SDK
-  LoggerProvider GenServer.
   """
-  @spec get_provider() :: GenServer.server() | nil
+  @spec get_provider() :: t() | nil
   def get_provider do
     :persistent_term.get(@provider_key, nil)
   end
@@ -28,12 +34,18 @@ defmodule Otel.API.Logs.LoggerProvider do
   @doc """
   Sets the global LoggerProvider.
 
-  Accepts a pid or a registered name (module atom). The SDK
-  LoggerProvider calls this from its `init/1` with `self()`.
+  Accepts a `{module, state}` tuple. The SDK LoggerProvider calls this
+  from its `init/1` with `{__MODULE__, server_ref}`. `nil` clears the
+  registration.
   """
-  @spec set_provider(provider :: GenServer.server() | nil) :: :ok
-  def set_provider(provider) when is_atom(provider) or is_pid(provider) do
+  @spec set_provider(provider :: t() | nil) :: :ok
+  def set_provider({module, _state} = provider) when is_atom(module) do
     :persistent_term.put(@provider_key, provider)
+    :ok
+  end
+
+  def set_provider(nil) do
+    :persistent_term.put(@provider_key, nil)
     :ok
   end
 
@@ -116,16 +128,8 @@ defmodule Otel.API.Logs.LoggerProvider do
       nil ->
         @default_logger
 
-      provider ->
-        if provider_alive?(provider) do
-          GenServer.call(provider, {:get_logger, name, version, schema_url, attributes})
-        else
-          @default_logger
-        end
+      {module, state} ->
+        module.get_logger(state, name, version, schema_url, attributes)
     end
   end
-
-  @spec provider_alive?(provider :: GenServer.server()) :: boolean()
-  defp provider_alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-  defp provider_alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 end

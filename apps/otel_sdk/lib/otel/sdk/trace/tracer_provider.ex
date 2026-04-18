@@ -30,6 +30,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
 
   @doc """
   Returns a tracer for the given instrumentation scope.
+
+  Falls back to the Noop tracer if `server` is no longer alive.
   """
   @spec get_tracer(
           server :: GenServer.server(),
@@ -40,8 +42,16 @@ defmodule Otel.SDK.Trace.TracerProvider do
         ) ::
           Otel.API.Trace.Tracer.t()
   def get_tracer(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    GenServer.call(server, {:get_tracer, name, version, schema_url, attributes})
+    if alive?(server) do
+      GenServer.call(server, {:get_tracer, name, version, schema_url, attributes})
+    else
+      {Otel.API.Trace.Tracer.Noop, []}
+    end
   end
+
+  @spec alive?(server :: GenServer.server()) :: boolean()
+  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 
   @doc """
   Returns the resource associated with this provider.
@@ -87,7 +97,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
       |> Map.merge(user_config)
       |> Map.put(:shut_down, false)
 
-    Otel.API.Trace.TracerProvider.set_provider(self_ref())
+    Otel.API.Trace.TracerProvider.set_provider({__MODULE__, self_ref()})
     {:ok, config}
   end
 

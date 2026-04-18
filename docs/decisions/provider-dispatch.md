@@ -3,45 +3,62 @@
 ## Question
 
 How does the API layer find and invoke the registered SDK Provider when
-`Otel.API.<Signal>.<Signal>Provider.get_<signal>/4` is called?
-
-Previously the `fetch_or_default/4` helper ignored its arguments and
-returned the Noop provider unconditionally, so instrumentation that went
-through the API layer never reached the SDK even when an SDK was
-installed.
+`Otel.API.<Signal>.<Signal>Provider.get_<signal>/4` is called, without
+leaking SDK implementation details (GenServer, registry, etc.) into the
+API layer's contract?
 
 ## Decision
 
-### Registration
+### `{dispatcher_module, state}` — the API's Provider abstraction
 
-The SDK Provider's `init/1` callback stores a reference to itself in the
-API layer's `persistent_term` key:
+The API layer models a Provider the same way it already models Tracers,
+Meters, and Loggers — as a `{module, state}` tuple:
 
 ```elixir
-Otel.API.Trace.TracerProvider.set_provider(self_ref())
+@type t :: {module(), term()}
 ```
 
-`self_ref/0` returns the registered process name when the GenServer is
-registered (typical for app-supervised providers that start with
-`name: __MODULE__`), or the raw pid when it is unnamed (typical for
-test-spawned providers). Both forms are valid targets for `GenServer.call/3`.
+- `module` is the dispatcher — it implements `get_<signal>/5` and the
+  API calls into it blindly.
+- `state` is opaque to the API. It's whatever the dispatcher needs to
+  do its work (a pid, a registered name, a config, a reference, …).
 
-The API layer accepts both pid and atom:
+The API never does `GenServer.call/3`. The API never checks liveness.
+The API doesn't know or care whether the SDK uses GenServer at all.
+Everything about dispatch lives inside the SDK's dispatcher module.
+
+### Registration
+
+The SDK's `init/1` builds the tuple and hands it to the API:
 
 ```elixir
-@spec set_provider(provider :: GenServer.server() | nil) :: :ok
-def set_provider(provider) when is_atom(provider) or is_pid(provider) do
+Otel.API.Trace.TracerProvider.set_provider({__MODULE__, self_ref()})
+```
+
+`self_ref/0` is the SDK's helper — it returns the registered name if the
+GenServer started with `name: __MODULE__` (the supervised path), or the
+raw pid if it was started without a name (the direct-test path). Both
+are valid `GenServer.call/3` targets inside the SDK, but the API
+doesn't see this.
+
+API `set_provider/1` validates only the tuple shape:
+
+```elixir
+@spec set_provider(provider :: t() | nil) :: :ok
+def set_provider({module, _state} = provider) when is_atom(module) do
   :persistent_term.put(@provider_key, provider)
+  :ok
+end
+
+def set_provider(nil) do
+  :persistent_term.put(@provider_key, nil)
   :ok
 end
 ```
 
 ### Dispatch
 
-`fetch_or_default/4` consults `get_provider/0` and dispatches over
-`GenServer.call/3`. A dead or unregistered target returns the Noop
-provider so the API layer stays functional even if the SDK has gone
-away:
+`fetch_or_default/4` pattern-matches the tuple and delegates:
 
 ```elixir
 defp fetch_or_default(name, version, schema_url, attributes) do
@@ -49,29 +66,45 @@ defp fetch_or_default(name, version, schema_url, attributes) do
     nil ->
       @default_tracer
 
-    provider ->
-      if provider_alive?(provider) do
-        GenServer.call(provider, {:get_tracer, name, version, schema_url, attributes})
-      else
-        @default_tracer
-      end
+    {module, state} ->
+      module.get_tracer(state, name, version, schema_url, attributes)
+  end
+end
+```
+
+That's it. No `GenServer`, no `Process.alive?/1`, no `Process.whereis/1`.
+If the dispatcher module decides it wants to call a GenServer, check
+liveness, hit an ETS table, or do something entirely different, that's
+its problem.
+
+### Liveness — pushed into the SDK
+
+The SDK's `get_<signal>/5` is responsible for handling the "I'm no
+longer alive" case. Our SDK uses GenServer, so it does the liveness
+check itself and falls back to the Noop tuple on a dead server:
+
+```elixir
+def get_tracer(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+  if alive?(server) do
+    GenServer.call(server, {:get_tracer, name, version, schema_url, attributes})
+  else
+    {Otel.API.Trace.Tracer.Noop, []}
   end
 end
 
-defp provider_alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-defp provider_alive?(name) when is_atom(name), do: Process.whereis(name) != nil
+defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 ```
 
-The `provider_alive?/1` check is not error handling — it is the
-spec-mandated "API works without SDK" behaviour (see
-`error-handling.md` L34). The same shape lives in
-`Otel.API.Trace.Span`'s Noop dispatcher (`case get_span_module() do nil
--> :ok`).
+This keeps the spec's "API works without SDK" guarantee intact (a
+stopped SDK hands back the Noop tuple rather than crashing) without
+forcing the API to know how aliveness is defined for every possible
+dispatcher.
 
 ### Caching
 
-Once a provider returns a tracer/meter/logger, the API layer caches it
-in `persistent_term` keyed by the full identity tuple:
+Once a dispatcher returns a tracer/meter/logger, the API caches it in
+`persistent_term` keyed by the full identity tuple:
 
 ```elixir
 key = {@tracer_key_prefix, {name, version, schema_url, attributes}}
@@ -84,21 +117,21 @@ instrumentation scopes by `(name, version, schema_url, attributes)`.
 ### SDK-side contract
 
 The SDK's `handle_call({:get_<signal>, name, version, schema_url,
-attributes}, ...)` callback must accept the 5-tuple and build an
-`Otel.API.InstrumentationScope` from it.
+attributes}, ...)` callback accepts the 5-tuple and builds an
+`Otel.API.InstrumentationScope` from it. That's an implementation
+detail of the SDK dispatcher, not part of the API contract.
 
 ## Relationship to opentelemetry-erlang
 
-Our dispatch matches the opentelemetry-erlang pattern:
+The reference implementation also uses `persistent_term` for tracer
+caching and routes cache misses through a process, but its API layer
+calls `gen_server:call/2` directly and catches `exit:{noproc, _}` to
+fall back to Noop. That bakes "the SDK is a `gen_server`" into the
+API.
 
-- Tracer/Meter/Logger caches live in `persistent_term`.
-- On a cache miss, the API layer calls into the SDK Provider via
-  `gen_server:call`.
-- No SDK installed → Noop.
-
-One small difference: erlang catches `exit:{noproc, _}` with `try/catch`
-where we use `provider_alive?/1` to stay compatible with the
-happy-path-only code convention. The outcome is the same.
+We chose a looser contract — the API speaks `{module, state}`, the SDK
+owns dispatch — so a future SDK written as a pure module, a Registry
+lookup, or anything else can plug in without touching the API.
 
 ## Modules
 
@@ -120,3 +153,7 @@ happy-path-only code convention. The outcome is the same.
   equivalent.
 - Spec v1.13.0 identity of `(name, version, schema_url, attributes)`:
   relevant lines in each signal's compliance section.
+- [error-handling.md L34](../../references/opentelemetry-specification/specification/error-handling.md)
+  "API call sites will not crash on attempts to access methods and
+  properties of null objects": satisfied by the SDK's liveness
+  fallback to Noop.

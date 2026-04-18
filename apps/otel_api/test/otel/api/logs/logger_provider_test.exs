@@ -12,8 +12,8 @@ defmodule Otel.API.Logs.LoggerProviderTest do
     end
 
     test "returns the set provider" do
-      Otel.API.Logs.LoggerProvider.set_provider(SomeLoggerProvider)
-      assert Otel.API.Logs.LoggerProvider.get_provider() == SomeLoggerProvider
+      Otel.API.Logs.LoggerProvider.set_provider({SomeLoggerProvider, :opaque_state})
+      assert Otel.API.Logs.LoggerProvider.get_provider() == {SomeLoggerProvider, :opaque_state}
     end
   end
 

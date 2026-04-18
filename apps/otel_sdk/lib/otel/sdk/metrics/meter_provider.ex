@@ -30,6 +30,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @doc """
   Returns a meter for the given instrumentation scope.
+
+  Falls back to the Noop meter if `server` is no longer alive.
   """
   @spec get_meter(
           server :: GenServer.server(),
@@ -40,8 +42,16 @@ defmodule Otel.SDK.Metrics.MeterProvider do
         ) ::
           Otel.API.Metrics.Meter.t()
   def get_meter(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    GenServer.call(server, {:get_meter, name, version, schema_url, attributes})
+    if alive?(server) do
+      GenServer.call(server, {:get_meter, name, version, schema_url, attributes})
+    else
+      {Otel.API.Metrics.Meter.Noop, []}
+    end
   end
+
+  @spec alive?(server :: GenServer.server()) :: boolean()
+  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
+  defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 
   @doc """
   Returns the resource associated with this provider.
@@ -136,7 +146,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     config = Map.put(config, :readers, started_readers)
     config = Map.put(config, :reader_configs, reader_configs)
 
-    Otel.API.Metrics.MeterProvider.set_provider(self_ref())
+    Otel.API.Metrics.MeterProvider.set_provider({__MODULE__, self_ref()})
     {:ok, config}
   end
 
