@@ -236,6 +236,20 @@
 - [x] If the Span in the parent Context is already non-recording, it SHOULD be returned directly without instantiating a new Span — [L867](../references/opentelemetry-specification/specification/trace/api.md#L867)
 - [x] If parent Context contains no Span, an empty non-recording Span MUST be returned (all-zero Span and Trace IDs, empty Tracestate, unsampled TraceFlags) — [L869](../references/opentelemetry-specification/specification/trace/api.md#L869)
 
+### Exceptions
+
+> Ref: [trace/exceptions.md](../references/opentelemetry-specification/specification/trace/exceptions.md)
+
+#### Recording an Exception
+
+- [x] An exception SHOULD be recorded as an Event on the span during which it occurred if unhandled and causes span status to be set to ERROR — [L16](../references/opentelemetry-specification/specification/trace/exceptions.md#L16)
+- [x] The name of the event MUST be `"exception"` — [L20](../references/opentelemetry-specification/specification/trace/exceptions.md#L20)
+
+#### Attributes
+
+- [x] An event representing an exception MUST have an event name `exception` — [L44](../references/opentelemetry-specification/specification/trace/exceptions.md#L44)
+- [x] The following attributes SHOULD be filled out: `exception.message`, `exception.stacktrace`, `exception.type` — [L47](../references/opentelemetry-specification/specification/trace/exceptions.md#L47)
+
 ---
 
 # Trace SDK
@@ -890,12 +904,23 @@
 
 ### Instrument
 
+- [x] Instruments are identified by `name`, `kind`, `unit`, and `description` — [L191](../references/opentelemetry-specification/specification/metrics/api.md#L191)
 - [x] Language-level features such as integer vs floating point SHOULD be considered as identifying — [L194](../references/opentelemetry-specification/specification/metrics/api.md#L194)
+
+### Instrument name syntax
+
+- [x] Instrument name syntax is defined by the ABNF grammar — [L203](../references/opentelemetry-specification/specification/metrics/api.md#L203)
+- [x] Instrument names MUST NOT be null or empty strings — [L213](../references/opentelemetry-specification/specification/metrics/api.md#L213)
+- [x] Instrument names MUST be case-insensitive ASCII strings — [L214](../references/opentelemetry-specification/specification/metrics/api.md#L214)
+- [x] First character MUST be an alphabetic character — [L215](../references/opentelemetry-specification/specification/metrics/api.md#L215)
+- [x] Subsequent characters MUST belong to the alphanumeric characters, `_`, `.`, `-`, and `/` — [L216](../references/opentelemetry-specification/specification/metrics/api.md#L216)
+- [x] Maximum length of 255 characters — [L218](../references/opentelemetry-specification/specification/metrics/api.md#L218)
 
 ### Instrument unit
 
 - [x] Unit MUST be case-sensitive, ASCII string — [L225](../references/opentelemetry-specification/specification/metrics/api.md#L225)
 - [x] API SHOULD treat unit as an opaque string — [L223](../references/opentelemetry-specification/specification/metrics/api.md#L223)
+- [x] Unit can have a maximum length of 63 characters — [L227](../references/opentelemetry-specification/specification/metrics/api.md#L227)
 
 ### Instrument description
 
@@ -1041,6 +1066,60 @@
 - [x] MeterProvider: all methods MUST be documented as safe for concurrent use — [L1345](../references/opentelemetry-specification/specification/metrics/api.md#L1345)
 - [x] Meter: all methods MUST be documented as safe for concurrent use — [L1348](../references/opentelemetry-specification/specification/metrics/api.md#L1348)
 - [x] Instrument: all methods MUST be documented as safe for concurrent use — [L1351](../references/opentelemetry-specification/specification/metrics/api.md#L1351)
+
+### Noop
+
+> Ref: [metrics/noop.md](../references/opentelemetry-specification/specification/metrics/noop.md)
+
+#### General
+
+- [x] All language implementations of OpenTelemetry MUST provide a No-Op — [L48](../references/opentelemetry-specification/specification/metrics/noop.md#L48)
+
+#### MeterProvider
+
+- [x] The No-Op MUST allow the creation of multiple MeterProviders — [L52](../references/opentelemetry-specification/specification/metrics/noop.md#L52)
+- [x] All MeterProviders created MUST NOT hold configuration or operational state — [L55](../references/opentelemetry-specification/specification/metrics/noop.md#L55)
+- [x] The MeterProvider MUST NOT return a non-empty error or log any message for any operations it performs — [L63](../references/opentelemetry-specification/specification/metrics/noop.md#L63)
+- [x] All operations a MeterProvider provides MUST be safe to be run concurrently — [L66](../references/opentelemetry-specification/specification/metrics/noop.md#L66)
+- [x] MeterProviders MUST allow for the creation of Meters — [L72](../references/opentelemetry-specification/specification/metrics/noop.md#L72)
+- [x] All Meters created MUST be an instance of the No-Op Meter — [L73](../references/opentelemetry-specification/specification/metrics/noop.md#L73)
+- [x] The MeterProvider MUST accept Get-a-Meter parameters but MUST NOT validate any argument it receives — [L80](../references/opentelemetry-specification/specification/metrics/noop.md#L80)
+
+#### Meter
+
+- [x] All Meters created MUST NOT hold configuration or operational state — [L87](../references/opentelemetry-specification/specification/metrics/noop.md#L87)
+- [x] The Meter MUST NOT return a non-empty error or log any message for any operations it performs — [L90](../references/opentelemetry-specification/specification/metrics/noop.md#L90)
+- [x] All operations a Meter provides MUST be safe to be run concurrently — [L93](../references/opentelemetry-specification/specification/metrics/noop.md#L93)
+- [x] The No-Op Meter MUST allow for the creation of a Counter instrument — [L97](../references/opentelemetry-specification/specification/metrics/noop.md#L97)
+- [x] The No-Op Meter MUST allow for the creation of an UpDownCounter instrument — [L111](../references/opentelemetry-specification/specification/metrics/noop.md#L111)
+- [x] The No-Op Meter MUST allow for the creation of a Histogram instrument — [L125](../references/opentelemetry-specification/specification/metrics/noop.md#L125)
+- [x] The No-Op Meter MUST allow for the creation of an Asynchronous Counter instrument — [L139](../references/opentelemetry-specification/specification/metrics/noop.md#L139)
+- [x] The No-Op Meter MUST allow for the creation of an Asynchronous UpDownCounter instrument — [L153](../references/opentelemetry-specification/specification/metrics/noop.md#L153)
+- [x] The No-Op Meter MUST allow for the creation of an Asynchronous Gauge instrument — [L168](../references/opentelemetry-specification/specification/metrics/noop.md#L168)
+- [x] Sync instrument creation: Meter MUST accept parameters but MUST NOT validate any argument — [L105](../references/opentelemetry-specification/specification/metrics/noop.md#L105)
+- [x] Async instrument creation: Meter MUST NOT validate any argument and MUST NOT hold any reference to the passed callbacks — [L147](../references/opentelemetry-specification/specification/metrics/noop.md#L147)
+
+#### Instrument
+
+- [x] All instruments the No-Op provides MUST NOT hold any configuration or operational state including the aggregation of telemetry — [L185](../references/opentelemetry-specification/specification/metrics/noop.md#L185)
+- [x] Counters MUST NOT return a non-empty error or log any message for any operations they perform — [L191](../references/opentelemetry-specification/specification/metrics/noop.md#L191)
+- [x] All operations a Counter provides MUST be safe to be run concurrently — [L194](../references/opentelemetry-specification/specification/metrics/noop.md#L194)
+- [x] The No-Op Counter MUST provide Add interface; MUST NOT validate or retain any state about the arguments it receives — [L198](../references/opentelemetry-specification/specification/metrics/noop.md#L198)
+- [x] UpDownCounters MUST NOT return a non-empty error or log any message for any operations they perform — [L204](../references/opentelemetry-specification/specification/metrics/noop.md#L204)
+- [x] All operations an UpDownCounter provides MUST be safe to be run concurrently — [L207](../references/opentelemetry-specification/specification/metrics/noop.md#L207)
+- [x] The No-Op UpDownCounter MUST provide Add interface; MUST NOT validate or retain any state — [L212](../references/opentelemetry-specification/specification/metrics/noop.md#L212)
+- [x] Histograms MUST NOT return a non-empty error or log any message for any operations they perform — [L218](../references/opentelemetry-specification/specification/metrics/noop.md#L218)
+- [x] All operations a Histogram provides MUST be safe to be run concurrently — [L221](../references/opentelemetry-specification/specification/metrics/noop.md#L221)
+- [x] The No-Op Histogram MUST provide Record interface; MUST NOT validate or retain any state — [L225](../references/opentelemetry-specification/specification/metrics/noop.md#L225)
+- [x] Async Counters MUST NOT return a non-empty error or log any message for any operations they perform — [L231](../references/opentelemetry-specification/specification/metrics/noop.md#L231)
+- [x] All operations an Async Counter provides MUST be safe to be run concurrently — [L234](../references/opentelemetry-specification/specification/metrics/noop.md#L234)
+- [x] The No-Op Async Counter MUST NOT validate or retain any state about observations — [L239](../references/opentelemetry-specification/specification/metrics/noop.md#L239)
+- [x] Async UpDownCounters MUST NOT return a non-empty error or log any message for any operations they perform — [L244](../references/opentelemetry-specification/specification/metrics/noop.md#L244)
+- [x] All operations an Async UpDownCounter provides MUST be safe to be run concurrently — [L247](../references/opentelemetry-specification/specification/metrics/noop.md#L247)
+- [x] The No-Op Async UpDownCounter MUST NOT validate or retain any state about observations — [L252](../references/opentelemetry-specification/specification/metrics/noop.md#L252)
+- [x] Async Gauges MUST NOT return a non-empty error or log any message for any operations they perform — [L257](../references/opentelemetry-specification/specification/metrics/noop.md#L257)
+- [x] All operations an Async Gauge provides MUST be safe to be run concurrently — [L260](../references/opentelemetry-specification/specification/metrics/noop.md#L260)
+- [x] The No-Op Async Gauge MUST NOT validate or retain any state about observations — [L265](../references/opentelemetry-specification/specification/metrics/noop.md#L265)
 
 ---
 
@@ -1461,6 +1540,27 @@
 ### Concurrency Requirements
 - [x] LoggerProvider: all methods MUST be safe for concurrent use — [L172](../references/opentelemetry-specification/specification/logs/api.md#L172)
 - [x] Logger: all methods MUST be safe for concurrent use — [L175](../references/opentelemetry-specification/specification/logs/api.md#L175)
+
+### Noop
+
+> Ref: [logs/noop.md](../references/opentelemetry-specification/specification/logs/noop.md)
+
+#### General
+
+- [x] All language implementations of OpenTelemetry MUST provide a No-Op — [L30](../references/opentelemetry-specification/specification/logs/noop.md#L30)
+- [x] All No-Op components MUST NOT hold configuration or operational state — [L33](../references/opentelemetry-specification/specification/logs/noop.md#L33)
+- [x] All No-op operations MUST accept all defined parameters, MUST NOT validate any arguments, and MUST NOT return any non-empty error or log any message — [L33](../references/opentelemetry-specification/specification/logs/noop.md#L33)
+
+#### LoggerProvider
+
+- [x] The No-Op MUST allow the creation of multiple LoggerProviders — [L39](../references/opentelemetry-specification/specification/logs/noop.md#L39)
+- [x] LoggerProvider MUST allow for the creation of Loggers — [L47](../references/opentelemetry-specification/specification/logs/noop.md#L47)
+- [x] All Loggers created MUST be an instance of the No-Op Logger — [L48](../references/opentelemetry-specification/specification/logs/noop.md#L48)
+
+#### Logger
+
+- [x] The No-Op Logger MUST allow for emitting LogRecords — [L57](../references/opentelemetry-specification/specification/logs/noop.md#L57)
+- [x] The No-Op Logger Enabled API MUST always return false — [L62](../references/opentelemetry-specification/specification/logs/noop.md#L62)
 
 ---
 

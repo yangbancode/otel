@@ -10,7 +10,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     meter = {Otel.SDK.Metrics.Meter, config}
 
     on_exit(fn ->
-      if Process.alive?(pid), do: GenServer.stop(pid)
+      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
     end)
 
     %{meter: meter, config: config, provider: pid}

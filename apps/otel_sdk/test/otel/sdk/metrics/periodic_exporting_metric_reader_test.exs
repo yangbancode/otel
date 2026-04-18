@@ -26,7 +26,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
     {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(provider, "test_lib")
 
     on_exit(fn ->
-      if Process.alive?(provider), do: GenServer.stop(provider)
+      if Process.alive?(provider), do: Process.exit(provider, :shutdown)
     end)
 
     %{config: config, provider: provider}

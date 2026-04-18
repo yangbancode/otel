@@ -7,6 +7,18 @@ defmodule Otel.API.TraceTest do
     trace_flags: 1
   }
 
+  setup do
+    :persistent_term.erase({Otel.API.Trace.TracerProvider, :global})
+
+    for {key, _} <- :persistent_term.get(),
+        is_tuple(key) and tuple_size(key) == 2 and
+          elem(key, 0) == {Otel.API.Trace.TracerProvider, :tracer} do
+      :persistent_term.erase(key)
+    end
+
+    :ok
+  end
+
   describe "get_tracer/1,2,3" do
     test "delegates to TracerProvider with name only" do
       {module, _} = Otel.API.Trace.get_tracer("my_lib")

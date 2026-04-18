@@ -34,7 +34,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
 
     on_exit(fn ->
-      if Process.alive?(pid), do: GenServer.stop(pid)
+      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
     end)
 
     %{provider: pid}

@@ -8,7 +8,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
     {:ok, pid} = Otel.SDK.Logs.LoggerProvider.start_link(config: %{})
 
     on_exit(fn ->
-      if Process.alive?(pid), do: GenServer.stop(pid)
+      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
     end)
 
     %{provider: pid}
