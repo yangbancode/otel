@@ -10,7 +10,18 @@ defmodule Otel.API.Baggage do
   """
 
   @type value :: String.t()
+
+  @typedoc """
+  Opaque property string attached to a baggage entry.
+
+  Per W3C Baggage § 3.3 and RFC 9110, metadata is carried in the
+  `baggage` header as US-ASCII `property` tokens. Callers MUST supply
+  a string that is valid in the W3C header grammar (US-ASCII, no `,`
+  or `;` characters). The API does not validate or encode metadata —
+  it is written verbatim on inject.
+  """
   @type metadata :: String.t()
+
   @type entry :: {value(), metadata()}
   @type t :: %{String.t() => entry()}
 
