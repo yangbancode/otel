@@ -17,24 +17,21 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
 
   @spec add_event(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          name :: String.t(),
-          opts :: keyword()
+          event :: Otel.API.Trace.Event.t()
         ) :: :ok
-  def add_event(_span_ctx, _name, _opts), do: :ok
+  def add_event(_span_ctx, _event), do: :ok
 
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          linked_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: Otel.API.Attribute.attributes()
+          link :: Otel.API.Trace.Link.t()
         ) :: :ok
-  def add_link(_span_ctx, _linked_ctx, _attributes), do: :ok
+  def add_link(_span_ctx, _link), do: :ok
 
   @spec set_status(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          code :: Otel.API.Trace.Span.status_code(),
-          description :: String.t()
+          status :: Otel.API.Trace.Status.t()
         ) :: :ok
-  def set_status(_span_ctx, _code, _description), do: :ok
+  def set_status(_span_ctx, _status), do: :ok
 
   @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(_span_ctx, _name), do: :ok
@@ -96,41 +93,45 @@ defmodule Otel.API.Trace.SpanTest do
     end
 
     test "add_event returns :ok" do
-      assert Otel.API.Trace.Span.add_event(@valid_ctx, "event_name") == :ok
+      event = Otel.API.Trace.Event.new("event_name")
+      assert Otel.API.Trace.Span.add_event(@valid_ctx, event) == :ok
     end
 
-    test "add_event with opts returns :ok" do
-      assert Otel.API.Trace.Span.add_event(@valid_ctx, "event_name",
-               attributes: %{"key" => "val"},
-               time: 1_000
-             ) ==
-               :ok
+    test "add_event with attributes and timestamp returns :ok" do
+      event = Otel.API.Trace.Event.new("event_name", %{"key" => "val"}, 1_000)
+      assert Otel.API.Trace.Span.add_event(@valid_ctx, event) == :ok
     end
 
     test "add_link returns :ok" do
       other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      assert Otel.API.Trace.Span.add_link(@valid_ctx, other) == :ok
+      link = Otel.API.Trace.Link.new(other)
+      assert Otel.API.Trace.Span.add_link(@valid_ctx, link) == :ok
     end
 
     test "add_link with attributes returns :ok" do
       other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      assert Otel.API.Trace.Span.add_link(@valid_ctx, other, %{"key" => "val"}) == :ok
+      link = Otel.API.Trace.Link.new(other, %{"key" => "val"})
+      assert Otel.API.Trace.Span.add_link(@valid_ctx, link) == :ok
     end
 
     test "set_status :ok returns :ok" do
-      assert Otel.API.Trace.Span.set_status(@valid_ctx, :ok) == :ok
+      status = Otel.API.Trace.Status.new(:ok)
+      assert Otel.API.Trace.Span.set_status(@valid_ctx, status) == :ok
     end
 
     test "set_status :error with description returns :ok" do
-      assert Otel.API.Trace.Span.set_status(@valid_ctx, :error, "something failed") == :ok
+      status = Otel.API.Trace.Status.new(:error, "something failed")
+      assert Otel.API.Trace.Span.set_status(@valid_ctx, status) == :ok
     end
 
     test "set_status :error without description returns :ok" do
-      assert Otel.API.Trace.Span.set_status(@valid_ctx, :error) == :ok
+      status = Otel.API.Trace.Status.new(:error)
+      assert Otel.API.Trace.Span.set_status(@valid_ctx, status) == :ok
     end
 
     test "set_status :unset returns :ok" do
-      assert Otel.API.Trace.Span.set_status(@valid_ctx, :unset) == :ok
+      status = Otel.API.Trace.Status.new(:unset)
+      assert Otel.API.Trace.Span.set_status(@valid_ctx, status) == :ok
     end
 
     test "update_name returns :ok" do
@@ -174,11 +175,13 @@ defmodule Otel.API.Trace.SpanTest do
     end
 
     test "add_event on invalid span returns :ok" do
-      assert Otel.API.Trace.Span.add_event(@invalid_ctx, "event") == :ok
+      event = Otel.API.Trace.Event.new("event")
+      assert Otel.API.Trace.Span.add_event(@invalid_ctx, event) == :ok
     end
 
     test "set_status on invalid span returns :ok" do
-      assert Otel.API.Trace.Span.set_status(@invalid_ctx, :error, "fail") == :ok
+      status = Otel.API.Trace.Status.new(:error, "fail")
+      assert Otel.API.Trace.Span.set_status(@invalid_ctx, status) == :ok
     end
 
     test "end_span on invalid span returns :ok" do
@@ -219,16 +222,19 @@ defmodule Otel.API.Trace.SpanTest do
     end
 
     test "add_event dispatches to module" do
-      assert Otel.API.Trace.Span.add_event(@valid_ctx, "event") == :ok
+      event = Otel.API.Trace.Event.new("event")
+      assert Otel.API.Trace.Span.add_event(@valid_ctx, event) == :ok
     end
 
     test "add_link dispatches to module" do
       other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      assert Otel.API.Trace.Span.add_link(@valid_ctx, other) == :ok
+      link = Otel.API.Trace.Link.new(other)
+      assert Otel.API.Trace.Span.add_link(@valid_ctx, link) == :ok
     end
 
     test "set_status dispatches to module" do
-      assert Otel.API.Trace.Span.set_status(@valid_ctx, :error, "fail") == :ok
+      status = Otel.API.Trace.Status.new(:error, "fail")
+      assert Otel.API.Trace.Span.set_status(@valid_ctx, status) == :ok
     end
 
     test "update_name dispatches to module" do

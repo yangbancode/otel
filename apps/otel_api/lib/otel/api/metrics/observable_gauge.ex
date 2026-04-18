@@ -39,7 +39,7 @@ defmodule Otel.API.Metrics.ObservableGauge do
   Creates an ObservableGauge with an inline callback.
 
   The callback is permanently registered to this instrument. It receives
-  `callback_args` and returns a list of `{value, attributes}` observations.
+  `callback_args` and returns a list of `Otel.API.Metrics.Measurement.t()`.
 
   Options:
   - `:unit` — case-sensitive ASCII string (max 63 chars)
@@ -49,7 +49,7 @@ defmodule Otel.API.Metrics.ObservableGauge do
   @spec create(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          callback :: (term() -> [{number(), Otel.API.Attribute.attributes()}]),
+          callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
           callback_args :: term(),
           opts :: keyword()
         ) :: term()

@@ -22,7 +22,7 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
 
   describe "create/5 (with inline callback)" do
     test "creates observable counter with callback", %{meter: meter} do
-      callback = fn _args -> [{100, %{}}] end
+      callback = fn _args -> [%Otel.API.Metrics.Measurement{value: 100, attributes: %{}}] end
 
       assert :ok ==
                Otel.API.Metrics.ObservableCounter.create(
@@ -35,7 +35,9 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
     end
 
     test "passes callback_args for state", %{meter: meter} do
-      callback = fn pid -> [{Process.info(pid, :reductions) |> elem(1), %{}}] end
+      callback = fn pid ->
+        [Otel.API.Metrics.Measurement.new(Process.info(pid, :reductions) |> elem(1))]
+      end
 
       assert :ok ==
                Otel.API.Metrics.ObservableCounter.create(

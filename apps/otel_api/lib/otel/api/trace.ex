@@ -139,10 +139,17 @@ defmodule Otel.API.Trace do
         case kind do
           :error ->
             Otel.API.Trace.Span.record_exception(span_ctx, reason, stacktrace)
-            Otel.API.Trace.Span.set_status(span_ctx, :error, Exception.format(kind, reason))
+
+            Otel.API.Trace.Span.set_status(
+              span_ctx,
+              Otel.API.Trace.Status.new(:error, Exception.format(kind, reason))
+            )
 
           _ ->
-            Otel.API.Trace.Span.set_status(span_ctx, :error, Exception.format(kind, reason))
+            Otel.API.Trace.Span.set_status(
+              span_ctx,
+              Otel.API.Trace.Status.new(:error, Exception.format(kind, reason))
+            )
         end
 
         :erlang.raise(kind, reason, stacktrace)

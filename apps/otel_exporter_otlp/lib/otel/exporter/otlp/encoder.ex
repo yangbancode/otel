@@ -94,40 +94,40 @@ defmodule Otel.Exporter.OTLP.Encoder do
 
   # --- Event ---
 
-  @spec encode_event(event :: %{name: term(), time: integer(), attributes: map()}) ::
+  @spec encode_event(event :: Otel.API.Trace.Event.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.Event.t()
-  defp encode_event(event) do
+  defp encode_event(%Otel.API.Trace.Event{} = event) do
     %Opentelemetry.Proto.Trace.V1.Span.Event{
-      time_unix_nano: event.time,
-      name: to_string(event.name),
-      attributes: encode_attributes(event.attributes || %{})
+      time_unix_nano: event.timestamp,
+      name: event.name,
+      attributes: encode_attributes(event.attributes)
     }
   end
 
   # --- Link ---
 
-  @spec encode_link(link :: {Otel.API.Trace.SpanContext.t(), map()}) ::
+  @spec encode_link(link :: Otel.API.Trace.Link.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.Link.t()
-  defp encode_link({span_ctx, attrs}) do
+  defp encode_link(%Otel.API.Trace.Link{context: span_ctx, attributes: attrs}) do
     %Opentelemetry.Proto.Trace.V1.Span.Link{
       trace_id: encode_id(span_ctx.trace_id, 16),
       span_id: encode_id(span_ctx.span_id, 8),
       trace_state: Otel.API.Trace.TraceState.encode(span_ctx.tracestate),
-      attributes: encode_attributes(attrs || %{})
+      attributes: encode_attributes(attrs)
     }
   end
 
   # --- Status ---
 
-  @spec encode_status(status :: {atom(), String.t()} | nil) ::
+  @spec encode_status(status :: Otel.API.Trace.Status.t()) ::
           Opentelemetry.Proto.Trace.V1.Status.t() | nil
-  defp encode_status(nil), do: nil
+  defp encode_status(%Otel.API.Trace.Status{code: :unset}), do: nil
 
-  defp encode_status({:ok, _message}) do
+  defp encode_status(%Otel.API.Trace.Status{code: :ok}) do
     %Opentelemetry.Proto.Trace.V1.Status{code: :STATUS_CODE_OK, message: ""}
   end
 
-  defp encode_status({:error, message}) do
+  defp encode_status(%Otel.API.Trace.Status{code: :error, description: message}) do
     %Opentelemetry.Proto.Trace.V1.Status{code: :STATUS_CODE_ERROR, message: message}
   end
 

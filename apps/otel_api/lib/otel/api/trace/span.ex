@@ -11,12 +11,10 @@ defmodule Otel.API.Trace.Span do
   `set_span_module/1` and operations are dispatched to it.
   """
 
-  @type status_code :: :unset | :ok | :error
-
   @type start_opts :: [
           kind: Otel.API.Trace.SpanKind.t(),
           attributes: Otel.API.Attribute.attributes(),
-          links: [{Otel.API.Trace.SpanContext.t(), Otel.API.Attribute.attributes()}],
+          links: [Otel.API.Trace.Link.t()],
           start_time: integer(),
           is_root: boolean()
         ]
@@ -99,23 +97,18 @@ defmodule Otel.API.Trace.Span do
   @doc """
   Adds an event to the span.
 
-  Events have a name, optional attributes, and an optional timestamp.
-  If no timestamp is provided, the current time is used (L537-539).
-  Events preserve insertion order.
-
-  Options:
-  - `:time` — custom timestamp (integer, nanoseconds)
-  - `:attributes` — event attributes (`Otel.API.Attribute.attributes/0`)
+  Events preserve insertion order. The caller constructs the event with
+  `Otel.API.Trace.Event.new/3` — the timestamp defaults to the current
+  system time if omitted there.
   """
   @spec add_event(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          name :: String.t(),
-          opts :: keyword()
+          event :: Otel.API.Trace.Event.t()
         ) :: :ok
-  def add_event(%Otel.API.Trace.SpanContext{} = span_ctx, name, opts \\ []) do
+  def add_event(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Event{} = event) do
     case get_span_module() do
       nil -> :ok
-      module -> module.add_event(span_ctx, name, opts)
+      module -> module.add_event(span_ctx, event)
     end
   end
 
@@ -126,13 +119,12 @@ defmodule Otel.API.Trace.Span do
   """
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          linked_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: Otel.API.Attribute.attributes()
+          link :: Otel.API.Trace.Link.t()
         ) :: :ok
-  def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, linked_ctx, attributes \\ %{}) do
+  def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Link{} = link) do
     case get_span_module() do
       nil -> :ok
-      module -> module.add_link(span_ctx, linked_ctx, attributes)
+      module -> module.add_link(span_ctx, link)
     end
   end
 
@@ -149,13 +141,12 @@ defmodule Otel.API.Trace.Span do
   """
   @spec set_status(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          code :: status_code(),
-          description :: String.t()
+          status :: Otel.API.Trace.Status.t()
         ) :: :ok
-  def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, code, description \\ "") do
+  def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{} = status) do
     case get_span_module() do
       nil -> :ok
-      module -> module.set_status(span_ctx, code, description)
+      module -> module.set_status(span_ctx, status)
     end
   end
 

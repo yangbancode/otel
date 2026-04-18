@@ -75,10 +75,12 @@ defmodule Otel.SDK.Trace.SpanOperations do
   """
   @spec add_event(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          name :: String.t(),
-          opts :: keyword()
+          event :: Otel.API.Trace.Event.t()
         ) :: :ok
-  def add_event(%Otel.API.Trace.SpanContext{span_id: span_id}, name, opts) do
+  def add_event(
+        %Otel.API.Trace.SpanContext{span_id: span_id},
+        %Otel.API.Trace.Event{} = event
+      ) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
         :ok
@@ -87,18 +89,15 @@ defmodule Otel.SDK.Trace.SpanOperations do
         limits = span.span_limits
 
         if length(span.events) < limits.event_count_limit do
-          time = Keyword.get(opts, :time, System.system_time(:nanosecond))
-          attributes = Keyword.get(opts, :attributes, %{})
-
           limited_attributes =
             apply_attribute_limits(
-              attributes,
+              event.attributes,
               limits.attribute_per_event_limit,
               limits.attribute_value_length_limit
             )
 
-          event = %{name: name, time: time, attributes: limited_attributes}
-          Otel.SDK.Trace.SpanStorage.insert(%{span | events: span.events ++ [event]})
+          limited_event = %{event | attributes: limited_attributes}
+          Otel.SDK.Trace.SpanStorage.insert(%{span | events: span.events ++ [limited_event]})
         end
 
         :ok
@@ -110,10 +109,12 @@ defmodule Otel.SDK.Trace.SpanOperations do
   """
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          linked_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map()
+          link :: Otel.API.Trace.Link.t()
         ) :: :ok
-  def add_link(%Otel.API.Trace.SpanContext{span_id: span_id}, linked_ctx, attributes) do
+  def add_link(
+        %Otel.API.Trace.SpanContext{span_id: span_id},
+        %Otel.API.Trace.Link{} = link
+      ) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
         :ok
@@ -124,13 +125,13 @@ defmodule Otel.SDK.Trace.SpanOperations do
         if length(span.links) < limits.link_count_limit do
           limited_attributes =
             apply_attribute_limits(
-              attributes,
+              link.attributes,
               limits.attribute_per_link_limit,
               limits.attribute_value_length_limit
             )
 
-          link = {linked_ctx, limited_attributes}
-          Otel.SDK.Trace.SpanStorage.insert(%{span | links: span.links ++ [link]})
+          limited_link = %{link | attributes: limited_attributes}
+          Otel.SDK.Trace.SpanStorage.insert(%{span | links: span.links ++ [limited_link]})
         end
 
         :ok
@@ -145,16 +146,18 @@ defmodule Otel.SDK.Trace.SpanOperations do
   """
   @spec set_status(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          code :: Otel.API.Trace.Span.status_code(),
-          description :: String.t()
+          status :: Otel.API.Trace.Status.t()
         ) :: :ok
-  def set_status(%Otel.API.Trace.SpanContext{span_id: span_id}, code, description) do
+  def set_status(
+        %Otel.API.Trace.SpanContext{span_id: span_id},
+        %Otel.API.Trace.Status{} = status
+      ) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
         :ok
 
       span ->
-        updated = apply_set_status(span, code, description)
+        updated = apply_set_status(span, status)
         Otel.SDK.Trace.SpanStorage.insert(updated)
         :ok
     end
@@ -215,7 +218,7 @@ defmodule Otel.SDK.Trace.SpanOperations do
         attributes
       )
 
-    add_event(span_ctx, "exception", attributes: exception_attributes)
+    add_event(span_ctx, Otel.API.Trace.Event.new("exception", exception_attributes))
   end
 
   # --- Private helpers ---
@@ -252,13 +255,19 @@ defmodule Otel.SDK.Trace.SpanOperations do
 
   @spec apply_set_status(
           span :: Otel.SDK.Trace.Span.t(),
-          code :: Otel.API.Trace.Span.status_code(),
-          description :: String.t()
+          status :: Otel.API.Trace.Status.t()
         ) :: Otel.SDK.Trace.Span.t()
-  defp apply_set_status(span, :unset, _description), do: span
-  defp apply_set_status(%{status: {:ok, _}} = span, _code, _description), do: span
-  defp apply_set_status(span, :ok, _description), do: %{span | status: {:ok, ""}}
-  defp apply_set_status(span, :error, description), do: %{span | status: {:error, description}}
+  defp apply_set_status(span, %Otel.API.Trace.Status{code: :unset}), do: span
+
+  defp apply_set_status(%{status: %Otel.API.Trace.Status{code: :ok}} = span, _status), do: span
+
+  defp apply_set_status(span, %Otel.API.Trace.Status{code: :ok}) do
+    %{span | status: %Otel.API.Trace.Status{code: :ok, description: ""}}
+  end
+
+  defp apply_set_status(span, %Otel.API.Trace.Status{code: :error, description: description}) do
+    %{span | status: %Otel.API.Trace.Status{code: :error, description: description}}
+  end
 
   @spec run_on_end(
           span :: Otel.SDK.Trace.Span.t(),
