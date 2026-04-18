@@ -127,7 +127,7 @@ defmodule Otel.API.Metrics.MeterProviderTest do
           end
         end)
 
-      assert log =~ "MeterProvider: invalid meter name nil"
+      assert log =~ "invalid meter name nil"
     end
   end
 end

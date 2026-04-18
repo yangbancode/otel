@@ -38,7 +38,7 @@ defmodule Otel.API.Logs.LoggerProviderTest do
           end
         end)
 
-      assert log =~ "LoggerProvider: invalid logger name nil"
+      assert log =~ "invalid logger name nil"
     end
   end
 

@@ -9,6 +9,8 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   are discarded.
   """
 
+  require Logger
+
   @type t :: %__MODULE__{
           attribute_count_limit: pos_integer(),
           attribute_value_length_limit: pos_integer() | :infinity
@@ -37,10 +39,9 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
 
       dropped = count - limits.attribute_count_limit
 
-      :logger.warning(
+      Logger.warning(
         "LogRecord attributes exceeded limit of #{limits.attribute_count_limit}, " <>
-          "dropped #{dropped} attribute(s)",
-        %{domain: [:otel, :logs]}
+          "dropped #{dropped} attribute(s)"
       )
 
       {limited, dropped}

@@ -9,6 +9,8 @@ defmodule Otel.API.Logs.LoggerProvider do
   All functions are safe for concurrent use.
   """
 
+  require Logger
+
   @default_logger {Otel.API.Logs.Logger.Noop, []}
 
   @provider_key {__MODULE__, :global}
@@ -116,30 +118,24 @@ defmodule Otel.API.Logs.LoggerProvider do
 
   @spec validate_name(name :: String.t() | nil) :: String.t()
   defp validate_name(nil) do
-    maybe_warn("nil")
+    # Log only when an SDK is registered. Without a provider, the Noop spec
+    # (logs/noop.md L33-35) mandates no log output for any operation.
+    if get_provider() != nil do
+      Logger.warning("invalid logger name nil, using empty string")
+    end
+
     ""
   end
 
   defp validate_name("") do
-    maybe_warn("(empty string)")
+    if get_provider() != nil do
+      Logger.warning("invalid logger name (empty string), using empty string")
+    end
+
     ""
   end
 
   defp validate_name(name) when is_binary(name), do: name
-
-  # Log only when an SDK is registered. Without a provider the Noop spec
-  # (logs/noop.md L33-35) mandates no log output for any operation.
-  @spec maybe_warn(which :: String.t()) :: :ok
-  defp maybe_warn(which) do
-    if get_provider() != nil do
-      :logger.warning(
-        "LoggerProvider: invalid logger name #{which}, using empty string",
-        %{domain: [:otel, :logs]}
-      )
-    end
-
-    :ok
-  end
 
   @spec fetch_or_default(
           name :: String.t(),

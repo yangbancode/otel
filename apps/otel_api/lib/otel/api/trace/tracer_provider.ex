@@ -6,6 +6,8 @@ defmodule Otel.API.Trace.TracerProvider do
   When no SDK is installed, all operations return no-op tracers.
   """
 
+  require Logger
+
   @default_tracer {Otel.API.Trace.Tracer.Noop, []}
 
   @provider_key {__MODULE__, :global}
@@ -114,20 +116,12 @@ defmodule Otel.API.Trace.TracerProvider do
 
   @spec validate_name(name :: String.t() | nil) :: String.t()
   defp validate_name(nil) do
-    :logger.warning(
-      "TracerProvider: invalid tracer name nil, using empty string",
-      %{domain: [:otel, :trace]}
-    )
-
+    Logger.warning("invalid tracer name nil, using empty string")
     ""
   end
 
   defp validate_name("") do
-    :logger.warning(
-      "TracerProvider: invalid tracer name (empty string)",
-      %{domain: [:otel, :trace]}
-    )
-
+    Logger.warning("invalid tracer name (empty string), using empty string")
     ""
   end
 
