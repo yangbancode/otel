@@ -49,6 +49,18 @@ defmodule Otel.API.BaggageTest do
       assert Otel.API.Baggage.get_value(baggage, "Key") == "upper"
       assert Otel.API.Baggage.get_value(baggage, "key") == "lower"
     end
+
+    test "values are case-sensitive" do
+      baggage = Otel.API.Baggage.set_value(%{}, "key", "Value")
+      assert Otel.API.Baggage.get_value(baggage, "key") == "Value"
+      refute Otel.API.Baggage.get_value(baggage, "key") == "value"
+    end
+
+    test "accepts UTF-8 value and roundtrips verbatim" do
+      utf8_value = "B% 💼 café Δ"
+      baggage = Otel.API.Baggage.set_value(%{}, "key", utf8_value)
+      assert Otel.API.Baggage.get_value(baggage, "key") == utf8_value
+    end
   end
 
   describe "remove_value/2" do

@@ -137,6 +137,34 @@ defmodule Otel.SDK.Metrics.MeterTest do
       [dp] = Otel.SDK.Metrics.Aggregation.Sum.collect(config.metrics_tab, stream_key, %{})
       assert dp.attributes == %{"method" => "GET"}
     end
+
+    test "unit is case-sensitive (kb vs kB stored verbatim)", %{meter: meter} do
+      lower = Otel.SDK.Metrics.Meter.create_counter(meter, "bytes_lower", unit: "kb")
+      upper = Otel.SDK.Metrics.Meter.create_counter(meter, "bytes_upper", unit: "kB")
+      assert lower.unit == "kb"
+      assert upper.unit == "kB"
+      refute lower.unit == upper.unit
+    end
+
+    test "unit accepts at least 63 characters (spec MUST)", %{meter: meter} do
+      unit = String.duplicate("a", 63)
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "unit_63", unit: unit)
+      assert result.unit == unit
+      assert String.length(result.unit) == 63
+    end
+
+    test "description accepts at least 1023 characters (spec MUST)", %{meter: meter} do
+      description = String.duplicate("d", 1023)
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "desc_1023", description: description)
+      assert result.description == description
+      assert String.length(result.description) == 1023
+    end
+
+    test "description supports BMP characters (spec MUST)", %{meter: meter} do
+      description = "Request count — 요청 ★ €"
+      result = Otel.SDK.Metrics.Meter.create_counter(meter, "desc_bmp", description: description)
+      assert result.description == description
+    end
   end
 
   describe "duplicate detection" do
