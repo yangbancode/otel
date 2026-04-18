@@ -29,7 +29,7 @@ defmodule Otel.SDK.Logs.Logger do
   @impl true
   @spec enabled?(
           logger :: Otel.API.Logs.Logger.t(),
-          opts :: keyword()
+          opts :: Otel.API.Logs.Logger.enabled_opts()
         ) :: boolean()
   def enabled?({_module, config}, opts) do
     processors = get_processors(config)

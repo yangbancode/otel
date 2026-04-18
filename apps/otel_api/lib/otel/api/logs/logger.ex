@@ -23,6 +23,21 @@ defmodule Otel.API.Logs.Logger do
           optional(:exception) => Exception.t() | nil
         }
 
+  @typedoc """
+  Options accepted by `enabled?/2`.
+
+  Spec-defined keys:
+  - `:severity_number` — severity the caller would emit (0..24)
+  - `:event_name` — event name the caller would emit
+  - `:ctx` — evaluation context (defaults to `Ctx.get_current/0` when omitted)
+  """
+  @type enabled_opt ::
+          {:severity_number, 0..24}
+          | {:event_name, String.t()}
+          | {:ctx, Otel.API.Ctx.t()}
+
+  @type enabled_opts :: [enabled_opt()]
+
   @callback emit(
               logger :: t(),
               ctx :: Otel.API.Ctx.t(),
@@ -31,7 +46,7 @@ defmodule Otel.API.Logs.Logger do
 
   @callback enabled?(
               logger :: t(),
-              opts :: keyword()
+              opts :: enabled_opts()
             ) :: boolean()
 
   # --- Dispatch Functions ---
@@ -62,7 +77,7 @@ defmodule Otel.API.Logs.Logger do
   Accepts optional `severity_number`, `event_name`, and `ctx` in opts.
   If no context is provided, the current context is used.
   """
-  @spec enabled?(logger :: t(), opts :: keyword()) :: boolean()
+  @spec enabled?(logger :: t(), opts :: enabled_opts()) :: boolean()
   def enabled?({module, _} = logger, opts \\ []) do
     opts =
       case Keyword.has_key?(opts, :ctx) do

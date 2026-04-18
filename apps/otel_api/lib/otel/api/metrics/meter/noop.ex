@@ -15,7 +15,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_counter(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_counter(meter, name, opts), do: build(meter, name, :counter, opts)
 
@@ -23,7 +23,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_histogram(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_histogram(meter, name, opts), do: build(meter, name, :histogram, opts)
 
@@ -31,7 +31,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_gauge(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_gauge(meter, name, opts), do: build(meter, name, :gauge, opts)
 
@@ -39,7 +39,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_updown_counter(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_updown_counter(meter, name, opts), do: build(meter, name, :updown_counter, opts)
 
@@ -47,7 +47,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_observable_counter(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_counter(meter, name, opts),
     do: build(meter, name, :observable_counter, opts)
@@ -58,7 +58,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
           name :: String.t(),
           callback :: function(),
           callback_args :: term(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_counter(meter, name, _callback, _callback_args, opts),
     do: build(meter, name, :observable_counter, opts)
@@ -67,7 +67,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_observable_gauge(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_gauge(meter, name, opts),
     do: build(meter, name, :observable_gauge, opts)
@@ -78,7 +78,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
           name :: String.t(),
           callback :: function(),
           callback_args :: term(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_gauge(meter, name, _callback, _callback_args, opts),
     do: build(meter, name, :observable_gauge, opts)
@@ -87,7 +87,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_observable_updown_counter(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_updown_counter(meter, name, opts),
     do: build(meter, name, :observable_updown_counter, opts)
@@ -98,7 +98,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
           name :: String.t(),
           callback :: function(),
           callback_args :: term(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   def create_observable_updown_counter(meter, name, _callback, _callback_args, opts),
     do: build(meter, name, :observable_updown_counter, opts)
@@ -117,19 +117,22 @@ defmodule Otel.API.Metrics.Meter.Noop do
           instruments :: [Otel.API.Metrics.Instrument.t()],
           callback :: function(),
           callback_args :: term(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.register_callback_opts()
         ) :: term()
   def register_callback(_meter, _instruments, _callback, _callback_args, _opts), do: :ok
 
   @impl true
-  @spec enabled?(instrument :: Otel.API.Metrics.Instrument.t(), opts :: keyword()) :: boolean()
+  @spec enabled?(
+          instrument :: Otel.API.Metrics.Instrument.t(),
+          opts :: Otel.API.Metrics.Instrument.enabled_opts()
+        ) :: boolean()
   def enabled?(_instrument, _opts), do: false
 
   @spec build(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
           kind :: Otel.API.Metrics.Instrument.kind(),
-          opts :: keyword()
+          opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   defp build(meter, name, kind, opts) do
     %Otel.API.Metrics.Instrument{

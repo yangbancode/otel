@@ -19,6 +19,7 @@ defmodule Otel.API.Logs.Logger.Noop do
   def emit(_logger, _ctx, _log_record), do: :ok
 
   @impl true
-  @spec enabled?(logger :: Otel.API.Logs.Logger.t(), opts :: keyword()) :: boolean()
+  @spec enabled?(logger :: Otel.API.Logs.Logger.t(), opts :: Otel.API.Logs.Logger.enabled_opts()) ::
+          boolean()
   def enabled?(_logger, _opts), do: false
 end
