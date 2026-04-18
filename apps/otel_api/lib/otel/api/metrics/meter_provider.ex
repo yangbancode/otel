@@ -8,6 +8,8 @@ defmodule Otel.API.Metrics.MeterProvider do
   All functions are safe for concurrent use.
   """
 
+  require Logger
+
   @default_meter {Otel.API.Metrics.Meter.Noop, []}
 
   @provider_key {__MODULE__, :global}
@@ -115,19 +117,19 @@ defmodule Otel.API.Metrics.MeterProvider do
 
   @spec validate_name(name :: String.t() | nil) :: String.t()
   defp validate_name(nil) do
-    :logger.warning(
-      "MeterProvider: invalid meter name nil, using empty string",
-      %{domain: [:otel, :metrics]}
-    )
+    # Log only when an SDK is registered. Without a provider, the Noop spec
+    # (metrics/noop.md L63-64) mandates no log output for any operation.
+    if get_provider() != nil do
+      Logger.warning("invalid meter name nil, using empty string")
+    end
 
     ""
   end
 
   defp validate_name("") do
-    :logger.warning(
-      "MeterProvider: invalid meter name (empty string)",
-      %{domain: [:otel, :metrics]}
-    )
+    if get_provider() != nil do
+      Logger.warning("invalid meter name (empty string), using empty string")
+    end
 
     ""
   end

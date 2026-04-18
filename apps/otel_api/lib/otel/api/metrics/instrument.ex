@@ -16,6 +16,8 @@ defmodule Otel.API.Metrics.Instrument do
   All functions are safe for concurrent use.
   """
 
+  require Logger
+
   @type kind ::
           :counter
           | :histogram
@@ -170,9 +172,8 @@ defmodule Otel.API.Metrics.Instrument do
     if sorted?(boundaries) do
       [explicit_bucket_boundaries: boundaries]
     else
-      :logger.warning(
-        "advisory explicit_bucket_boundaries must be a sorted list of numbers, ignoring",
-        %{domain: [:otel, :metrics]}
+      Logger.warning(
+        "advisory explicit_bucket_boundaries must be a sorted list of numbers, ignoring"
       )
 
       []
@@ -180,11 +181,7 @@ defmodule Otel.API.Metrics.Instrument do
   end
 
   defp validate_advisory_param(_kind, {:explicit_bucket_boundaries, _boundaries}) do
-    :logger.warning(
-      "advisory explicit_bucket_boundaries is only valid for histogram, ignoring",
-      %{domain: [:otel, :metrics]}
-    )
-
+    Logger.warning("advisory explicit_bucket_boundaries is only valid for histogram, ignoring")
     []
   end
 
@@ -193,11 +190,7 @@ defmodule Otel.API.Metrics.Instrument do
   end
 
   defp validate_advisory_param(_kind, {key, _value}) do
-    :logger.warning(
-      "unknown advisory parameter #{inspect(key)}, ignoring",
-      %{domain: [:otel, :metrics]}
-    )
-
+    Logger.warning("unknown advisory parameter #{inspect(key)}, ignoring")
     []
   end
 

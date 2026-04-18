@@ -12,6 +12,8 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @behaviour Otel.API.Metrics.Meter
 
+  require Logger
+
   # --- Synchronous Instruments ---
 
   @impl true
@@ -154,7 +156,7 @@ defmodule Otel.SDK.Metrics.Meter do
         do_register(meter, validated_name, kind, opts)
 
       {:error, reason} ->
-        :logger.warning(reason, %{domain: [:otel, :metrics]})
+        Logger.warning(reason)
         do_register(meter, name || "", kind, opts)
     end
   end
@@ -222,10 +224,7 @@ defmodule Otel.SDK.Metrics.Meter do
     names = Enum.map(streams, & &1.name)
 
     if length(names) != length(Enum.uniq(names)) do
-      :logger.warning(
-        "applying Views resulted in conflicting metric stream names",
-        %{domain: [:otel, :metrics]}
-      )
+      Logger.warning("applying Views resulted in conflicting metric stream names")
     end
 
     :ok
@@ -510,10 +509,9 @@ defmodule Otel.SDK.Metrics.Meter do
               existing.unit == new_instrument.unit and
               existing.description == new_instrument.description do
     if existing.advisory != new_instrument.advisory do
-      :logger.warning(
+      Logger.warning(
         "duplicate instrument registration for #{inspect(name)} " <>
-          "with different advisory parameters, using first-seen",
-        %{domain: [:otel, :metrics]}
+          "with different advisory parameters, using first-seen"
       )
     end
 
@@ -526,18 +524,16 @@ defmodule Otel.SDK.Metrics.Meter do
         warn_description_conflict(config, existing, name)
 
       :distinguishable ->
-        :logger.warning(
+        Logger.warning(
           "duplicate instrument registration for #{inspect(name)} " <>
             "with different identifying fields (kind: #{existing.kind} vs #{new_instrument.kind}), " <>
-            "consider configuring a renaming View to produce distinguishable metric streams",
-          %{domain: [:otel, :metrics]}
+            "consider configuring a renaming View to produce distinguishable metric streams"
         )
 
       :unresolvable ->
-        :logger.warning(
+        Logger.warning(
           "duplicate instrument registration for #{inspect(name)} " <>
-            "with different identifying fields, using first-seen",
-          %{domain: [:otel, :metrics]}
+            "with different identifying fields, using first-seen"
         )
     end
   end
@@ -551,11 +547,10 @@ defmodule Otel.SDK.Metrics.Meter do
     if description_resolved_by_view?(instrument, config) do
       :ok
     else
-      :logger.warning(
+      Logger.warning(
         "duplicate instrument registration for #{inspect(name)} " <>
           "with different description, consider configuring a View " <>
-          "to set the description and avoid this warning",
-        %{domain: [:otel, :metrics]}
+          "to set the description and avoid this warning"
       )
     end
   end

@@ -12,6 +12,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   use GenServer
   @behaviour Otel.API.Logs.LoggerProvider
 
+  require Logger
+
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
           processors: [{module(), map()}]
@@ -175,20 +177,12 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   @spec validate_logger_name(name :: String.t() | nil) :: String.t()
   defp validate_logger_name(nil) do
-    :logger.warning(
-      "LoggerProvider: invalid logger name nil, using empty string",
-      %{domain: [:otel, :logs]}
-    )
-
+    Logger.warning("invalid logger name nil, using empty string")
     ""
   end
 
   defp validate_logger_name("") do
-    :logger.warning(
-      "LoggerProvider: invalid logger name (empty string)",
-      %{domain: [:otel, :logs]}
-    )
-
+    Logger.warning("invalid logger name (empty string), using empty string")
     ""
   end
 

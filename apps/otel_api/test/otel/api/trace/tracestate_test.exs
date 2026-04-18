@@ -118,6 +118,82 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
   end
 
+  describe "invalid key rejection (W3C § 3.3.1.1)" do
+    test "rejects uppercase-starting key" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "Vendor", "val")
+      assert ts.members == []
+    end
+
+    test "rejects simple key starting with digit" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "1vendor", "val")
+      assert ts.members == []
+    end
+
+    test "rejects key with disallowed char" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor!", "val")
+      assert ts.members == []
+    end
+
+    test "update on invalid key leaves state unchanged" do
+      ts = Otel.API.Trace.TraceState.new([{"a", "1"}])
+      result = Otel.API.Trace.TraceState.update(ts, "BAD", "v")
+      assert result == ts
+    end
+  end
+
+  describe "invalid value rejection (W3C § 3.3.1.1)" do
+    test "rejects value with `,`" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "a,b")
+      assert ts.members == []
+    end
+
+    test "rejects value with `=`" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "a=b")
+      assert ts.members == []
+    end
+
+    test "rejects value ending in space" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "trailing ")
+      assert ts.members == []
+    end
+
+    test "accepts value with internal spaces" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "a b c")
+      assert Otel.API.Trace.TraceState.get(ts, "k") == "a b c"
+    end
+  end
+
+  describe "decode rejects oversized header (W3C § 3.3.3)" do
+    test "returns empty state when header exceeds 512 bytes" do
+      oversized = 1..100 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
+      assert byte_size(oversized) > 512
+      assert %Otel.API.Trace.TraceState{members: []} = Otel.API.Trace.TraceState.decode(oversized)
+    end
+
+    test "accepts header at or below 512 bytes" do
+      under_limit = String.duplicate("ab,", 50) |> String.trim_trailing(",")
+      assert byte_size(under_limit) < 512
+      # All entries are malformed (no =), so members stays empty but decode doesn't crash
+      result = Otel.API.Trace.TraceState.decode(under_limit)
+      assert %Otel.API.Trace.TraceState{} = result
+    end
+  end
+
+  describe "decode drops malformed entries" do
+    test "drops entries without `=`" do
+      ts = Otel.API.Trace.TraceState.decode("valid=ok,broken,also=fine")
+      assert Otel.API.Trace.TraceState.get(ts, "valid") == "ok"
+      assert Otel.API.Trace.TraceState.get(ts, "also") == "fine"
+      assert Otel.API.Trace.TraceState.size(ts) == 2
+    end
+
+    test "drops entries with invalid key" do
+      ts = Otel.API.Trace.TraceState.decode("BAD=v,good=ok")
+      assert Otel.API.Trace.TraceState.size(ts) == 1
+      assert Otel.API.Trace.TraceState.get(ts, "good") == "ok"
+    end
+  end
+
   describe "immutability" do
     test "add returns new tracestate" do
       ts1 = Otel.API.Trace.TraceState.new([{"a", "1"}])
