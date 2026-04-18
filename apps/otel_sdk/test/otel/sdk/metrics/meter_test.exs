@@ -337,27 +337,27 @@ defmodule Otel.SDK.Metrics.MeterTest do
       assert callbacks != []
     end
 
-    test "register_callback returns ref for unregistration", %{meter: meter} do
+    test "register_callback returns tagged handle for unregistration", %{meter: meter} do
       inst =
         Otel.SDK.Metrics.Meter.create_observable_counter(meter, "cb_counter", [])
 
       cb = fn _args -> [Otel.API.Metrics.Measurement.new(1)] end
       result = Otel.SDK.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
-      assert {ref, _tab} = result
+      assert {Otel.SDK.Metrics.Meter, {ref, _tab}} = result
       assert is_reference(ref)
     end
 
-    test "unregister_callback removes the callback", %{meter: meter} do
+    test "unregister_callback via API dispatch removes the callback", %{meter: meter} do
       inst =
         Otel.SDK.Metrics.Meter.create_observable_counter(meter, "unreg_counter", [])
 
       cb = fn _args -> [Otel.API.Metrics.Measurement.new(1)] end
-      registration = Otel.SDK.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
+      registration = Otel.API.Metrics.Meter.register_callback(meter, [inst], cb, nil, [])
 
       {_module, config} = meter
       before_count = length(:ets.tab2list(config.callbacks_tab))
 
-      Otel.SDK.Metrics.Meter.unregister_callback(registration)
+      assert :ok = Otel.API.Metrics.Meter.unregister_callback(registration)
 
       after_count = length(:ets.tab2list(config.callbacks_tab))
       assert after_count < before_count

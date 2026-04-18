@@ -966,7 +966,7 @@
 - [x] API MUST be structured to accept a variable number of `callback` functions, including none — [L405](../references/opentelemetry-specification/specification/metrics/api.md#L405)
 - [x] API MUST support creation of asynchronous instruments by passing zero or more callbacks — [L408](../references/opentelemetry-specification/specification/metrics/api.md#L408)
 - [x] API SHOULD support registration of callback functions after instrument creation — [L415](../references/opentelemetry-specification/specification/metrics/api.md#L415)
-- [ ] User MUST be able to undo registration of a specific callback after registration — [L419](../references/opentelemetry-specification/specification/metrics/api.md#L419)
+- [x] User MUST be able to undo registration of a specific callback after registration — [L419](../references/opentelemetry-specification/specification/metrics/api.md#L419)
 - [ ] Every registered Callback MUST be evaluated exactly once during collection prior to reading data — [L422](../references/opentelemetry-specification/specification/metrics/api.md#L422)
 - [x] Callback functions MUST be documented: SHOULD be reentrant safe — [L428](../references/opentelemetry-specification/specification/metrics/api.md#L428)
 - [x] Callback functions MUST be documented: SHOULD NOT take indefinite time — [L430](../references/opentelemetry-specification/specification/metrics/api.md#L430)

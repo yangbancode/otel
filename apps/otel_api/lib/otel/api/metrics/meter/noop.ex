@@ -118,8 +118,13 @@ defmodule Otel.API.Metrics.Meter.Noop do
           callback :: function(),
           callback_args :: term(),
           opts :: Otel.API.Metrics.Instrument.register_callback_opts()
-        ) :: term()
-  def register_callback(_meter, _instruments, _callback, _callback_args, _opts), do: :ok
+        ) :: Otel.API.Metrics.Meter.registration()
+  def register_callback(_meter, _instruments, _callback, _callback_args, _opts),
+    do: {__MODULE__, :noop}
+
+  @impl true
+  @spec unregister_callback(state :: term()) :: :ok
+  def unregister_callback(_state), do: :ok
 
   @impl true
   @spec enabled?(
