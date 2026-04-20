@@ -1,11 +1,11 @@
-defmodule Otel.API.Attribute do
+defmodule Otel.API.Attributes do
   @moduledoc """
-  Types for an attribute key, an attribute value, and a collection of attributes.
+  Types for attribute keys, attribute values, and attribute collections.
 
   An attribute is a key-value pair whose value is a strict subset of
   `Otel.API.AnyValue.t/0`: scalars and homogeneous scalar arrays only. Maps,
-  heterogeneous arrays, byte-array elements inside arrays, and nested
-  recursion are **not** permitted in attribute values.
+  heterogeneous arrays, and nested recursion are **not** permitted in
+  attribute values.
 
   ## Keys
 
@@ -42,15 +42,22 @@ defmodule Otel.API.Attribute do
   `nil` within an array is permitted as-is per the spec (see
   `common/README.md` L63-73).
 
-  ## Attribute collections
+  ## Collection — `t/0`
 
-  Collections are represented as maps only:
+  The collection is a plain map:
 
       %{key() => value()}
 
   Keyword lists (`[{key, value}]`) are not accepted. A map guarantees unique
   keys by construction, which satisfies the spec's "MUST enforce unique keys"
   rule without a runtime validation pass.
+
+  This module currently defines types only. Count and value-length limits
+  are applied at the container level — see
+  `Otel.SDK.Trace.Span.apply_attribute_limits/3` — because OTLP exposes
+  `dropped_attributes_count` per container (Span, Event, Link, LogRecord),
+  not per attribute collection. Keeping attributes as a pure map avoids
+  leaking container policy into the data type.
   """
 
   @typedoc "Attribute key — a non-empty string."
@@ -79,5 +86,5 @@ defmodule Otel.API.Attribute do
   Always a map. Keyword lists are not accepted — the map representation
   guarantees unique keys, satisfying the spec without runtime validation.
   """
-  @type attributes :: %{key() => value()}
+  @type t :: %{key() => value()}
 end

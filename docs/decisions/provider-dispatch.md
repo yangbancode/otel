@@ -20,10 +20,7 @@ behaviour:
 
 @callback get_tracer(
             state :: term(),
-            name :: String.t(),
-            version :: String.t(),
-            schema_url :: String.t() | nil,
-            attributes :: Otel.API.Attribute.attributes()
+            instrumentation_scope :: Otel.API.InstrumentationScope.t()
           ) :: Otel.API.Trace.Tracer.t()
 ```
 

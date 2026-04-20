@@ -15,7 +15,7 @@ defmodule Otel.API.Trace.Span do
 
   @type start_opts :: [
           kind: Otel.API.Trace.SpanKind.t(),
-          attributes: Otel.API.Attribute.attributes(),
+          attributes: Otel.API.Attributes.t(),
           links: [Otel.API.Trace.Link.t()],
           start_time: integer(),
           is_root: boolean()
@@ -71,8 +71,8 @@ defmodule Otel.API.Trace.Span do
   """
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          key :: Otel.API.Attribute.key(),
-          value :: Otel.API.Attribute.value()
+          key :: Otel.API.Attributes.key(),
+          value :: Otel.API.Attributes.value()
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
     case get_module() do
@@ -86,7 +86,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: Otel.API.Attributes.t()
         ) ::
           :ok
   def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
@@ -195,7 +195,7 @@ defmodule Otel.API.Trace.Span do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: Otel.API.Attributes.t()
         ) :: :ok
   def record_exception(
         %Otel.API.Trace.SpanContext{} = span_ctx,

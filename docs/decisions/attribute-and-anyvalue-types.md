@@ -80,25 +80,27 @@ through the `[t()]` and `%{String.t() => t()}` branches. An `AnyValue` of
 Per the spec, empty values, zero, empty strings, and empty arrays are all
 meaningful and must be preserved end-to-end — we pass them through unchanged.
 
-### Attribute module
+### Attributes module
 
-`Otel.API.Attribute` is likewise a pure type-alias module. An attribute is a
+`Otel.API.Attributes` is likewise a pure type-alias module. An attribute is a
 strict subset of `AnyValue`: scalars and homogeneous scalar arrays only. No
 maps, no heterogeneous arrays, no nested recursion.
 
 ```elixir
 @type key :: String.t()
 @type scalar ::
-        String.t() | binary() | boolean() | integer() | float() | nil
+        String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
 @type value :: scalar() | [scalar()]
-@type attributes :: %{key() => value()}
+@type t :: %{key() => value()}
 ```
 
-We intentionally do not define a `t/0` alias for a single `{key, value}` pair.
-With the list-of-pairs collection form rejected (see below) and Elixir's
-`Enum` treating maps as `{k, v}` enumerables without a declared pair type,
-no `@spec` in the codebase references a single pair. Adding an unused alias
-would be dead weight.
+Module name is plural (`Attributes`) to match the spec's "Attribute
+Collection" terminology and the `otel_attributes` precedent in
+opentelemetry-erlang. `t/0` denotes the collection (the primary exported
+type per Elixir convention); the scalar `key`/`scalar`/`value` aliases sit
+alongside. We intentionally do not define a pair alias — with the
+list-of-pairs collection form rejected (see below) and no call site
+needing one, an extra alias would be dead weight.
 
 #### Keys are strings only
 
@@ -136,7 +138,7 @@ enforcement can be added in the Finalization phase if needed. Per the spec
 A collection of attributes is a map only:
 
 ```elixir
-@type attributes :: %{key() => value()}
+@type t :: %{key() => value()}
 ```
 
 We explicitly reject keyword lists (`[{key, value}]`) as an input shape. The
@@ -176,9 +178,8 @@ and is covered by the existing [span-limits.md](span-limits.md) and
 - `Otel.API.AnyValue` — type alias for the spec's `AnyValue` tagged union
   (primitive, heterogeneous array, string-keyed map, empty); documents the
   UTF-8 serialisation heuristic for the `string`/`byte array` split.
-- `Otel.API.Attribute` — type aliases for attribute `key`, `scalar`,
-  `value`, `t` (the `{key, value}` pair), and `attributes` (the
-  map-only collection).
+- `Otel.API.Attributes` — type aliases for attribute `key`, `scalar`,
+  `value`, and `t` (the map-only collection).
 
 ## Compliance
 

@@ -101,7 +101,7 @@ defmodule Otel.API.Metrics.Meter do
   @callback record(
               instrument :: Otel.API.Metrics.Instrument.t(),
               value :: number(),
-              attributes :: Otel.API.Attribute.attributes()
+              attributes :: Otel.API.Attributes.t()
             ) :: :ok
 
   # --- Enabled ---
@@ -249,7 +249,7 @@ defmodule Otel.API.Metrics.Meter do
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: Otel.API.Attributes.t()
         ) :: :ok
   def record(
         %Otel.API.Metrics.Instrument{meter: {module, _}} = instrument,

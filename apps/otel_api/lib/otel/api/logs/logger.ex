@@ -18,7 +18,7 @@ defmodule Otel.API.Logs.Logger do
           optional(:severity_number) => 0..24 | nil,
           optional(:severity_text) => String.t() | nil,
           optional(:body) => Otel.API.AnyValue.t(),
-          optional(:attributes) => Otel.API.Attribute.attributes(),
+          optional(:attributes) => Otel.API.Attributes.t(),
           optional(:event_name) => String.t() | nil,
           optional(:exception) => Exception.t() | nil
         }

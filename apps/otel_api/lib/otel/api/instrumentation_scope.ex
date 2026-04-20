@@ -7,7 +7,7 @@ defmodule Otel.API.InstrumentationScope do
           name: String.t(),
           version: String.t(),
           schema_url: String.t(),
-          attributes: Otel.API.Attribute.attributes()
+          attributes: Otel.API.Attributes.t()
         }
 
   defstruct name: "",
