@@ -53,20 +53,20 @@ defmodule Otel.API.CtxTest do
     end
   end
 
-  describe "get_current/0, attach/1, detach/1" do
+  describe "current/0, attach/1, detach/1" do
     setup do
       Otel.API.Ctx.detach(%{})
       :ok
     end
 
-    test "get_current/0 returns empty map when nothing attached" do
-      assert Otel.API.Ctx.get_current() == %{}
+    test "current/0 returns empty map when nothing attached" do
+      assert Otel.API.Ctx.current() == %{}
     end
 
     test "attach/1 sets current context and returns previous as map" do
       ctx = %{span: :my_span}
       token = Otel.API.Ctx.attach(ctx)
-      assert Otel.API.Ctx.get_current() == ctx
+      assert Otel.API.Ctx.current() == ctx
       assert is_map(token)
     end
 
@@ -86,10 +86,42 @@ defmodule Otel.API.CtxTest do
 
       new_ctx = %{b: 2}
       token = Otel.API.Ctx.attach(new_ctx)
-      assert Otel.API.Ctx.get_current() == new_ctx
+      assert Otel.API.Ctx.current() == new_ctx
 
       Otel.API.Ctx.detach(token)
-      assert Otel.API.Ctx.get_current() == original
+      assert Otel.API.Ctx.current() == original
+    end
+  end
+
+  describe "get_value/1 and set_value/2 (implicit current)" do
+    setup do
+      Otel.API.Ctx.detach(%{})
+      :ok
+    end
+
+    test "set_value/2 then get_value/1 round-trips through current" do
+      :ok = Otel.API.Ctx.set_value(:key, "hello")
+      assert Otel.API.Ctx.get_value(:key) == "hello"
+    end
+
+    test "get_value/1 returns nil when key missing" do
+      assert Otel.API.Ctx.get_value(:missing) == nil
+    end
+
+    test "set_value/2 preserves unrelated keys" do
+      :ok = Otel.API.Ctx.set_value(:a, 1)
+      :ok = Otel.API.Ctx.set_value(:b, 2)
+      assert Otel.API.Ctx.current() == %{a: 1, b: 2}
+    end
+
+    test "set_value/2 equivalent to current |> set_value/3 |> attach" do
+      :ok = Otel.API.Ctx.set_value(:k, "v")
+
+      explicit =
+        %{}
+        |> Otel.API.Ctx.set_value(:k, "v")
+
+      assert Otel.API.Ctx.current() == explicit
     end
   end
 
@@ -99,7 +131,7 @@ defmodule Otel.API.CtxTest do
 
       task =
         Task.async(fn ->
-          Otel.API.Ctx.get_current()
+          Otel.API.Ctx.current()
         end)
 
       child_ctx = Task.await(task)
@@ -108,12 +140,12 @@ defmodule Otel.API.CtxTest do
 
     test "context can be passed explicitly to another process" do
       Otel.API.Ctx.attach(%{key: "parent"})
-      parent_ctx = Otel.API.Ctx.get_current()
+      parent_ctx = Otel.API.Ctx.current()
 
       task =
         Task.async(fn ->
           Otel.API.Ctx.attach(parent_ctx)
-          Otel.API.Ctx.get_current()
+          Otel.API.Ctx.current()
         end)
 
       child_ctx = Task.await(task)

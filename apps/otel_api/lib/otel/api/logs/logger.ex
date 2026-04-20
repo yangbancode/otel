@@ -61,7 +61,7 @@ defmodule Otel.API.Logs.Logger do
   """
   @spec emit(logger :: t(), log_record :: log_record()) :: :ok
   def emit({module, _} = logger, log_record \\ %{}) do
-    ctx = Otel.API.Ctx.get_current()
+    ctx = Otel.API.Ctx.current()
     module.emit(logger, ctx, log_record)
   end
 
@@ -84,7 +84,7 @@ defmodule Otel.API.Logs.Logger do
     opts =
       case Keyword.has_key?(opts, :ctx) do
         true -> opts
-        false -> Keyword.put(opts, :ctx, Otel.API.Ctx.get_current())
+        false -> Keyword.put(opts, :ctx, Otel.API.Ctx.current())
       end
 
     module.enabled?(logger, opts)

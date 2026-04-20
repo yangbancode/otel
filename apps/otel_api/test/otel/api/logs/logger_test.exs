@@ -33,7 +33,7 @@ defmodule Otel.API.Logs.LoggerTest do
 
   describe "emit/3 with explicit context" do
     test "accepts explicit context" do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
 
       assert :ok ==
                Otel.API.Logs.Logger.emit(@noop_logger, ctx, %{
@@ -63,7 +63,7 @@ defmodule Otel.API.Logs.LoggerTest do
     end
 
     test "accepts explicit context" do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       refute Otel.API.Logs.Logger.enabled?(@noop_logger, ctx: ctx)
     end
 

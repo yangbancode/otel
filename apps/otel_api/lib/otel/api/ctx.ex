@@ -2,20 +2,20 @@ defmodule Otel.API.Ctx do
   @moduledoc """
   OTel Context for propagating values within a process.
 
-  A `Context` is a plain map. The spec's required operations take a
-  Context as an explicit argument and return either a value
-  (`get_value/2`) or a new Context (`set_value/3`). Three optional
-  global operations (`get_current/0`, `attach/1`, `detach/1`) provide
-  implicit "current Context" management backed by the process
-  dictionary.
+  A `Context` is a plain map. The spec-required operations
+  (`create_key/1`, `get_value/2`, `set_value/3`) are pure and take
+  a Context as an explicit argument. Three optional global
+  operations (`current/0`, `attach/1`, `detach/1`) manage the
+  "current" ambient Context backed by the process dictionary, and
+  two implicit-arity convenience wrappers (`get_value/1`,
+  `set_value/2`) read/write through the current Context for
+  implicit-style call sites.
 
   Callers who want "return default when key is missing" semantics
-  compose either `Map.get(ctx, key, default)` style or
-  `get_value(ctx, key) || default` at the call site, depending on
-  which behavior they want for falsy values.
+  compose `get_value(...) || default` at the call site.
 
-  At the API level (without SDK) values set here are only visible to
-  the current process. All functions are safe for concurrent use.
+  Values stored in the current Context are only visible to the
+  current process. All functions are safe for concurrent use.
   """
 
   @type t :: map()
@@ -53,11 +53,16 @@ defmodule Otel.API.Ctx do
   def set_value(ctx, key, value), do: Map.put(ctx, key, value)
 
   @doc """
-  Returns the current process context. Empty map when nothing is
-  attached.
+  Returns the current process context, or an empty map when nothing
+  is attached.
+
+  Used by SDK components and instrumentation libraries to read the
+  ambient Context. End-user code typically reads domain values
+  through higher-level APIs (`Otel.API.Baggage.get_baggage/0`,
+  `Otel.API.Trace.current_span/0`) rather than calling this directly.
   """
-  @spec get_current() :: t()
-  def get_current do
+  @spec current() :: t()
+  def current do
     Process.get(@current_key) || %{}
   end
 
@@ -79,6 +84,26 @@ defmodule Otel.API.Ctx do
   @spec detach(token :: token()) :: :ok
   def detach(token) do
     Process.put(@current_key, token)
+    :ok
+  end
+
+  @doc """
+  Gets a value from the current process context. Equivalent to
+  `get_value(current(), key)`.
+  """
+  @spec get_value(key :: key()) :: value()
+  def get_value(key), do: get_value(current(), key)
+
+  @doc """
+  Sets a value in the current process context, returning `:ok`.
+  Equivalent to `current() |> set_value(key, value) |> attach()`.
+  """
+  @spec set_value(key :: key(), value :: value()) :: :ok
+  def set_value(key, value) do
+    current()
+    |> set_value(key, value)
+    |> attach()
+
     :ok
   end
 end
