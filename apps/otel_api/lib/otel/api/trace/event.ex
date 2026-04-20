@@ -10,7 +10,7 @@ defmodule Otel.API.Trace.Event do
   @type t :: %__MODULE__{
           name: String.t(),
           timestamp: integer(),
-          attributes: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+          attributes: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
         }
 
   defstruct name: "", timestamp: 0, attributes: %{}
@@ -22,7 +22,7 @@ defmodule Otel.API.Trace.Event do
   """
   @spec new(
           name :: String.t(),
-          attributes :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()},
+          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]},
           timestamp :: integer() | nil
         ) :: t()
   def new(name, attributes \\ %{}, timestamp \\ nil) do

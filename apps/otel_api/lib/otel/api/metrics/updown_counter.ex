@@ -54,7 +54,7 @@ defmodule Otel.API.Metrics.UpDownCounter do
   @spec add(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
         ) :: :ok
   def add(instrument, value, attributes \\ %{}) do
     Otel.API.Metrics.Meter.record(instrument, value, attributes)

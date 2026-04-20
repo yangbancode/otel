@@ -2,106 +2,49 @@
 
 ## Question
 
-The OTel spec's [common concepts](../../references/opentelemetry-specification/specification/common/README.md)
-define `AnyValue`, `Attribute`, `Attribute Collections`, and `Attribute
-Limits` — concepts the rest of the API depends on (spans, log records,
-instrumentation scope, resource). Until now the API referenced these inline
-with loose types (e.g. `map() | [{String.t(), term()}]` on
-`set_attributes/2`) and had no single source of truth for the shapes or
-rationale. How should `otel_api` model them — in particular, how to
-disambiguate `string` vs `byte array`, whether to accept atom keys, how to
-satisfy the "MUST enforce unique keys" rule, and where attribute limits
-live?
+How do we represent attribute values and `AnyValue` in the Elixir
+typespec, and where do those types live?
 
 ## Decision
 
-### AnyValue module
-
-`Otel.API.AnyValue` is a pure type-alias module — no struct, no wrapping, no
-runtime validation. We chose aliases over structs to keep zero runtime
-overhead and to mirror the style of `opentelemetry-erlang`, where `AnyValue`
-is modelled as a tagged union of native terms.
-
-The type definition:
+Two type aliases live in a single module, `Otel.API.Types`:
 
 ```elixir
-@type t ::
-        String.t()
-        | binary()
-        | boolean()
-        | integer()
-        | float()
-        | [t()]
-        | %{String.t() => t()}
-        | nil
-```
-
-Spec primitives map to Elixir types as follows:
-
-| Spec primitive                    | Elixir type               |
-|-----------------------------------|---------------------------|
-| string                            | `String.t()`              |
-| byte array                        | `binary()`                |
-| boolean                           | `boolean()`               |
-| signed 64-bit integer             | `integer()`               |
-| IEEE 754 double                   | `float()`                 |
-| array of AnyValue (heterogeneous) | `[t()]`                   |
-| `map<string, AnyValue>`           | `%{String.t() => t()}`    |
-| empty value                       | `nil`                     |
-
-#### string vs byte array
-
-OTLP distinguishes `string_value` from `bytes_value` at the wire level
-(`common.proto` `AnyValue` oneof). Elixir represents both as `binary()`, so
-both appear in the `t:t/0` union even though they collapse to the same BEAM
-term. We resolve the split at **export time**, not at API ingest, using a
-UTF-8 validity heuristic that mirrors `opentelemetry-erlang`'s
-`otel_otlp_common:to_any_value/1`: valid UTF-8 → `string_value`, invalid →
-`bytes_value`. A binary that is accidentally valid UTF-8 but was intended as
-raw bytes will be emitted as a string; callers who need byte semantics on a
-UTF-8-valid payload must rely on exporter-specific configuration. The
-heuristic lives in the OTLP exporter, not in `otel_api`, keeping the API
-free of transport concerns.
-
-#### Integer range
-
-The spec requires integers fit in a signed 64-bit range (`-2^63` through
-`2^63 - 1`). Elixir's `integer()` is arbitrary precision; we do not encode
-the 64-bit limit in the typespec. Range-literal typespecs hurt readability
-without providing runtime enforcement — Dialyzer does not check numeric
-ranges. Out-of-range values are an exporter concern, handled when the OTLP
-encoder converts to `int64`.
-
-#### Nesting and empty values
-
-Arbitrary deep nesting of arrays and maps is permitted; `t:t/0` is recursive
-through the `[t()]` and `%{String.t() => t()}` branches. An `AnyValue` of
-`nil` represents the spec's "empty value" (language-specific; Elixir idiom).
-Per the spec, empty values, zero, empty strings, and empty arrays are all
-meaningful and must be preserved end-to-end — we pass them through unchanged.
-
-### Attribute module
-
-Three types cover the single-attribute concepts:
-
-```elixir
-defmodule Otel.API.Attribute do
-  @type key :: String.t()
-  @type primitive ::
-          String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
-  @type value :: primitive() | [primitive()]
+defmodule Otel.API.Types do
+  @type primitive :: String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
+  @type any_value :: primitive() | [any_value()] | %{String.t() => any_value()}
 end
 ```
 
-- `key/0` — single attribute key (used in `Span.set_attribute/3`, etc.)
-- `primitive/0` — single primitive attribute value (the spec term is
-  "primitive", e.g. `common/README.md` L235 — "Attribute values can be
-  primitive types (int, string, float, bool) …")
-- `value/0` — a primitive or a homogeneous array of primitives, matching
-  the spec's attribute-value shape
+The `Otel.API.Attribute` and `Otel.API.AnyValue` modules that existed
+earlier are removed. `Types.primitive/0` covers the attribute-value scalar,
+and `Types.any_value/0` covers the spec's recursive `AnyValue` — the two
+concepts the rest of the API layer actually needs.
 
-**There is no `attributes/0` collection alias.** Struct fields spell the
-map shape at the use site:
+### `primitive/0`
+
+A single primitive value: string, raw bytes (tagged), boolean, integer,
+float, or nil. Matches the spec's "primitive types (int, string, float,
+bool)" (`common/README.md` L235) plus `nil` per the spec's empty-value
+allowance and `{:bytes, binary()}` to disambiguate string-vs-bytes.
+
+### `any_value/0`
+
+The recursive `AnyValue` variant from the OTel data model: a primitive,
+a list of `any_value`, or a `String.t()`-keyed map of `any_value`. Used
+for `LogRecord.body` and anywhere the full spec-level AnyValue
+expressiveness is required (nested maps, heterogeneous arrays).
+
+Elixir/Erlang typespecs require recursion to be expressed through a
+named `@type`, so this alias is the one definition that must live in a
+module — it cannot be inlined at call sites.
+
+### Attribute collections are inline
+
+Per the spec, attribute values are **not** the full `any_value`. They
+are restricted to primitives and homogeneous arrays of primitives (no
+maps, no heterogeneous arrays, no nesting). No separate alias exists
+for this narrower type. Struct fields spell the map shape directly:
 
 ```elixir
 defmodule Otel.API.InstrumentationScope do
@@ -109,97 +52,84 @@ defmodule Otel.API.InstrumentationScope do
     name: String.t(),
     version: String.t(),
     schema_url: String.t(),
-    attributes: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+    attributes: %{
+      String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]
+    }
   }
 end
 ```
 
-Spelling the map inline keeps the reader close to the actual shape —
-no extra indirection to look up `attributes/0`'s definition — at the
-cost of a slightly longer field annotation. With ~20 use sites the
-repetition is bounded and all sites write exactly the same shape, so
-there is no divergence risk.
+Writing the map inline keeps the reader close to the actual shape —
+no indirection to chase — at the cost of a slightly longer field
+annotation. With ~15 use sites all writing the identical shape and
+`Otel.API.Types.primitive/0` as the single source of truth for the
+primitive-scalar type, there is no practical drift risk.
 
-An attribute value is a strict subset of `AnyValue`: primitives and
-homogeneous primitive arrays only. No maps, no heterogeneous arrays, no
-nested recursion. The module is a pure type-alias module — no structs,
-no behaviours, no runtime state.
+### string vs bytes
 
-We briefly explored splitting the collection into a separate plural
-`Attributes` module (matching Java's `AttributeKey` + `Attributes` and
-Go's `attribute.Key` + `attribute.Set`) but reverted because
-`Attributes.key()` / `Attributes.value()` read awkwardly at
-single-attribute call sites — "the key of the attribute**s** collection"
-rather than "the key of an attribute". Keeping everything in the
-singular `Attribute` module gives `Attribute.key()` / `Attribute.value()`
-(natural at single-attribute sites) plus the tolerable `Attribute.attributes()`
-for struct fields. The opentelemetry-erlang precedent is similar —
-`attribute_key`, `attribute_value`, `attributes_map` all live in the
-top-level `opentelemetry.erl` module.
+Elixir collapses UTF-8 strings and raw byte arrays into a single
+`t:binary/0`. OTLP's `AnyValue` proto exposes them as `string_value` and
+`bytes_value` oneof variants. We disambiguate with an explicit tag —
+plain `String.t()` / `binary()` encodes as `string_value`, while
+`{:bytes, binary()}` encodes as `bytes_value`. The exporter pattern-
+matches the `:bytes` tag.
 
-We intentionally do not define a pair alias (a single `{key, value}`
-tuple type). With the list-of-pairs collection form rejected (see
-below) and no call site needing one, an extra alias would be dead
-weight.
+Invalid UTF-8 binaries passed without the tag surface as
+`Protobuf.EncodeError` at export time — the protobuf library refuses to
+encode non-UTF-8 bytes into a `string_value` field. The moduledoc of
+`Otel.API.Types` documents this contract.
 
-#### Keys are strings only
+### Integer range
 
-We chose `String.t()` as the sole key type and explicitly rejected atoms.
-This is stricter than `opentelemetry-erlang`, which accepts either atoms or
-binaries. Rationale:
+Per the spec, integer values must fit in a signed 64-bit range (`-2^63`
+through `2^63 - 1`). Elixir's `t:integer/0` is arbitrary precision; the
+`primitive` alias does not encode the 64-bit limit. Exporters are
+responsible for out-of-range handling.
 
-- **Spec fidelity.** The spec defines keys as non-empty strings. Accepting
-  atoms requires an implicit runtime conversion.
-- **Semantic-convention alignment.** An atom such as `:http_method` does
-  *not* match the dotted semantic-convention name `"http.method"` after
-  `Atom.to_string/1` — they would silently be treated as distinct keys,
-  breaking convention matching.
-- **Production readiness.** Our direction favours explicit over implicit.
-  Avoiding a second runtime conversion heuristic (alongside the UTF-8 one)
-  keeps the API surface predictable.
-- **Escape hatch.** Callers who prefer atom ergonomics can call
-  `Atom.to_string/1` themselves.
+### Attribute homogeneity
 
-#### Value shape
+The spec mandates homogeneous arrays "MUST NOT contain values of
+different types". Our typespec cannot cleanly express this:
+`[Types.primitive()]` permits `[1, "a", true]` as far as Dialyzer is
+concerned. Homogeneity is a caller obligation documented in the
+moduledoc; runtime enforcement can be added in the Finalization phase
+if needed. Per the spec (L63–73), `null` entries within arrays are
+preserved as-is, so `nil` is permitted inside `[Types.primitive()]`.
 
-`t:value/0` is `primitive() | [primitive()]` — a primitive or a homogeneous primitive
-array, matching `opentelemetry-erlang`'s attribute type. The spec mandates
-homogeneous arrays "MUST NOT contain values of different types", but our
-typespec cannot cleanly express this: `[primitive()]` permits `[1, "a", true]`
-as far as Dialyzer is concerned, and the obvious alternative (a union of
-single-type arrays) clutters the typespec while leaving `[]` ambiguous.
-Homogeneity is documented as a caller obligation in the moduledoc; runtime
-enforcement can be added in the Finalization phase if needed. Per the spec
-(L63–73), `null` entries within arrays are preserved as-is, so we permit
-`nil` inside `[primitive()]`.
+### Attribute keys are plain `String.t()`
 
-### Attribute Collections
+Attribute keys are typed as `String.t()` directly at call sites. We
+deliberately do not expose an `Otel.API.Types.key/0` alias —
+`Otel.API.Attribute.key/0` previously aliased `String.t()` with no
+additional constraint, which is pure indirection.
 
-A collection of attributes is a map only:
+This choice diverges from `opentelemetry-erlang`, which accepts either
+atoms or binaries as keys. Rationale:
 
-```elixir
-%{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
-```
+- The OTel spec defines keys as non-empty strings.
+- Accepting atoms requires an implicit runtime conversion that does
+  not compose cleanly with semantic conventions (e.g., atom
+  `:http_method` does not match the convention `"http.method"` after
+  `Atom.to_string/1`).
+- Callers who prefer atom ergonomics convert explicitly with
+  `Atom.to_string/1`.
 
-We explicitly reject keyword lists (`[{key, value}]`) as an input shape. The
-spec requires implementations to "MUST by default enforce that the exported
-attribute collections contain only unique keys"
-([common/README.md L215](../../references/opentelemetry-specification/specification/common/README.md#L215)).
-A map guarantees uniqueness by construction, satisfying this rule without
-a runtime validation pass. Accepting keyword lists would force us to choose
-between a runtime uniqueness check and a silent spec violation; rejecting
-them removes the dilemma.
+### Why not opaque types or validation helpers?
 
-A consequence is that existing call sites that accepted
-`map() | [{String.t(), term()}]` (notably `Otel.API.Trace.Span.set_attributes/2`)
-narrow to map only. This is an API-breaking change, acceptable pre-1.0.
+Opaque types (`@opaque` plus constructor functions) would force every
+caller to wrap every attribute value or log body value. None of the
+other OTel SDKs (Java, Python, Go, erlang) take that approach — it
+trades ergonomics for a form of safety that is better covered by
+runtime validation on specific narrow constraints (e.g. UTF-8 validity,
+int64 range).
 
-Deeper collection-level concerns — cardinality control, duplicate-key policy
-when *merging* two collections, overwrite-vs-append semantics on
-`SetAttribute` — remain SDK responsibilities and are covered by the
-respective SDK-layer Decisions (span creation, log record processing, etc.).
+Runtime validation helpers could live alongside the type aliases in
+`Otel.API.Types` if a future requirement drives them (e.g.
+`valid_int64?/1`, `valid_utf8?/1`). We have none today because the
+current flow surfaces the relevant errors either via the protobuf
+encoder (UTF-8) or via exporter handling.
 
-### Attribute Limits
+### Attribute limits
 
 The spec explicitly assigns attribute limits to the SDK:
 
@@ -208,19 +138,16 @@ The spec explicitly assigns attribute limits to the SDK:
 >
 > — [common/README.md L292–293](../../references/opentelemetry-specification/specification/common/README.md#L292)
 
-The API layer defines only the types; it does not enforce count limits,
-value-length limits, or truncation. Runtime enforcement lives in the SDK
-and is covered by the existing [span-limits.md](span-limits.md) and
-[logrecord-limits.md](logrecord-limits.md) Decisions.
+The API layer defines only the types; it does not enforce count
+limits, value-length limits, or truncation. Runtime enforcement lives
+in the SDK and is covered by the existing [span-limits.md](span-limits.md)
+and [logrecord-limits.md](logrecord-limits.md) Decisions.
 
 ### Modules
 
-- `Otel.API.AnyValue` — type alias for the spec's `AnyValue` tagged union
-  (primitive, heterogeneous array, string-keyed map, empty); documents the
-  UTF-8 serialisation heuristic for the `string`/`byte array` split.
-- `Otel.API.Attribute` — single-attribute type aliases: `key`, `primitive`,
-  `value`. Attribute collections are spelled inline as
-  `%{Attribute.key() => Attribute.value()}` at struct fields.
+- `Otel.API.Types` — holds `primitive/0` and `any_value/0`. Attribute
+  keys are `String.t()` directly; attribute collections are spelled
+  inline as `%{String.t() => Types.primitive() | [Types.primitive()]}`.
 
 ## Compliance
 
@@ -229,6 +156,3 @@ and is covered by the existing [span-limits.md](span-limits.md) and
   * map&lt;string, AnyValue&gt; — L80, L85, L93
   * Attribute — L183, L185, L187
   * Attribute Collections — L215, L223, L241
-  * Attribute Limits — deferred to SDK; see
-    [span-limits.md](span-limits.md) and
-    [logrecord-limits.md](logrecord-limits.md)

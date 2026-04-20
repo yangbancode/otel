@@ -4,14 +4,14 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
 
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          key :: Otel.API.Attribute.key(),
-          value :: Otel.API.Attribute.value()
+          key :: String.t(),
+          value :: Otel.API.Types.primitive() | [Otel.API.Types.primitive()]
         ) :: :ok
   def set_attribute(_span_ctx, _key, _value), do: :ok
 
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
         ) :: :ok
   def set_attributes(_span_ctx, _attributes), do: :ok
 
@@ -43,7 +43,7 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
         ) :: :ok
   def record_exception(_span_ctx, _exception, _stacktrace, _attributes), do: :ok
 end

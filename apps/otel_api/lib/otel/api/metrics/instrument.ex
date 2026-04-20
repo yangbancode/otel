@@ -63,7 +63,8 @@ defmodule Otel.API.Metrics.Instrument do
   """
   @type enabled_opt ::
           {:context, Otel.API.Ctx.t()}
-          | {:attributes, %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}}
+          | {:attributes,
+             %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}}
 
   @type enabled_opts :: [enabled_opt()]
 

@@ -107,7 +107,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
         ) :: :ok
   def record(_instrument, _value, _attributes), do: :ok
 
