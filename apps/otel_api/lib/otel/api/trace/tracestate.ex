@@ -47,7 +47,12 @@ defmodule Otel.API.Trace.TraceState do
   # Value format (§ 3.3.2):
   # printable ASCII (0x20-0x7E) excluding "," (0x2C) and "=" (0x3D),
   # max 256 characters, last character MUST NOT be a space (0x20).
-  @value_regex ~r/^[\x20-\x2B\x2D-\x3C\x3E-\x7E]{0,255}[\x21-\x2B\x2D-\x3C\x3E-\x7E]$/
+  #
+  # Character-range breakdown (matches opentelemetry-erlang otel_tracestate):
+  #   ` -+` : space to +   (0x20-0x2B) — before ","
+  #   `--<` : hyphen to <  (0x2D-0x3C) — between "," and "="
+  #   `>-~` : > to ~       (0x3E-0x7E) — after "="
+  @value_regex ~r/^[ -+--<>-~]{0,255}[!-+--<>-~]$/
 
   @doc """
   Creates a TraceState from a list of `{key, value}` pairs.
@@ -180,11 +185,23 @@ defmodule Otel.API.Trace.TraceState do
     end
   end
 
-  @spec valid_key?(key :: term()) :: boolean()
-  defp valid_key?(key) when is_binary(key), do: Regex.match?(@key_regex, key)
-  defp valid_key?(_), do: false
+  @doc """
+  Returns whether `key` conforms to the W3C TraceState key format
+  (§ 3.3.1.1). See `t:key/0` for the accepted format.
 
+  Returns `false` for any non-binary input.
+  """
+  @spec valid_key?(key :: term()) :: boolean()
+  def valid_key?(key) when is_binary(key), do: Regex.match?(@key_regex, key)
+  def valid_key?(_), do: false
+
+  @doc """
+  Returns whether `value` conforms to the W3C TraceState value format
+  (§ 3.3.2). See `t:value/0` for the accepted format.
+
+  Returns `false` for any non-binary input.
+  """
   @spec valid_value?(value :: term()) :: boolean()
-  defp valid_value?(value) when is_binary(value), do: Regex.match?(@value_regex, value)
-  defp valid_value?(_), do: false
+  def valid_value?(value) when is_binary(value), do: Regex.match?(@value_regex, value)
+  def valid_value?(_), do: false
 end
