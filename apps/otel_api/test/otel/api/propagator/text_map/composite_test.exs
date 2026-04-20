@@ -33,7 +33,7 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
   use ExUnit.Case, async: true
 
   @fake Otel.API.Propagator.TextMap.CompositeTest.FakePropagator
-  @trace_context Otel.API.Propagator.TraceContext
+  @trace_context Otel.API.Propagator.TextMap.TraceContext
 
   describe "new/1" do
     test "creates composite propagator tuple" do
@@ -120,10 +120,10 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
       composite =
         Otel.API.Propagator.TextMap.Composite.new([@trace_context, @fake])
 
-      Otel.API.Propagator.set_text_map_propagator(composite)
+      Otel.API.Propagator.TextMap.set_propagator(composite)
 
       on_exit(fn ->
-        :persistent_term.erase(:"__otel.propagator.text_map__")
+        :persistent_term.erase({Otel.API.Propagator.TextMap, :global})
       end)
 
       :ok

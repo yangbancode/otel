@@ -6,9 +6,9 @@ How to implement the W3C Baggage propagator (baggage header parsing, percent-enc
 
 ## Decision
 
-### Module: `Otel.API.Propagator.Baggage`
+### Module: `Otel.API.Propagator.TextMap.Baggage`
 
-Location: `apps/otel_api/lib/otel/api/propagator/baggage.ex`
+Location: `apps/otel_api/lib/otel/api/propagator/text_map/baggage.ex`
 
 Implements `Otel.API.Propagator.TextMap` behaviour for W3C Baggage.
 

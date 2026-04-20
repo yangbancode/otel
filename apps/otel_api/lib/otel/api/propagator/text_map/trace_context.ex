@@ -1,4 +1,4 @@
-defmodule Otel.API.Propagator.TraceContext do
+defmodule Otel.API.Propagator.TextMap.TraceContext do
   @moduledoc """
   W3C TraceContext propagator.
 

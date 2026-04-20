@@ -6,9 +6,9 @@ How to implement W3C TraceContext propagation (traceparent + tracestate headers)
 
 ## Decision
 
-### Module: `Otel.API.Propagator.TraceContext`
+### Module: `Otel.API.Propagator.TextMap.TraceContext`
 
-Location: `apps/otel_api/lib/otel/api/propagator/trace_context.ex`
+Location: `apps/otel_api/lib/otel/api/propagator/text_map/trace_context.ex`
 
 Implements `Otel.API.Propagator.TextMap` behaviour for W3C Trace Context Level 2.
 
