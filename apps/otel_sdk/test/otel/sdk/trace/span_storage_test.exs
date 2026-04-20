@@ -61,13 +61,13 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
 
   describe "table properties" do
     test "table is public and named" do
-      info = :ets.info(Otel.SDK.Trace.SpanStorage.table_name())
+      info = :ets.info(Otel.SDK.Trace.SpanStorage.table())
       assert info[:named_table] == true
       assert info[:protection] == :public
     end
 
     test "table has write_concurrency" do
-      info = :ets.info(Otel.SDK.Trace.SpanStorage.table_name())
+      info = :ets.info(Otel.SDK.Trace.SpanStorage.table())
       assert info[:write_concurrency] != false
     end
   end
