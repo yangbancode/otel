@@ -40,14 +40,14 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
   describe "emit/3" do
     test "dispatches to processor", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "hello"})
       assert_receive {:log_record, record}
       assert record.body == "hello"
     end
 
     test "sets observed_timestamp when not provided", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       before = System.system_time(:nanosecond)
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "test"})
       assert_receive {:log_record, record}
@@ -55,14 +55,14 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "preserves user-provided observed_timestamp", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "test", observed_timestamp: 42})
       assert_receive {:log_record, record}
       assert record.observed_timestamp == 42
     end
 
     test "populates all default fields", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{})
       assert_receive {:log_record, record}
       assert record.timestamp == nil
@@ -74,7 +74,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "includes scope and resource", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "scoped"})
       assert_receive {:log_record, record}
       assert record.scope.name == "test_lib"
@@ -83,7 +83,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "extracts trace context", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "traced"})
       assert_receive {:log_record, record}
       assert Map.has_key?(record, :trace_id)
@@ -92,7 +92,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "passes all user-provided fields through", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
         timestamp: 1_000_000,
@@ -135,7 +135,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
   describe "exception handling" do
     test "sets exception attributes from exception", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       exception = %RuntimeError{message: "something went wrong"}
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
@@ -149,7 +149,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "user attributes take precedence over exception attributes", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       exception = %RuntimeError{message: "auto"}
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
@@ -164,7 +164,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "no exception does not set exception attributes", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{body: "normal"})
       assert_receive {:log_record, record}
       refute Map.has_key?(record.attributes, "exception.type")
@@ -189,7 +189,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
       logger = {Otel.SDK.Logs.Logger, config}
 
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{"key" => "abcdefgh"}})
       assert_receive {:log_record, record}
       assert record.attributes["key"] == "abcde"
@@ -212,7 +212,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
       logger = {Otel.SDK.Logs.Logger, config}
 
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{
         attributes: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
@@ -224,7 +224,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "dropped_attributes_count is 0 when within limit", %{logger: logger} do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       Otel.SDK.Logs.Logger.emit(logger, ctx, %{attributes: %{"a" => 1}})
       assert_receive {:log_record, record}
       assert record.dropped_attributes_count == 0

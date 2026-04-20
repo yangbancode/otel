@@ -27,7 +27,7 @@ defmodule Otel.API.Trace do
   """
   @spec current_span(ctx :: Otel.API.Ctx.t()) :: Otel.API.Trace.SpanContext.t()
   def current_span(ctx) do
-    Otel.API.Ctx.get_value(ctx, @span_key, %Otel.API.Trace.SpanContext{})
+    Otel.API.Ctx.get_value(ctx, @span_key) || %Otel.API.Trace.SpanContext{}
   end
 
   @doc """
@@ -44,7 +44,7 @@ defmodule Otel.API.Trace do
   """
   @spec current_span() :: Otel.API.Trace.SpanContext.t()
   def current_span do
-    Otel.API.Ctx.get_value(@span_key, %Otel.API.Trace.SpanContext{})
+    Otel.API.Ctx.get_value(@span_key) || %Otel.API.Trace.SpanContext{}
   end
 
   @doc """
@@ -70,7 +70,7 @@ defmodule Otel.API.Trace do
   @spec start_span(tracer :: Otel.API.Trace.Tracer.t(), name :: String.t(), opts :: start_opts()) ::
           Otel.API.Trace.SpanContext.t()
   def start_span(tracer, name, opts \\ []) do
-    start_span(Otel.API.Ctx.get_current(), tracer, name, opts)
+    start_span(Otel.API.Ctx.current(), tracer, name, opts)
   end
 
   @doc """
@@ -106,7 +106,7 @@ defmodule Otel.API.Trace do
         ) :: result
         when result: term()
   def with_span(tracer, name, opts \\ [], fun) do
-    with_span(Otel.API.Ctx.get_current(), tracer, name, opts, fun)
+    with_span(Otel.API.Ctx.current(), tracer, name, opts, fun)
   end
 
   @doc """

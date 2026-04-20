@@ -1,5 +1,5 @@
 defmodule Otel.API.CtxTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   describe "create_key/1" do
     test "returns the name unchanged (identity)" do
@@ -10,52 +10,39 @@ defmodule Otel.API.CtxTest do
 
     test "keys work with get_value/set_value" do
       key = Otel.API.Ctx.create_key(:my_key)
-      ctx = Otel.API.Ctx.set_value(Otel.API.Ctx.new(), key, "hello")
-      assert Otel.API.Ctx.get_value(ctx, key, nil) == "hello"
+      ctx = Otel.API.Ctx.set_value(%{}, key, "hello")
+      assert Otel.API.Ctx.get_value(ctx, key) == "hello"
     end
 
     test "caller-supplied distinct names produce distinct keys" do
       key1 = Otel.API.Ctx.create_key({MyLib, :data, 1})
       key2 = Otel.API.Ctx.create_key({MyLib, :data, 2})
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       ctx = Otel.API.Ctx.set_value(ctx, key1, "from_a")
       ctx = Otel.API.Ctx.set_value(ctx, key2, "from_b")
-      assert Otel.API.Ctx.get_value(ctx, key1, nil) == "from_a"
-      assert Otel.API.Ctx.get_value(ctx, key2, nil) == "from_b"
+      assert Otel.API.Ctx.get_value(ctx, key1) == "from_a"
+      assert Otel.API.Ctx.get_value(ctx, key2) == "from_b"
     end
   end
 
-  describe "new/0" do
-    test "returns empty map" do
-      assert Otel.API.Ctx.new() == %{}
-    end
-  end
-
-  describe "explicit context operations" do
+  describe "get_value/2 and set_value/3" do
     test "set_value/3 returns new context with value" do
-      ctx = Otel.API.Ctx.new()
-      ctx = Otel.API.Ctx.set_value(ctx, :key, "value")
+      ctx = Otel.API.Ctx.set_value(%{}, :key, "value")
       assert ctx == %{key: "value"}
     end
 
-    test "get_value/3 returns value for key" do
+    test "get_value/2 returns value for key" do
       ctx = %{key: "value"}
-      assert Otel.API.Ctx.get_value(ctx, :key, nil) == "value"
+      assert Otel.API.Ctx.get_value(ctx, :key) == "value"
     end
 
-    test "get_value/3 returns default when key missing" do
-      ctx = %{}
-      assert Otel.API.Ctx.get_value(ctx, :key, :default) == :default
+    test "get_value/2 returns nil when key missing" do
+      assert Otel.API.Ctx.get_value(%{}, :missing) == nil
     end
 
-    test "remove/2 removes key from context" do
-      ctx = %{a: 1, b: 2}
-      assert Otel.API.Ctx.remove(ctx, :a) == %{b: 2}
-    end
-
-    test "clear/1 returns empty context" do
-      ctx = %{a: 1, b: 2}
-      assert Otel.API.Ctx.clear(ctx) == %{}
+    test "caller composes default via || operator" do
+      assert (Otel.API.Ctx.get_value(%{}, :missing) || :default) == :default
+      assert (Otel.API.Ctx.get_value(%{key: "v"}, :key) || :default) == "v"
     end
 
     test "context is immutable — set_value returns new map" do
@@ -66,54 +53,31 @@ defmodule Otel.API.CtxTest do
     end
   end
 
-  describe "implicit context operations" do
+  describe "current/0, attach/1, detach/1" do
     setup do
-      Otel.API.Ctx.clear()
+      Otel.API.Ctx.detach(%{})
       :ok
     end
 
-    test "set_value/2 and get_value/1 on current process" do
-      Otel.API.Ctx.set_value(:key, "value")
-      assert Otel.API.Ctx.get_value(:key) == "value"
+    test "current/0 returns empty map when nothing attached" do
+      assert Otel.API.Ctx.current() == %{}
     end
 
-    test "get_value/1 returns nil for missing key" do
-      assert Otel.API.Ctx.get_value(:missing) == nil
-    end
-
-    test "get_value/2 returns default for missing key" do
-      assert Otel.API.Ctx.get_value(:missing, :default) == :default
-    end
-
-    test "remove/1 removes key from current context" do
-      Otel.API.Ctx.set_value(:key, "value")
-      Otel.API.Ctx.remove(:key)
-      assert Otel.API.Ctx.get_value(:key) == nil
-    end
-
-    test "remove/1 is safe when no context exists" do
-      assert Otel.API.Ctx.remove(:key) == :ok
-    end
-
-    test "clear/0 removes all values" do
-      Otel.API.Ctx.set_value(:a, 1)
-      Otel.API.Ctx.set_value(:b, 2)
-      Otel.API.Ctx.clear()
-      assert Otel.API.Ctx.get_current() == %{}
-    end
-  end
-
-  describe "attach/detach" do
-    setup do
-      Otel.API.Ctx.clear()
-      :ok
-    end
-
-    test "attach/1 sets current context and returns previous" do
+    test "attach/1 sets current context and returns previous as map" do
       ctx = %{span: :my_span}
       token = Otel.API.Ctx.attach(ctx)
-      assert Otel.API.Ctx.get_current() == ctx
-      assert token == nil || is_map(token)
+      assert Otel.API.Ctx.current() == ctx
+      assert is_map(token)
+    end
+
+    test "attach/1 on fresh process returns empty map (not nil)" do
+      token = Otel.API.Ctx.attach(%{a: 1})
+      assert token == %{}
+    end
+
+    test "detach/1 returns :ok" do
+      token = Otel.API.Ctx.attach(%{a: 1})
+      assert Otel.API.Ctx.detach(token) == :ok
     end
 
     test "detach/1 restores previous context" do
@@ -122,14 +86,42 @@ defmodule Otel.API.CtxTest do
 
       new_ctx = %{b: 2}
       token = Otel.API.Ctx.attach(new_ctx)
-      assert Otel.API.Ctx.get_current() == new_ctx
+      assert Otel.API.Ctx.current() == new_ctx
 
       Otel.API.Ctx.detach(token)
-      assert Otel.API.Ctx.get_current() == original
+      assert Otel.API.Ctx.current() == original
+    end
+  end
+
+  describe "get_value/1 and set_value/2 (implicit current)" do
+    setup do
+      Otel.API.Ctx.detach(%{})
+      :ok
     end
 
-    test "get_current/0 returns empty map when no context attached" do
-      assert Otel.API.Ctx.get_current() == %{}
+    test "set_value/2 then get_value/1 round-trips through current" do
+      :ok = Otel.API.Ctx.set_value(:key, "hello")
+      assert Otel.API.Ctx.get_value(:key) == "hello"
+    end
+
+    test "get_value/1 returns nil when key missing" do
+      assert Otel.API.Ctx.get_value(:missing) == nil
+    end
+
+    test "set_value/2 preserves unrelated keys" do
+      :ok = Otel.API.Ctx.set_value(:a, 1)
+      :ok = Otel.API.Ctx.set_value(:b, 2)
+      assert Otel.API.Ctx.current() == %{a: 1, b: 2}
+    end
+
+    test "set_value/2 equivalent to current |> set_value/3 |> attach" do
+      :ok = Otel.API.Ctx.set_value(:k, "v")
+
+      explicit =
+        %{}
+        |> Otel.API.Ctx.set_value(:k, "v")
+
+      assert Otel.API.Ctx.current() == explicit
     end
   end
 
@@ -139,7 +131,7 @@ defmodule Otel.API.CtxTest do
 
       task =
         Task.async(fn ->
-          Otel.API.Ctx.get_current()
+          Otel.API.Ctx.current()
         end)
 
       child_ctx = Task.await(task)
@@ -148,12 +140,12 @@ defmodule Otel.API.CtxTest do
 
     test "context can be passed explicitly to another process" do
       Otel.API.Ctx.attach(%{key: "parent"})
-      parent_ctx = Otel.API.Ctx.get_current()
+      parent_ctx = Otel.API.Ctx.current()
 
       task =
         Task.async(fn ->
           Otel.API.Ctx.attach(parent_ctx)
-          Otel.API.Ctx.get_current()
+          Otel.API.Ctx.current()
         end)
 
       child_ctx = Task.await(task)

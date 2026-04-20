@@ -72,7 +72,7 @@ defmodule Otel.API.Baggage do
   """
   @spec get_baggage(ctx :: Otel.API.Ctx.t()) :: t()
   def get_baggage(ctx) do
-    Otel.API.Ctx.get_value(ctx, @current_key, %{})
+    Otel.API.Ctx.get_value(ctx, @current_key) || %{}
   end
 
   @doc """
@@ -88,7 +88,7 @@ defmodule Otel.API.Baggage do
   """
   @spec get_baggage() :: t()
   def get_baggage do
-    Otel.API.Ctx.get_value(@current_key, %{})
+    Otel.API.Ctx.get_value(@current_key) || %{}
   end
 
   @doc """

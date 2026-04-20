@@ -92,7 +92,7 @@ defmodule Otel.SDK.Metrics.Meter do
         :ok
 
       stream_entries ->
-        ctx = Otel.API.Ctx.get_current()
+        ctx = Otel.API.Ctx.current()
         now = System.system_time(:nanosecond)
 
         Enum.each(stream_entries, fn {_key, stream} ->
@@ -326,7 +326,7 @@ defmodule Otel.SDK.Metrics.Meter do
         ) :: :ok
   defp apply_observations(config, entries, measurements) do
     streams = lookup_callback_streams(config, entries)
-    ctx = Otel.API.Ctx.get_current()
+    ctx = Otel.API.Ctx.current()
     now = System.system_time(:nanosecond)
 
     Enum.each(measurements, fn %Otel.API.Metrics.Measurement{

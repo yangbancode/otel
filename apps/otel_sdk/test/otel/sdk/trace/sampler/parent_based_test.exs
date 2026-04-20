@@ -16,7 +16,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
 
     test "treats span_id 0 as root" do
       parent = %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 0}
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       sampler =
         Otel.SDK.Trace.Sampler.new(
@@ -51,7 +51,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         is_remote: true
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       sampler =
         Otel.SDK.Trace.Sampler.new(
@@ -74,7 +74,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         is_remote: true
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       sampler =
         Otel.SDK.Trace.Sampler.new(
@@ -97,7 +97,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         is_remote: false
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       sampler =
         Otel.SDK.Trace.Sampler.new(
@@ -120,7 +120,7 @@ defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
         is_remote: false
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       sampler =
         Otel.SDK.Trace.Sampler.new(

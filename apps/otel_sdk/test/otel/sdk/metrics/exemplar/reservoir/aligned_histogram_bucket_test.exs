@@ -3,7 +3,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucketTest do
 
   @boundaries [10, 50, 100]
 
-  defp ctx, do: Otel.API.Ctx.new()
+  defp ctx, do: %{}
 
   describe "new/1" do
     test "stores boundaries" do

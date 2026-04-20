@@ -65,7 +65,7 @@ defmodule Otel.Logger.Handler do
     logger = Map.get(otel_config, :otel_logger)
 
     if logger do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       log_record = build_log_record(log_event)
       Otel.API.Logs.Logger.emit(logger, ctx, log_record)
     end

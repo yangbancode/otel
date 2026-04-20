@@ -52,7 +52,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       })
 
     tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-    ctx = Otel.API.Ctx.new()
+    ctx = %{}
     span_ctx = Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "test_span", opts)
     span_ctx
   end

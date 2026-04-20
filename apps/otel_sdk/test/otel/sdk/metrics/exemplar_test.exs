@@ -3,7 +3,7 @@ defmodule Otel.SDK.Metrics.ExemplarTest do
 
   describe "new/4" do
     test "creates exemplar with value and attributes" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       exemplar = Otel.SDK.Metrics.Exemplar.new(42, 1000, %{"key" => "val"}, ctx)
       assert exemplar.value == 42
       assert exemplar.time == 1000
@@ -13,7 +13,7 @@ defmodule Otel.SDK.Metrics.ExemplarTest do
     end
 
     test "extracts trace context when span is active" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       span_ctx = %Otel.API.Trace.SpanContext{
         trace_id: 123,
@@ -28,7 +28,7 @@ defmodule Otel.SDK.Metrics.ExemplarTest do
     end
 
     test "no trace info when span context is invalid" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       invalid = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 0}
       ctx = Otel.API.Trace.set_current_span(ctx, invalid)
       exemplar = Otel.SDK.Metrics.Exemplar.new(10, 2000, %{}, ctx)

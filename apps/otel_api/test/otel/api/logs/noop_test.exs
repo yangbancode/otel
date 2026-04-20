@@ -5,7 +5,7 @@ defmodule Otel.API.Logs.NoopTest do
 
   describe "Noop Logger" do
     test "emit returns :ok" do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
       assert :ok == Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %{body: "test"})
     end
 
@@ -14,7 +14,7 @@ defmodule Otel.API.Logs.NoopTest do
     end
 
     test "emit accepts any log record fields" do
-      ctx = Otel.API.Ctx.get_current()
+      ctx = Otel.API.Ctx.current()
 
       assert :ok ==
                Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %{

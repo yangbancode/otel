@@ -46,7 +46,7 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
   describe "inject/4" do
     test "injects from all propagators in order" do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      ctx = Otel.API.Trace.set_current_span(%{}, span_ctx)
 
       carrier =
         Otel.API.Propagator.TextMap.Composite.inject(
@@ -72,20 +72,20 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
       ctx =
         Otel.API.Propagator.TextMap.Composite.extract(
           [@trace_context, @fake],
-          Otel.API.Ctx.new(),
+          %{},
           carrier,
           &Otel.API.Propagator.TextMap.default_getter/2
         )
 
       span_ctx = Otel.API.Trace.current_span(ctx)
       assert Otel.API.Trace.SpanContext.valid?(span_ctx)
-      assert Otel.API.Ctx.get_value(ctx, :fake_value, nil) == "hello"
+      assert Otel.API.Ctx.get_value(ctx, :fake_value) == "hello"
     end
   end
 
   describe "behaviour callbacks (0-arity propagators)" do
     test "inject/3 with empty propagators" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       carrier =
         Otel.API.Propagator.TextMap.Composite.inject(
@@ -98,7 +98,7 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
     end
 
     test "extract/3 with empty propagators" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       result =
         Otel.API.Propagator.TextMap.Composite.extract(
@@ -131,7 +131,7 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
 
     test "inject dispatches through composite tuple" do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      ctx = Otel.API.Trace.set_current_span(%{}, span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.inject(ctx, [])
 
@@ -146,11 +146,11 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
         {"x-fake", "hello"}
       ]
 
-      ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), carrier)
+      ctx = Otel.API.Propagator.TextMap.extract(%{}, carrier)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
       assert Otel.API.Trace.SpanContext.valid?(span_ctx)
-      assert Otel.API.Ctx.get_value(ctx, :fake_value, nil) == "hello"
+      assert Otel.API.Ctx.get_value(ctx, :fake_value) == "hello"
     end
   end
 
