@@ -9,6 +9,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @behaviour Otel.API.Metrics.Meter
 
   @impl true
@@ -107,7 +109,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) :: :ok
   def record(_instrument, _value, _attributes), do: :ok
 

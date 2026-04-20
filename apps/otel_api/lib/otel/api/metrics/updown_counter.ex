@@ -11,6 +11,8 @@ defmodule Otel.API.Metrics.UpDownCounter do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @doc """
   Creates an UpDownCounter instrument via the given Meter.
 
@@ -54,7 +56,7 @@ defmodule Otel.API.Metrics.UpDownCounter do
   @spec add(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) :: :ok
   def add(instrument, value, attributes \\ %{}) do
     Otel.API.Metrics.Meter.record(instrument, value, attributes)

@@ -10,6 +10,8 @@ defmodule Otel.API.Metrics.Meter do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @type t :: {module(), term()}
 
   @typedoc """
@@ -101,7 +103,7 @@ defmodule Otel.API.Metrics.Meter do
   @callback record(
               instrument :: Otel.API.Metrics.Instrument.t(),
               value :: number(),
-              attributes :: Otel.API.Attribute.attributes()
+              attributes :: %{String.t() => primitive() | [primitive()]}
             ) :: :ok
 
   # --- Enabled ---
@@ -249,7 +251,7 @@ defmodule Otel.API.Metrics.Meter do
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) :: :ok
   def record(
         %Otel.API.Metrics.Instrument{meter: {module, _}} = instrument,

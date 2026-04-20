@@ -12,6 +12,8 @@ defmodule Otel.SDK.Trace.Span do
   defined here.
   """
 
+  use Otel.API.Types
+
   require Otel.API.Trace.TraceId
   require Otel.API.Trace.SpanId
 
@@ -25,7 +27,7 @@ defmodule Otel.SDK.Trace.Span do
           kind: Otel.API.Trace.SpanKind.t(),
           start_time: integer(),
           end_time: integer() | nil,
-          attributes: Otel.API.Attribute.attributes(),
+          attributes: %{String.t() => primitive() | [primitive()]},
           events: [Otel.API.Trace.Event.t()],
           links: [Otel.API.Trace.Link.t()],
           status: Otel.API.Trace.Status.t(),

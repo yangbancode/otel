@@ -16,6 +16,8 @@ defmodule Otel.API.Metrics.Instrument do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @type kind ::
           :counter
           | :histogram
@@ -63,7 +65,7 @@ defmodule Otel.API.Metrics.Instrument do
   """
   @type enabled_opt ::
           {:context, Otel.API.Ctx.t()}
-          | {:attributes, Otel.API.Attribute.attributes()}
+          | {:attributes, %{String.t() => primitive() | [primitive()]}}
 
   @type enabled_opts :: [enabled_opt()]
 

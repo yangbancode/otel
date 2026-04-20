@@ -8,6 +8,8 @@ defmodule Otel.API.Trace.Tracer do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @type t :: {module(), term()}
 
   @typedoc """
@@ -20,7 +22,7 @@ defmodule Otel.API.Trace.Tracer do
   """
   @type enabled_opt ::
           {:context, Otel.API.Ctx.t()}
-          | {:attributes, Otel.API.Attribute.attributes()}
+          | {:attributes, %{String.t() => primitive() | [primitive()]}}
 
   @type enabled_opts :: [enabled_opt()]
 
