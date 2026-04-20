@@ -5,7 +5,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
     span_id: 0xB7AD6B7169203331,
     parent_span_id: nil,
-    tracestate: %Otel.API.Trace.TraceState{},
+    tracestate: Otel.API.Trace.TraceState.new(),
     name: "test_span",
     kind: :server,
     start_time: 1_000_000_000,

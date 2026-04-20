@@ -24,7 +24,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest.RecordOnlySampler do
     tracestate =
       ctx
       |> Otel.API.Trace.current_span()
-      |> Map.get(:tracestate, %Otel.API.Trace.TraceState{})
+      |> Map.get(:tracestate, Otel.API.Trace.TraceState.new())
 
     {:record_only, %{}, tracestate}
   end
@@ -143,7 +143,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "inherits parent tracestate" do
-      ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
+      ts = Otel.API.Trace.TraceState.new() |> Otel.API.Trace.TraceState.add("vendor", "value")
       parent = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
       ctx = Otel.API.Trace.set_current_span(%{}, parent)
 

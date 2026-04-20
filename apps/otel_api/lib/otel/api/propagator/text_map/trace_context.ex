@@ -78,7 +78,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
         ) :: Otel.API.Trace.TraceState.t()
   defp extract_tracestate(carrier, getter) do
     case getter.(carrier, @tracestate_header) do
-      nil -> %Otel.API.Trace.TraceState{}
+      nil -> Otel.API.Trace.TraceState.new()
       value -> Otel.API.Trace.TraceState.decode(String.trim(value))
     end
   end

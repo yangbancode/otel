@@ -12,12 +12,12 @@ defmodule Otel.API.Trace.SpanContextTest do
       assert ctx.trace_id == @valid_trace_id
       assert ctx.span_id == @valid_span_id
       assert ctx.trace_flags == 0
-      assert ctx.tracestate == %Otel.API.Trace.TraceState{}
+      assert ctx.tracestate == Otel.API.Trace.TraceState.new()
       assert ctx.is_remote == false
     end
 
     test "accepts trace_flags and tracestate" do
-      ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
+      ts = Otel.API.Trace.TraceState.new() |> Otel.API.Trace.TraceState.add("vendor", "value")
       ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
       assert ctx.trace_flags == 1
       assert ctx.tracestate == ts
@@ -160,7 +160,7 @@ defmodule Otel.API.Trace.SpanContextTest do
       assert ctx.trace_id == 0
       assert ctx.span_id == 0
       assert ctx.trace_flags == 0
-      assert ctx.tracestate == %Otel.API.Trace.TraceState{}
+      assert ctx.tracestate == Otel.API.Trace.TraceState.new()
       assert ctx.is_remote == false
       assert Otel.API.Trace.SpanContext.valid?(ctx) == false
     end

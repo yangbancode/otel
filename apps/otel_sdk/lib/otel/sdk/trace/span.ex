@@ -46,7 +46,7 @@ defmodule Otel.SDK.Trace.Span do
     :name,
     :end_time,
     :instrumentation_scope,
-    tracestate: %Otel.API.Trace.TraceState{},
+    tracestate: Otel.API.Trace.TraceState.new(),
     kind: :internal,
     start_time: 0,
     attributes: %{},
