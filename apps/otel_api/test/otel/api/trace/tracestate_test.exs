@@ -14,10 +14,13 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert ts.members == [{"vendor", "value"}, {"other", "data"}]
     end
 
-    test "limits to 32 members" do
+    test "accepts all valid entries without truncation" do
+      # new/1 does not enforce the 32-member cap (W3C § 3.3.3 MUST applies
+      # only to decoders; callers building state directly accept the
+      # invariant responsibility).
       pairs = for i <- 1..40, do: {"key#{i}", "val#{i}"}
       ts = Otel.API.Trace.TraceState.new(pairs)
-      assert length(ts.members) == 32
+      assert length(ts.members) == 40
     end
   end
 
@@ -188,6 +191,20 @@ defmodule Otel.API.Trace.TraceStateTest do
       # All entries are malformed (no =), so members stays empty but decode doesn't crash
       result = Otel.API.Trace.TraceState.decode(under_limit)
       assert %Otel.API.Trace.TraceState{} = result
+    end
+
+    test "accepts header with exactly 32 list-members (W3C § 3.3.3 boundary)" do
+      header = 1..32 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
+      ts = Otel.API.Trace.TraceState.decode(header)
+      assert Otel.API.Trace.TraceState.size(ts) == 32
+    end
+
+    test "discards whole tracestate when header has more than 32 list-members" do
+      # Spec: "If the tracestate value has more than 32 list-members, the
+      # parser MUST discard the whole tracestate."
+      header = 1..33 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
+      assert byte_size(header) < 512
+      assert %Otel.API.Trace.TraceState{members: []} = Otel.API.Trace.TraceState.decode(header)
     end
   end
 
