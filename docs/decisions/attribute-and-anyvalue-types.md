@@ -80,38 +80,46 @@ through the `[t()]` and `%{String.t() => t()}` branches. An `AnyValue` of
 Per the spec, empty values, zero, empty strings, and empty arrays are all
 meaningful and must be preserved end-to-end — we pass them through unchanged.
 
-### Attribute and Attributes modules
+### Attribute module
 
-The single-attribute and attribute-collection types live in two
-separate modules so call sites can pick the name that fits the
-context:
+All attribute-related types live in a single module, `Otel.API.Attribute`:
 
 ```elixir
 defmodule Otel.API.Attribute do
   @type key :: String.t()
-  @type scalar ::
+  @type primitive ::
           String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
-  @type value :: scalar() | [scalar()]
-end
-
-defmodule Otel.API.Attributes do
-  @type t :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+  @type value :: primitive() | [primitive()]
+  @type attributes :: %{key() => value()}
 end
 ```
 
-The singular `Attribute` owns `key` / `scalar` / `value` — types used in
-single-attribute operations such as `Span.set_attribute(ctx, key, value)`.
-The plural `Attributes` owns only `t/0`, the map-shaped collection used
-in struct fields like `%Link{attributes: Attributes.t()}`. The split
-matches the spec's distinction between "a single attribute" and "an
-attribute collection" and aligns with other OTel SDKs: Java has
-`AttributeKey<T>` plus `Attributes`, Go has `attribute.Key` plus
-`attribute.Set`.
+Four types cover every concept our public and SDK APIs need:
 
-An attribute value is a strict subset of `AnyValue`: scalars and
-homogeneous scalar arrays only. No maps, no heterogeneous arrays, no
-nested recursion. Both modules are pure type-alias modules — no
-structs, no behaviours, no runtime state.
+- `key/0` — single attribute key (used in `Span.set_attribute/3`, etc.)
+- `primitive/0` — single primitive attribute value (the spec term is
+  "primitive", e.g. `common/README.md` L235 — "Attribute values can be
+  primitive types (int, string, float, bool) …")
+- `value/0` — a primitive or a homogeneous array of primitives, matching
+  the spec's attribute-value shape
+- `attributes/0` — the collection (plain `%{key() => value()}` map)
+
+An attribute value is a strict subset of `AnyValue`: primitives and
+homogeneous primitive arrays only. No maps, no heterogeneous arrays, no
+nested recursion. The module is a pure type-alias module — no structs,
+no behaviours, no runtime state.
+
+We briefly explored splitting the collection into a separate plural
+`Attributes` module (matching Java's `AttributeKey` + `Attributes` and
+Go's `attribute.Key` + `attribute.Set`) but reverted because
+`Attributes.key()` / `Attributes.value()` read awkwardly at
+single-attribute call sites — "the key of the attribute**s** collection"
+rather than "the key of an attribute". Keeping everything in the
+singular `Attribute` module gives `Attribute.key()` / `Attribute.value()`
+(natural at single-attribute sites) plus the tolerable `Attribute.attributes()`
+for struct fields. The opentelemetry-erlang precedent is similar —
+`attribute_key`, `attribute_value`, `attributes_map` all live in the
+top-level `opentelemetry.erl` module.
 
 We intentionally do not define a pair alias (a single `{key, value}`
 tuple type). With the list-of-pairs collection form rejected (see
@@ -138,16 +146,16 @@ binaries. Rationale:
 
 #### Value shape
 
-`t:value/0` is `scalar() | [scalar()]` — a primitive or a homogeneous scalar
+`t:value/0` is `primitive() | [primitive()]` — a primitive or a homogeneous primitive
 array, matching `opentelemetry-erlang`'s attribute type. The spec mandates
 homogeneous arrays "MUST NOT contain values of different types", but our
-typespec cannot cleanly express this: `[scalar()]` permits `[1, "a", true]`
+typespec cannot cleanly express this: `[primitive()]` permits `[1, "a", true]`
 as far as Dialyzer is concerned, and the obvious alternative (a union of
 single-type arrays) clutters the typespec while leaving `[]` ambiguous.
 Homogeneity is documented as a caller obligation in the moduledoc; runtime
 enforcement can be added in the Finalization phase if needed. Per the spec
 (L63–73), `null` entries within arrays are preserved as-is, so we permit
-`nil` inside `[scalar()]`.
+`nil` inside `[primitive()]`.
 
 ### Attribute Collections
 
@@ -194,9 +202,8 @@ and is covered by the existing [span-limits.md](span-limits.md) and
 - `Otel.API.AnyValue` — type alias for the spec's `AnyValue` tagged union
   (primitive, heterogeneous array, string-keyed map, empty); documents the
   UTF-8 serialisation heuristic for the `string`/`byte array` split.
-- `Otel.API.Attribute` — single-attribute type aliases: `key`, `scalar`,
-  `value`.
-- `Otel.API.Attributes` — the collection type `t` (map of key/value).
+- `Otel.API.Attribute` — all attribute type aliases: `key`, `primitive`,
+  `value`, and the `attributes` collection map.
 
 ## Compliance
 

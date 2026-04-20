@@ -11,7 +11,7 @@ defmodule Otel.API.Metrics.Measurement do
   Fields:
 
   - `value` — the numeric data point (`t:number/0`)
-  - `attributes` — an `Otel.API.Attributes.t()` map associated
+  - `attributes` — an `Otel.API.Attribute.attributes()` map associated
     with the measurement. Defaults to `%{}`.
 
   Synchronous instrument recording APIs (`Counter.add/4`, `Histogram.record/4`,
@@ -21,7 +21,7 @@ defmodule Otel.API.Metrics.Measurement do
 
   @type t :: %__MODULE__{
           value: number(),
-          attributes: Otel.API.Attributes.t()
+          attributes: Otel.API.Attribute.attributes()
         }
 
   defstruct value: 0, attributes: %{}
@@ -31,7 +31,7 @@ defmodule Otel.API.Metrics.Measurement do
   """
   @spec new(
           value :: number(),
-          attributes :: Otel.API.Attributes.t()
+          attributes :: Otel.API.Attribute.attributes()
         ) :: t()
   def new(value, attributes \\ %{}) do
     %__MODULE__{value: value, attributes: attributes}
