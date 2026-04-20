@@ -39,12 +39,12 @@ defmodule Otel.Logger.Handler do
     logger =
       case Map.get(otel_config, :otel_logger) do
         nil ->
-          scope = %Otel.API.InstrumentationScope{
+          instrumentation_scope = %Otel.API.InstrumentationScope{
             name: Map.get(otel_config, :scope_name, "otel_logger_handler"),
             version: Map.get(otel_config, :scope_version, "")
           }
 
-          Otel.API.Logs.LoggerProvider.get_logger(scope)
+          Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
 
         existing ->
           existing

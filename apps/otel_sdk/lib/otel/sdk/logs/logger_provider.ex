@@ -35,13 +35,13 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   """
   @spec get_logger(
           server :: GenServer.server(),
-          scope :: Otel.API.InstrumentationScope.t()
+          instrumentation_scope :: Otel.API.InstrumentationScope.t()
         ) ::
           Otel.API.Logs.Logger.t()
   @impl Otel.API.Logs.LoggerProvider
-  def get_logger(server, %Otel.API.InstrumentationScope{} = scope) do
+  def get_logger(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
     if alive?(server) do
-      GenServer.call(server, {:get_logger, scope})
+      GenServer.call(server, {:get_logger, instrumentation_scope})
     else
       {Otel.API.Logs.Logger.Noop, []}
     end
@@ -113,13 +113,17 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   @impl true
-  def handle_call({:get_logger, _scope}, _from, %{shut_down: true} = config) do
+  def handle_call({:get_logger, _instrumentation_scope}, _from, %{shut_down: true} = config) do
     {:reply, {Otel.API.Logs.Logger.Noop, []}, config}
   end
 
-  def handle_call({:get_logger, %Otel.API.InstrumentationScope{} = scope}, _from, config) do
+  def handle_call(
+        {:get_logger, %Otel.API.InstrumentationScope{} = instrumentation_scope},
+        _from,
+        config
+      ) do
     logger_config = %{
-      scope: scope,
+      scope: instrumentation_scope,
       resource: config.resource,
       processors_key: config.processors_key,
       log_record_limits: config.log_record_limits

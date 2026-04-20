@@ -35,7 +35,7 @@ defmodule Otel.API.Trace.TracerProvider do
   """
   @callback get_tracer(
               state :: term(),
-              scope :: Otel.API.InstrumentationScope.t()
+              instrumentation_scope :: Otel.API.InstrumentationScope.t()
             ) :: Otel.API.Trace.Tracer.t()
 
   @doc """
@@ -71,16 +71,16 @@ defmodule Otel.API.Trace.TracerProvider do
   uses a default empty scope. Tracers are cached in `persistent_term`
   keyed by the scope value.
   """
-  @spec get_tracer(scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Trace.Tracer.t()
-  def get_tracer(scope \\ %Otel.API.InstrumentationScope{})
+  def get_tracer(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
 
-  def get_tracer(%Otel.API.InstrumentationScope{} = scope) do
-    key = {@tracer_key_prefix, scope}
+  def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+    key = {@tracer_key_prefix, instrumentation_scope}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        tracer = fetch_or_default(scope)
+        tracer = fetch_or_default(instrumentation_scope)
         :persistent_term.put(key, tracer)
         tracer
 
@@ -89,15 +89,15 @@ defmodule Otel.API.Trace.TracerProvider do
     end
   end
 
-  @spec fetch_or_default(scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Trace.Tracer.t()
-  defp fetch_or_default(%Otel.API.InstrumentationScope{} = scope) do
+  defp fetch_or_default(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
     case get_provider() do
       nil ->
         @default_tracer
 
       {module, state} ->
-        module.get_tracer(state, scope)
+        module.get_tracer(state, instrumentation_scope)
     end
   end
 end

@@ -34,7 +34,7 @@ defmodule Otel.API.Metrics.MeterProvider do
   """
   @callback get_meter(
               state :: term(),
-              scope :: Otel.API.InstrumentationScope.t()
+              instrumentation_scope :: Otel.API.InstrumentationScope.t()
             ) :: Otel.API.Metrics.Meter.t()
 
   @doc """
@@ -70,16 +70,16 @@ defmodule Otel.API.Metrics.MeterProvider do
   uses a default empty scope. Meters are cached in `persistent_term`
   keyed by the scope value.
   """
-  @spec get_meter(scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec get_meter(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Metrics.Meter.t()
-  def get_meter(scope \\ %Otel.API.InstrumentationScope{})
+  def get_meter(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
 
-  def get_meter(%Otel.API.InstrumentationScope{} = scope) do
-    key = {@meter_key_prefix, scope}
+  def get_meter(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+    key = {@meter_key_prefix, instrumentation_scope}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        meter = fetch_or_default(scope)
+        meter = fetch_or_default(instrumentation_scope)
         :persistent_term.put(key, meter)
         meter
 
@@ -88,15 +88,15 @@ defmodule Otel.API.Metrics.MeterProvider do
     end
   end
 
-  @spec fetch_or_default(scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Metrics.Meter.t()
-  defp fetch_or_default(%Otel.API.InstrumentationScope{} = scope) do
+  defp fetch_or_default(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
     case get_provider() do
       nil ->
         @default_meter
 
       {module, state} ->
-        module.get_meter(state, scope)
+        module.get_meter(state, instrumentation_scope)
     end
   end
 end

@@ -35,7 +35,7 @@ defmodule Otel.API.Logs.LoggerProvider do
   """
   @callback get_logger(
               state :: term(),
-              scope :: Otel.API.InstrumentationScope.t()
+              instrumentation_scope :: Otel.API.InstrumentationScope.t()
             ) :: Otel.API.Logs.Logger.t()
 
   @doc """
@@ -71,16 +71,16 @@ defmodule Otel.API.Logs.LoggerProvider do
   uses a default empty scope. Loggers are cached in `persistent_term`
   keyed by the scope value.
   """
-  @spec get_logger(scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec get_logger(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Logs.Logger.t()
-  def get_logger(scope \\ %Otel.API.InstrumentationScope{})
+  def get_logger(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
 
-  def get_logger(%Otel.API.InstrumentationScope{} = scope) do
-    key = {@logger_key_prefix, scope}
+  def get_logger(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+    key = {@logger_key_prefix, instrumentation_scope}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        logger = fetch_or_default(scope)
+        logger = fetch_or_default(instrumentation_scope)
         :persistent_term.put(key, logger)
         logger
 
@@ -89,15 +89,15 @@ defmodule Otel.API.Logs.LoggerProvider do
     end
   end
 
-  @spec fetch_or_default(scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Logs.Logger.t()
-  defp fetch_or_default(%Otel.API.InstrumentationScope{} = scope) do
+  defp fetch_or_default(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
     case get_provider() do
       nil ->
         @default_logger
 
       {module, state} ->
-        module.get_logger(state, scope)
+        module.get_logger(state, instrumentation_scope)
     end
   end
 end
