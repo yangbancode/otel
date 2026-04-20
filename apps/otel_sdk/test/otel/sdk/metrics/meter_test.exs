@@ -6,7 +6,12 @@ defmodule Otel.SDK.Metrics.MeterTest do
     Application.ensure_all_started(:otel_sdk)
 
     {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-    {_module, meter_config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+
+    {_module, meter_config} =
+      Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+        name: "test_lib"
+      })
+
     meter = {Otel.SDK.Metrics.Meter, meter_config}
 
     on_exit(fn ->
@@ -196,8 +201,16 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
       {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
 
-      {_, config_a} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib_a")
-      {_, config_b} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib_b")
+      {_, config_a} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "lib_a"
+        })
+
+      {_, config_b} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "lib_b"
+        })
+
       meter_a = {Otel.SDK.Metrics.Meter, config_a}
       meter_b = {Otel.SDK.Metrics.Meter, config_b}
 
@@ -302,7 +315,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{attribute_keys: {:include, ["method"]}}
       )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "filtered", [])
@@ -325,7 +340,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{attribute_keys: {:exclude, ["path"]}}
       )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "excluded", [])
@@ -428,7 +445,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{aggregation_cardinality_limit: 3}
       )
 
-      {_mod, cfg} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, cfg} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       m = {Otel.SDK.Metrics.Meter, cfg}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(m, "limited", [])
@@ -465,7 +484,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{aggregation_cardinality_limit: 2}
       )
 
-      {_mod, cfg} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, cfg} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       m = {Otel.SDK.Metrics.Meter, cfg}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(m, "exist_test", [])
@@ -494,7 +515,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{description: "Canonical description"}
       )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       first =
@@ -593,7 +616,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
       )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "dropped", [])
@@ -617,7 +642,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{name: "partial_drop_sum"}
       )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "partial_drop", [])
@@ -635,7 +662,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
         %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
       )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = %Otel.API.Metrics.Instrument{

@@ -35,16 +35,13 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   """
   @spec get_logger(
           server :: GenServer.server(),
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
+          scope :: Otel.API.InstrumentationScope.t()
         ) ::
           Otel.API.Logs.Logger.t()
   @impl Otel.API.Logs.LoggerProvider
-  def get_logger(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+  def get_logger(server, %Otel.API.InstrumentationScope{} = scope) do
     if alive?(server) do
-      GenServer.call(server, {:get_logger, name, version, schema_url, attributes})
+      GenServer.call(server, {:get_logger, scope})
     else
       {Otel.API.Logs.Logger.Noop, []}
     end
@@ -116,22 +113,11 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   @impl true
-  def handle_call(
-        {:get_logger, _name, _version, _schema_url, _attributes},
-        _from,
-        %{shut_down: true} = config
-      ) do
+  def handle_call({:get_logger, _scope}, _from, %{shut_down: true} = config) do
     {:reply, {Otel.API.Logs.Logger.Noop, []}, config}
   end
 
-  def handle_call({:get_logger, name, version, schema_url, attributes}, _from, config) do
-    scope = %Otel.API.InstrumentationScope{
-      name: name,
-      version: version,
-      schema_url: schema_url,
-      attributes: attributes
-    }
-
+  def handle_call({:get_logger, %Otel.API.InstrumentationScope{} = scope}, _from, config) do
     logger_config = %{
       scope: scope,
       resource: config.resource,

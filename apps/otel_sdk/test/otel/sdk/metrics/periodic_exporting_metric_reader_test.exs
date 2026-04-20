@@ -23,7 +23,11 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
     Application.ensure_all_started(:otel_sdk)
 
     {:ok, provider} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-    {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(provider, "test_lib")
+
+    {_mod, config} =
+      Otel.SDK.Metrics.MeterProvider.get_meter(provider, %Otel.API.InstrumentationScope{
+        name: "test_lib"
+      })
 
     on_exit(fn ->
       if Process.alive?(provider), do: Process.exit(provider, :shutdown)
@@ -214,7 +218,11 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(provider, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(provider, %Otel.API.InstrumentationScope{
+          name: "lib"
+        })
+
       meter = {Otel.SDK.Metrics.Meter, config}
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "provider_counter", [])
       Otel.SDK.Metrics.Meter.record(instrument, 1, %{})

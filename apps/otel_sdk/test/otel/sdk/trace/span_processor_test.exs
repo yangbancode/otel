@@ -52,7 +52,9 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
         )
 
       {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
+        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
+          name: "test_lib"
+        })
 
       tracer = {Otel.SDK.Trace.Tracer, tracer_config}
       ctx = Otel.API.Ctx.new()
@@ -74,7 +76,9 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
         )
 
       {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
+        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
+          name: "test_lib"
+        })
 
       tracer = {Otel.SDK.Trace.Tracer, tracer_config}
       ctx = Otel.API.Ctx.new()
@@ -97,7 +101,9 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
         )
 
       {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, "test_lib")
+        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
+          name: "test_lib"
+        })
 
       tracer = {Otel.SDK.Trace.Tracer, tracer_config}
       ctx = Otel.API.Ctx.new()

@@ -48,7 +48,12 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
 
   defp setup_default_provider do
     {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-    {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+
+    {_mod, config} =
+      Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+        name: "test_lib"
+      })
+
     meter = {Otel.SDK.Metrics.Meter, config}
     %{meter: meter, config: config, provider: pid}
   end
@@ -65,7 +70,12 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
 
     config = Otel.SDK.Metrics.MeterProvider.config(pid)
     [{_mod, reader_pid}] = config.readers
-    {_mod, meter_config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+
+    {_mod, meter_config} =
+      Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+        name: "test_lib"
+      })
+
     meter = {Otel.SDK.Metrics.Meter, meter_config}
     %{meter: meter, reader_pid: reader_pid, provider: pid}
   end
@@ -452,7 +462,11 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       config = Otel.SDK.Metrics.MeterProvider.config(pid)
       [{_mod, cumulative_pid}, {_mod2, delta_pid}] = config.readers
 
-      {_mod, meter_config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "multi_lib")
+      {_mod, meter_config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "multi_lib"
+        })
+
       meter = {Otel.SDK.Metrics.Meter, meter_config}
 
       instrument_multi_counter = Otel.SDK.Metrics.Meter.create_counter(meter, "multi_counter", [])
@@ -519,7 +533,11 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, provider: pid} = setup_delta_provider()
 
       _ = Otel.SDK.Metrics.Meter.create_counter(meter, "stream_test", [])
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "test_lib"
+        })
 
       instrument_key = {config.scope, "stream_test"}
       [{^instrument_key, stream}] = :ets.lookup(config.streams_tab, instrument_key)
@@ -533,7 +551,11 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
       %{meter: meter, provider: pid} = setup_default_provider()
 
       _ = Otel.SDK.Metrics.Meter.create_counter(meter, "default_test", [])
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "test_lib"
+        })
 
       instrument_key = {config.scope, "default_test"}
       [{^instrument_key, stream}] = :ets.lookup(config.streams_tab, instrument_key)

@@ -8,7 +8,7 @@ defmodule Otel.SDK.Trace.TracerTest do
     {_module, tracer_config} =
       Otel.SDK.Trace.TracerProvider.get_tracer(
         Otel.SDK.Trace.TracerProvider,
-        "test_lib"
+        %Otel.API.InstrumentationScope{name: "test_lib"}
       )
 
     %{tracer: {Otel.SDK.Trace.Tracer, tracer_config}}

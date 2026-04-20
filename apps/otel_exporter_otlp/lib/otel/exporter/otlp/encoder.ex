@@ -65,8 +65,8 @@ defmodule Otel.Exporter.OTLP.Encoder do
 
   defp encode_scope(scope) do
     %Opentelemetry.Proto.Common.V1.InstrumentationScope{
-      name: scope.name || "",
-      version: scope.version || ""
+      name: scope.name,
+      version: scope.version
     }
   end
 
@@ -222,7 +222,7 @@ defmodule Otel.Exporter.OTLP.Encoder do
 
   @spec scope_schema_url(scope :: Otel.API.InstrumentationScope.t() | nil) :: String.t()
   defp scope_schema_url(nil), do: ""
-  defp scope_schema_url(scope), do: scope.schema_url || ""
+  defp scope_schema_url(scope), do: scope.schema_url
 
   @spec encode_metric(metric :: Otel.SDK.Metrics.MetricReader.metric()) ::
           Opentelemetry.Proto.Metrics.V1.Metric.t()

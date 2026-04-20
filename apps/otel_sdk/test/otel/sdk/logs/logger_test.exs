@@ -23,7 +23,12 @@ defmodule Otel.SDK.Logs.LoggerTest do
         }
       )
 
-    {_module, logger_config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "test_lib", "1.0.0")
+    {_module, logger_config} =
+      Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+        name: "test_lib",
+        version: "1.0.0"
+      })
+
     logger = {Otel.SDK.Logs.Logger, logger_config}
 
     on_exit(fn ->
@@ -118,7 +123,10 @@ defmodule Otel.SDK.Logs.LoggerTest do
       Application.ensure_all_started(:otel_sdk)
 
       {:ok, pid} = Otel.SDK.Logs.LoggerProvider.start_link(config: %{})
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       logger = {Otel.SDK.Logs.Logger, config}
 
       refute Otel.SDK.Logs.Logger.enabled?(logger, [])
@@ -176,7 +184,9 @@ defmodule Otel.SDK.Logs.LoggerTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       logger = {Otel.SDK.Logs.Logger, config}
 
       ctx = Otel.API.Ctx.get_current()
@@ -197,7 +207,9 @@ defmodule Otel.SDK.Logs.LoggerTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       logger = {Otel.SDK.Logs.Logger, config}
 
       ctx = Otel.API.Ctx.get_current()

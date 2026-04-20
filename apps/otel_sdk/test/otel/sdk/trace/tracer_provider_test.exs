@@ -50,14 +50,22 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
   describe "get_tracer/2,3,4" do
     test "returns SDK tracer tuple", %{provider: pid} do
-      {module, tracer_config} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
+      {module, tracer_config} =
+        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert module == Otel.SDK.Trace.Tracer
       assert %{sampler: _, id_generator: _, span_limits: _, scope: _} = tracer_config
     end
 
     test "tracer includes instrumentation scope", %{provider: pid} do
       {_module, %{scope: scope}} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib", "1.0.0", "https://example.com")
+        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib",
+          version: "1.0.0",
+          schema_url: "https://example.com"
+        })
 
       assert %Otel.API.InstrumentationScope{
                name: "my_lib",
@@ -67,13 +75,21 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "tracer includes initialized sampler", %{provider: pid} do
-      {_module, %{sampler: sampler}} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
+      {_module, %{sampler: sampler}} =
+        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       # sampler is already initialized {module, description, config} tuple
       assert {Otel.SDK.Trace.Sampler.ParentBased, _desc, _config} = sampler
     end
 
     test "tracer includes id_generator and span_limits", %{provider: pid} do
-      {_module, config} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
+      {_module, config} =
+        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
       assert %Otel.SDK.Trace.SpanLimits{} = config.span_limits
     end
@@ -156,7 +172,12 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
     test "returns noop tracer after shutdown", %{provider: pid} do
       Otel.SDK.Trace.TracerProvider.shutdown(pid)
-      {module, _} = Otel.SDK.Trace.TracerProvider.get_tracer(pid, "my_lib")
+
+      {module, _} =
+        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert module == Otel.API.Trace.Tracer.Noop
     end
 

@@ -35,10 +35,7 @@ defmodule Otel.API.Trace.TracerProvider do
   """
   @callback get_tracer(
               state :: term(),
-              name :: String.t(),
-              version :: String.t(),
-              schema_url :: String.t() | nil,
-              attributes :: Otel.API.Attribute.attributes()
+              scope :: Otel.API.InstrumentationScope.t()
             ) :: Otel.API.Trace.Tracer.t()
 
   @doc """
@@ -70,21 +67,20 @@ defmodule Otel.API.Trace.TracerProvider do
   @doc """
   Returns a Tracer for the given instrumentation scope.
 
-  Invalid name (nil or empty) returns a working Tracer with empty
-  name and logs a warning. Tracers are cached in `persistent_term`.
+  Accepts an `Otel.API.InstrumentationScope` struct. Without arguments,
+  uses a default empty scope. Tracers are cached in `persistent_term`
+  keyed by the scope value.
   """
-  @spec get_tracer(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) :: Otel.API.Trace.Tracer.t()
-  def get_tracer(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    key = {@tracer_key_prefix, {name, version, schema_url, attributes}}
+  @spec get_tracer(scope :: Otel.API.InstrumentationScope.t()) ::
+          Otel.API.Trace.Tracer.t()
+  def get_tracer(scope \\ %Otel.API.InstrumentationScope{})
+
+  def get_tracer(%Otel.API.InstrumentationScope{} = scope) do
+    key = {@tracer_key_prefix, scope}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        tracer = fetch_or_default(name, version, schema_url, attributes)
+        tracer = fetch_or_default(scope)
         :persistent_term.put(key, tracer)
         tracer
 
@@ -93,39 +89,15 @@ defmodule Otel.API.Trace.TracerProvider do
     end
   end
 
-  @doc """
-  Returns the InstrumentationScope for a tracer obtained with the
-  given parameters.
-  """
-  @spec scope(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) ::
-          Otel.API.InstrumentationScope.t()
-  def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    %Otel.API.InstrumentationScope{
-      name: name,
-      version: version,
-      schema_url: schema_url,
-      attributes: attributes
-    }
-  end
-
-  @spec fetch_or_default(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) :: Otel.API.Trace.Tracer.t()
-  defp fetch_or_default(name, version, schema_url, attributes) do
+  @spec fetch_or_default(scope :: Otel.API.InstrumentationScope.t()) ::
+          Otel.API.Trace.Tracer.t()
+  defp fetch_or_default(%Otel.API.InstrumentationScope{} = scope) do
     case get_provider() do
       nil ->
         @default_tracer
 
       {module, state} ->
-        module.get_tracer(state, name, version, schema_url, attributes)
+        module.get_tracer(state, scope)
     end
   end
 end

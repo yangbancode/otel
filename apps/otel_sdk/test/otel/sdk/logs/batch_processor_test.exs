@@ -198,7 +198,11 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(provider_pid, "test_lib")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(provider_pid, %Otel.API.InstrumentationScope{
+          name: "test_lib"
+        })
+
       logger = {Otel.SDK.Logs.Logger, config}
 
       Otel.API.Logs.Logger.emit(logger, %{body: "log 1"})

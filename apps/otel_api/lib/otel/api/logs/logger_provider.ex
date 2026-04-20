@@ -35,10 +35,7 @@ defmodule Otel.API.Logs.LoggerProvider do
   """
   @callback get_logger(
               state :: term(),
-              name :: String.t(),
-              version :: String.t(),
-              schema_url :: String.t() | nil,
-              attributes :: Otel.API.Attribute.attributes()
+              scope :: Otel.API.InstrumentationScope.t()
             ) :: Otel.API.Logs.Logger.t()
 
   @doc """
@@ -70,21 +67,20 @@ defmodule Otel.API.Logs.LoggerProvider do
   @doc """
   Returns a Logger for the given instrumentation scope.
 
-  Invalid name (nil or empty) returns a working Logger with empty
-  name and logs a warning. Loggers are cached in `persistent_term`.
+  Accepts an `Otel.API.InstrumentationScope` struct. Without arguments,
+  uses a default empty scope. Loggers are cached in `persistent_term`
+  keyed by the scope value.
   """
-  @spec get_logger(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) :: Otel.API.Logs.Logger.t()
-  def get_logger(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    key = {@logger_key_prefix, {name, version, schema_url, attributes}}
+  @spec get_logger(scope :: Otel.API.InstrumentationScope.t()) ::
+          Otel.API.Logs.Logger.t()
+  def get_logger(scope \\ %Otel.API.InstrumentationScope{})
+
+  def get_logger(%Otel.API.InstrumentationScope{} = scope) do
+    key = {@logger_key_prefix, scope}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        logger = fetch_or_default(name, version, schema_url, attributes)
+        logger = fetch_or_default(scope)
         :persistent_term.put(key, logger)
         logger
 
@@ -93,39 +89,15 @@ defmodule Otel.API.Logs.LoggerProvider do
     end
   end
 
-  @doc """
-  Returns the InstrumentationScope for a logger obtained with the
-  given parameters.
-  """
-  @spec scope(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) ::
-          Otel.API.InstrumentationScope.t()
-  def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    %Otel.API.InstrumentationScope{
-      name: name,
-      version: version,
-      schema_url: schema_url,
-      attributes: attributes
-    }
-  end
-
-  @spec fetch_or_default(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) :: Otel.API.Logs.Logger.t()
-  defp fetch_or_default(name, version, schema_url, attributes) do
+  @spec fetch_or_default(scope :: Otel.API.InstrumentationScope.t()) ::
+          Otel.API.Logs.Logger.t()
+  defp fetch_or_default(%Otel.API.InstrumentationScope{} = scope) do
     case get_provider() do
       nil ->
         @default_logger
 
       {module, state} ->
-        module.get_logger(state, name, version, schema_url, attributes)
+        module.get_logger(state, scope)
     end
   end
 end
