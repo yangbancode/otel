@@ -14,7 +14,7 @@ defmodule Otel.API.Ctx do
   @type t :: map()
   @type key :: term()
   @type value :: term()
-  @opaque token :: t() | nil
+  @opaque token :: t()
 
   @current_key {__MODULE__, :current}
 
@@ -130,7 +130,7 @@ defmodule Otel.API.Ctx do
   Returns a token that can be passed to `detach/1` to restore
   the previous context.
   """
-  @spec attach(ctx :: t()) :: token()
+  @spec attach(ctx :: t()) :: token() | nil
   def attach(ctx) do
     Process.put(@current_key, ctx)
   end
@@ -138,7 +138,7 @@ defmodule Otel.API.Ctx do
   @doc """
   Restores a previous context from a token returned by `attach/1`.
   """
-  @spec detach(token :: token()) :: t() | nil
+  @spec detach(token :: token() | nil) :: t() | nil
   def detach(token) do
     Process.put(@current_key, token)
   end
