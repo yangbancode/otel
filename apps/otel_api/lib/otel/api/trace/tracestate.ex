@@ -56,15 +56,8 @@ defmodule Otel.API.Trace.TraceState do
   an empty TraceState, use `%#{inspect(__MODULE__)}{}` directly.
   """
   @spec new(list :: [{key(), value()}]) :: t()
-  def new(list) when is_list(list) do
-    members =
-      list
-      |> Enum.filter(fn
-        {k, v} -> valid_key?(k) and valid_value?(v)
-        _ -> false
-      end)
-      |> Enum.take(@max_members)
-
+  def new(list) do
+    members = Enum.filter(list, fn {k, v} -> valid_key?(k) and valid_value?(v) end)
     %__MODULE__{members: members}
   end
 
@@ -140,7 +133,9 @@ defmodule Otel.API.Trace.TraceState do
   Decodes a W3C `tracestate` header value into a TraceState.
 
   Returns an empty TraceState when the header exceeds the 512-byte
-  W3C cap (§ 3.3.3). Invalid entries (bad key/value format or missing
+  W3C cap (§ 3.3.3), or when the header contains more than 32
+  list-members (§ 3.3.3: "the parser MUST discard the whole
+  `tracestate`"). Invalid entries (bad key/value format or missing
   `=`) are dropped.
   """
   @spec decode(header :: String.t()) :: t()
@@ -148,16 +143,27 @@ defmodule Otel.API.Trace.TraceState do
     if byte_size(header) > @max_header_bytes do
       %__MODULE__{}
     else
+      build_from_header(header)
+    end
+  end
+
+  @spec build_from_header(header :: String.t()) :: t()
+  defp build_from_header(header) do
+    pairs =
+      header
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+    if length(pairs) > @max_members do
+      %__MODULE__{}
+    else
       members =
-        header
-        |> String.split(",")
-        |> Enum.map(&String.trim/1)
-        |> Enum.reject(&(&1 == ""))
+        pairs
         |> Enum.flat_map(&parse_pair/1)
         |> Enum.reduce([], fn {key, value}, acc ->
           List.keystore(acc, key, 0, {key, value})
         end)
-        |> Enum.take(@max_members)
 
       %__MODULE__{members: members}
     end
