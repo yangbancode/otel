@@ -9,7 +9,7 @@ defmodule Otel.SDK.Trace.SpanStorage do
 
   use GenServer
 
-  @table_name :otel_span_table
+  @table __MODULE__
 
   # --- Client API ---
 
@@ -23,7 +23,7 @@ defmodule Otel.SDK.Trace.SpanStorage do
   """
   @spec insert(span :: Otel.SDK.Trace.Span.t()) :: true
   def insert(span) do
-    :ets.insert(@table_name, {span.span_id, span})
+    :ets.insert(@table, {span.span_id, span})
   end
 
   @doc """
@@ -31,7 +31,7 @@ defmodule Otel.SDK.Trace.SpanStorage do
   """
   @spec get(span_id :: non_neg_integer()) :: Otel.SDK.Trace.Span.t() | nil
   def get(span_id) do
-    case :ets.lookup(@table_name, span_id) do
+    case :ets.lookup(@table, span_id) do
       [{^span_id, span}] -> span
       [] -> nil
     end
@@ -42,7 +42,7 @@ defmodule Otel.SDK.Trace.SpanStorage do
   """
   @spec take(span_id :: non_neg_integer()) :: Otel.SDK.Trace.Span.t() | nil
   def take(span_id) do
-    case :ets.take(@table_name, span_id) do
+    case :ets.take(@table, span_id) do
       [{^span_id, span}] -> span
       [] -> nil
     end
@@ -51,15 +51,15 @@ defmodule Otel.SDK.Trace.SpanStorage do
   @doc """
   Returns the ETS table name.
   """
-  @spec table_name() :: atom()
-  def table_name, do: @table_name
+  @spec table() :: atom()
+  def table, do: @table
 
   # --- Server Callbacks ---
 
   @impl true
   def init(_opts) do
     table =
-      :ets.new(@table_name, [
+      :ets.new(@table, [
         :named_table,
         :public,
         :set,
