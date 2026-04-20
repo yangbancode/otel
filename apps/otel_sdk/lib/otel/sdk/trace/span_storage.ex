@@ -9,7 +9,7 @@ defmodule Otel.SDK.Trace.SpanStorage do
 
   use GenServer
 
-  @table_name :otel_span_table
+  @table_name :__otel_sdk_trace_span_storage__
 
   # --- Client API ---
 
