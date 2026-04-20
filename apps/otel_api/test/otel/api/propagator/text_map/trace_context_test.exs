@@ -1,4 +1,4 @@
-defmodule Otel.API.Propagator.TraceContextTest do
+defmodule Otel.API.Propagator.TextMap.TraceContextTest do
   use ExUnit.Case, async: true
 
   @setter &Otel.API.Propagator.TextMap.default_setter/3
@@ -6,7 +6,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
 
   describe "fields/0" do
     test "returns traceparent and tracestate" do
-      assert Otel.API.Propagator.TraceContext.fields() == ["traceparent", "tracestate"]
+      assert Otel.API.Propagator.TextMap.TraceContext.fields() == ["traceparent", "tracestate"]
     end
   end
 
@@ -17,7 +17,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
 
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
-      carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
       traceparent = Otel.API.Propagator.TextMap.default_getter(carrier, "traceparent")
       assert traceparent == "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
@@ -28,7 +28,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
-      carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
       tracestate = Otel.API.Propagator.TextMap.default_getter(carrier, "tracestate")
       assert tracestate == "vendor=value"
@@ -38,14 +38,14 @@ defmodule Otel.API.Propagator.TraceContextTest do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
-      carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
       assert Otel.API.Propagator.TextMap.default_getter(carrier, "tracestate") == nil
     end
 
     test "does not inject for invalid span context" do
       ctx = Otel.API.Ctx.new()
-      carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
       assert carrier == []
     end
 
@@ -53,7 +53,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
       span_ctx = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 456}
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
-      carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
       assert carrier == []
     end
 
@@ -61,7 +61,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 0)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
-      carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
       traceparent = Otel.API.Propagator.TextMap.default_getter(carrier, "traceparent")
       assert String.ends_with?(traceparent, "-00")
     end
@@ -70,7 +70,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
   describe "extract/3" do
     test "extracts valid traceparent" do
       carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}]
-      ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
       assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
@@ -85,7 +85,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
         {"tracestate", "vendor=value"}
       ]
 
-      ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
       span_ctx = Otel.API.Trace.current_span(ctx)
 
       assert Otel.API.Trace.TraceState.get(span_ctx.tracestate, "vendor") == "value"
@@ -93,13 +93,13 @@ defmodule Otel.API.Propagator.TraceContextTest do
 
     test "returns original context for missing traceparent" do
       ctx = Otel.API.Ctx.new()
-      result = Otel.API.Propagator.TraceContext.extract(ctx, [], @getter)
+      result = Otel.API.Propagator.TextMap.TraceContext.extract(ctx, [], @getter)
       assert result == ctx
     end
 
     test "trims whitespace" do
       carrier = [{"traceparent", "  00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01  "}]
-      ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
       assert Otel.API.Trace.SpanContext.valid?(span_ctx)
@@ -111,7 +111,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
         {"traceparent", "01-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01-fg00"}
       ]
 
-      ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
       span_ctx = Otel.API.Trace.current_span(ctx)
 
       assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
@@ -126,7 +126,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
       ]
 
       ctx = Otel.API.Ctx.new()
-      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+      assert ctx == Otel.API.Propagator.TextMap.TraceContext.extract(ctx, carrier, @getter)
     end
 
     test "reserved version ff leaves ctx unchanged" do
@@ -135,7 +135,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
       ]
 
       ctx = Otel.API.Ctx.new()
-      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+      assert ctx == Otel.API.Propagator.TextMap.TraceContext.extract(ctx, carrier, @getter)
     end
 
     test "uppercase hex in traceparent leaves ctx unchanged (W3C strict lowercase)" do
@@ -145,7 +145,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
       ]
 
       ctx = Otel.API.Ctx.new()
-      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+      assert ctx == Otel.API.Propagator.TextMap.TraceContext.extract(ctx, carrier, @getter)
     end
 
     test "all-zero trace_id leaves ctx unchanged" do
@@ -154,19 +154,19 @@ defmodule Otel.API.Propagator.TraceContextTest do
       ]
 
       ctx = Otel.API.Ctx.new()
-      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+      assert ctx == Otel.API.Propagator.TextMap.TraceContext.extract(ctx, carrier, @getter)
     end
 
     test "garbage traceparent leaves ctx unchanged" do
       carrier = [{"traceparent", "this is not a valid traceparent"}]
 
       ctx = Otel.API.Ctx.new()
-      assert ctx == Otel.API.Propagator.TraceContext.extract(ctx, carrier, @getter)
+      assert ctx == Otel.API.Propagator.TextMap.TraceContext.extract(ctx, carrier, @getter)
     end
 
     test "extracts unsampled span" do
       carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-00"}]
-      ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
       assert span_ctx.trace_flags == 0
@@ -175,7 +175,7 @@ defmodule Otel.API.Propagator.TraceContextTest do
 
     test "handles missing tracestate gracefully" do
       carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}]
-      ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
       assert Otel.API.Trace.TraceState.size(span_ctx.tracestate) == 0
@@ -191,9 +191,11 @@ defmodule Otel.API.Propagator.TraceContextTest do
         )
 
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), original)
-      carrier = Otel.API.Propagator.TraceContext.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
-      new_ctx = Otel.API.Propagator.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      new_ctx =
+        Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+
       extracted = Otel.API.Trace.current_span(new_ctx)
 
       assert extracted.trace_id == original.trace_id

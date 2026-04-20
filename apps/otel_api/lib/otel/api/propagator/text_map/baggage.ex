@@ -1,4 +1,4 @@
-defmodule Otel.API.Propagator.Baggage do
+defmodule Otel.API.Propagator.TextMap.Baggage do
   @moduledoc """
   W3C Baggage propagator.
 

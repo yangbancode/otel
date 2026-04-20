@@ -8,7 +8,13 @@ defmodule Otel.API.Propagator.TextMap do
 
   Key/value pairs MUST only consist of US-ASCII characters valid
   for HTTP header fields (RFC 9110).
+
+  Also owns the global TextMapPropagator registration. Callers register
+  a composite/single propagator via `set_propagator/1` and retrieve it
+  via `get_propagator/0`. Without registration, inject/extract are no-ops.
   """
+
+  @global_key {__MODULE__, :global}
 
   @type carrier :: term()
   @type getter :: (carrier(), key :: String.t() -> String.t() | nil)
@@ -95,6 +101,27 @@ defmodule Otel.API.Propagator.TextMap do
     Enum.map(carrier, fn {k, _v} -> k end)
   end
 
+  # --- Global propagator registration ---
+
+  @doc """
+  Returns the globally registered TextMap propagator, or `nil` if none is set.
+  """
+  @spec get_propagator() :: {module(), term()} | module() | nil
+  def get_propagator do
+    :persistent_term.get(@global_key, nil)
+  end
+
+  @doc """
+  Sets the global TextMap propagator.
+
+  Accepts a module or `{module, opts}` tuple.
+  """
+  @spec set_propagator(propagator :: {module(), term()} | module()) :: :ok
+  def set_propagator(propagator) do
+    :persistent_term.put(@global_key, propagator)
+    :ok
+  end
+
   # --- Convenience functions using global propagator ---
 
   @doc """
@@ -102,7 +129,7 @@ defmodule Otel.API.Propagator.TextMap do
   """
   @spec inject(ctx :: Otel.API.Ctx.t(), carrier :: carrier(), setter :: setter()) :: carrier()
   def inject(ctx, carrier, setter \\ &default_setter/3) do
-    case Otel.API.Propagator.get_text_map_propagator() do
+    case get_propagator() do
       nil -> carrier
       propagator -> inject_with(propagator, ctx, carrier, setter)
     end
@@ -114,7 +141,7 @@ defmodule Otel.API.Propagator.TextMap do
   @spec extract(ctx :: Otel.API.Ctx.t(), carrier :: carrier(), getter :: getter()) ::
           Otel.API.Ctx.t()
   def extract(ctx, carrier, getter \\ &default_getter/2) do
-    case Otel.API.Propagator.get_text_map_propagator() do
+    case get_propagator() do
       nil -> ctx
       propagator -> extract_with(propagator, ctx, carrier, getter)
     end

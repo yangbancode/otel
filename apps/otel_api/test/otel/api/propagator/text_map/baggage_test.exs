@@ -1,4 +1,4 @@
-defmodule Otel.API.Propagator.BaggageTest do
+defmodule Otel.API.Propagator.TextMap.BaggageTest do
   use ExUnit.Case, async: true
 
   @setter &Otel.API.Propagator.TextMap.default_setter/3
@@ -6,7 +6,7 @@ defmodule Otel.API.Propagator.BaggageTest do
 
   describe "fields/0" do
     test "returns baggage header" do
-      assert Otel.API.Propagator.Baggage.fields() == ["baggage"]
+      assert Otel.API.Propagator.TextMap.Baggage.fields() == ["baggage"]
     end
   end
 
@@ -15,7 +15,7 @@ defmodule Otel.API.Propagator.BaggageTest do
       baggage = Otel.API.Baggage.set_value(%{}, "userId", "abc123")
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), baggage)
 
-      carrier = Otel.API.Propagator.Baggage.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
 
       header = Otel.API.Propagator.TextMap.default_getter(carrier, "baggage")
       assert header == "userId=abc123"
@@ -28,7 +28,7 @@ defmodule Otel.API.Propagator.BaggageTest do
         |> Otel.API.Baggage.set_value("b", "2")
 
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), baggage)
-      carrier = Otel.API.Propagator.Baggage.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
 
       header = Otel.API.Propagator.TextMap.default_getter(carrier, "baggage")
       assert String.contains?(header, "a=1")
@@ -40,7 +40,7 @@ defmodule Otel.API.Propagator.BaggageTest do
       baggage = Otel.API.Baggage.set_value(%{}, "key", "value", "prop1=val1")
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), baggage)
 
-      carrier = Otel.API.Propagator.Baggage.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
 
       header = Otel.API.Propagator.TextMap.default_getter(carrier, "baggage")
       assert header == "key=value;prop1=val1"
@@ -50,7 +50,7 @@ defmodule Otel.API.Propagator.BaggageTest do
       baggage = Otel.API.Baggage.set_value(%{}, "key", "hello world")
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), baggage)
 
-      carrier = Otel.API.Propagator.Baggage.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
 
       header = Otel.API.Propagator.TextMap.default_getter(carrier, "baggage")
       assert header == "key=hello+world"
@@ -58,7 +58,7 @@ defmodule Otel.API.Propagator.BaggageTest do
 
     test "does not inject for empty baggage" do
       ctx = Otel.API.Ctx.new()
-      carrier = Otel.API.Propagator.Baggage.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
       assert carrier == []
     end
   end
@@ -66,7 +66,7 @@ defmodule Otel.API.Propagator.BaggageTest do
   describe "extract/3" do
     test "extracts simple baggage" do
       carrier = [{"baggage", "userId=abc123"}]
-      ctx = Otel.API.Propagator.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       baggage = Otel.API.Baggage.get_baggage(ctx)
       assert Otel.API.Baggage.get_value(baggage, "userId") == "abc123"
@@ -74,7 +74,7 @@ defmodule Otel.API.Propagator.BaggageTest do
 
     test "extracts multiple entries" do
       carrier = [{"baggage", "a=1,b=2"}]
-      ctx = Otel.API.Propagator.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       baggage = Otel.API.Baggage.get_baggage(ctx)
       assert Otel.API.Baggage.get_value(baggage, "a") == "1"
@@ -83,7 +83,7 @@ defmodule Otel.API.Propagator.BaggageTest do
 
     test "extracts metadata" do
       carrier = [{"baggage", "key=value;prop1=val1"}]
-      ctx = Otel.API.Propagator.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       baggage = Otel.API.Baggage.get_baggage(ctx)
       {value, metadata} = Map.get(baggage, "key")
@@ -93,7 +93,7 @@ defmodule Otel.API.Propagator.BaggageTest do
 
     test "percent-decodes values" do
       carrier = [{"baggage", "key=hello+world"}]
-      ctx = Otel.API.Propagator.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       baggage = Otel.API.Baggage.get_baggage(ctx)
       assert Otel.API.Baggage.get_value(baggage, "key") == "hello world"
@@ -101,7 +101,7 @@ defmodule Otel.API.Propagator.BaggageTest do
 
     test "returns original context for missing header" do
       ctx = Otel.API.Ctx.new()
-      result = Otel.API.Propagator.Baggage.extract(ctx, [], @getter)
+      result = Otel.API.Propagator.TextMap.Baggage.extract(ctx, [], @getter)
       assert result == ctx
     end
 
@@ -109,13 +109,13 @@ defmodule Otel.API.Propagator.BaggageTest do
       # api-propagators.md L102 — Extract MUST NOT throw on parse failure.
       carrier = [{"baggage", "noequals"}]
       ctx = Otel.API.Ctx.new()
-      assert ctx == Otel.API.Propagator.Baggage.extract(ctx, carrier, @getter)
+      assert ctx == Otel.API.Propagator.TextMap.Baggage.extract(ctx, carrier, @getter)
     end
 
     test "returns original context for garbage header" do
       carrier = [{"baggage", "!!@@##"}]
       ctx = Otel.API.Ctx.new()
-      assert ctx == Otel.API.Propagator.Baggage.extract(ctx, carrier, @getter)
+      assert ctx == Otel.API.Propagator.TextMap.Baggage.extract(ctx, carrier, @getter)
     end
 
     test "merges with existing baggage in context" do
@@ -123,7 +123,7 @@ defmodule Otel.API.Propagator.BaggageTest do
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), existing)
 
       carrier = [{"baggage", "new=entry"}]
-      new_ctx = Otel.API.Propagator.Baggage.extract(ctx, carrier, @getter)
+      new_ctx = Otel.API.Propagator.TextMap.Baggage.extract(ctx, carrier, @getter)
 
       baggage = Otel.API.Baggage.get_baggage(new_ctx)
       assert Otel.API.Baggage.get_value(baggage, "existing") == "value"
@@ -135,7 +135,7 @@ defmodule Otel.API.Propagator.BaggageTest do
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), existing)
 
       carrier = [{"baggage", "key=remote"}]
-      new_ctx = Otel.API.Propagator.Baggage.extract(ctx, carrier, @getter)
+      new_ctx = Otel.API.Propagator.TextMap.Baggage.extract(ctx, carrier, @getter)
 
       baggage = Otel.API.Baggage.get_baggage(new_ctx)
       assert Otel.API.Baggage.get_value(baggage, "key") == "remote"
@@ -143,7 +143,7 @@ defmodule Otel.API.Propagator.BaggageTest do
 
     test "handles whitespace" do
       carrier = [{"baggage", " a = 1 , b = 2 "}]
-      ctx = Otel.API.Propagator.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       baggage = Otel.API.Baggage.get_baggage(ctx)
       assert Otel.API.Baggage.get_value(baggage, "a") == "1"
@@ -157,9 +157,9 @@ defmodule Otel.API.Propagator.BaggageTest do
         |> Otel.API.Baggage.set_value("serverNode", "node-42", "region=us-east")
 
       ctx = Otel.API.Baggage.set_baggage(Otel.API.Ctx.new(), original)
-      carrier = Otel.API.Propagator.Baggage.inject(ctx, [], @setter)
+      carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
 
-      new_ctx = Otel.API.Propagator.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+      new_ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
       extracted = Otel.API.Baggage.get_baggage(new_ctx)
 
       assert Otel.API.Baggage.get_value(extracted, "userId") == "abc123"
