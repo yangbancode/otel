@@ -7,7 +7,7 @@ defmodule Otel.API.Trace.Event do
   system time is used (spec L537-539).
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @type t :: %__MODULE__{
           name: String.t(),

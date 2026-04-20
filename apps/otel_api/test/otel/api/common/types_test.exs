@@ -1,7 +1,7 @@
-defmodule Otel.API.TypesTest do
+defmodule Otel.API.Common.TypesTest do
   use ExUnit.Case, async: true
 
-  test "use Otel.API.Types injects primitive and primitive_any into consumer" do
+  test "use Otel.API.Common.Types injects primitive and primitive_any into consumer" do
     {:ok, types} = Code.Typespec.fetch_types(Otel.API.InstrumentationScope)
     names = for {kind, {name, _, _}} <- types, do: {kind, name}
 
@@ -11,7 +11,7 @@ defmodule Otel.API.TypesTest do
   end
 
   test "moduledoc explains primitive, primitive_any, and bytes tagging" do
-    {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} = Code.fetch_docs(Otel.API.Types)
+    {:docs_v1, _, _, _, %{"en" => moduledoc}, _, _} = Code.fetch_docs(Otel.API.Common.Types)
     assert is_binary(moduledoc)
     assert String.contains?(moduledoc, "primitive")
     assert String.contains?(moduledoc, "primitive_any")

@@ -10,7 +10,7 @@ defmodule Otel.API.Metrics.Meter do
   All functions are safe for concurrent use.
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @type t :: {module(), term()}
 

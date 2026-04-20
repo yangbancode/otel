@@ -3,7 +3,7 @@ defmodule Otel.API.InstrumentationScope do
   Identifies the instrumentation library that produced telemetry.
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @type t :: %__MODULE__{
           name: String.t(),

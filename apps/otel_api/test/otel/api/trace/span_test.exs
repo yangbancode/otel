@@ -1,5 +1,5 @@
 defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @spec recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
   def recording?(_span_ctx), do: true
