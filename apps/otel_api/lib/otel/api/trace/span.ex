@@ -71,8 +71,8 @@ defmodule Otel.API.Trace.Span do
   """
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          key :: Otel.API.Attributes.key(),
-          value :: Otel.API.Attributes.value()
+          key :: Otel.API.Attribute.key(),
+          value :: Otel.API.Attribute.value()
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
     case get_module() do

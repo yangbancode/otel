@@ -80,27 +80,43 @@ through the `[t()]` and `%{String.t() => t()}` branches. An `AnyValue` of
 Per the spec, empty values, zero, empty strings, and empty arrays are all
 meaningful and must be preserved end-to-end — we pass them through unchanged.
 
-### Attributes module
+### Attribute and Attributes modules
 
-`Otel.API.Attributes` is likewise a pure type-alias module. An attribute is a
-strict subset of `AnyValue`: scalars and homogeneous scalar arrays only. No
-maps, no heterogeneous arrays, no nested recursion.
+The single-attribute and attribute-collection types live in two
+separate modules so call sites can pick the name that fits the
+context:
 
 ```elixir
-@type key :: String.t()
-@type scalar ::
-        String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
-@type value :: scalar() | [scalar()]
-@type t :: %{key() => value()}
+defmodule Otel.API.Attribute do
+  @type key :: String.t()
+  @type scalar ::
+          String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
+  @type value :: scalar() | [scalar()]
+end
+
+defmodule Otel.API.Attributes do
+  @type t :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+end
 ```
 
-Module name is plural (`Attributes`) to match the spec's "Attribute
-Collection" terminology and the `otel_attributes` precedent in
-opentelemetry-erlang. `t/0` denotes the collection (the primary exported
-type per Elixir convention); the scalar `key`/`scalar`/`value` aliases sit
-alongside. We intentionally do not define a pair alias — with the
-list-of-pairs collection form rejected (see below) and no call site
-needing one, an extra alias would be dead weight.
+The singular `Attribute` owns `key` / `scalar` / `value` — types used in
+single-attribute operations such as `Span.set_attribute(ctx, key, value)`.
+The plural `Attributes` owns only `t/0`, the map-shaped collection used
+in struct fields like `%Link{attributes: Attributes.t()}`. The split
+matches the spec's distinction between "a single attribute" and "an
+attribute collection" and aligns with other OTel SDKs: Java has
+`AttributeKey<T>` plus `Attributes`, Go has `attribute.Key` plus
+`attribute.Set`.
+
+An attribute value is a strict subset of `AnyValue`: scalars and
+homogeneous scalar arrays only. No maps, no heterogeneous arrays, no
+nested recursion. Both modules are pure type-alias modules — no
+structs, no behaviours, no runtime state.
+
+We intentionally do not define a pair alias (a single `{key, value}`
+tuple type). With the list-of-pairs collection form rejected (see
+below) and no call site needing one, an extra alias would be dead
+weight.
 
 #### Keys are strings only
 
@@ -178,8 +194,9 @@ and is covered by the existing [span-limits.md](span-limits.md) and
 - `Otel.API.AnyValue` — type alias for the spec's `AnyValue` tagged union
   (primitive, heterogeneous array, string-keyed map, empty); documents the
   UTF-8 serialisation heuristic for the `string`/`byte array` split.
-- `Otel.API.Attributes` — type aliases for attribute `key`, `scalar`,
-  `value`, and `t` (the map-only collection).
+- `Otel.API.Attribute` — single-attribute type aliases: `key`, `scalar`,
+  `value`.
+- `Otel.API.Attributes` — the collection type `t` (map of key/value).
 
 ## Compliance
 

@@ -4,8 +4,8 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
 
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          key :: Otel.API.Attributes.key(),
-          value :: Otel.API.Attributes.value()
+          key :: Otel.API.Attribute.key(),
+          value :: Otel.API.Attribute.value()
         ) :: :ok
   def set_attribute(_span_ctx, _key, _value), do: :ok
 

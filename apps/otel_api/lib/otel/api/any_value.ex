@@ -4,7 +4,7 @@ defmodule Otel.API.AnyValue do
 
   `AnyValue` is a tagged union used where the data model accepts arbitrary
   values — most notably as a `LogRecord.Body`, or as a nested value inside
-  `map<string, AnyValue>`. It is strictly broader than `Otel.API.Attributes.value/0`
+  `map<string, AnyValue>`. It is strictly broader than `Otel.API.Attribute.value/0`
   (which disallows maps, heterogeneous arrays, and nesting).
 
   ## Elixir representation
