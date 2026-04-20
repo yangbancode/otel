@@ -30,6 +30,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 ### Trace API
 - [x] [SpanContext](decisions/spancontext-struct.md)
 - [x] [TraceState](decisions/tracestate.md)
+- [x] [W3C Trace Context Level 2](decisions/w3c-trace-context-level.md)
 - [x] [TracerProvider API](decisions/tracerprovider-api.md)
 - [x] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)
 - [x] [Span Interface & Lifecycle](decisions/span-interface-and-lifecycle.md)

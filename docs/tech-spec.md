@@ -9,7 +9,12 @@ Pure Elixir implementation of the OpenTelemetry SDK. This project implements the
 - **Language**: Erlang/OTP 26.2.5.19, Elixir 1.18.4-otp-26
 - **Version Management**: mise (pinned in `.mise.toml`)
 - **Build Tool**: Mix
-- **Target Spec**: [OpenTelemetry Specification v1.55.0](https://github.com/open-telemetry/opentelemetry-specification/releases/tag/v1.55.0)
+- **Target Specs**:
+  - [OpenTelemetry Specification v1.55.0](https://github.com/open-telemetry/opentelemetry-specification/releases/tag/v1.55.0)
+  - [W3C Trace Context Level 2](https://www.w3.org/TR/trace-context-2/) — mandated by OTel for `traceparent`/`tracestate` wire format (`context/api-propagators.md` L383 MUST)
+  - [W3C Baggage](https://www.w3.org/TR/baggage/) — `baggage` header wire format
+  - [OpenTelemetry Protocol (OTLP)](https://github.com/open-telemetry/opentelemetry-proto) — exporter wire format
+  - [OpenTelemetry Semantic Conventions](https://github.com/open-telemetry/semantic-conventions) — attribute key constants
 
 ## Project Scope
 

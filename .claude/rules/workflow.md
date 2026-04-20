@@ -4,7 +4,12 @@ When a user requests a task that involves code changes:
 
 1. **Classify the task** — determine the type (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`) and scope by asking the user if unclear
 2. **Create a branch** — `<type>/<short-description>` from `main` before making any changes
-3. **Research** — read the OTel spec (`references/opentelemetry-specification/`) and the erlang reference (`references/opentelemetry-erlang/`) together
+3. **Research** — read the relevant specs together with the erlang reference (`references/opentelemetry-erlang/`):
+   - OTel Specification — `references/opentelemetry-specification/`
+   - W3C Trace Context — `references/w3c-trace-context/` (wire format for `traceparent` / `tracestate`)
+   - W3C Baggage — `references/w3c-baggage/` (wire format for `baggage`)
+   - Semantic Conventions — `references/semantic-conventions/`
+   - OTLP Proto — `references/opentelemetry-proto/`
 4. **Implement** — write code and tests based on spec + erlang reference. Apply all available config/limits/features from prior decisions immediately — do not defer to "next decision"
 5. **Code conventions** — verify against `.claude/rules/code-conventions.md`:
    - No alias: full module names only

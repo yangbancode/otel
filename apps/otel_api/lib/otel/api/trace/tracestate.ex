@@ -18,27 +18,24 @@ defmodule Otel.API.Trace.TraceState do
 
   ## References
 
-  - W3C Trace Context: <https://www.w3.org/TR/trace-context/>
+  - W3C Trace Context: `w3c-trace-context/spec/20-http_request_header_format.md`
   - OTel Trace API: `opentelemetry-specification/specification/trace/api.md`
   """
 
   @typedoc """
-  A W3C TraceState key (spec §3.3.1.1).
+  A W3C TraceState key (spec §3.3.1.3.1, Level 2).
 
-  Two valid forms:
+  Must begin with a lowercase letter (`a-z`) or digit (`0-9`),
+  followed by up to 255 characters from
+  `[a-z0-9_\\-*/@]` (total ≤256 characters).
 
-  - `simple-key` — lowercase letter followed by up to 255 characters
-    from `[a-z0-9_\\-*/]`.
-  - `tenant@system` (multi-tenant) — `tenant-id` (lowercase-alphanumeric
-    start, up to 241 chars total) + `@` + `system-id` (lowercase-letter
-    start, up to 14 chars total).
-
-  Invalid keys are silently dropped by mutating operations and decoders.
+  Invalid keys are silently dropped by mutating operations and
+  decoders.
   """
   @type key :: String.t()
 
   @typedoc """
-  A W3C TraceState value (spec §3.3.2).
+  A W3C TraceState value (spec §3.3.1.3.2).
 
   Printable ASCII (0x20–0x7E) excluding `,` (0x2C) and `=` (0x3D),
   1–256 characters; the last character MUST NOT be a space.
@@ -49,27 +46,31 @@ defmodule Otel.API.Trace.TraceState do
   @type value :: String.t()
 
   @typedoc """
-  An opaque W3C TraceState (spec §3.3.1).
+  An opaque W3C TraceState (spec §3.3.1.2 `list`).
 
   External code must use the public API (`new/0`, `add/3`,
   `update/3`, `delete/2`, `decode/1`) to construct or mutate. The
   internal representation (an ordered `[{key, value}]` list, newest
-  at the front per W3C §3.3.3) is not part of the public contract.
+  at the front per W3C §3.5 Mutating rules) is not part of the
+  public contract.
   """
   @opaque t :: %__MODULE__{members: [{key(), value()}]}
 
   defstruct members: []
 
-  # W3C §3.3.3: the list MUST contain at most 32 members.
+  # W3C §3.3.1.1: "There can be a maximum of 32 list-members in a list."
   @max_members 32
 
-  # W3C §3.3.3: the encoded header value MUST be at most 512 bytes.
+  # W3C §3.3.1.5 tracestate Limits: vendors SHOULD propagate at least
+  # 512 characters of a combined header.
   @max_header_bytes 512
 
-  # W3C §3.3.1.1 key grammar (see @typedoc `key/0`).
-  @key_regex ~r/^([a-z][a-z0-9_\-*\/]{0,255}|[a-z0-9][a-z0-9_\-*\/]{0,240}@[a-z][a-z0-9_\-*\/]{0,13})$/
+  # W3C §3.3.1.3.1 key grammar (Level 2, see @typedoc `key/0`):
+  #   key     = (lcalpha / DIGIT) 0*255(keychar)
+  #   keychar = lcalpha / DIGIT / "_" / "-" / "*" / "/" / "@"
+  @key_regex ~r/^[a-z0-9][a-z0-9_\-*\/@]{0,255}$/
 
-  # W3C §3.3.2 value grammar (see @typedoc `value/0`).
+  # W3C §3.3.1.3.2 value grammar (see @typedoc `value/0`).
   # Character-range breakdown (matches `opentelemetry-erlang otel_tracestate`):
   #   ` -+` : space to +   (0x20-0x2B) — before ","
   #   `--<` : hyphen to <  (0x2D-0x3C) — between "," and "="
@@ -82,7 +83,7 @@ defmodule Otel.API.Trace.TraceState do
   Returns the value associated with `key`, or `""` (empty string)
   when the key is absent.
 
-  Because W3C §3.3.2 forbids empty values, a well-formed state
+  Because W3C §3.3.1.3.2 forbids empty values, a well-formed state
   cannot contain one — the empty-string return reliably signals
   "not found".
   """
@@ -97,14 +98,15 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   **OTel API MUST** — "Add a new key/value pair" (`trace/api.md` TraceState).
 
-  Prepends a new `{key, value}` entry to the list (W3C §3.3.3: new
-  entries MUST be added at the left).
+  Prepends a new `{key, value}` entry to the list. W3C §3.5
+  Mutating: "The new key/value pair SHOULD be added to the
+  beginning of the list."
 
   Returns the state unchanged when:
 
-  - the key violates W3C §3.3.1.1 format,
-  - the value violates W3C §3.3.2 format, or
-  - the list already contains 32 entries (W3C §3.3.3).
+  - the key violates W3C §3.3.1.3.1 format,
+  - the value violates W3C §3.3.1.3.2 format, or
+  - the list already contains 32 entries (W3C §3.3.1.1).
 
   No existing-key check is performed; for "update-or-add" semantics
   use `update/3` instead.
@@ -123,14 +125,14 @@ defmodule Otel.API.Trace.TraceState do
   **OTel API MUST** — "Update an existing value" (`trace/api.md` TraceState).
 
   Removes any existing entry for `key` and prepends a new entry
-  with `value`. Per W3C §3.3.3, updated entries move to the front
-  of the list to signal "most recently mutated by this system".
+  with `value`. Per W3C §3.5: "Modified keys MUST be moved to the
+  beginning (left) of the list."
 
   If `key` is not already present, the behaviour is equivalent to
   `add/3`, including the 32-member limit.
 
   Returns the state unchanged when the key or value is invalid per
-  W3C §3.3.1.1 / §3.3.2.
+  W3C §3.3.1.3.1 / §3.3.1.3.2.
   """
   @spec update(trace_state :: t(), key :: key(), value :: value()) :: t()
   def update(%__MODULE__{members: members} = ts, key, value) do
@@ -153,7 +155,7 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **W3C header serialization** (§3.3.1).
+  **W3C header serialization** (§3.3.1.4 Combined Header Value).
 
   Serializes to a W3C `tracestate` header value. Returns `""` for
   an empty state.
@@ -169,14 +171,17 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **W3C header parsing** (§3.3.3).
+  **W3C header parsing** (§3.3.1 `tracestate Header Field Values`).
 
   Parses a W3C `tracestate` header value. Returns an **empty**
   state when:
 
-  - the header exceeds 512 bytes (W3C §3.3.3 size limit), or
-  - the header contains more than 32 list-members (W3C §3.3.3:
-    "the parser MUST discard the whole tracestate").
+  - the header exceeds 512 bytes (W3C §3.3.1.5 size cap).
+  - the header contains more than 32 list-members. W3C §3.3.1.1
+    states "There can be a maximum of 32 `list-member`s in a
+    `list`" but does not define parser behaviour beyond the
+    limit; we reject the whole header, matching
+    `opentelemetry-erlang`'s `otel_tracestate:decode_header/1`.
 
   Otherwise individual malformed entries (bad key/value format or
   missing `=`) are dropped while the remainder is kept; duplicate
@@ -195,7 +200,7 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **W3C format predicate** — key (§3.3.1.1).
+  **W3C format predicate** — key (§3.3.1.3.1).
 
   Returns whether `key` conforms to the W3C TraceState key format.
   See `t:key/0` for the grammar. Returns `false` for any non-binary
@@ -206,7 +211,7 @@ defmodule Otel.API.Trace.TraceState do
   def valid_key?(_), do: false
 
   @doc """
-  **W3C format predicate** — value (§3.3.2).
+  **W3C format predicate** — value (§3.3.1.3.2).
 
   Returns whether `value` conforms to the W3C TraceState value
   format. See `t:value/0` for the grammar. Returns `false` for any
