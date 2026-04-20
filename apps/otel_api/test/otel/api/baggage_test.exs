@@ -78,38 +78,38 @@ defmodule Otel.API.BaggageTest do
   describe "context interaction (explicit)" do
     test "get_baggage returns empty map by default" do
       ctx = %{}
-      assert Otel.API.Baggage.get_baggage(ctx) == %{}
+      assert Otel.API.Baggage.current(ctx) == %{}
     end
 
     test "set_baggage and get_baggage roundtrip" do
       baggage = %{"key" => {"value", ""}}
-      ctx = Otel.API.Baggage.set_baggage(%{}, baggage)
-      assert Otel.API.Baggage.get_baggage(ctx) == baggage
+      ctx = Otel.API.Baggage.set_current(%{}, baggage)
+      assert Otel.API.Baggage.current(ctx) == baggage
     end
 
-    test "clear removes all entries from context" do
+    test "set_current with empty map clears entries from context" do
       baggage = %{"a" => {"1", ""}, "b" => {"2", ""}}
-      ctx = Otel.API.Baggage.set_baggage(%{}, baggage)
-      cleared = Otel.API.Baggage.clear(ctx)
-      assert Otel.API.Baggage.get_baggage(cleared) == %{}
+      ctx = Otel.API.Baggage.set_current(%{}, baggage)
+      cleared = Otel.API.Baggage.set_current(ctx, %{})
+      assert Otel.API.Baggage.current(cleared) == %{}
     end
   end
 
   describe "context interaction (implicit)" do
-    test "get_baggage returns empty map by default" do
-      assert Otel.API.Baggage.get_baggage() == %{}
+    test "current/0 returns empty map by default" do
+      assert Otel.API.Baggage.current() == %{}
     end
 
-    test "set_baggage and get_baggage roundtrip" do
+    test "set_current/1 and current/0 roundtrip" do
       baggage = %{"key" => {"value", ""}}
-      Otel.API.Baggage.set_baggage(baggage)
-      assert Otel.API.Baggage.get_baggage() == baggage
+      Otel.API.Baggage.set_current(baggage)
+      assert Otel.API.Baggage.current() == baggage
     end
 
-    test "clear removes all entries" do
-      Otel.API.Baggage.set_baggage(%{"key" => {"value", ""}})
-      Otel.API.Baggage.clear()
-      assert Otel.API.Baggage.get_baggage() == %{}
+    test "set_current/1 with empty map clears all entries" do
+      Otel.API.Baggage.set_current(%{"key" => {"value", ""}})
+      Otel.API.Baggage.set_current(%{})
+      assert Otel.API.Baggage.current() == %{}
     end
   end
 end

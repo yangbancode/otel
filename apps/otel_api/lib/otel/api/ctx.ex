@@ -58,7 +58,7 @@ defmodule Otel.API.Ctx do
 
   Used by SDK components and instrumentation libraries to read the
   ambient Context. End-user code typically reads domain values
-  through higher-level APIs (`Otel.API.Baggage.get_baggage/0`,
+  through higher-level APIs (`Otel.API.Baggage.current/0`,
   `Otel.API.Trace.current_span/0`) rather than calling this directly.
   """
   @spec current() :: t()
