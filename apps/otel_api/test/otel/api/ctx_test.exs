@@ -81,10 +81,6 @@ defmodule Otel.API.CtxTest do
       assert Otel.API.Ctx.get_value(:missing) == nil
     end
 
-    test "get_value/2 returns default for missing key" do
-      assert Otel.API.Ctx.get_value(:missing, :default) == :default
-    end
-
     test "remove/1 removes key from current context" do
       Otel.API.Ctx.set_value(:key, "value")
       Otel.API.Ctx.remove(:key)
@@ -109,11 +105,21 @@ defmodule Otel.API.CtxTest do
       :ok
     end
 
-    test "attach/1 sets current context and returns previous" do
+    test "attach/1 sets current context and returns previous as map" do
       ctx = %{span: :my_span}
       token = Otel.API.Ctx.attach(ctx)
       assert Otel.API.Ctx.get_current() == ctx
-      assert token == nil || is_map(token)
+      assert is_map(token)
+    end
+
+    test "attach/1 on fresh process returns empty map (not nil)" do
+      token = Otel.API.Ctx.attach(%{a: 1})
+      assert token == %{}
+    end
+
+    test "detach/1 returns :ok" do
+      token = Otel.API.Ctx.attach(%{a: 1})
+      assert Otel.API.Ctx.detach(token) == :ok
     end
 
     test "detach/1 restores previous context" do

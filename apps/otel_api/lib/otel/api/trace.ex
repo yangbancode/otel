@@ -44,7 +44,7 @@ defmodule Otel.API.Trace do
   """
   @spec current_span() :: Otel.API.Trace.SpanContext.t()
   def current_span do
-    Otel.API.Ctx.get_value(@span_key, %Otel.API.Trace.SpanContext{})
+    Otel.API.Ctx.get_value(Otel.API.Ctx.get_current(), @span_key, %Otel.API.Trace.SpanContext{})
   end
 
   @doc """

@@ -51,19 +51,13 @@ defmodule Otel.API.Ctx do
   @doc """
   Gets a value from the current process context.
 
-  Returns `nil` if the key is not found.
+  Returns `nil` if the key is not found. For a default value, use
+  `get_value/3` with the explicit context or read through
+  `get_current/0` with `Map.get/3`.
   """
   @spec get_value(key :: key()) :: value()
   def get_value(key) do
     Map.get(get_current(), key)
-  end
-
-  @doc """
-  Gets a value from the current process context with a default.
-  """
-  @spec get_value(key :: key(), default :: value()) :: value()
-  def get_value(key, default) when not is_map(key) do
-    Map.get(get_current(), key, default)
   end
 
   @doc """
@@ -128,18 +122,20 @@ defmodule Otel.API.Ctx do
   Attaches the given context to the current process.
 
   Returns a token that can be passed to `detach/1` to restore
-  the previous context.
+  the previous context. On the first attach in a process, the
+  previous context is normalized to an empty map.
   """
-  @spec attach(ctx :: t()) :: token() | nil
+  @spec attach(ctx :: t()) :: token()
   def attach(ctx) do
-    Process.put(@current_key, ctx)
+    Process.put(@current_key, ctx) || %{}
   end
 
   @doc """
   Restores a previous context from a token returned by `attach/1`.
   """
-  @spec detach(token :: token() | nil) :: t() | nil
+  @spec detach(token :: token()) :: :ok
   def detach(token) do
     Process.put(@current_key, token)
+    :ok
   end
 end
