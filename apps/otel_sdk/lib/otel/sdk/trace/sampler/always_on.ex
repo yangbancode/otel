@@ -31,7 +31,7 @@ defmodule Otel.SDK.Trace.Sampler.AlwaysOn do
     tracestate =
       ctx
       |> Otel.API.Trace.current_span()
-      |> Map.get(:tracestate, %Otel.API.Trace.TraceState{})
+      |> Map.get(:tracestate, Otel.API.Trace.TraceState.new())
 
     {:record_and_sample, %{}, tracestate}
   end

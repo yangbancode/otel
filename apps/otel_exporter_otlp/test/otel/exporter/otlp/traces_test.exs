@@ -9,7 +9,7 @@ defmodule Otel.Exporter.OTLP.TracesTest do
     start_time: 1_000_000,
     end_time: 2_000_000,
     is_recording: false,
-    tracestate: %Otel.API.Trace.TraceState{}
+    tracestate: Otel.API.Trace.TraceState.new()
   }
 
   @test_resource Otel.SDK.Resource.create(%{"service.name" => "test"})

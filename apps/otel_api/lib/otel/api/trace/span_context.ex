@@ -25,7 +25,7 @@ defmodule Otel.API.Trace.SpanContext do
   defstruct trace_id: 0,
             span_id: 0,
             trace_flags: 0,
-            tracestate: %Otel.API.Trace.TraceState{},
+            tracestate: Otel.API.Trace.TraceState.new(),
             is_remote: false
 
   @doc """
@@ -37,7 +37,7 @@ defmodule Otel.API.Trace.SpanContext do
           trace_flags :: trace_flags(),
           tracestate :: Otel.API.Trace.TraceState.t()
         ) :: t()
-  def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ %Otel.API.Trace.TraceState{}) do
+  def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ Otel.API.Trace.TraceState.new()) do
     %__MODULE__{
       trace_id: trace_id,
       span_id: span_id,

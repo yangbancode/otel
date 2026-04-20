@@ -9,7 +9,7 @@ defmodule Otel.SDK.Trace.SamplerTest.TestSampler do
 
   @impl true
   def should_sample(_ctx, _trace_id, _links, _name, _kind, _attributes, _config) do
-    {:record_and_sample, %{}, %Otel.API.Trace.TraceState{}}
+    {:record_and_sample, %{}, Otel.API.Trace.TraceState.new()}
   end
 end
 
@@ -41,7 +41,8 @@ defmodule Otel.SDK.Trace.SamplerTest do
           %{}
         )
 
-      assert {:record_and_sample, %{}, %Otel.API.Trace.TraceState{}} = result
+      assert {:record_and_sample, %{}, ts} = result
+      assert ts == Otel.API.Trace.TraceState.new()
     end
   end
 

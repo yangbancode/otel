@@ -49,7 +49,7 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
     tracestate =
       ctx
       |> Otel.API.Trace.current_span()
-      |> Map.get(:tracestate, %Otel.API.Trace.TraceState{})
+      |> Map.get(:tracestate, Otel.API.Trace.TraceState.new())
 
     decision = decide(trace_id, id_upper_bound)
     {decision, %{}, tracestate}

@@ -30,7 +30,14 @@ defmodule Otel.API.Trace.TraceState do
   """
   @type value :: String.t()
 
-  @type t :: %__MODULE__{members: [{key(), value()}]}
+  @typedoc """
+  An opaque TraceState value.
+
+  External code must use the public API (`add/3`, `update/3`,
+  `delete/2`, `decode/1`) to construct and mutate; the internal
+  `members` layout is not part of the API contract.
+  """
+  @opaque t :: %__MODULE__{members: [{key(), value()}]}
 
   defstruct members: []
 
@@ -55,16 +62,13 @@ defmodule Otel.API.Trace.TraceState do
   @value_regex ~r/^[ -+--<>-~]{0,255}[!-+--<>-~]$/
 
   @doc """
-  Creates a TraceState from a list of `{key, value}` pairs.
+  Returns a new (empty) TraceState.
 
-  Invalid entries (per W3C Trace Context § 3.3.2) are dropped. For
-  an empty TraceState, use `%#{inspect(__MODULE__)}{}` directly.
+  Use `add/3` to insert entries, or `decode/1` to build from a W3C
+  header value.
   """
-  @spec new(list :: [{key(), value()}]) :: t()
-  def new(list) do
-    members = Enum.filter(list, fn {k, v} -> valid_key?(k) and valid_value?(v) end)
-    %__MODULE__{members: members}
-  end
+  @spec new() :: t()
+  def new, do: %__MODULE__{}
 
   @doc """
   Returns the number of entries in the TraceState.
