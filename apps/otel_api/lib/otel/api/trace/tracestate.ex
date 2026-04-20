@@ -6,7 +6,31 @@ defmodule Otel.API.Trace.TraceState do
   propagated across tracing systems.
   """
 
-  @type t :: %__MODULE__{members: [{String.t(), String.t()}]}
+  @typedoc """
+  A W3C TraceState key (spec §3.3.1.1).
+
+  Two valid forms:
+  - `simple-key` — lowercase letter followed by up to 255 characters
+    from `[a-z0-9_\\-*/]`.
+  - `tenant@system` (multi-tenant) — `tenant-id` (lowercase-alphanumeric
+    start, up to 241 chars total) + `@` + `system-id` (lowercase-letter
+    start, up to 14 chars total).
+
+  Invalid keys are silently dropped by mutating operations and decoders.
+  """
+  @type key :: String.t()
+
+  @typedoc """
+  A W3C TraceState value (spec §3.3.2).
+
+  Printable ASCII (0x20–0x7E) excluding `,` (0x2C) and `=` (0x3D),
+  with a maximum of 256 characters and the last character MUST NOT
+  be a space. Invalid values are silently dropped by mutating
+  operations and decoders.
+  """
+  @type value :: String.t()
+
+  @type t :: %__MODULE__{members: [{key(), value()}]}
 
   defstruct members: []
 
@@ -22,21 +46,16 @@ defmodule Otel.API.Trace.TraceState do
 
   # Value format (§ 3.3.2):
   # printable ASCII (0x20-0x7E) excluding "," (0x2C) and "=" (0x3D),
-  # last character MUST NOT be a space (0x20).
-  @value_regex ~r/^[\x20-\x2B\x2D-\x3C\x3E-\x7E]*[\x21-\x2B\x2D-\x3C\x3E-\x7E]$/
-
-  @doc """
-  Creates an empty TraceState.
-  """
-  @spec new() :: t()
-  def new, do: %__MODULE__{}
+  # max 256 characters, last character MUST NOT be a space (0x20).
+  @value_regex ~r/^[\x20-\x2B\x2D-\x3C\x3E-\x7E]{0,255}[\x21-\x2B\x2D-\x3C\x3E-\x7E]$/
 
   @doc """
   Creates a TraceState from a list of `{key, value}` pairs.
 
-  Invalid entries (per W3C Trace Context § 3.3.2) are dropped.
+  Invalid entries (per W3C Trace Context § 3.3.2) are dropped. For
+  an empty TraceState, use `%#{inspect(__MODULE__)}{}` directly.
   """
-  @spec new(list :: [{String.t(), String.t()}]) :: t()
+  @spec new(list :: [{key(), value()}]) :: t()
   def new(list) when is_list(list) do
     members =
       list
@@ -58,7 +77,7 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   Returns the value for `key`, or `""` if not found.
   """
-  @spec get(trace_state :: t(), key :: String.t()) :: String.t()
+  @spec get(trace_state :: t(), key :: key()) :: value()
   def get(%__MODULE__{members: members}, key) do
     case List.keyfind(members, key, 0) do
       {_, value} -> value
@@ -72,7 +91,7 @@ defmodule Otel.API.Trace.TraceState do
   Returns the TraceState unchanged when the key or value is invalid
   per W3C Trace Context § 3.3.2, or when the member limit is reached.
   """
-  @spec add(trace_state :: t(), key :: String.t(), value :: String.t()) :: t()
+  @spec add(trace_state :: t(), key :: key(), value :: value()) :: t()
   def add(%__MODULE__{members: members} = ts, key, value) do
     cond do
       not valid_key?(key) -> ts
@@ -88,7 +107,7 @@ defmodule Otel.API.Trace.TraceState do
   Returns the TraceState unchanged when the key or value is invalid
   per W3C Trace Context § 3.3.2.
   """
-  @spec update(trace_state :: t(), key :: String.t(), value :: String.t()) :: t()
+  @spec update(trace_state :: t(), key :: key(), value :: value()) :: t()
   def update(%__MODULE__{members: members} = ts, key, value) do
     cond do
       not valid_key?(key) -> ts
@@ -100,7 +119,7 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   Removes the entry for `key`.
   """
-  @spec delete(trace_state :: t(), key :: String.t()) :: t()
+  @spec delete(trace_state :: t(), key :: key()) :: t()
   def delete(%__MODULE__{members: members} = ts, key) do
     %__MODULE__{ts | members: List.keydelete(members, key, 0)}
   end
@@ -144,7 +163,7 @@ defmodule Otel.API.Trace.TraceState do
     end
   end
 
-  @spec parse_pair(pair :: String.t()) :: [{String.t(), String.t()}]
+  @spec parse_pair(pair :: String.t()) :: [{key(), value()}]
   defp parse_pair(pair) do
     case String.split(pair, "=", parts: 2) do
       [key, value] ->

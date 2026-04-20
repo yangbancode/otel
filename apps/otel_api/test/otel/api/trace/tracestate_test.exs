@@ -3,7 +3,7 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "new/0" do
     test "creates empty tracestate" do
-      ts = Otel.API.Trace.TraceState.new()
+      ts = %Otel.API.Trace.TraceState{}
       assert ts.members == []
     end
   end
@@ -28,7 +28,7 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
 
     test "returns empty string for missing key" do
-      ts = Otel.API.Trace.TraceState.new()
+      ts = %Otel.API.Trace.TraceState{}
       assert Otel.API.Trace.TraceState.get(ts, "missing") == ""
     end
   end
@@ -78,7 +78,7 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
 
     test "returns empty string for empty tracestate" do
-      assert Otel.API.Trace.TraceState.encode(Otel.API.Trace.TraceState.new()) == ""
+      assert Otel.API.Trace.TraceState.encode(%Otel.API.Trace.TraceState{}) == ""
     end
   end
 
@@ -101,36 +101,36 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "key validation" do
     test "accepts simple key" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor", "val")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "vendor", "val")
       assert Otel.API.Trace.TraceState.get(ts, "vendor") == "val"
     end
 
     test "accepts key with allowed chars" do
       ts =
-        Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "my-vendor_key/1*2", "val")
+        Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "my-vendor_key/1*2", "val")
 
       assert Otel.API.Trace.TraceState.get(ts, "my-vendor_key/1*2") == "val"
     end
 
     test "accepts multi-tenant key" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "1tenant@vendor", "val")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "1tenant@vendor", "val")
       assert Otel.API.Trace.TraceState.get(ts, "1tenant@vendor") == "val"
     end
   end
 
   describe "invalid key rejection (W3C § 3.3.1.1)" do
     test "rejects uppercase-starting key" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "Vendor", "val")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "Vendor", "val")
       assert ts.members == []
     end
 
     test "rejects simple key starting with digit" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "1vendor", "val")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "1vendor", "val")
       assert ts.members == []
     end
 
     test "rejects key with disallowed char" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor!", "val")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "vendor!", "val")
       assert ts.members == []
     end
 
@@ -143,23 +143,35 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "invalid value rejection (W3C § 3.3.1.1)" do
     test "rejects value with `,`" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "a,b")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "k", "a,b")
       assert ts.members == []
     end
 
     test "rejects value with `=`" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "a=b")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "k", "a=b")
       assert ts.members == []
     end
 
     test "rejects value ending in space" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "trailing ")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "k", "trailing ")
       assert ts.members == []
     end
 
     test "accepts value with internal spaces" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "k", "a b c")
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "k", "a b c")
       assert Otel.API.Trace.TraceState.get(ts, "k") == "a b c"
+    end
+
+    test "accepts value at exactly 256 chars (W3C § 3.3.2 max)" do
+      at_limit = String.duplicate("x", 256)
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "k", at_limit)
+      assert Otel.API.Trace.TraceState.get(ts, "k") == at_limit
+    end
+
+    test "rejects value longer than 256 chars (W3C § 3.3.2 max)" do
+      over_limit = String.duplicate("x", 257)
+      ts = Otel.API.Trace.TraceState.add(%Otel.API.Trace.TraceState{}, "k", over_limit)
+      assert ts.members == []
     end
   end
 
