@@ -25,7 +25,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
           setter :: Otel.API.Propagator.TextMap.setter()
         ) :: Otel.API.Propagator.TextMap.carrier()
   def inject(ctx, carrier, setter) do
-    baggage = Otel.API.Baggage.from(ctx)
+    baggage = Otel.API.Baggage.current(ctx)
 
     if map_size(baggage) > 0 do
       header_value = encode_baggage(baggage)
@@ -49,9 +49,9 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
       header_value ->
         try do
           baggage = decode_baggage(String.trim(header_value))
-          existing = Otel.API.Baggage.from(ctx)
+          existing = Otel.API.Baggage.current(ctx)
           merged = Map.merge(existing, baggage)
-          Otel.API.Baggage.put(ctx, merged)
+          Otel.API.Baggage.set_current(ctx, merged)
         rescue
           _ -> ctx
         end
