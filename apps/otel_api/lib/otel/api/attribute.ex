@@ -44,22 +44,22 @@ defmodule Otel.API.Attribute do
   `nil` within an array is permitted as-is per the spec (see
   `common/README.md` L63-73).
 
-  ## Collection — `attributes/0`
+  ## Collection
 
-  The collection is a plain map:
+  There is no dedicated `attributes` type alias. Consumers spell out the
+  map shape at use sites:
 
-      %{key() => value()}
+      attributes: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
 
   Keyword lists (`[{key, value}]`) are not accepted. A map guarantees
   unique keys by construction, which satisfies the spec's "MUST enforce
   unique keys" rule without a runtime validation pass.
 
-  This module defines types only. Count and value-length limits are
-  applied at the container level — see
-  `Otel.SDK.Trace.Span.apply_attribute_limits/3` — because OTLP exposes
-  `dropped_attributes_count` per container (Span, Event, Link, LogRecord),
-  not per attribute collection. Keeping attributes as a pure map avoids
-  leaking container policy into the data type.
+  Count and value-length limits are applied at the container level —
+  see `Otel.SDK.Trace.Span.apply_attribute_limits/3` — because OTLP
+  exposes `dropped_attributes_count` per container (Span, Event, Link,
+  LogRecord), not per attribute collection. Keeping attributes as a
+  pure map avoids leaking container policy into the data type.
   """
 
   @typedoc "Attribute key — a non-empty string."
@@ -82,13 +82,4 @@ defmodule Otel.API.Attribute do
   Homogeneity is a spec constraint not enforced at the type level.
   """
   @type value :: primitive() | [primitive()]
-
-  @typedoc """
-  A collection of attributes.
-
-  Always a map from `t:key/0` to `t:value/0`. Keyword lists are not
-  accepted — the map representation guarantees unique keys, satisfying
-  the spec without runtime validation.
-  """
-  @type attributes :: %{key() => value()}
 end

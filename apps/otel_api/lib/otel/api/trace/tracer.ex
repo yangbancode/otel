@@ -20,7 +20,7 @@ defmodule Otel.API.Trace.Tracer do
   """
   @type enabled_opt ::
           {:context, Otel.API.Ctx.t()}
-          | {:attributes, Otel.API.Attribute.attributes()}
+          | {:attributes, %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}}
 
   @type enabled_opts :: [enabled_opt()]
 

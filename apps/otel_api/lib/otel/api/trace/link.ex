@@ -9,7 +9,7 @@ defmodule Otel.API.Trace.Link do
 
   @type t :: %__MODULE__{
           context: Otel.API.Trace.SpanContext.t(),
-          attributes: Otel.API.Attribute.attributes()
+          attributes: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
         }
 
   defstruct context: %Otel.API.Trace.SpanContext{}, attributes: %{}
@@ -19,7 +19,7 @@ defmodule Otel.API.Trace.Link do
   """
   @spec new(
           context :: Otel.API.Trace.SpanContext.t(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
         ) :: t()
   def new(%Otel.API.Trace.SpanContext{} = context, attributes \\ %{}) do
     %__MODULE__{context: context, attributes: attributes}

@@ -54,7 +54,7 @@ defmodule Otel.API.Metrics.Counter do
   @spec add(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: Otel.API.Attribute.attributes()
+          attributes :: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
         ) :: :ok
   def add(instrument, value, attributes \\ %{}) do
     Otel.API.Metrics.Meter.record(instrument, value, attributes)

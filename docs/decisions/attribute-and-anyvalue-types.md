@@ -82,7 +82,7 @@ meaningful and must be preserved end-to-end — we pass them through unchanged.
 
 ### Attribute module
 
-All attribute-related types live in a single module, `Otel.API.Attribute`:
+Three types cover the single-attribute concepts:
 
 ```elixir
 defmodule Otel.API.Attribute do
@@ -90,11 +90,8 @@ defmodule Otel.API.Attribute do
   @type primitive ::
           String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
   @type value :: primitive() | [primitive()]
-  @type attributes :: %{key() => value()}
 end
 ```
-
-Four types cover every concept our public and SDK APIs need:
 
 - `key/0` — single attribute key (used in `Span.set_attribute/3`, etc.)
 - `primitive/0` — single primitive attribute value (the spec term is
@@ -102,7 +99,26 @@ Four types cover every concept our public and SDK APIs need:
   primitive types (int, string, float, bool) …")
 - `value/0` — a primitive or a homogeneous array of primitives, matching
   the spec's attribute-value shape
-- `attributes/0` — the collection (plain `%{key() => value()}` map)
+
+**There is no `attributes/0` collection alias.** Struct fields spell the
+map shape at the use site:
+
+```elixir
+defmodule Otel.API.InstrumentationScope do
+  @type t :: %__MODULE__{
+    name: String.t(),
+    version: String.t(),
+    schema_url: String.t(),
+    attributes: %{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
+  }
+end
+```
+
+Spelling the map inline keeps the reader close to the actual shape —
+no extra indirection to look up `attributes/0`'s definition — at the
+cost of a slightly longer field annotation. With ~20 use sites the
+repetition is bounded and all sites write exactly the same shape, so
+there is no divergence risk.
 
 An attribute value is a strict subset of `AnyValue`: primitives and
 homogeneous primitive arrays only. No maps, no heterogeneous arrays, no
@@ -162,7 +178,7 @@ enforcement can be added in the Finalization phase if needed. Per the spec
 A collection of attributes is a map only:
 
 ```elixir
-@type t :: %{key() => value()}
+%{Otel.API.Attribute.key() => Otel.API.Attribute.value()}
 ```
 
 We explicitly reject keyword lists (`[{key, value}]`) as an input shape. The
@@ -202,8 +218,9 @@ and is covered by the existing [span-limits.md](span-limits.md) and
 - `Otel.API.AnyValue` — type alias for the spec's `AnyValue` tagged union
   (primitive, heterogeneous array, string-keyed map, empty); documents the
   UTF-8 serialisation heuristic for the `string`/`byte array` split.
-- `Otel.API.Attribute` — all attribute type aliases: `key`, `primitive`,
-  `value`, and the `attributes` collection map.
+- `Otel.API.Attribute` — single-attribute type aliases: `key`, `primitive`,
+  `value`. Attribute collections are spelled inline as
+  `%{Attribute.key() => Attribute.value()}` at struct fields.
 
 ## Compliance
 
