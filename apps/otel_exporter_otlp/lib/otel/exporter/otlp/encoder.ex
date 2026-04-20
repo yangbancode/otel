@@ -144,6 +144,10 @@ defmodule Otel.Exporter.OTLP.Encoder do
   end
 
   @spec encode_any_value(value :: term()) :: Opentelemetry.Proto.Common.V1.AnyValue.t()
+  defp encode_any_value({:bytes, value}) when is_binary(value) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:bytes_value, value}}
+  end
+
   defp encode_any_value(value) when is_binary(value) do
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, value}}
   end
@@ -170,6 +174,19 @@ defmodule Otel.Exporter.OTLP.Encoder do
     }
 
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:array_value, array}}
+  end
+
+  defp encode_any_value(value) when is_map(value) do
+    kvs =
+      Enum.map(value, fn {k, v} ->
+        %Opentelemetry.Proto.Common.V1.KeyValue{
+          key: to_string(k),
+          value: encode_any_value(v)
+        }
+      end)
+
+    kvlist = %Opentelemetry.Proto.Common.V1.KeyValueList{values: kvs}
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:kvlist_value, kvlist}}
   end
 
   defp encode_any_value(value) do

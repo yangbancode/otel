@@ -190,6 +190,62 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert {:array_value, _} = attrs["list"]
     end
 
+    test "encodes {:bytes, binary} attribute as bytes_value" do
+      raw = <<0xFF, 0x00, 0xDE, 0xAD, 0xBE, 0xEF>>
+      span = %{@span | attributes: %{"payload" => {:bytes, raw}}}
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+
+      decoded =
+        Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
+
+      span = hd(hd(hd(decoded.resource_spans).scope_spans).spans)
+      attr = hd(span.attributes)
+
+      assert {:bytes_value, ^raw} = attr.value.value
+    end
+
+    test "plain UTF-8 binary attribute encodes as string_value (no auto-detection to bytes)" do
+      utf8 = "hello 안녕"
+      span = %{@span | attributes: %{"greeting" => utf8}}
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+
+      decoded =
+        Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
+
+      span = hd(hd(hd(decoded.resource_spans).scope_spans).spans)
+      attr = hd(span.attributes)
+
+      assert {:string_value, ^utf8} = attr.value.value
+    end
+
+    test "invalid UTF-8 binary without :bytes tag fails at protobuf encoding" do
+      # Protobuf enforces UTF-8 validity for string fields. Without the
+      # :bytes tag, non-UTF-8 binary payloads cannot be serialized.
+      invalid_utf8 = <<0xFF, 0xFE>>
+      span = %{@span | attributes: %{"raw" => invalid_utf8}}
+
+      assert_raise Protobuf.EncodeError, ~r/invalid UTF-8/, fn ->
+        Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      end
+    end
+
+    test "invalid UTF-8 binary wrapped in :bytes tag encodes successfully" do
+      invalid_utf8 = <<0xFF, 0xFE>>
+      span = %{@span | attributes: %{"raw" => {:bytes, invalid_utf8}}}
+
+      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+
+      decoded =
+        Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
+
+      span = hd(hd(hd(decoded.resource_spans).scope_spans).spans)
+      attr = hd(span.attributes)
+
+      assert {:bytes_value, ^invalid_utf8} = attr.value.value
+    end
+
     test "handles unknown attribute type via inspect" do
       span = %{@span | attributes: %{"tuple" => {1, 2}}}
       binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
@@ -625,6 +681,42 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       assert record.severity_text == "INFO"
       assert record.body.value == {:string_value, "test message"}
       assert record.dropped_attributes_count == 0
+    end
+
+    test "log body with {:bytes, _} tag encodes as bytes_value" do
+      raw = <<0xCA, 0xFE, 0xBA, 0xBE>>
+      record = %{@log_record | body: {:bytes, raw}}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log_record = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      assert log_record.body.value == {:bytes_value, raw}
+    end
+
+    test "log body with nested {:bytes, _} inside a map encodes correctly" do
+      payload = <<1, 2, 3>>
+
+      body = %{
+        "event" => "upload",
+        "content" => {:bytes, payload},
+        "size" => 3
+      }
+
+      record = %{@log_record | body: body}
+      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
+
+      log_record = hd(hd(hd(decoded.resource_logs).scope_logs).log_records)
+      {:kvlist_value, %{values: kvs}} = log_record.body.value
+
+      by_key = Map.new(kvs, fn %{key: k, value: %{value: v}} -> {k, v} end)
+      assert by_key["event"] == {:string_value, "upload"}
+      assert by_key["content"] == {:bytes_value, payload}
+      assert by_key["size"] == {:int_value, 3}
     end
 
     test "encodes resource and scope" do
