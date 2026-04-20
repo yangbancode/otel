@@ -7,18 +7,27 @@ typespec, and where do those types live?
 
 ## Decision
 
-Two type aliases live in a single module, `Otel.API.Types`:
+A single module, `Otel.API.Types`, exposes two type aliases via a
+`__using__/1` macro. Modules that carry OTel values pull them in with
+`use Otel.API.Types`:
 
 ```elixir
 defmodule Otel.API.Types do
-  @type primitive :: String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
-  @type any_value :: primitive() | [any_value()] | %{String.t() => any_value()}
+  defmacro __using__(_opts) do
+    quote do
+      @type primitive ::
+              String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
+
+      @type primitive_any ::
+              primitive() | [primitive_any()] | %{String.t() => primitive_any()}
+    end
+  end
 end
 ```
 
 The `Otel.API.Attribute` and `Otel.API.AnyValue` modules that existed
-earlier are removed. `Types.primitive/0` covers the attribute-value scalar,
-and `Types.any_value/0` covers the spec's recursive `AnyValue` — the two
+earlier are removed. `primitive/0` covers the attribute-value scalar,
+and `primitive_any/0` covers the spec's recursive `AnyValue` — the two
 concepts the rest of the API layer actually needs.
 
 ### `primitive/0`
@@ -28,42 +37,85 @@ float, or nil. Matches the spec's "primitive types (int, string, float,
 bool)" (`common/README.md` L235) plus `nil` per the spec's empty-value
 allowance and `{:bytes, binary()}` to disambiguate string-vs-bytes.
 
-### `any_value/0`
+### `primitive_any/0`
 
 The recursive `AnyValue` variant from the OTel data model: a primitive,
-a list of `any_value`, or a `String.t()`-keyed map of `any_value`. Used
-for `LogRecord.body` and anywhere the full spec-level AnyValue
-expressiveness is required (nested maps, heterogeneous arrays).
+a list of `primitive_any`, or a `String.t()`-keyed map of
+`primitive_any`. Used for `LogRecord.body` and anywhere the full
+spec-level AnyValue expressiveness is required (nested maps,
+heterogeneous arrays).
 
 Elixir/Erlang typespecs require recursion to be expressed through a
-named `@type`, so this alias is the one definition that must live in a
-module — it cannot be inlined at call sites.
+named `@type`, so this alias cannot be inlined at call sites.
+
+### Why the macro (`use Otel.API.Types`)
+
+Elixir's `import` does not import types — types are always
+module-scoped. To keep the two aliases defined in one place yet
+available under short, local names in every consumer, we use a
+`defmacro __using__/1` that injects both `@type` statements into the
+caller module.
+
+The result is that a module like `Otel.API.Trace.Span` can write:
+
+```elixir
+use Otel.API.Types
+
+@spec set_attribute(..., value :: primitive() | [primitive()]) :: :ok
+```
+
+rather than repeating `Otel.API.Types.primitive() |
+[Otel.API.Types.primitive()]` at every call site. The types are
+structurally identical across modules (same definition), so Dialyzer
+unifies them without issue.
+
+This is the same "extend me with a vocabulary" idiom Phoenix uses with
+`use Phoenix.Controller` and Ecto uses with `use Ecto.Schema` — the
+`use` verb declares "this module speaks OTel types".
+
+### Why `primitive_any` (and not `any_value`)
+
+We considered `any_value`, `any`, `anything`, and `otel_any`. Landed on
+`primitive_any`:
+
+- `any` is a reserved built-in type in Elixir — `@type any :: ...`
+  fails to compile.
+- `any_value` places a `_value` suffix on a type name, which feels
+  redundant (a type already *is* a value shape).
+- `primitive_any` gives both types a shared `primitive_` root, making
+  the family relationship visible: `primitive` is the base scalar,
+  `primitive_any` is its recursive extension. The name also hints that
+  the recursion is built *out of* primitives.
+- Swapping to `any_primitive` would read more naturally in English but
+  misleads — the type also admits lists and maps, not just single
+  primitives.
 
 ### Attribute collections are inline
 
-Per the spec, attribute values are **not** the full `any_value`. They
-are restricted to primitives and homogeneous arrays of primitives (no
-maps, no heterogeneous arrays, no nesting). No separate alias exists
-for this narrower type. Struct fields spell the map shape directly:
+Per the spec, attribute values are **not** the full `primitive_any`.
+They are restricted to primitives and homogeneous arrays of primitives
+(no maps, no heterogeneous arrays, no nesting). No separate alias
+exists for this narrower type. Struct fields spell the map shape
+directly:
 
 ```elixir
 defmodule Otel.API.InstrumentationScope do
+  use Otel.API.Types
+
   @type t :: %__MODULE__{
-    name: String.t(),
-    version: String.t(),
-    schema_url: String.t(),
-    attributes: %{
-      String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]
-    }
-  }
+          name: String.t(),
+          version: String.t(),
+          schema_url: String.t(),
+          attributes: %{String.t() => primitive() | [primitive()]}
+        }
 end
 ```
 
 Writing the map inline keeps the reader close to the actual shape —
 no indirection to chase — at the cost of a slightly longer field
 annotation. With ~15 use sites all writing the identical shape and
-`Otel.API.Types.primitive/0` as the single source of truth for the
-primitive-scalar type, there is no practical drift risk.
+`primitive/0` as the single source of truth for the primitive-scalar
+type, there is no practical drift risk.
 
 ### string vs bytes
 
@@ -90,11 +142,11 @@ responsible for out-of-range handling.
 
 The spec mandates homogeneous arrays "MUST NOT contain values of
 different types". Our typespec cannot cleanly express this:
-`[Types.primitive()]` permits `[1, "a", true]` as far as Dialyzer is
+`[primitive()]` permits `[1, "a", true]` as far as Dialyzer is
 concerned. Homogeneity is a caller obligation documented in the
 moduledoc; runtime enforcement can be added in the Finalization phase
 if needed. Per the spec (L63–73), `null` entries within arrays are
-preserved as-is, so `nil` is permitted inside `[Types.primitive()]`.
+preserved as-is, so `nil` is permitted inside `[primitive()]`.
 
 ### Attribute keys are plain `String.t()`
 
@@ -145,9 +197,10 @@ and [logrecord-limits.md](logrecord-limits.md) Decisions.
 
 ### Modules
 
-- `Otel.API.Types` — holds `primitive/0` and `any_value/0`. Attribute
-  keys are `String.t()` directly; attribute collections are spelled
-  inline as `%{String.t() => Types.primitive() | [Types.primitive()]}`.
+- `Otel.API.Types` — exposes `primitive/0` and `primitive_any/0` via a
+  `__using__/1` macro. Modules inject them with `use Otel.API.Types`.
+  Attribute keys are `String.t()` directly; attribute collections are
+  spelled inline as `%{String.t() => primitive() | [primitive()]}`.
 
 ## Compliance
 

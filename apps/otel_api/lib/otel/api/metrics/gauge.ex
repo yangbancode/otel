@@ -12,6 +12,8 @@ defmodule Otel.API.Metrics.Gauge do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @doc """
   Creates a Gauge instrument via the given Meter.
 
@@ -55,7 +57,7 @@ defmodule Otel.API.Metrics.Gauge do
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) :: :ok
   def record(instrument, value, attributes \\ %{}) do
     Otel.API.Metrics.Meter.record(instrument, value, attributes)

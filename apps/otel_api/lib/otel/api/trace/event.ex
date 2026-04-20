@@ -7,10 +7,12 @@ defmodule Otel.API.Trace.Event do
   system time is used (spec L537-539).
   """
 
+  use Otel.API.Types
+
   @type t :: %__MODULE__{
           name: String.t(),
           timestamp: integer(),
-          attributes: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes: %{String.t() => primitive() | [primitive()]}
         }
 
   defstruct name: "", timestamp: 0, attributes: %{}
@@ -22,7 +24,7 @@ defmodule Otel.API.Trace.Event do
   """
   @spec new(
           name :: String.t(),
-          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]},
+          attributes :: %{String.t() => primitive() | [primitive()]},
           timestamp :: integer() | nil
         ) :: t()
   def new(name, attributes \\ %{}, timestamp \\ nil) do

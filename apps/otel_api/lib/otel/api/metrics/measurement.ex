@@ -11,17 +11,19 @@ defmodule Otel.API.Metrics.Measurement do
   Fields:
 
   - `value` — the numeric data point (`t:number/0`)
-  - `attributes` — an `%{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}` map associated
-    with the measurement. Defaults to `%{}`.
+  - `attributes` — an `%{String.t() => primitive() | [primitive()]}` map
+    associated with the measurement. Defaults to `%{}`.
 
   Synchronous instrument recording APIs (`Counter.add/4`, `Histogram.record/4`,
   etc.) take `(value, attributes)` as separate positional arguments and do
   not use this struct.
   """
 
+  use Otel.API.Types
+
   @type t :: %__MODULE__{
           value: number(),
-          attributes: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes: %{String.t() => primitive() | [primitive()]}
         }
 
   defstruct value: 0, attributes: %{}
@@ -31,7 +33,7 @@ defmodule Otel.API.Metrics.Measurement do
   """
   @spec new(
           value :: number(),
-          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) :: t()
   def new(value, attributes \\ %{}) do
     %__MODULE__{value: value, attributes: attributes}

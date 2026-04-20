@@ -10,6 +10,8 @@ defmodule Otel.API.Logs.Logger do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @type t :: {module(), term()}
 
   @type log_record :: %{
@@ -17,10 +19,8 @@ defmodule Otel.API.Logs.Logger do
           optional(:observed_timestamp) => integer() | nil,
           optional(:severity_number) => 0..24 | nil,
           optional(:severity_text) => String.t() | nil,
-          optional(:body) => Otel.API.Types.any_value(),
-          optional(:attributes) => %{
-            String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]
-          },
+          optional(:body) => primitive_any(),
+          optional(:attributes) => %{String.t() => primitive() | [primitive()]},
           optional(:event_name) => String.t() | nil,
           optional(:exception) => Exception.t() | nil
         }

@@ -13,9 +13,11 @@ defmodule Otel.API.Trace.Span do
   All functions are safe for concurrent use.
   """
 
+  use Otel.API.Types
+
   @type start_opts :: [
           kind: Otel.API.Trace.SpanKind.t(),
-          attributes: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]},
+          attributes: %{String.t() => primitive() | [primitive()]},
           links: [Otel.API.Trace.Link.t()],
           start_time: integer(),
           is_root: boolean()
@@ -72,7 +74,7 @@ defmodule Otel.API.Trace.Span do
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           key :: String.t(),
-          value :: Otel.API.Types.primitive() | [Otel.API.Types.primitive()]
+          value :: primitive() | [primitive()]
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
     case get_module() do
@@ -86,7 +88,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) ::
           :ok
   def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
@@ -195,7 +197,7 @@ defmodule Otel.API.Trace.Span do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) :: :ok
   def record_exception(
         %Otel.API.Trace.SpanContext{} = span_ctx,

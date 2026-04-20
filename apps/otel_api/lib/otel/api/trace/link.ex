@@ -7,9 +7,11 @@ defmodule Otel.API.Trace.Link do
   same trace or a different trace.
   """
 
+  use Otel.API.Types
+
   @type t :: %__MODULE__{
           context: Otel.API.Trace.SpanContext.t(),
-          attributes: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes: %{String.t() => primitive() | [primitive()]}
         }
 
   defstruct context: %Otel.API.Trace.SpanContext{}, attributes: %{}
@@ -19,7 +21,7 @@ defmodule Otel.API.Trace.Link do
   """
   @spec new(
           context :: Otel.API.Trace.SpanContext.t(),
-          attributes :: %{String.t() => Otel.API.Types.primitive() | [Otel.API.Types.primitive()]}
+          attributes :: %{String.t() => primitive() | [primitive()]}
         ) :: t()
   def new(%Otel.API.Trace.SpanContext{} = context, attributes \\ %{}) do
     %__MODULE__{context: context, attributes: attributes}
