@@ -223,6 +223,109 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
   end
 
+  describe "valid_key?/1" do
+    test "accepts simple-key (lowercase alpha start)" do
+      assert Otel.API.Trace.TraceState.valid_key?("vendor")
+    end
+
+    test "accepts simple-key with allowed symbols (_ - * /)" do
+      assert Otel.API.Trace.TraceState.valid_key?("my-key_1*2/3")
+    end
+
+    test "accepts tenant@system multi-tenant key" do
+      assert Otel.API.Trace.TraceState.valid_key?("tenant@system")
+    end
+
+    test "accepts multi-tenant with tenant-id starting with digit" do
+      assert Otel.API.Trace.TraceState.valid_key?("1tenant@vendor")
+    end
+
+    test "rejects empty string" do
+      refute Otel.API.Trace.TraceState.valid_key?("")
+    end
+
+    test "rejects uppercase" do
+      refute Otel.API.Trace.TraceState.valid_key?("Vendor")
+    end
+
+    test "rejects simple-key starting with digit" do
+      refute Otel.API.Trace.TraceState.valid_key?("1vendor")
+    end
+
+    test "rejects disallowed symbols" do
+      refute Otel.API.Trace.TraceState.valid_key?("vendor!")
+      refute Otel.API.Trace.TraceState.valid_key?("ven dor")
+    end
+
+    test "rejects simple-key longer than 256 chars" do
+      refute Otel.API.Trace.TraceState.valid_key?("a" <> String.duplicate("x", 256))
+    end
+
+    test "rejects non-binary input" do
+      refute Otel.API.Trace.TraceState.valid_key?(nil)
+      refute Otel.API.Trace.TraceState.valid_key?(:atom)
+      refute Otel.API.Trace.TraceState.valid_key?(123)
+      refute Otel.API.Trace.TraceState.valid_key?([])
+    end
+  end
+
+  describe "valid_value?/1" do
+    test "accepts printable ASCII" do
+      assert Otel.API.Trace.TraceState.valid_value?("hello")
+      assert Otel.API.Trace.TraceState.valid_value?("abc123_XYZ")
+    end
+
+    test "accepts value with internal spaces" do
+      assert Otel.API.Trace.TraceState.valid_value?("a b c")
+    end
+
+    test "accepts full range of allowed printable symbols" do
+      assert Otel.API.Trace.TraceState.valid_value?("!\"#$%&'()*+-./:;<>?@[\\]^_`{|}~")
+    end
+
+    test "accepts value at exactly 256 chars" do
+      assert Otel.API.Trace.TraceState.valid_value?(String.duplicate("x", 256))
+    end
+
+    test "rejects empty string" do
+      refute Otel.API.Trace.TraceState.valid_value?("")
+    end
+
+    test "rejects value containing comma" do
+      refute Otel.API.Trace.TraceState.valid_value?("a,b")
+    end
+
+    test "rejects value containing equals" do
+      refute Otel.API.Trace.TraceState.valid_value?("a=b")
+    end
+
+    test "rejects value ending in space" do
+      refute Otel.API.Trace.TraceState.valid_value?("trailing ")
+    end
+
+    test "rejects value longer than 256 chars" do
+      refute Otel.API.Trace.TraceState.valid_value?(String.duplicate("x", 257))
+    end
+
+    test "rejects non-ASCII characters (UTF-8 safety)" do
+      refute Otel.API.Trace.TraceState.valid_value?("한글")
+      refute Otel.API.Trace.TraceState.valid_value?("café")
+      refute Otel.API.Trace.TraceState.valid_value?("emoji🎉")
+    end
+
+    test "rejects control characters" do
+      refute Otel.API.Trace.TraceState.valid_value?("line\nbreak")
+      refute Otel.API.Trace.TraceState.valid_value?("tab\there")
+      refute Otel.API.Trace.TraceState.valid_value?("null\0byte")
+    end
+
+    test "rejects non-binary input" do
+      refute Otel.API.Trace.TraceState.valid_value?(nil)
+      refute Otel.API.Trace.TraceState.valid_value?(:atom)
+      refute Otel.API.Trace.TraceState.valid_value?(123)
+    end
+  end
+
   describe "immutability" do
     test "add returns new tracestate" do
       ts1 = Otel.API.Trace.TraceState.new([{"a", "1"}])
