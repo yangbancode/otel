@@ -24,7 +24,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
     end
 
     test "injects tracestate when non-empty" do
-      ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"vendor", "value"}]}
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
       ctx = Otel.API.Trace.set_current_span(%{}, span_ctx)
 
@@ -187,7 +187,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
           0x0AF7651916CD43DD8448EB211C80319C,
           0xB7AD6B7169203331,
           1,
-          Otel.API.Trace.TraceState.new([{"vendor", "value"}])
+          %Otel.API.Trace.TraceState{members: [{"vendor", "value"}]}
         )
 
       ctx = Otel.API.Trace.set_current_span(%{}, original)

@@ -1,32 +1,15 @@
 defmodule Otel.API.Trace.TraceStateTest do
   use ExUnit.Case, async: true
 
-  describe "new/0" do
-    test "creates empty tracestate" do
-      ts = %Otel.API.Trace.TraceState{}
-      assert ts.members == []
-    end
-  end
-
-  describe "new/1" do
-    test "creates tracestate from valid pairs" do
-      ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}, {"other", "data"}])
-      assert ts.members == [{"vendor", "value"}, {"other", "data"}]
-    end
-
-    test "accepts all valid entries without truncation" do
-      # new/1 does not enforce the 32-member cap (W3C § 3.3.3 MUST applies
-      # only to decoders; callers building state directly accept the
-      # invariant responsibility).
-      pairs = for i <- 1..40, do: {"key#{i}", "val#{i}"}
-      ts = Otel.API.Trace.TraceState.new(pairs)
-      assert length(ts.members) == 40
+  describe "struct default" do
+    test "struct literal creates empty tracestate" do
+      assert %Otel.API.Trace.TraceState{}.members == []
     end
   end
 
   describe "get/2" do
     test "returns value for existing key" do
-      ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"vendor", "value"}]}
       assert Otel.API.Trace.TraceState.get(ts, "vendor") == "value"
     end
 
@@ -38,14 +21,14 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "add/3" do
     test "adds new key/value pair to front" do
-      ts = Otel.API.Trace.TraceState.new([{"existing", "data"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"existing", "data"}]}
       ts = Otel.API.Trace.TraceState.add(ts, "new", "value")
       assert ts.members == [{"new", "value"}, {"existing", "data"}]
     end
 
     test "returns unchanged when at max 32 members" do
       pairs = for i <- 1..32, do: {"key#{i}", "val#{i}"}
-      ts = Otel.API.Trace.TraceState.new(pairs)
+      ts = %Otel.API.Trace.TraceState{members: pairs}
       ts2 = Otel.API.Trace.TraceState.add(ts, "extra", "value")
       assert length(ts2.members) == 32
       assert Otel.API.Trace.TraceState.get(ts2, "extra") == ""
@@ -54,7 +37,7 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "update/3" do
     test "updates existing key and moves to front" do
-      ts = Otel.API.Trace.TraceState.new([{"a", "1"}, {"b", "2"}, {"c", "3"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"a", "1"}, {"b", "2"}, {"c", "3"}]}
       ts = Otel.API.Trace.TraceState.update(ts, "b", "updated")
       assert ts.members == [{"b", "updated"}, {"a", "1"}, {"c", "3"}]
     end
@@ -62,13 +45,13 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "delete/2" do
     test "removes existing key" do
-      ts = Otel.API.Trace.TraceState.new([{"a", "1"}, {"b", "2"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"a", "1"}, {"b", "2"}]}
       ts = Otel.API.Trace.TraceState.delete(ts, "a")
       assert ts.members == [{"b", "2"}]
     end
 
     test "is no-op for missing key" do
-      ts = Otel.API.Trace.TraceState.new([{"a", "1"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"a", "1"}]}
       ts2 = Otel.API.Trace.TraceState.delete(ts, "missing")
       assert ts2.members == [{"a", "1"}]
     end
@@ -76,7 +59,10 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "encode/1" do
     test "encodes to header string" do
-      ts = Otel.API.Trace.TraceState.new([{"congo", "t61rcWkgMzE"}, {"rojo", "00f067aa0ba902b7"}])
+      ts = %Otel.API.Trace.TraceState{
+        members: [{"congo", "t61rcWkgMzE"}, {"rojo", "00f067aa0ba902b7"}]
+      }
+
       assert Otel.API.Trace.TraceState.encode(ts) == "congo=t61rcWkgMzE,rojo=00f067aa0ba902b7"
     end
 
@@ -138,7 +124,7 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
 
     test "update on invalid key leaves state unchanged" do
-      ts = Otel.API.Trace.TraceState.new([{"a", "1"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"a", "1"}]}
       result = Otel.API.Trace.TraceState.update(ts, "BAD", "v")
       assert result == ts
     end
@@ -328,14 +314,14 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "immutability" do
     test "add returns new tracestate" do
-      ts1 = Otel.API.Trace.TraceState.new([{"a", "1"}])
+      ts1 = %Otel.API.Trace.TraceState{members: [{"a", "1"}]}
       ts2 = Otel.API.Trace.TraceState.add(ts1, "b", "2")
       assert ts1.members == [{"a", "1"}]
       assert ts2.members == [{"b", "2"}, {"a", "1"}]
     end
 
     test "delete returns new tracestate" do
-      ts1 = Otel.API.Trace.TraceState.new([{"a", "1"}, {"b", "2"}])
+      ts1 = %Otel.API.Trace.TraceState{members: [{"a", "1"}, {"b", "2"}]}
       ts2 = Otel.API.Trace.TraceState.delete(ts1, "a")
       assert ts1.members == [{"a", "1"}, {"b", "2"}]
       assert ts2.members == [{"b", "2"}]

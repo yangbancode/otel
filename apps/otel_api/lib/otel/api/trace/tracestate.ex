@@ -55,18 +55,6 @@ defmodule Otel.API.Trace.TraceState do
   @value_regex ~r/^[ -+--<>-~]{0,255}[!-+--<>-~]$/
 
   @doc """
-  Creates a TraceState from a list of `{key, value}` pairs.
-
-  Invalid entries (per W3C Trace Context § 3.3.2) are dropped. For
-  an empty TraceState, use `%#{inspect(__MODULE__)}{}` directly.
-  """
-  @spec new(list :: [{key(), value()}]) :: t()
-  def new(list) do
-    members = Enum.filter(list, fn {k, v} -> valid_key?(k) and valid_value?(v) end)
-    %__MODULE__{members: members}
-  end
-
-  @doc """
   Returns the number of entries in the TraceState.
   """
   @spec size(trace_state :: t()) :: non_neg_integer()

@@ -143,7 +143,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "inherits parent tracestate" do
-      ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
+      ts = %Otel.API.Trace.TraceState{members: [{"vendor", "value"}]}
       parent = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
       ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
