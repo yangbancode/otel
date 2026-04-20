@@ -10,14 +10,18 @@ defmodule Otel.API.Baggage do
 
   - **Operations on Baggage** (`get_value/2`, `get_all/1`, `set_value/4`,
     `remove_value/2`) — pure functions on a Baggage value (spec MUST).
-  - **Context interaction** (`current/0`, `current/1`, `set_current/1`,
-    `set_current/2`) — read/write the Baggage stored in a Context. The
-    spec treats Context interaction as whole-Baggage operations; per-
+  - **Context interaction** — read/write the Baggage stored in a Context.
+    The spec treats Context interaction as whole-Baggage operations; per-
     entry changes happen on the Baggage value and are then written back.
+    - `current/0`, `set_current/1` — implicit (ambient process context).
+      "current" names the concept of "the ambient Baggage".
+    - `from/1`, `put/2` — explicit (given context). Separate names
+      because "current" has no meaning when a specific Context is
+      passed in.
 
   Clearing: per spec, clearing is accomplished by writing an empty
   Baggage into the Context — `set_current(%{})` for the implicit
-  context or `set_current(ctx, %{})` for an explicit one. No dedicated
+  context or `put(ctx, %{})` for an explicit one. No dedicated
   `clear/0` or `clear/1` is provided.
 
   Fully functional without an installed SDK.
@@ -95,14 +99,6 @@ defmodule Otel.API.Baggage do
   end
 
   @doc """
-  Returns the Baggage from the given context.
-  """
-  @spec current(ctx :: Otel.API.Ctx.t()) :: t()
-  def current(ctx) do
-    Otel.API.Ctx.get_value(ctx, @current_key) || %{}
-  end
-
-  @doc """
   Sets the Baggage in the implicit (process) context, replacing any
   existing Baggage.
   """
@@ -112,11 +108,19 @@ defmodule Otel.API.Baggage do
   end
 
   @doc """
+  Returns the Baggage from the given context.
+  """
+  @spec from(ctx :: Otel.API.Ctx.t()) :: t()
+  def from(ctx) do
+    Otel.API.Ctx.get_value(ctx, @current_key) || %{}
+  end
+
+  @doc """
   Returns a new context with the given Baggage set, replacing any
   existing Baggage.
   """
-  @spec set_current(ctx :: Otel.API.Ctx.t(), baggage :: t()) :: Otel.API.Ctx.t()
-  def set_current(ctx, baggage) do
+  @spec put(ctx :: Otel.API.Ctx.t(), baggage :: t()) :: Otel.API.Ctx.t()
+  def put(ctx, baggage) do
     Otel.API.Ctx.set_value(ctx, @current_key, baggage)
   end
 end
