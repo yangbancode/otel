@@ -14,7 +14,7 @@ defmodule Otel.API.AnyValue do
   | Spec                              | Elixir                    |
   |-----------------------------------|---------------------------|
   | string                            | `t:String.t/0`            |
-  | byte array                        | `t:binary/0`              |
+  | byte array                        | `{:bytes, t:binary/0}`    |
   | boolean                           | `t:boolean/0`             |
   | signed 64-bit integer             | `t:integer/0`             |
   | IEEE 754 double                   | `t:float/0`               |
@@ -22,19 +22,46 @@ defmodule Otel.API.AnyValue do
   | `map<string, AnyValue>`           | `%{String.t() => t()}`    |
   | empty                             | `nil`                     |
 
-  ## string vs byte array
+  ## string vs byte array — explicit tagging
 
   The OpenTelemetry protocol (OTLP) distinguishes `string_value` from
   `bytes_value` in its `AnyValue` wire format. Elixir represents both as
-  `t:binary/0`, so the distinction cannot be expressed at the type level.
-  Exporters resolve the ambiguity at serialization time by checking UTF-8
-  validity: a valid UTF-8 binary is emitted as `string_value`, an invalid one
-  as `bytes_value`.
+  `t:binary/0`, so the two cannot be distinguished at the type level.
 
-  A binary that is accidentally valid UTF-8 but was intended as raw bytes will
-  therefore be serialized as a string. Callers who need to force byte
-  semantics on a UTF-8-valid payload must rely on exporter-specific
-  configuration.
+  This module uses an **explicit tag** to disambiguate:
+
+  - A plain `t:binary/0` is always treated as a UTF-8 string and serialized
+    as `string_value`. This is the common case (log messages, JSON-ish
+    structured payloads, any human-readable text).
+  - Raw byte payloads must be wrapped as `{:bytes, binary()}`. Exporters
+    recognize the `:bytes` tag and emit the payload as `bytes_value`.
+
+  Examples:
+
+      # String body — plain binary
+      %{body: "request started"}
+
+      # Byte body — explicit tag
+      %{body: {:bytes, <<0, 1, 2, 3>>}}
+
+      # Mixed nested structure
+      %{body: %{
+        "event" => "upload",
+        "content" => {:bytes, raw_payload},
+        "size" => 1024
+      }}
+
+  A plain binary that was logically raw bytes but happens to be valid UTF-8
+  will be serialized as `string_value` unless wrapped. Callers that need
+  byte semantics must wrap explicitly.
+
+  ### Invalid UTF-8 must be tagged
+
+  The OTLP protobuf serializer enforces UTF-8 validity on `string_value`
+  fields. A binary that is not valid UTF-8 and is **not** wrapped in
+  `{:bytes, _}` will raise `Protobuf.EncodeError` at export time, not
+  silently truncate. Callers that might emit non-UTF-8 payloads (raw
+  protobuf bytes, compressed data, non-UTF-8 text) MUST wrap.
 
   ## Integer range
 
@@ -53,11 +80,12 @@ defmodule Otel.API.AnyValue do
   An `AnyValue` per the OpenTelemetry data model.
 
   See the moduledoc for the mapping from spec primitives to Elixir types,
-  including the `string` vs `byte array` disambiguation rule.
+  including the explicit `{:bytes, binary()}` tag used to request
+  `bytes_value` encoding over OTLP.
   """
   @type t ::
           String.t()
-          | binary()
+          | {:bytes, binary()}
           | boolean()
           | integer()
           | float()

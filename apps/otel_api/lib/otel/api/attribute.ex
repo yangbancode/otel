@@ -25,9 +25,14 @@ defmodule Otel.API.Attribute do
 
   The `t:value/0` type covers:
 
-  - `t:scalar/0` — `t:String.t/0`, `t:binary/0`, `t:boolean/0`,
+  - `t:scalar/0` — `t:String.t/0`, `{:bytes, t:binary/0}`, `t:boolean/0`,
     `t:integer/0`, `t:float/0`, or `nil`
   - `[scalar()]` — a homogeneous array of scalars
+
+  Plain binaries are treated as UTF-8 strings; raw byte payloads must use
+  the explicit `{:bytes, t:binary/0}` tag (same convention as
+  `Otel.API.AnyValue`). Exporters encode `{:bytes, _}` as OTLP
+  `bytes_value` and everything else as the corresponding scalar variant.
 
   Homogeneity ("a homogeneous array MUST NOT contain values of different
   types") is a spec-level constraint that this typespec does **not** enforce.
@@ -54,12 +59,12 @@ defmodule Otel.API.Attribute do
   @typedoc """
   A primitive attribute value.
 
-  Byte arrays are permitted here via `t:binary/0`; the `string` vs
-  `byte array` serialization split is handled by exporters (see
-  `Otel.API.AnyValue` moduledoc).
+  Plain binaries encode as OTLP `string_value`. Use `{:bytes, binary()}`
+  to request `bytes_value` encoding for raw byte payloads (see
+  `Otel.API.AnyValue` moduledoc for the rationale).
   """
   @type scalar ::
-          String.t() | binary() | boolean() | integer() | float() | nil
+          String.t() | {:bytes, binary()} | boolean() | integer() | float() | nil
 
   @typedoc """
   An attribute value — a `t:scalar/0` or a homogeneous array of `t:scalar/0`.
