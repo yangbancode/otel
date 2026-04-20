@@ -11,7 +11,7 @@ defmodule Otel.API.Logs.LoggerProvider do
 
   @default_logger {Otel.API.Logs.Logger.Noop, []}
 
-  @provider_key {__MODULE__, :global}
+  @global_key {__MODULE__, :global}
   @logger_key_prefix {__MODULE__, :logger}
 
   @typedoc """
@@ -46,7 +46,7 @@ defmodule Otel.API.Logs.LoggerProvider do
   """
   @spec get_provider() :: t() | nil
   def get_provider do
-    :persistent_term.get(@provider_key, nil)
+    :persistent_term.get(@global_key, nil)
   end
 
   @doc """
@@ -58,12 +58,12 @@ defmodule Otel.API.Logs.LoggerProvider do
   """
   @spec set_provider(provider :: t() | nil) :: :ok
   def set_provider({module, _state} = provider) when is_atom(module) do
-    :persistent_term.put(@provider_key, provider)
+    :persistent_term.put(@global_key, provider)
     :ok
   end
 
   def set_provider(nil) do
-    :persistent_term.put(@provider_key, nil)
+    :persistent_term.put(@global_key, nil)
     :ok
   end
 

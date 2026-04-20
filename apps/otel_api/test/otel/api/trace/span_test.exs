@@ -196,7 +196,7 @@ defmodule Otel.API.Trace.SpanTest do
 
   describe "dispatch to registered module" do
     setup do
-      Otel.API.Trace.Span.set_span_module(Otel.API.Trace.SpanTest.FakeSpanOperations)
+      Otel.API.Trace.Span.set_module(Otel.API.Trace.SpanTest.FakeSpanOperations)
 
       on_exit(fn ->
         :persistent_term.erase({Otel.API.Trace.Span, :module})
@@ -205,8 +205,8 @@ defmodule Otel.API.Trace.SpanTest do
       :ok
     end
 
-    test "get_span_module returns registered module" do
-      assert Otel.API.Trace.Span.get_span_module() == Otel.API.Trace.SpanTest.FakeSpanOperations
+    test "get_module returns registered module" do
+      assert Otel.API.Trace.Span.get_module() == Otel.API.Trace.SpanTest.FakeSpanOperations
     end
 
     test "recording? dispatches to module" do

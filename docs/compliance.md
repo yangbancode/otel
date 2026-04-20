@@ -8,7 +8,7 @@
 
 ### Create a Key
 - [x] API MUST accept the key name parameter — [L63](../references/opentelemetry-specification/specification/context/README.md#L63)
-- [x] Multiple calls to CreateKey with same name SHOULD NOT return same value — [L65](../references/opentelemetry-specification/specification/context/README.md#L65)
+- [ ] Multiple calls to CreateKey with same name SHOULD NOT return same value — [L65](../references/opentelemetry-specification/specification/context/README.md#L65) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md); `create_key/1` is identity in our impl, callers supply uniqueness when needed
 - [x] API MUST return an opaque object representing the newly created key — [L67](../references/opentelemetry-specification/specification/context/README.md#L67)
 
 ### Get Value

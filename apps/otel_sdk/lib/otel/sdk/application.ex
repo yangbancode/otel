@@ -13,7 +13,7 @@ defmodule Otel.SDK.Application do
 
     config = Otel.SDK.Configuration.merge(app_config)
 
-    Otel.API.Trace.Span.set_span_module(Otel.SDK.Trace.Span)
+    Otel.API.Trace.Span.set_module(Otel.SDK.Trace.Span)
 
     children = [
       Otel.SDK.Trace.SpanStorage,

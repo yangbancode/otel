@@ -2,33 +2,21 @@ defmodule Otel.API.CtxTest do
   use ExUnit.Case, async: true
 
   describe "create_key/1" do
-    test "returns a tuple with name and reference" do
-      {name, ref} = Otel.API.Ctx.create_key("test")
-      assert name == "test"
-      assert is_reference(ref)
-    end
-
-    test "accepts atom name" do
-      {name, ref} = Otel.API.Ctx.create_key(:span)
-      assert name == :span
-      assert is_reference(ref)
-    end
-
-    test "same name returns different keys" do
-      key1 = Otel.API.Ctx.create_key("span")
-      key2 = Otel.API.Ctx.create_key("span")
-      assert key1 != key2
+    test "returns the name unchanged (identity)" do
+      assert Otel.API.Ctx.create_key(:span) == :span
+      assert Otel.API.Ctx.create_key("custom") == "custom"
+      assert Otel.API.Ctx.create_key({MyLib, :key}) == {MyLib, :key}
     end
 
     test "keys work with get_value/set_value" do
-      key = Otel.API.Ctx.create_key("my_key")
+      key = Otel.API.Ctx.create_key(:my_key)
       ctx = Otel.API.Ctx.set_value(Otel.API.Ctx.new(), key, "hello")
       assert Otel.API.Ctx.get_value(ctx, key, nil) == "hello"
     end
 
-    test "different keys with same name do not collide" do
-      key1 = Otel.API.Ctx.create_key("data")
-      key2 = Otel.API.Ctx.create_key("data")
+    test "caller-supplied distinct names produce distinct keys" do
+      key1 = Otel.API.Ctx.create_key({MyLib, :data, 1})
+      key2 = Otel.API.Ctx.create_key({MyLib, :data, 2})
       ctx = Otel.API.Ctx.new()
       ctx = Otel.API.Ctx.set_value(ctx, key1, "from_a")
       ctx = Otel.API.Ctx.set_value(ctx, key2, "from_b")

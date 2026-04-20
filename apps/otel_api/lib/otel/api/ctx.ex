@@ -16,17 +16,20 @@ defmodule Otel.API.Ctx do
   @type value :: term()
   @opaque token :: t() | nil
 
-  @ctx_key :"__otel.ctx__"
+  @current_key {__MODULE__, :current}
 
   @doc """
-  Creates a new opaque context key.
+  Returns the given name unchanged as a context key.
 
-  Multiple calls with the same name return different keys (L65).
-  The name exists for debugging purposes and does not uniquely
-  identify the key (L65). Uniqueness is guaranteed by `make_ref/0`.
+  The spec (`context/README.md` L63-67) requires `CreateKey` to accept
+  a name and return an opaque object representing the key. In BEAM the
+  caller-supplied term (typically an atom or a `{module, name}` tuple)
+  is already a suitable key, so this returns it verbatim. Callers who
+  need runtime uniqueness are expected to supply it themselves (e.g.
+  `{__MODULE__, make_ref()}`).
   """
   @spec create_key(name :: term()) :: key()
-  def create_key(name), do: {name, make_ref()}
+  def create_key(name), do: name
 
   @doc """
   Returns an empty context.
@@ -41,7 +44,7 @@ defmodule Otel.API.Ctx do
   """
   @spec set_value(key :: key(), value :: value()) :: :ok
   def set_value(key, value) do
-    Process.put(@ctx_key, Map.put(get_current(), key, value))
+    Process.put(@current_key, Map.put(get_current(), key, value))
     :ok
   end
 
@@ -68,7 +71,7 @@ defmodule Otel.API.Ctx do
   """
   @spec remove(key :: key()) :: :ok
   def remove(key) do
-    Process.put(@ctx_key, Map.delete(get_current(), key))
+    Process.put(@current_key, Map.delete(get_current(), key))
     :ok
   end
 
@@ -77,7 +80,7 @@ defmodule Otel.API.Ctx do
   """
   @spec clear() :: :ok
   def clear do
-    Process.delete(@ctx_key)
+    Process.delete(@current_key)
     :ok
   end
 
@@ -118,7 +121,7 @@ defmodule Otel.API.Ctx do
   """
   @spec get_current() :: t()
   def get_current do
-    Process.get(@ctx_key) || %{}
+    Process.get(@current_key) || %{}
   end
 
   @doc """
@@ -129,7 +132,7 @@ defmodule Otel.API.Ctx do
   """
   @spec attach(ctx :: t()) :: token()
   def attach(ctx) do
-    Process.put(@ctx_key, ctx)
+    Process.put(@current_key, ctx)
   end
 
   @doc """
@@ -137,6 +140,6 @@ defmodule Otel.API.Ctx do
   """
   @spec detach(token :: token()) :: t() | nil
   def detach(token) do
-    Process.put(@ctx_key, token)
+    Process.put(@current_key, token)
   end
 end
