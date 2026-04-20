@@ -12,7 +12,7 @@ defmodule Otel.SDK.Trace.Span do
   defined here.
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   require Otel.API.Trace.TraceId
   require Otel.API.Trace.SpanId

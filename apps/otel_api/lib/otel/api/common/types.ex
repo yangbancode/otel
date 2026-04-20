@@ -1,8 +1,8 @@
-defmodule Otel.API.Types do
+defmodule Otel.API.Common.Types do
   @moduledoc """
   Shared types for the OpenTelemetry data model.
 
-  Use `use Otel.API.Types` in modules that carry OTel values. The macro
+  Use `use Otel.API.Common.Types` in modules that carry OTel values. The macro
   injects two type aliases that describe every value our public and SDK
   APIs pass around:
 

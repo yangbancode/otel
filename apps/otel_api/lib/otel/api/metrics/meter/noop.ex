@@ -9,7 +9,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   All functions are safe for concurrent use.
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @behaviour Otel.API.Metrics.Meter
 

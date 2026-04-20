@@ -7,7 +7,7 @@ defmodule Otel.API.Trace.Link do
   same trace or a different trace.
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @type t :: %__MODULE__{
           context: Otel.API.Trace.SpanContext.t(),

@@ -19,7 +19,7 @@ defmodule Otel.API.Metrics.Measurement do
   not use this struct.
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @type t :: %__MODULE__{
           value: number(),

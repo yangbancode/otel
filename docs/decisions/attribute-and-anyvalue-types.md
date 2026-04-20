@@ -7,12 +7,12 @@ typespec, and where do those types live?
 
 ## Decision
 
-A single module, `Otel.API.Types`, exposes two type aliases via a
+A single module, `Otel.API.Common.Types`, exposes two type aliases via a
 `__using__/1` macro. Modules that carry OTel values pull them in with
-`use Otel.API.Types`:
+`use Otel.API.Common.Types`:
 
 ```elixir
-defmodule Otel.API.Types do
+defmodule Otel.API.Common.Types do
   defmacro __using__(_opts) do
     quote do
       @type primitive ::
@@ -48,7 +48,7 @@ heterogeneous arrays).
 Elixir/Erlang typespecs require recursion to be expressed through a
 named `@type`, so this alias cannot be inlined at call sites.
 
-### Why the macro (`use Otel.API.Types`)
+### Why the macro (`use Otel.API.Common.Types`)
 
 Elixir's `import` does not import types — types are always
 module-scoped. To keep the two aliases defined in one place yet
@@ -59,13 +59,13 @@ caller module.
 The result is that a module like `Otel.API.Trace.Span` can write:
 
 ```elixir
-use Otel.API.Types
+use Otel.API.Common.Types
 
 @spec set_attribute(..., value :: primitive() | [primitive()]) :: :ok
 ```
 
-rather than repeating `Otel.API.Types.primitive() |
-[Otel.API.Types.primitive()]` at every call site. The types are
+rather than repeating `Otel.API.Common.Types.primitive() |
+[Otel.API.Common.Types.primitive()]` at every call site. The types are
 structurally identical across modules (same definition), so Dialyzer
 unifies them without issue.
 
@@ -100,7 +100,7 @@ directly:
 
 ```elixir
 defmodule Otel.API.InstrumentationScope do
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @type t :: %__MODULE__{
           name: String.t(),
@@ -129,7 +129,7 @@ matches the `:bytes` tag.
 Invalid UTF-8 binaries passed without the tag surface as
 `Protobuf.EncodeError` at export time — the protobuf library refuses to
 encode non-UTF-8 bytes into a `string_value` field. The moduledoc of
-`Otel.API.Types` documents this contract.
+`Otel.API.Common.Types` documents this contract.
 
 ### Integer range
 
@@ -151,7 +151,7 @@ preserved as-is, so `nil` is permitted inside `[primitive()]`.
 ### Attribute keys are plain `String.t()`
 
 Attribute keys are typed as `String.t()` directly at call sites. We
-deliberately do not expose an `Otel.API.Types.key/0` alias —
+deliberately do not expose an `Otel.API.Common.Types.key/0` alias —
 `Otel.API.Attribute.key/0` previously aliased `String.t()` with no
 additional constraint, which is pure indirection.
 
@@ -176,7 +176,7 @@ runtime validation on specific narrow constraints (e.g. UTF-8 validity,
 int64 range).
 
 Runtime validation helpers could live alongside the type aliases in
-`Otel.API.Types` if a future requirement drives them (e.g.
+`Otel.API.Common.Types` if a future requirement drives them (e.g.
 `valid_int64?/1`, `valid_utf8?/1`). We have none today because the
 current flow surfaces the relevant errors either via the protobuf
 encoder (UTF-8) or via exporter handling.
@@ -197,8 +197,8 @@ and [logrecord-limits.md](logrecord-limits.md) Decisions.
 
 ### Modules
 
-- `Otel.API.Types` — exposes `primitive/0` and `primitive_any/0` via a
-  `__using__/1` macro. Modules inject them with `use Otel.API.Types`.
+- `Otel.API.Common.Types` — exposes `primitive/0` and `primitive_any/0` via a
+  `__using__/1` macro. Modules inject them with `use Otel.API.Common.Types`.
   Attribute keys are `String.t()` directly; attribute collections are
   spelled inline as `%{String.t() => primitive() | [primitive()]}`.
 

@@ -11,7 +11,7 @@ defmodule Otel.API.Metrics.Histogram do
   All functions are safe for concurrent use.
   """
 
-  use Otel.API.Types
+  use Otel.API.Common.Types
 
   @doc """
   Creates a Histogram instrument via the given Meter.
