@@ -44,11 +44,10 @@ Open with a short noun phrase and the spec section reference:
 
 ```elixir
 @typedoc """
-A W3C TraceState key (spec §3.3.1.1).
+A W3C TraceState key (spec §3.3.1.3.1, Level 2).
 
-Two valid forms:
-- `simple-key` — ...
-- `tenant@system` (multi-tenant) — ...
+Must begin with a lowercase letter or digit, followed by up to
+255 characters from `[a-z0-9_\\-*/@]`.
 
 Invalid keys are silently dropped by mutating operations.
 """
@@ -101,20 +100,24 @@ spec status from source structure alone.
 Inline comments for spec-derived constants cite the section:
 
 ```elixir
-# W3C §3.3.3: the list MUST contain at most 32 members.
+# W3C §3.3.1.1: "There can be a maximum of 32 list-members in a list."
 @max_members 32
 
-# W3C §3.3.3: the encoded header value MUST be at most 512 bytes.
+# W3C §3.3.1.5 tracestate Limits: vendors SHOULD propagate at least
+# 512 characters of a combined header.
 @max_header_bytes 512
 ```
 
 ### Spec paths
 
-Reference spec files by their path inside the OTel spec repo,
-omitting the `references/` prefix. Canonical form:
+Reference spec files by their path inside the respective spec repo,
+omitting the `references/` prefix. Canonical forms:
 
 ```
 opentelemetry-specification/specification/trace/api.md
+w3c-trace-context/spec/20-http_request_header_format.md
+w3c-baggage/baggage/HTTP_HEADER_FORMAT.md
+opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto
 ```
 
 Not:
@@ -122,3 +125,16 @@ Not:
 ```
 references/opentelemetry-specification/specification/trace/api.md
 ```
+
+### Spec sources in `references/`
+
+When writing spec citations, verify section numbers against the
+local copy of the spec:
+
+| Spec | Path | Pin |
+|---|---|---|
+| OTel Specification | `references/opentelemetry-specification/` | latest tag in use |
+| W3C Trace Context | `references/w3c-trace-context/` | `level-2` branch (per OTel `context/api-propagators.md` MUST) |
+| W3C Baggage | `references/w3c-baggage/` | `main` (still Working Draft, no REC) |
+| OTLP Proto | `references/opentelemetry-proto/` | — |
+| Semantic Conventions | `references/semantic-conventions/` | — |

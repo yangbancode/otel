@@ -13,3 +13,9 @@
 [submodule "references/weaver"]
 	path = references/weaver
 	url = https://github.com/open-telemetry/weaver
+[submodule "references/w3c-trace-context"]
+	path = references/w3c-trace-context
+	url = https://github.com/w3c/trace-context
+[submodule "references/w3c-baggage"]
+	path = references/w3c-baggage
+	url = https://github.com/w3c/baggage

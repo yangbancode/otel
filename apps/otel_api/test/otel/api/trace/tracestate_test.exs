@@ -126,14 +126,9 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
   end
 
-  describe "invalid key rejection (W3C § 3.3.1.1)" do
+  describe "invalid key rejection (W3C §3.3.1.3.1)" do
     test "rejects uppercase-starting key" do
       ts = %TraceState{} |> TraceState.add("Vendor", "val")
-      assert TraceState.size(ts) == 0
-    end
-
-    test "rejects simple key starting with digit" do
-      ts = %TraceState{} |> TraceState.add("1vendor", "val")
       assert TraceState.size(ts) == 0
     end
 
@@ -150,7 +145,7 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
   end
 
-  describe "invalid value rejection (W3C § 3.3.2)" do
+  describe "invalid value rejection (W3C §3.3.1.3.2)" do
     test "rejects value with `,`" do
       ts = %TraceState{} |> TraceState.add("k", "a,b")
       assert TraceState.size(ts) == 0
@@ -171,20 +166,20 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert TraceState.get(ts, "k") == "a b c"
     end
 
-    test "accepts value at exactly 256 chars (W3C § 3.3.2 max)" do
+    test "accepts value at exactly 256 chars (W3C §3.3.1.3.2 max)" do
       at_limit = String.duplicate("x", 256)
       ts = %TraceState{} |> TraceState.add("k", at_limit)
       assert TraceState.get(ts, "k") == at_limit
     end
 
-    test "rejects value longer than 256 chars (W3C § 3.3.2 max)" do
+    test "rejects value longer than 256 chars (W3C §3.3.1.3.2 max)" do
       over_limit = String.duplicate("x", 257)
       ts = %TraceState{} |> TraceState.add("k", over_limit)
       assert TraceState.size(ts) == 0
     end
   end
 
-  describe "decode rejects oversized header (W3C § 3.3.3)" do
+  describe "decode rejects oversized header (W3C §3.3.1.5)" do
     test "returns empty state when header exceeds 512 bytes" do
       oversized = 1..100 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
       assert byte_size(oversized) > 512
@@ -205,8 +200,9 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
 
     test "discards whole tracestate when header has more than 32 list-members" do
-      # Spec: "If the tracestate value has more than 32 list-members, the
-      # parser MUST discard the whole tracestate."
+      # W3C §3.3.1.1 sets the 32-member limit but does not define
+      # parser behaviour when exceeded. We reject the whole header,
+      # matching `opentelemetry-erlang`'s `otel_tracestate:decode_header/1`.
       header = 1..33 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
       assert byte_size(header) < 512
       assert TraceState.size(TraceState.decode(header)) == 0
@@ -233,16 +229,21 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert TraceState.valid_key?("vendor")
     end
 
-    test "accepts simple-key with allowed symbols (_ - * /)" do
-      assert TraceState.valid_key?("my-key_1*2/3")
+    test "accepts key with allowed symbols (_ - * / @)" do
+      assert TraceState.valid_key?("my-key_1*2/3@system")
     end
 
-    test "accepts tenant@system multi-tenant key" do
+    test "accepts key starting with digit (Level 2)" do
+      assert TraceState.valid_key?("1vendor")
+    end
+
+    test "accepts tenant@system style key" do
       assert TraceState.valid_key?("tenant@system")
+      assert TraceState.valid_key?("1tenant@vendor")
     end
 
-    test "accepts multi-tenant with tenant-id starting with digit" do
-      assert TraceState.valid_key?("1tenant@vendor")
+    test "accepts key with multiple @ (Level 2 grammar)" do
+      assert TraceState.valid_key?("a@b@c")
     end
 
     test "rejects empty string" do
@@ -253,16 +254,12 @@ defmodule Otel.API.Trace.TraceStateTest do
       refute TraceState.valid_key?("Vendor")
     end
 
-    test "rejects simple-key starting with digit" do
-      refute TraceState.valid_key?("1vendor")
-    end
-
     test "rejects disallowed symbols" do
       refute TraceState.valid_key?("vendor!")
       refute TraceState.valid_key?("ven dor")
     end
 
-    test "rejects simple-key longer than 256 chars" do
+    test "rejects key longer than 256 chars" do
       refute TraceState.valid_key?("a" <> String.duplicate("x", 256))
     end
 
