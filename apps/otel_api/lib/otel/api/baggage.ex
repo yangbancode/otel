@@ -72,7 +72,7 @@ defmodule Otel.API.Baggage do
   """
   @spec get_baggage(ctx :: Otel.API.Ctx.t()) :: t()
   def get_baggage(ctx) do
-    Otel.API.Ctx.get_value(ctx, @current_key, %{})
+    Otel.API.Ctx.get_value(ctx, @current_key) || %{}
   end
 
   @doc """
@@ -88,7 +88,7 @@ defmodule Otel.API.Baggage do
   """
   @spec get_baggage() :: t()
   def get_baggage do
-    Otel.API.Ctx.get_value(Otel.API.Ctx.get_current(), @current_key, %{})
+    Otel.API.Ctx.get_value(Otel.API.Ctx.get_current(), @current_key) || %{}
   end
 
   @doc """
@@ -96,7 +96,11 @@ defmodule Otel.API.Baggage do
   """
   @spec set_baggage(baggage :: t()) :: :ok
   def set_baggage(baggage) when is_map(baggage) do
-    Otel.API.Ctx.set_value(@current_key, baggage)
+    Otel.API.Ctx.get_current()
+    |> Otel.API.Ctx.set_value(@current_key, baggage)
+    |> Otel.API.Ctx.attach()
+
+    :ok
   end
 
   @doc """
@@ -112,6 +116,10 @@ defmodule Otel.API.Baggage do
   """
   @spec clear() :: :ok
   def clear do
-    Otel.API.Ctx.set_value(@current_key, %{})
+    Otel.API.Ctx.get_current()
+    |> Otel.API.Ctx.set_value(@current_key, %{})
+    |> Otel.API.Ctx.attach()
+
+    :ok
   end
 end

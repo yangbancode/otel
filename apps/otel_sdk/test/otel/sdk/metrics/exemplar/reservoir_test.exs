@@ -10,7 +10,7 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
                  1,
                  0,
                  %{},
-                 Otel.API.Ctx.new()
+                 %{}
                )
     end
 
@@ -26,7 +26,7 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
           42,
           1000,
           %{},
-          Otel.API.Ctx.new()
+          %{}
         )
 
       assert {Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize, state} = result
@@ -45,7 +45,7 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
           42,
           1000,
           %{},
-          Otel.API.Ctx.new()
+          %{}
         )
 
       assert {Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize, state} = result
@@ -67,7 +67,7 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
           42,
           1000,
           %{},
-          Otel.API.Ctx.new()
+          %{}
         )
 
       reservoir = {Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize, state}

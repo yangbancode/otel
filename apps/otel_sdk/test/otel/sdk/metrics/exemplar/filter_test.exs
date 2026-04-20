@@ -3,15 +3,15 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
 
   describe "should_sample?/2" do
     test "always_on returns true" do
-      assert Otel.SDK.Metrics.Exemplar.Filter.should_sample?(:always_on, Otel.API.Ctx.new())
+      assert Otel.SDK.Metrics.Exemplar.Filter.should_sample?(:always_on, %{})
     end
 
     test "always_off returns false" do
-      refute Otel.SDK.Metrics.Exemplar.Filter.should_sample?(:always_off, Otel.API.Ctx.new())
+      refute Otel.SDK.Metrics.Exemplar.Filter.should_sample?(:always_off, %{})
     end
 
     test "trace_based returns true when span is sampled" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       span_ctx = %Otel.API.Trace.SpanContext{
         trace_id: 1,
@@ -24,7 +24,7 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
     end
 
     test "trace_based returns false when span is not sampled" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       span_ctx = %Otel.API.Trace.SpanContext{
         trace_id: 1,
@@ -37,7 +37,7 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
     end
 
     test "trace_based returns false when no span context" do
-      refute Otel.SDK.Metrics.Exemplar.Filter.should_sample?(:trace_based, Otel.API.Ctx.new())
+      refute Otel.SDK.Metrics.Exemplar.Filter.should_sample?(:trace_based, %{})
     end
   end
 end

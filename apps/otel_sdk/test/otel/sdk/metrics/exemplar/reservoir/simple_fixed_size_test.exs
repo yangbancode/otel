@@ -1,7 +1,7 @@
 defmodule Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSizeTest do
   use ExUnit.Case, async: true
 
-  defp ctx, do: Otel.API.Ctx.new()
+  defp ctx, do: %{}
 
   describe "new/1" do
     test "default size is 1" do

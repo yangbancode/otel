@@ -27,7 +27,7 @@ defmodule Otel.API.Trace do
   """
   @spec current_span(ctx :: Otel.API.Ctx.t()) :: Otel.API.Trace.SpanContext.t()
   def current_span(ctx) do
-    Otel.API.Ctx.get_value(ctx, @span_key, %Otel.API.Trace.SpanContext{})
+    Otel.API.Ctx.get_value(ctx, @span_key) || %Otel.API.Trace.SpanContext{}
   end
 
   @doc """
@@ -44,7 +44,8 @@ defmodule Otel.API.Trace do
   """
   @spec current_span() :: Otel.API.Trace.SpanContext.t()
   def current_span do
-    Otel.API.Ctx.get_value(Otel.API.Ctx.get_current(), @span_key, %Otel.API.Trace.SpanContext{})
+    Otel.API.Ctx.get_value(Otel.API.Ctx.get_current(), @span_key) ||
+      %Otel.API.Trace.SpanContext{}
   end
 
   @doc """
@@ -52,7 +53,11 @@ defmodule Otel.API.Trace do
   """
   @spec set_current_span(span_ctx :: Otel.API.Trace.SpanContext.t()) :: :ok
   def set_current_span(span_ctx) do
-    Otel.API.Ctx.set_value(@span_key, span_ctx)
+    Otel.API.Ctx.get_current()
+    |> Otel.API.Ctx.set_value(@span_key, span_ctx)
+    |> Otel.API.Ctx.attach()
+
+    :ok
   end
 
   # --- Span Creation ---

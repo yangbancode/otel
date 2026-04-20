@@ -2,13 +2,20 @@ defmodule Otel.API.Ctx do
   @moduledoc """
   OTel Context for propagating values within a process.
 
-  Context is a plain map stored in the process dictionary.
-  Tracer and Baggage modules handle updating the context;
-  users rarely need to interact with this module directly.
+  A `Context` is a plain map. The spec's required operations take a
+  Context as an explicit argument and return either a value
+  (`get_value/2`) or a new Context (`set_value/3`). Three optional
+  global operations (`get_current/0`, `attach/1`, `detach/1`) provide
+  implicit "current Context" management backed by the process
+  dictionary.
 
-  Functions come in two variants:
-  - Implicit (1-2 arity): operate on the current process context
-  - Explicit (2-3 arity): operate on a given context map
+  Callers who want "return default when key is missing" semantics
+  compose either `Map.get(ctx, key, default)` style or
+  `get_value(ctx, key) || default` at the call site, depending on
+  which behavior they want for falsy values.
+
+  At the API level (without SDK) values set here are only visible to
+  the current process. All functions are safe for concurrent use.
   """
 
   @type t :: map()
@@ -32,86 +39,22 @@ defmodule Otel.API.Ctx do
   def create_key(name), do: name
 
   @doc """
-  Returns an empty context.
+  Gets a value from the given context.
+
+  Returns `nil` when the key is not present.
   """
-  @spec new() :: t()
-  def new, do: %{}
-
-  # --- Implicit (current process context) ---
-
-  @doc """
-  Sets a value in the current process context.
-  """
-  @spec set_value(key :: key(), value :: value()) :: :ok
-  def set_value(key, value) do
-    Process.put(@current_key, Map.put(get_current(), key, value))
-    :ok
-  end
-
-  @doc """
-  Gets a value from the current process context.
-
-  Returns `nil` if the key is not found. For a default value, use
-  `get_value/3` with the explicit context or read through
-  `get_current/0` with `Map.get/3`.
-  """
-  @spec get_value(key :: key()) :: value()
-  def get_value(key) do
-    Map.get(get_current(), key)
-  end
-
-  @doc """
-  Removes a key from the current process context.
-  """
-  @spec remove(key :: key()) :: :ok
-  def remove(key) do
-    Process.put(@current_key, Map.delete(get_current(), key))
-    :ok
-  end
-
-  @doc """
-  Clears all values from the current process context.
-  """
-  @spec clear() :: :ok
-  def clear do
-    Process.delete(@current_key)
-    :ok
-  end
-
-  # --- Explicit (given context) ---
+  @spec get_value(ctx :: t(), key :: key()) :: value()
+  def get_value(ctx, key), do: Map.get(ctx, key)
 
   @doc """
   Sets a value in the given context, returning a new context.
   """
   @spec set_value(ctx :: t(), key :: key(), value :: value()) :: t()
-  def set_value(ctx, key, value) when is_map(ctx) do
-    Map.put(ctx, key, value)
-  end
+  def set_value(ctx, key, value), do: Map.put(ctx, key, value)
 
   @doc """
-  Gets a value from the given context.
-  """
-  @spec get_value(ctx :: t(), key :: key(), default :: value()) :: value()
-  def get_value(ctx, key, default) when is_map(ctx) do
-    Map.get(ctx, key, default)
-  end
-
-  @doc """
-  Removes a key from the given context, returning a new context.
-  """
-  @spec remove(ctx :: t(), key :: key()) :: t()
-  def remove(ctx, key) when is_map(ctx), do: Map.delete(ctx, key)
-
-  @doc """
-  Clears all values from the given context.
-  """
-  @spec clear(ctx :: t()) :: t()
-  def clear(_ctx), do: new()
-
-  # --- Attach / Detach ---
-
-  @doc """
-  Returns the current process context.
+  Returns the current process context. Empty map when nothing is
+  attached.
   """
   @spec get_current() :: t()
   def get_current do
@@ -121,9 +64,9 @@ defmodule Otel.API.Ctx do
   @doc """
   Attaches the given context to the current process.
 
-  Returns a token that can be passed to `detach/1` to restore
-  the previous context. On the first attach in a process, the
-  previous context is normalized to an empty map.
+  Returns a token that can be passed to `detach/1` to restore the
+  previous context. On the first attach in a process, the previous
+  context is normalized to an empty map.
   """
   @spec attach(ctx :: t()) :: token()
   def attach(ctx) do

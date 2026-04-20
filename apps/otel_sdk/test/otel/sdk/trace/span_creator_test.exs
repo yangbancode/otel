@@ -49,7 +49,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
   describe "root span creation" do
     test "generates new trace_id and span_id" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       {span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -71,7 +71,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
     test "with invalid parent (trace_id 0) creates root span" do
       parent = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 1}
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       {span_ctx, _span} =
         Otel.SDK.Trace.Span.start_span(
@@ -88,7 +88,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
     test "with invalid parent (span_id 0) creates root span" do
       parent = %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 0}
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       {span_ctx, _span} =
         Otel.SDK.Trace.Span.start_span(
@@ -105,7 +105,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
     test "is_root option forces root span" do
       parent = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       {span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -125,7 +125,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
   describe "child span creation" do
     test "inherits parent trace_id" do
       parent = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       {span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -145,7 +145,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     test "inherits parent tracestate" do
       ts = Otel.API.Trace.TraceState.new([{"vendor", "value"}])
       parent = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(%{}, parent)
 
       {span_ctx, _span} =
         Otel.SDK.Trace.Span.start_span(
@@ -164,7 +164,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
   describe "sampling decisions" do
     test "record_and_sample sets trace_flags=1 and returns span" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       {span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -183,7 +183,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "record_only sets trace_flags=0 but returns span" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       {span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -202,7 +202,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "drop sets trace_flags=0 and returns nil span" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       {span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -219,7 +219,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "span_id is generated even for dropped spans" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       {span_ctx, _span} =
         Otel.SDK.Trace.Span.start_span(
@@ -237,7 +237,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
   describe "span options" do
     test "passes kind to span" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       {_span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -253,7 +253,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "passes attributes to span" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
 
       {_span_ctx, span} =
         Otel.SDK.Trace.Span.start_span(
@@ -269,7 +269,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "passes custom start_time" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       ts = 1_000_000_000
 
       {_span_ctx, span} =
@@ -286,7 +286,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "defaults to current time for start_time" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       before = System.system_time(:nanosecond)
 
       {_span_ctx, span} =
@@ -307,7 +307,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
   describe "span limits" do
     test "enforces attribute_count_limit" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2}
       attrs = %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
 
@@ -325,7 +325,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "enforces attribute_value_length_limit" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 5}
 
       {_span_ctx, span} =
@@ -342,7 +342,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "infinity value length limit does not truncate" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: :infinity}
       long_value = String.duplicate("a", 10_000)
 
@@ -360,7 +360,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "non-string values are not truncated" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 1}
 
       {_span_ctx, span} =
@@ -377,7 +377,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "truncates strings inside arrays" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
       {_span_ctx, span} =
@@ -394,7 +394,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "enforces link_count_limit" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{link_count_limit: 1}
 
       links = [
@@ -416,7 +416,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "enforces attribute_per_link_limit at creation" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1}
 
       links = [
@@ -441,7 +441,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     end
 
     test "truncates link attribute values at creation" do
-      ctx = Otel.API.Ctx.new()
+      ctx = %{}
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
       links = [
