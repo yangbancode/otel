@@ -8,7 +8,7 @@ defmodule Otel.API.Trace.Span do
 
   At the API level (without SDK), all operations are no-ops.
   When an SDK is installed, it registers a span module via
-  `set_span_module/1` and operations are dispatched to it.
+  `set_module/1` and operations are dispatched to it.
 
   All functions are safe for concurrent use.
   """
@@ -21,23 +21,23 @@ defmodule Otel.API.Trace.Span do
           is_root: boolean()
         ]
 
-  @span_module_key {__MODULE__, :module}
+  @module_key {__MODULE__, :module}
 
   @doc """
   Registers the SDK span operations module.
   """
-  @spec set_span_module(module :: module()) :: :ok
-  def set_span_module(module) when is_atom(module) do
-    :persistent_term.put(@span_module_key, module)
+  @spec set_module(module :: module()) :: :ok
+  def set_module(module) when is_atom(module) do
+    :persistent_term.put(@module_key, module)
     :ok
   end
 
   @doc """
   Returns the registered SDK span operations module, or `nil`.
   """
-  @spec get_span_module() :: module() | nil
-  def get_span_module do
-    :persistent_term.get(@span_module_key, nil)
+  @spec get_module() :: module() | nil
+  def get_module do
+    :persistent_term.get(@module_key, nil)
   end
 
   @doc """
@@ -57,7 +57,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
   def recording?(%Otel.API.Trace.SpanContext{} = span_ctx) do
-    case get_span_module() do
+    case get_module() do
       nil -> false
       module -> module.recording?(span_ctx)
     end
@@ -75,7 +75,7 @@ defmodule Otel.API.Trace.Span do
           value :: Otel.API.Attribute.value()
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.set_attribute(span_ctx, key, value)
     end
@@ -90,7 +90,7 @@ defmodule Otel.API.Trace.Span do
         ) ::
           :ok
   def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.set_attributes(span_ctx, attributes)
     end
@@ -108,7 +108,7 @@ defmodule Otel.API.Trace.Span do
           event :: Otel.API.Trace.Event.t()
         ) :: :ok
   def add_event(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Event{} = event) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.add_event(span_ctx, event)
     end
@@ -124,7 +124,7 @@ defmodule Otel.API.Trace.Span do
           link :: Otel.API.Trace.Link.t()
         ) :: :ok
   def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Link{} = link) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.add_link(span_ctx, link)
     end
@@ -146,7 +146,7 @@ defmodule Otel.API.Trace.Span do
           status :: Otel.API.Trace.Status.t()
         ) :: :ok
   def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{} = status) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.set_status(span_ctx, status)
     end
@@ -157,7 +157,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(%Otel.API.Trace.SpanContext{} = span_ctx, name) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.update_name(span_ctx, name)
     end
@@ -174,7 +174,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer() | nil) :: :ok
   def end_span(%Otel.API.Trace.SpanContext{} = span_ctx, timestamp \\ nil) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.end_span(span_ctx, timestamp)
     end
@@ -203,7 +203,7 @@ defmodule Otel.API.Trace.Span do
         stacktrace \\ [],
         attributes \\ %{}
       ) do
-    case get_span_module() do
+    case get_module() do
       nil -> :ok
       module -> module.record_exception(span_ctx, exception, stacktrace, attributes)
     end

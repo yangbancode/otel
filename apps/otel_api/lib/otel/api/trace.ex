@@ -9,7 +9,7 @@ defmodule Otel.API.Trace do
   @typedoc "Options for span creation. See `Otel.API.Trace.Span.start_opts/0`."
   @type start_opts :: Otel.API.Trace.Span.start_opts()
 
-  @span_key :"__otel.trace.span__"
+  @span_key {__MODULE__, :span}
 
   @doc """
   Returns a Tracer for the given instrumentation scope.

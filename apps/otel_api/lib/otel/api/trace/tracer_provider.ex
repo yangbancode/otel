@@ -10,7 +10,7 @@ defmodule Otel.API.Trace.TracerProvider do
 
   @default_tracer {Otel.API.Trace.Tracer.Noop, []}
 
-  @provider_key {__MODULE__, :global}
+  @global_key {__MODULE__, :global}
   @tracer_key_prefix {__MODULE__, :tracer}
 
   @typedoc """
@@ -46,7 +46,7 @@ defmodule Otel.API.Trace.TracerProvider do
   """
   @spec get_provider() :: t() | nil
   def get_provider do
-    :persistent_term.get(@provider_key, nil)
+    :persistent_term.get(@global_key, nil)
   end
 
   @doc """
@@ -58,12 +58,12 @@ defmodule Otel.API.Trace.TracerProvider do
   """
   @spec set_provider(provider :: t() | nil) :: :ok
   def set_provider({module, _state} = provider) when is_atom(module) do
-    :persistent_term.put(@provider_key, provider)
+    :persistent_term.put(@global_key, provider)
     :ok
   end
 
   def set_provider(nil) do
-    :persistent_term.put(@provider_key, nil)
+    :persistent_term.put(@global_key, nil)
     :ok
   end
 

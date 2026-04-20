@@ -54,6 +54,21 @@ The following compliance rows are marked `[ ]` with the annotation
 - `logs/sdk.md` L345 — LogRecord attribute drop SHOULD warn
 - `common/README.md` L284 — Attribute truncation MAY warn (already MAY, skipped trivially)
 
+### Non-log SHOULD items skipped under the same policy
+
+The happy-path policy extends beyond logging to other SHOULD-level
+behavioral requirements that would add defensive machinery without
+delivering a MUST-level guarantee:
+
+- `context/README.md` L65 — `CreateKey` multiple calls with same name
+  SHOULD NOT return the same value. Our `create_key/1` is identity
+  (returns the name verbatim), so repeat calls return equal keys.
+  Callers who need runtime uniqueness supply it themselves (e.g.
+  `{__MODULE__, make_ref()}`). The spec's escape clause ("unless
+  language constraints dictate otherwise") is arguably inapplicable
+  here — `make_ref/0` is available — so this is treated as an
+  explicit happy-path waiver rather than an escape-clause defense.
+
 ### When we do use Elixir `Logger`
 
 If a future requirement adds a MUST-log call site, we use
