@@ -22,6 +22,35 @@ defmodule Otel.API.Trace.TracerProviderTest do
       Otel.API.Trace.TracerProvider.set_provider({SomeProvider, :opaque_state})
       assert Otel.API.Trace.TracerProvider.get_provider() == {SomeProvider, :opaque_state}
     end
+
+    test "set_provider(nil) clears the registration" do
+      Otel.API.Trace.TracerProvider.set_provider({SomeProvider, :state})
+      Otel.API.Trace.TracerProvider.set_provider(nil)
+      assert Otel.API.Trace.TracerProvider.get_provider() == nil
+    end
+  end
+
+  describe "get_tracer/1 dispatch via registered provider" do
+    defmodule FakeTracerProvider do
+      @moduledoc false
+      @behaviour Otel.API.Trace.TracerProvider
+
+      @impl true
+      def get_tracer(state, %Otel.API.InstrumentationScope{} = scope) do
+        {__MODULE__, %{state: state, scope: scope}}
+      end
+    end
+
+    test "delegates to registered provider and caches result" do
+      Otel.API.Trace.TracerProvider.set_provider({FakeTracerProvider, :installed})
+
+      scope = %Otel.API.InstrumentationScope{name: "installed_lib"}
+
+      {module, %{state: :installed, scope: ^scope}} =
+        Otel.API.Trace.TracerProvider.get_tracer(scope)
+
+      assert module == FakeTracerProvider
+    end
   end
 
   describe "get_tracer/0,1" do

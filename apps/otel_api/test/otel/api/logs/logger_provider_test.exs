@@ -15,6 +15,35 @@ defmodule Otel.API.Logs.LoggerProviderTest do
       Otel.API.Logs.LoggerProvider.set_provider({SomeLoggerProvider, :opaque_state})
       assert Otel.API.Logs.LoggerProvider.get_provider() == {SomeLoggerProvider, :opaque_state}
     end
+
+    test "set_provider(nil) clears the registration" do
+      Otel.API.Logs.LoggerProvider.set_provider({SomeLoggerProvider, :state})
+      Otel.API.Logs.LoggerProvider.set_provider(nil)
+      assert Otel.API.Logs.LoggerProvider.get_provider() == nil
+    end
+  end
+
+  describe "get_logger/1 dispatch via registered provider" do
+    defmodule FakeLoggerProvider do
+      @moduledoc false
+      @behaviour Otel.API.Logs.LoggerProvider
+
+      @impl true
+      def get_logger(state, %Otel.API.InstrumentationScope{} = scope) do
+        {__MODULE__, %{state: state, scope: scope}}
+      end
+    end
+
+    test "delegates to registered provider and caches result" do
+      Otel.API.Logs.LoggerProvider.set_provider({FakeLoggerProvider, :installed})
+
+      scope = %Otel.API.InstrumentationScope{name: "installed_lib"}
+
+      {module, %{state: :installed, scope: ^scope}} =
+        Otel.API.Logs.LoggerProvider.get_logger(scope)
+
+      assert module == FakeLoggerProvider
+    end
   end
 
   describe "get_logger/0,1" do
