@@ -36,16 +36,13 @@ defmodule Otel.SDK.Trace.TracerProvider do
   """
   @spec get_tracer(
           server :: GenServer.server(),
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
+          instrumentation_scope :: Otel.API.InstrumentationScope.t()
         ) ::
           Otel.API.Trace.Tracer.t()
   @impl Otel.API.Trace.TracerProvider
-  def get_tracer(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+  def get_tracer(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
     if alive?(server) do
-      GenServer.call(server, {:get_tracer, name, version, schema_url, attributes})
+      GenServer.call(server, {:get_tracer, instrumentation_scope})
     else
       {Otel.API.Trace.Tracer.Noop, []}
     end
@@ -112,22 +109,15 @@ defmodule Otel.SDK.Trace.TracerProvider do
   end
 
   @impl true
-  def handle_call(
-        {:get_tracer, _name, _version, _schema_url, _attributes},
-        _from,
-        %{shut_down: true} = config
-      ) do
+  def handle_call({:get_tracer, _instrumentation_scope}, _from, %{shut_down: true} = config) do
     {:reply, {Otel.API.Trace.Tracer.Noop, []}, config}
   end
 
-  def handle_call({:get_tracer, name, version, schema_url, attributes}, _from, config) do
-    scope = %Otel.API.InstrumentationScope{
-      name: name,
-      version: version,
-      schema_url: schema_url,
-      attributes: attributes
-    }
-
+  def handle_call(
+        {:get_tracer, %Otel.API.InstrumentationScope{} = instrumentation_scope},
+        _from,
+        config
+      ) do
     sampler = Otel.SDK.Trace.Sampler.new(config.sampler)
 
     tracer_config = %{
@@ -135,7 +125,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
       id_generator: config.id_generator,
       span_limits: config.span_limits,
       processors: config.processors,
-      scope: scope
+      scope: instrumentation_scope
     }
 
     tracer = {Otel.SDK.Trace.Tracer, tracer_config}

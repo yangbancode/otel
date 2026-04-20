@@ -19,24 +19,26 @@ defmodule Otel.API.TraceTest do
     :ok
   end
 
-  describe "get_tracer/1,2,3" do
-    test "delegates to TracerProvider with name only" do
-      {module, _} = Otel.API.Trace.get_tracer("my_lib")
+  describe "get_tracer/0,1" do
+    test "delegates to TracerProvider with scope" do
+      {module, _} = Otel.API.Trace.get_tracer(%Otel.API.InstrumentationScope{name: "my_lib"})
       assert module == Otel.API.Trace.Tracer.Noop
     end
 
-    test "delegates to TracerProvider with name and version" do
-      {module, _} = Otel.API.Trace.get_tracer("my_lib", "1.0.0")
+    test "defaults to empty scope when no args given" do
+      {module, _} = Otel.API.Trace.get_tracer()
       assert module == Otel.API.Trace.Tracer.Noop
     end
 
-    test "delegates to TracerProvider with name, version, schema_url" do
-      {module, _} = Otel.API.Trace.get_tracer("my_lib", "1.0.0", "https://example.com")
-      assert module == Otel.API.Trace.Tracer.Noop
-    end
+    test "passes all scope fields through to TracerProvider" do
+      scope = %Otel.API.InstrumentationScope{
+        name: "my_lib",
+        version: "1.0.0",
+        schema_url: "https://example.com",
+        attributes: %{"key" => "val"}
+      }
 
-    test "delegates to TracerProvider with attributes" do
-      {module, _} = Otel.API.Trace.get_tracer("my_lib", "1.0.0", nil, %{"key" => "val"})
+      {module, _} = Otel.API.Trace.get_tracer(scope)
       assert module == Otel.API.Trace.Tracer.Noop
     end
   end

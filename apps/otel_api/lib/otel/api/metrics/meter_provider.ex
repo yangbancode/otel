@@ -34,10 +34,7 @@ defmodule Otel.API.Metrics.MeterProvider do
   """
   @callback get_meter(
               state :: term(),
-              name :: String.t(),
-              version :: String.t(),
-              schema_url :: String.t() | nil,
-              attributes :: Otel.API.Attribute.attributes()
+              instrumentation_scope :: Otel.API.InstrumentationScope.t()
             ) :: Otel.API.Metrics.Meter.t()
 
   @doc """
@@ -69,21 +66,20 @@ defmodule Otel.API.Metrics.MeterProvider do
   @doc """
   Returns a Meter for the given instrumentation scope.
 
-  Invalid name (nil or empty) returns a working Meter with empty
-  name. Meters are cached in `persistent_term`.
+  Accepts an `Otel.API.InstrumentationScope` struct. Without arguments,
+  uses a default empty scope. Meters are cached in `persistent_term`
+  keyed by the scope value.
   """
-  @spec get_meter(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) :: Otel.API.Metrics.Meter.t()
-  def get_meter(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    key = {@meter_key_prefix, {name, version, schema_url, attributes}}
+  @spec get_meter(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
+          Otel.API.Metrics.Meter.t()
+  def get_meter(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
+
+  def get_meter(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+    key = {@meter_key_prefix, instrumentation_scope}
 
     case :persistent_term.get(key, nil) do
       nil ->
-        meter = fetch_or_default(name, version, schema_url, attributes)
+        meter = fetch_or_default(instrumentation_scope)
         :persistent_term.put(key, meter)
         meter
 
@@ -92,39 +88,15 @@ defmodule Otel.API.Metrics.MeterProvider do
     end
   end
 
-  @doc """
-  Returns the InstrumentationScope for a meter obtained with the
-  given parameters.
-  """
-  @spec scope(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) ::
-          Otel.API.InstrumentationScope.t()
-  def scope(name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
-    %Otel.API.InstrumentationScope{
-      name: name,
-      version: version,
-      schema_url: schema_url,
-      attributes: attributes
-    }
-  end
-
-  @spec fetch_or_default(
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
-        ) :: Otel.API.Metrics.Meter.t()
-  defp fetch_or_default(name, version, schema_url, attributes) do
+  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
+          Otel.API.Metrics.Meter.t()
+  defp fetch_or_default(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
     case get_provider() do
       nil ->
         @default_meter
 
       {module, state} ->
-        module.get_meter(state, name, version, schema_url, attributes)
+        module.get_meter(state, instrumentation_scope)
     end
   end
 end

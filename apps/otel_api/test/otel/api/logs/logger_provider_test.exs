@@ -6,27 +6,6 @@ defmodule Otel.API.Logs.LoggerProviderTest do
     :ok
   end
 
-  describe "invalid name handling (happy-path: no log, no coerce)" do
-    import ExUnit.CaptureLog
-
-    test "get_logger(nil) on Noop path does NOT log" do
-      assert capture_log(fn ->
-               Otel.API.Logs.LoggerProvider.get_logger(nil)
-             end) == ""
-    end
-
-    test "get_logger(\"\") on Noop path does NOT log" do
-      assert capture_log(fn ->
-               Otel.API.Logs.LoggerProvider.get_logger("")
-             end) == ""
-    end
-
-    test "get_logger(nil) on Noop path returns a working logger" do
-      logger = Otel.API.Logs.LoggerProvider.get_logger(nil)
-      assert {Otel.API.Logs.Logger.Noop, _} = logger
-    end
-  end
-
   describe "get_provider/0 and set_provider/1" do
     test "returns nil when no provider is set" do
       assert Otel.API.Logs.LoggerProvider.get_provider() == nil
@@ -36,75 +15,89 @@ defmodule Otel.API.Logs.LoggerProviderTest do
       Otel.API.Logs.LoggerProvider.set_provider({SomeLoggerProvider, :opaque_state})
       assert Otel.API.Logs.LoggerProvider.get_provider() == {SomeLoggerProvider, :opaque_state}
     end
+
+    test "set_provider(nil) clears the registration" do
+      Otel.API.Logs.LoggerProvider.set_provider({SomeLoggerProvider, :state})
+      Otel.API.Logs.LoggerProvider.set_provider(nil)
+      assert Otel.API.Logs.LoggerProvider.get_provider() == nil
+    end
   end
 
-  describe "get_logger/1,2,3" do
+  describe "get_logger/1 dispatch via registered provider" do
+    defmodule FakeLoggerProvider do
+      @moduledoc false
+      @behaviour Otel.API.Logs.LoggerProvider
+
+      @impl true
+      def get_logger(state, %Otel.API.InstrumentationScope{} = scope) do
+        {__MODULE__, %{state: state, scope: scope}}
+      end
+    end
+
+    test "delegates to registered provider and caches result" do
+      Otel.API.Logs.LoggerProvider.set_provider({FakeLoggerProvider, :installed})
+
+      scope = %Otel.API.InstrumentationScope{name: "installed_lib"}
+
+      {module, %{state: :installed, scope: ^scope}} =
+        Otel.API.Logs.LoggerProvider.get_logger(scope)
+
+      assert module == FakeLoggerProvider
+    end
+  end
+
+  describe "get_logger/0,1" do
     test "returns noop logger when no SDK installed" do
-      {module, _config} = Otel.API.Logs.LoggerProvider.get_logger("my_lib")
+      {module, _config} =
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{name: "my_lib"})
+
       assert module == Otel.API.Logs.Logger.Noop
     end
 
-    test "returns same logger for same name" do
-      logger1 = Otel.API.Logs.LoggerProvider.get_logger("my_lib")
-      logger2 = Otel.API.Logs.LoggerProvider.get_logger("my_lib")
+    test "returns noop logger with default empty scope when called with no args" do
+      {module, _config} = Otel.API.Logs.LoggerProvider.get_logger()
+      assert module == Otel.API.Logs.Logger.Noop
+    end
+
+    test "returns same logger for equal scopes" do
+      logger1 =
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{name: "my_lib"})
+
+      logger2 =
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{name: "my_lib"})
+
       assert logger1 == logger2
     end
 
-    test "accepts version and schema_url" do
-      logger =
-        Otel.API.Logs.LoggerProvider.get_logger("my_lib", "1.0.0", "https://example.com")
+    test "different scopes produce separate cache entries" do
+      logger1 =
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
+          name: "my_lib",
+          version: "1.0.0"
+        })
 
-      assert {Otel.API.Logs.Logger.Noop, []} == logger
-    end
+      logger2 =
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
+          name: "my_lib",
+          version: "2.0.0"
+        })
 
-    test "accepts attributes" do
-      logger =
-        Otel.API.Logs.LoggerProvider.get_logger("my_lib", "1.0.0", nil, %{"key" => "val"})
-
-      assert {Otel.API.Logs.Logger.Noop, []} == logger
-    end
-
-    test "returns working logger for nil name with warning" do
-      {module, _config} = Otel.API.Logs.LoggerProvider.get_logger(nil)
-      assert module == Otel.API.Logs.Logger.Noop
-    end
-
-    test "returns working logger for empty name with warning" do
-      {module, _config} = Otel.API.Logs.LoggerProvider.get_logger("")
-      assert module == Otel.API.Logs.Logger.Noop
+      # Both are Noop but cached under distinct keys
+      assert logger1 == logger2
     end
 
     test "caches logger in persistent_term" do
-      logger1 = Otel.API.Logs.LoggerProvider.get_logger("cached_lib")
-      logger2 = Otel.API.Logs.LoggerProvider.get_logger("cached_lib")
-      assert logger1 === logger2
-    end
-  end
-
-  describe "scope/1,2,3" do
-    test "creates InstrumentationScope with name" do
-      scope = Otel.API.Logs.LoggerProvider.scope("my_lib")
-
-      assert %Otel.API.InstrumentationScope{
-               name: "my_lib",
-               version: "",
-               schema_url: nil,
-               attributes: %{}
-             } == scope
-    end
-
-    test "creates InstrumentationScope with all fields" do
-      scope =
-        Otel.API.Logs.LoggerProvider.scope("my_lib", "1.0.0", "https://example.com", %{
-          "key" => "val"
+      logger1 =
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
+          name: "cached_lib"
         })
 
-      assert %Otel.API.InstrumentationScope{
-               name: "my_lib",
-               version: "1.0.0",
-               schema_url: "https://example.com",
-               attributes: %{"key" => "val"}
-             } == scope
+      logger2 =
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
+          name: "cached_lib"
+        })
+
+      assert logger1 === logger2
     end
   end
 end

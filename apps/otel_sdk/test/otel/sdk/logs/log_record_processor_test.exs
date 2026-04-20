@@ -80,7 +80,11 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "test_lib")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "test_lib"
+        })
+
       logger = {Otel.SDK.Logs.Logger, config}
 
       Otel.API.Logs.Logger.emit(logger, %{body: "hello"})
@@ -126,7 +130,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       logger = {Otel.SDK.Logs.Logger, config}
       assert Otel.SDK.Logs.Logger.enabled?(logger, [])
     end
@@ -139,7 +145,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       logger = {Otel.SDK.Logs.Logger, config}
       refute Otel.SDK.Logs.Logger.enabled?(logger, [])
     end
@@ -155,14 +163,19 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       logger = {Otel.SDK.Logs.Logger, config}
       assert Otel.SDK.Logs.Logger.enabled?(logger, [])
     end
 
     test "returns false with no processors" do
       {:ok, pid} = Otel.SDK.Logs.LoggerProvider.start_link(config: %{})
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "lib")
+
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       logger = {Otel.SDK.Logs.Logger, config}
       refute Otel.SDK.Logs.Logger.enabled?(logger, [])
     end
@@ -177,7 +190,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
           }
         )
 
-      {_mod, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "test_lib", "1.0.0")
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "test_lib",
+          version: "1.0.0"
+        })
+
       logger = {Otel.SDK.Logs.Logger, config}
 
       Otel.API.Logs.Logger.emit(logger, %{

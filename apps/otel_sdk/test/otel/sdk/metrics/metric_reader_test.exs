@@ -6,7 +6,12 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     Application.ensure_all_started(:otel_sdk)
 
     {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-    {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "test_lib")
+
+    {_mod, config} =
+      Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+        name: "test_lib"
+      })
+
     meter = {Otel.SDK.Metrics.Meter, config}
 
     on_exit(fn ->
@@ -105,7 +110,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       {:ok, pid} =
         Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "sampled", [])
@@ -124,7 +131,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       {:ok, pid} =
         Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_off})
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "not_sampled", [])
@@ -142,7 +151,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       {:ok, pid} =
         Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "reset_test", [])
@@ -180,7 +191,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
         %{attribute_keys: {:include, ["method"]}}
       )
 
-      {_mod, config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_mod, config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       meter = {Otel.SDK.Metrics.Meter, config}
 
       instrument = Otel.SDK.Metrics.Meter.create_counter(meter, "attr_test", [])

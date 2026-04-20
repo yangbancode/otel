@@ -26,34 +26,47 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
   describe "get_logger/2,3,4" do
     test "returns SDK logger", %{provider: pid} do
-      {module, _config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "my_lib")
+      {module, _config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert module == Otel.SDK.Logs.Logger
     end
 
     test "logger has correct scope", %{provider: pid} do
-      {_module, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "my_lib", "1.0.0")
+      {_module, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib",
+          version: "1.0.0"
+        })
+
       assert config.scope.name == "my_lib"
       assert config.scope.version == "1.0.0"
     end
 
     test "logger has resource", %{provider: pid} do
-      {_module, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "my_lib")
+      {_module, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert %Otel.SDK.Resource{} = config.resource
     end
 
     test "logger has processors_key for dynamic access", %{provider: pid} do
-      {_module, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "my_lib")
+      {_module, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert Map.has_key?(config, :processors_key)
     end
 
-    test "returns working logger for nil name (original value preserved)", %{provider: pid} do
-      {module, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, nil)
-      assert module == Otel.SDK.Logs.Logger
-      assert config.scope.name == nil
-    end
-
     test "returns working logger for empty name (original value preserved)", %{provider: pid} do
-      {module, config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "")
+      {module, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: ""})
+
       assert module == Otel.SDK.Logs.Logger
       assert config.scope.name == ""
     end
@@ -87,7 +100,12 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
     test "returns noop logger after shutdown", %{provider: pid} do
       Otel.SDK.Logs.LoggerProvider.shutdown(pid)
-      {module, _config} = Otel.SDK.Logs.LoggerProvider.get_logger(pid, "my_lib")
+
+      {module, _config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert module == Otel.API.Logs.Logger.Noop
     end
   end

@@ -36,16 +36,13 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   """
   @spec get_meter(
           server :: GenServer.server(),
-          name :: String.t(),
-          version :: String.t(),
-          schema_url :: String.t() | nil,
-          attributes :: Otel.API.Attribute.attributes()
+          instrumentation_scope :: Otel.API.InstrumentationScope.t()
         ) ::
           Otel.API.Metrics.Meter.t()
   @impl Otel.API.Metrics.MeterProvider
-  def get_meter(server, name, version \\ "", schema_url \\ nil, attributes \\ %{}) do
+  def get_meter(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
     if alive?(server) do
-      GenServer.call(server, {:get_meter, name, version, schema_url, attributes})
+      GenServer.call(server, {:get_meter, instrumentation_scope})
     else
       {Otel.API.Metrics.Meter.Noop, []}
     end
@@ -161,26 +158,19 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   @impl true
-  def handle_call(
-        {:get_meter, _name, _version, _schema_url, _attributes},
-        _from,
-        %{shut_down: true} = config
-      ) do
+  def handle_call({:get_meter, _instrumentation_scope}, _from, %{shut_down: true} = config) do
     {:reply, {Otel.API.Metrics.Meter.Noop, []}, config}
   end
 
-  def handle_call({:get_meter, name, version, schema_url, attributes}, _from, config) do
-    scope = %Otel.API.InstrumentationScope{
-      name: name,
-      version: version,
-      schema_url: schema_url,
-      attributes: attributes
-    }
-
+  def handle_call(
+        {:get_meter, %Otel.API.InstrumentationScope{} = instrumentation_scope},
+        _from,
+        config
+      ) do
     reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
 
     meter_config = %{
-      scope: scope,
+      scope: instrumentation_scope,
       resource: config.resource,
       instruments_tab: config.instruments_tab,
       streams_tab: config.streams_tab,

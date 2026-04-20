@@ -22,72 +22,83 @@ defmodule Otel.API.Trace.TracerProviderTest do
       Otel.API.Trace.TracerProvider.set_provider({SomeProvider, :opaque_state})
       assert Otel.API.Trace.TracerProvider.get_provider() == {SomeProvider, :opaque_state}
     end
+
+    test "set_provider(nil) clears the registration" do
+      Otel.API.Trace.TracerProvider.set_provider({SomeProvider, :state})
+      Otel.API.Trace.TracerProvider.set_provider(nil)
+      assert Otel.API.Trace.TracerProvider.get_provider() == nil
+    end
   end
 
-  describe "get_tracer/1,2,3" do
+  describe "get_tracer/1 dispatch via registered provider" do
+    defmodule FakeTracerProvider do
+      @moduledoc false
+      @behaviour Otel.API.Trace.TracerProvider
+
+      @impl true
+      def get_tracer(state, %Otel.API.InstrumentationScope{} = scope) do
+        {__MODULE__, %{state: state, scope: scope}}
+      end
+    end
+
+    test "delegates to registered provider and caches result" do
+      Otel.API.Trace.TracerProvider.set_provider({FakeTracerProvider, :installed})
+
+      scope = %Otel.API.InstrumentationScope{name: "installed_lib"}
+
+      {module, %{state: :installed, scope: ^scope}} =
+        Otel.API.Trace.TracerProvider.get_tracer(scope)
+
+      assert module == FakeTracerProvider
+    end
+  end
+
+  describe "get_tracer/0,1" do
     test "returns noop tracer when no SDK installed" do
-      {module, _config} = Otel.API.Trace.TracerProvider.get_tracer("my_lib")
+      {module, _config} =
+        Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{name: "my_lib"})
+
       assert module == Otel.API.Trace.Tracer.Noop
     end
 
-    test "returns same tracer for same name" do
-      tracer1 = Otel.API.Trace.TracerProvider.get_tracer("my_lib")
-      tracer2 = Otel.API.Trace.TracerProvider.get_tracer("my_lib")
+    test "returns noop tracer with default empty scope when called with no args" do
+      {module, _config} = Otel.API.Trace.TracerProvider.get_tracer()
+      assert module == Otel.API.Trace.Tracer.Noop
+    end
+
+    test "returns same tracer for equal scopes" do
+      tracer1 =
+        Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{name: "my_lib"})
+
+      tracer2 =
+        Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{name: "my_lib"})
+
       assert tracer1 == tracer2
     end
 
-    test "accepts version and schema_url" do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer("my_lib", "1.0.0", "https://example.com")
-      assert {Otel.API.Trace.Tracer.Noop, []} == tracer
-    end
+    test "scopes differing in version produce separate cache entries" do
+      scope_a = %Otel.API.InstrumentationScope{name: "my_lib", version: "1.0.0"}
+      scope_b = %Otel.API.InstrumentationScope{name: "my_lib", version: "2.0.0"}
 
-    test "accepts attributes" do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer("my_lib", "1.0.0", nil, %{"key" => "val"})
-      assert {Otel.API.Trace.Tracer.Noop, []} == tracer
-    end
+      assert {Otel.API.Trace.Tracer.Noop, []} ==
+               Otel.API.Trace.TracerProvider.get_tracer(scope_a)
 
-    test "returns working tracer for nil name with warning" do
-      {module, _config} = Otel.API.Trace.TracerProvider.get_tracer(nil)
-      assert module == Otel.API.Trace.Tracer.Noop
-    end
-
-    test "returns working tracer for empty name with warning" do
-      {module, _config} = Otel.API.Trace.TracerProvider.get_tracer("")
-      assert module == Otel.API.Trace.Tracer.Noop
+      assert {Otel.API.Trace.Tracer.Noop, []} ==
+               Otel.API.Trace.TracerProvider.get_tracer(scope_b)
     end
 
     test "caches tracer in persistent_term" do
-      tracer1 = Otel.API.Trace.TracerProvider.get_tracer("cached_lib")
-      tracer2 = Otel.API.Trace.TracerProvider.get_tracer("cached_lib")
-      assert tracer1 === tracer2
-    end
-  end
-
-  describe "scope/1,2,3" do
-    test "creates InstrumentationScope with name" do
-      scope = Otel.API.Trace.TracerProvider.scope("my_lib")
-
-      assert %Otel.API.InstrumentationScope{
-               name: "my_lib",
-               version: "",
-               schema_url: nil,
-               attributes: %{}
-             } ==
-               scope
-    end
-
-    test "creates InstrumentationScope with all fields" do
-      scope =
-        Otel.API.Trace.TracerProvider.scope("my_lib", "1.0.0", "https://example.com", %{
-          "key" => "val"
+      tracer1 =
+        Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{
+          name: "cached_lib"
         })
 
-      assert %Otel.API.InstrumentationScope{
-               name: "my_lib",
-               version: "1.0.0",
-               schema_url: "https://example.com",
-               attributes: %{"key" => "val"}
-             } == scope
+      tracer2 =
+        Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{
+          name: "cached_lib"
+        })
+
+      assert tracer1 === tracer2
     end
   end
 end

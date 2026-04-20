@@ -66,14 +66,22 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
   describe "get_meter/2,3,4" do
     test "returns SDK meter tuple", %{provider: pid} do
-      {module, meter_config} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "my_lib")
+      {module, meter_config} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert module == Otel.SDK.Metrics.Meter
       assert %{scope: _, resource: _} = meter_config
     end
 
     test "meter includes instrumentation scope", %{provider: pid} do
       {_module, %{scope: scope}} =
-        Otel.SDK.Metrics.MeterProvider.get_meter(pid, "my_lib", "1.0.0", "https://example.com")
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib",
+          version: "1.0.0",
+          schema_url: "https://example.com"
+        })
 
       assert %Otel.API.InstrumentationScope{
                name: "my_lib",
@@ -84,7 +92,9 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
     test "meter includes resource", %{provider: pid} do
       {_module, %{resource: resource}} =
-        Otel.SDK.Metrics.MeterProvider.get_meter(pid, "my_lib")
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
 
       assert %Otel.SDK.Resource{} = resource
       assert resource.attributes["telemetry.sdk.name"] == "otel"
@@ -157,7 +167,12 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
     test "returns noop meter after shutdown", %{provider: pid} do
       Otel.SDK.Metrics.MeterProvider.shutdown(pid)
-      {module, _} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "my_lib")
+
+      {module, _} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
       assert module == Otel.API.Metrics.Meter.Noop
     end
 
@@ -187,12 +202,15 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     end
 
     test "views apply to already returned meters", %{provider: pid} do
-      {_module, config_before} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_module, config_before} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
 
       :ok =
         Otel.SDK.Metrics.MeterProvider.add_view(pid, %{name: "requests"}, %{name: "req_total"})
 
-      {_module, config_after} = Otel.SDK.Metrics.MeterProvider.get_meter(pid, "lib")
+      {_module, config_after} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
       assert length(config_after.views) == 1
       assert config_before.views == []
     end
