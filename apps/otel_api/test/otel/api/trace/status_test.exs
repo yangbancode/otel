@@ -27,6 +27,20 @@ defmodule Otel.API.Trace.StatusTest do
       status = Otel.API.Trace.Status.new(:error)
       assert status.description == ""
     end
+
+    test ":ok discards description per spec L599-L600 MUST IGNORE" do
+      status = Otel.API.Trace.Status.new(:ok, "should be ignored")
+
+      assert status.code == :ok
+      assert status.description == ""
+    end
+
+    test ":unset discards description per spec L599-L600 MUST IGNORE" do
+      status = Otel.API.Trace.Status.new(:unset, "should be ignored")
+
+      assert status.code == :unset
+      assert status.description == ""
+    end
   end
 
   describe "struct defaults" do
