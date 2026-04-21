@@ -178,7 +178,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       ctx = Otel.API.Propagator.TextMap.TraceContext.extract(%{}, carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
-      assert Otel.API.Trace.TraceState.size(span_ctx.tracestate) == 0
+      assert Otel.API.Trace.TraceState.empty?(span_ctx.tracestate)
     end
 
     test "roundtrip inject then extract preserves context" do

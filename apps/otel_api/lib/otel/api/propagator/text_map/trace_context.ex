@@ -31,14 +31,14 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
     if Otel.API.Trace.SpanContext.valid?(span_ctx) do
       carrier = setter.(@traceparent_header, encode_traceparent(span_ctx), carrier)
 
-      if Otel.API.Trace.TraceState.size(span_ctx.tracestate) > 0 do
+      if Otel.API.Trace.TraceState.empty?(span_ctx.tracestate) do
+        carrier
+      else
         setter.(
           @tracestate_header,
           Otel.API.Trace.TraceState.encode(span_ctx.tracestate),
           carrier
         )
-      else
-        carrier
       end
     else
       carrier
