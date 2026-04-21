@@ -31,7 +31,16 @@ defmodule Otel.API.Trace.TraceStateTest do
       assert TraceState.encode(ts) == "new=value,existing=data"
     end
 
-    test "returns unchanged when at max 32 members" do
+    test "rejects duplicate key (W3C §3.5 MUST NOT duplicate)" do
+      ts = %TraceState{} |> TraceState.add("vendor", "first")
+      ts2 = TraceState.add(ts, "vendor", "second")
+      assert TraceState.size(ts2) == 1
+      assert TraceState.get(ts2, "vendor") == "first"
+    end
+
+    test "drops right-most entry when at max 32 members (W3C §3.3.1.1)" do
+      # Reduce 1..32 with prepend — "key1" ends up right-most (oldest),
+      # "key32" ends up left-most (newest).
       ts =
         Enum.reduce(1..32, %TraceState{}, fn i, acc ->
           TraceState.add(acc, "key#{i}", "val#{i}")
@@ -39,7 +48,11 @@ defmodule Otel.API.Trace.TraceStateTest do
 
       ts2 = TraceState.add(ts, "extra", "value")
       assert TraceState.size(ts2) == 32
-      assert TraceState.get(ts2, "extra") == ""
+      assert TraceState.get(ts2, "extra") == "value"
+      # right-most (oldest = "key1") dropped
+      assert TraceState.get(ts2, "key1") == ""
+      # second-oldest retained
+      assert TraceState.get(ts2, "key2") == "val2"
     end
   end
 
@@ -53,6 +66,25 @@ defmodule Otel.API.Trace.TraceStateTest do
 
       ts = TraceState.update(ts, "b", "updated")
       assert TraceState.encode(ts) == "b=updated,a=1,c=3"
+    end
+
+    test "adds when key is missing (update-or-add)" do
+      ts = %TraceState{} |> TraceState.add("a", "1")
+      ts2 = TraceState.update(ts, "b", "2")
+      assert TraceState.encode(ts2) == "b=2,a=1"
+    end
+
+    test "missing-key fallthrough respects 32-cap (W3C §3.3.1.1)" do
+      ts =
+        Enum.reduce(1..32, %TraceState{}, fn i, acc ->
+          TraceState.add(acc, "key#{i}", "val#{i}")
+        end)
+
+      ts2 = TraceState.update(ts, "missing", "v")
+      assert TraceState.size(ts2) == 32
+      assert TraceState.get(ts2, "missing") == "v"
+      # right-most (oldest) dropped via add semantics
+      assert TraceState.get(ts2, "key1") == ""
     end
   end
 

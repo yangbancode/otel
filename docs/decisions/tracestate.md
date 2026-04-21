@@ -29,7 +29,18 @@ Per spec (L284), four separate operations plus encode/decode:
 | `encode/1` | Encode to W3C header string |
 | `decode/1` | Decode from W3C header string |
 
-`add/3` and `update/3` are separate per spec — add prepends without deduplication, update only works on existing keys. Both validate input and return unchanged TraceState on invalid input (L294-L295).
+`add/3` and `update/3` are separate per spec:
+
+- `add/3` prepends new entries. Per W3C §3.5 it rejects duplicate
+  keys ("Adding a key/value pair MUST NOT result in the same key
+  being present multiple times"), and per W3C §3.3.1.1 it drops
+  the right-most entry when already at 32 members.
+- `update/3` moves the modified key to the beginning (W3C §3.5).
+  Falls through to `add/3` when the key is absent, inheriting the
+  32-member cap.
+
+Both return the TraceState unchanged on invalid key/value per
+OTel api.md L294-L295.
 
 `decode/1` rejects the entire header if any entry is invalid or if the number of members exceeds 32.
 
