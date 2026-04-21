@@ -6,19 +6,10 @@ defmodule Otel.API.Trace.SpanIdTest do
   @max_span_id 0xFFFFFFFF_FFFFFFFF
 
   describe "new/1" do
-    test "wraps a non-negative integer" do
+    test "wraps a 64-bit unsigned integer" do
+      assert Otel.API.Trace.SpanId.new(0) == 0
       assert Otel.API.Trace.SpanId.new(1) == 1
       assert Otel.API.Trace.SpanId.new(@max_span_id) == @max_span_id
-    end
-
-    test "raises FunctionClauseError on out-of-range input" do
-      assert_raise FunctionClauseError, fn ->
-        Otel.API.Trace.SpanId.new(@max_span_id + 1)
-      end
-
-      assert_raise FunctionClauseError, fn ->
-        Otel.API.Trace.SpanId.new(-1)
-      end
     end
   end
 

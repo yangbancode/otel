@@ -50,15 +50,16 @@ defmodule Otel.API.Trace.SpanId do
   @opaque t :: 0..0xFFFFFFFF_FFFFFFFF
 
   @doc """
-  **Local helper** — construct a `t()` from a validated integer.
+  **Local helper** — wrap a 64-bit unsigned integer as a `t()`.
 
-  Raises `FunctionClauseError` when `integer` is outside the
-  64-bit unsigned range. This is the opaque-boundary-respecting
-  way to turn a raw integer (e.g. from an ID generator) into a
-  `SpanId.t()`.
+  The opaque-boundary-respecting way to turn a raw integer (e.g.
+  from an ID generator) into a `SpanId.t()`. The `@spec` input
+  range is the type gate — Dialyzer flags literal out-of-range
+  callers; runtime-origin values are the caller's
+  responsibility.
   """
   @spec new(integer :: 0..0xFFFFFFFF_FFFFFFFF) :: t()
-  def new(integer) when is_integer(integer) and integer >= 0 and integer <= @max_value do
+  def new(integer) do
     integer
   end
 
