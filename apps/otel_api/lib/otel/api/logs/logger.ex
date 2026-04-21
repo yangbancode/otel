@@ -51,23 +51,29 @@ defmodule Otel.API.Logs.Logger do
   Parameters accepted by `emit/3` and the `emit/3` callback,
   mirroring §Emit a LogRecord (`logs/api.md` L111-L131).
 
-  All fields are optional (spec L117: *"The API MUST accept
-  the following parameters"* — each listed as optional):
+  All fields are optional — omit the key to signal "missing"
+  per spec's field-level guidance (e.g. Timestamp
+  `data-model.md` L185-L187 *"This field is optional, it may
+  be missing"*). Spec does **not** treat `null` as a
+  distinct third state; `optional(:key) => value()` is the
+  spec-aligned representation of "either present with a
+  proper value or absent".
 
-  - `:timestamp` — spec L117 + `data-model.md#field-timestamp`
-  - `:observed_timestamp` — spec L118 +
-    `data-model.md#field-observedtimestamp`
-  - `:severity_number` — 0..24 per
-    `data-model.md#field-severitynumber` (spec L124)
-  - `:severity_text` — spec L125 +
-    `data-model.md#field-severitytext`
-  - `:body` — `primitive_any` per OTLP `AnyValue` (spec
-    L126 + `data-model.md#field-body`)
-  - `:attributes` — spec L127 +
-    `data-model.md#field-attributes`
-  - `:event_name` — spec L128 +
-    `data-model.md#field-eventname`
-  - `:exception` — spec L131 **MAY** accept
+  - `:timestamp` — `data-model.md#field-timestamp` (L180-L187)
+  - `:observed_timestamp` —
+    `data-model.md#field-observedtimestamp` (L189-L204)
+  - `:severity_number` — `0..24` per
+    `data-model.md#field-severitynumber` (L260-L271); note
+    that `0` is spec's "unspecified" sentinel — do **not**
+    use a separate absent/null value to represent it
+  - `:severity_text` — `data-model.md#field-severitytext`
+  - `:body` — `primitive_any/0` per OTLP `AnyValue`, which
+    explicitly allows language-idiomatic `null` values
+    (`common.md` L49-L50) — this is the one field where
+    `nil` is spec-permitted
+  - `:attributes` — `data-model.md#field-attributes`
+  - `:event_name` — `data-model.md#field-eventname`
+  - `:exception` — MAY accept per `logs/api.md` L131
 
   The Context parameter is handled separately — passed as
   the second argument to `emit/3` rather than embedded in
@@ -75,14 +81,14 @@ defmodule Otel.API.Logs.Logger do
   optional, with current Context substituted when absent).
   """
   @type log_record :: %{
-          optional(:timestamp) => integer() | nil,
-          optional(:observed_timestamp) => integer() | nil,
-          optional(:severity_number) => 0..24 | nil,
-          optional(:severity_text) => String.t() | nil,
+          optional(:timestamp) => integer(),
+          optional(:observed_timestamp) => integer(),
+          optional(:severity_number) => 0..24,
+          optional(:severity_text) => String.t(),
           optional(:body) => primitive_any(),
           optional(:attributes) => %{String.t() => primitive() | [primitive()]},
-          optional(:event_name) => String.t() | nil,
-          optional(:exception) => Exception.t() | nil
+          optional(:event_name) => String.t(),
+          optional(:exception) => Exception.t()
         }
 
   @typedoc """
