@@ -59,7 +59,7 @@ defmodule Otel.API.CtxTest do
       :ok
     end
 
-    test "current/0 returns empty map when nothing attached" do
+    test "current/0 returns an empty map in the initial state" do
       assert Otel.API.Ctx.current() == %{}
     end
 
