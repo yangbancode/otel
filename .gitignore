@@ -25,3 +25,6 @@ otel_*.tar
 # Local audit notes — temporary tracking docs, not part of the project.
 /.audit/
 
+# Skill eval workspaces — temporary benchmarking artifacts, not checked in.
+/.claude/skills/*-workspace/
+
