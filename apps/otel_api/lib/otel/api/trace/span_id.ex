@@ -78,13 +78,16 @@ defmodule Otel.API.Trace.SpanId do
   Returns `true` iff the SpanId has at least one non-zero byte.
   Per spec the all-zero value (`0000000000000000`) is explicitly
   invalid (W3C §parent-id L113-L117).
-  """
-  @spec valid?(span_id :: t()) :: boolean()
-  def valid?(0), do: false
 
+  Accepts any term as a robust predicate — returns `false` for
+  `0`, negatives, out-of-range integers, and non-integers.
+  """
+  @spec valid?(span_id :: term()) :: boolean()
   def valid?(span_id)
       when is_integer(span_id) and span_id > 0 and span_id <= @max_value,
       do: true
+
+  def valid?(_), do: false
 
   @doc """
   **OTel API MUST** — "Hex Retrieval" (`trace/api.md` L258-L262).

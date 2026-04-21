@@ -22,6 +22,13 @@ defmodule Otel.API.Trace.SpanIdTest do
       assert Otel.API.Trace.SpanId.valid?(1)
       assert Otel.API.Trace.SpanId.valid?(@max_span_id)
     end
+
+    test "returns false for out-of-range or non-integer term" do
+      refute Otel.API.Trace.SpanId.valid?(-1)
+      refute Otel.API.Trace.SpanId.valid?(@max_span_id + 1)
+      refute Otel.API.Trace.SpanId.valid?("string")
+      refute Otel.API.Trace.SpanId.valid?(nil)
+    end
   end
 
   describe "is_invalid/1 guard" do
