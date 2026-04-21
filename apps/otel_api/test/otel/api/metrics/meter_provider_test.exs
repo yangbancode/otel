@@ -15,12 +15,6 @@ defmodule Otel.API.Metrics.MeterProviderTest do
       Otel.API.Metrics.MeterProvider.set_provider({SomeProvider, :opaque_state})
       assert Otel.API.Metrics.MeterProvider.get_provider() == {SomeProvider, :opaque_state}
     end
-
-    test "set_provider(nil) clears the registration" do
-      Otel.API.Metrics.MeterProvider.set_provider({SomeProvider, :state})
-      Otel.API.Metrics.MeterProvider.set_provider(nil)
-      assert Otel.API.Metrics.MeterProvider.get_provider() == nil
-    end
   end
 
   describe "get_meter/1 dispatch via registered provider" do

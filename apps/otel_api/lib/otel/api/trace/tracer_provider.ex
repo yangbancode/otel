@@ -120,7 +120,7 @@ defmodule Otel.API.Trace.TracerProvider do
   implement the `Otel.API.Trace.TracerProvider` behaviour.
   """
   @spec set_provider(provider :: t()) :: :ok
-  def set_provider({module, _state} = provider) when is_atom(module) do
+  def set_provider({_module, _state} = provider) do
     :persistent_term.put(@global_key, provider)
     :ok
   end

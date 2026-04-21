@@ -49,17 +49,13 @@ defmodule Otel.API.Metrics.MeterProvider do
   Sets the global MeterProvider.
 
   Accepts a `{module, state}` tuple. The SDK MeterProvider calls this
-  from its `init/1` with `{__MODULE__, server_ref}`. `nil` clears the
-  registration.
+  from its `init/1` with `{__MODULE__, server_ref}`. To clear the
+  registration (e.g. in tests), use `:persistent_term.erase/1`
+  directly — see `docs/decisions/provider-dispatch.md`.
   """
-  @spec set_provider(provider :: t() | nil) :: :ok
-  def set_provider({module, _state} = provider) when is_atom(module) do
+  @spec set_provider(provider :: t()) :: :ok
+  def set_provider({_module, _state} = provider) do
     :persistent_term.put(@global_key, provider)
-    :ok
-  end
-
-  def set_provider(nil) do
-    :persistent_term.put(@global_key, nil)
     :ok
   end
 
