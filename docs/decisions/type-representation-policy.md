@@ -158,13 +158,14 @@ classification; field selection is left to their own future Decisions.
 Introduced in this PR as the first concrete application of Q3:
 
 - `Otel.API.Trace.TraceId` — `@opaque` 128-bit trace identifier. Provides a
-  constructor from a `non_neg_integer()`, validators (non-zero check),
-  16-byte binary encoder/decoder, and 32-character lowercase hex
-  encoder/decoder.
+  constructor from a `non_neg_integer()` (`new/1`), a validity predicate
+  (`valid?/1`, non-zero check), a 16-byte binary encoder (`to_bytes/1`),
+  a 32-character lowercase hex encoder (`to_hex/1`), and an integer
+  escape hatch for SDK bit arithmetic (`to_integer/1`).
 - `Otel.API.Trace.SpanId` — `@opaque` 64-bit span identifier. Provides a
-  constructor from a `non_neg_integer()`, validators (non-zero check),
-  8-byte binary encoder/decoder, and 16-character lowercase hex
-  encoder/decoder.
+  constructor from a `non_neg_integer()` (`new/1`), a validity predicate
+  (`valid?/1`, non-zero check), an 8-byte binary encoder (`to_bytes/1`),
+  and a 16-character lowercase hex encoder (`to_hex/1`).
 
 Both modules follow the policy's Q3 contract: callers outside the defining
 module may not construct or inspect the underlying integer directly, and all
