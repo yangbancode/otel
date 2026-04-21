@@ -45,18 +45,18 @@ defmodule Otel.API.TraceTest do
 
   describe "current_span/1 and set_current_span/2 (explicit context)" do
     test "returns invalid SpanContext when no span in context" do
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
       assert Otel.API.Trace.current_span(ctx) == %Otel.API.Trace.SpanContext{}
     end
 
     test "returns span set in context" do
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
       ctx = Otel.API.Trace.set_current_span(ctx, @valid_span_ctx)
       assert Otel.API.Trace.current_span(ctx) == @valid_span_ctx
     end
 
     test "set returns new context without modifying original" do
-      ctx1 = %{}
+      ctx1 = Otel.API.Ctx.new()
       ctx2 = Otel.API.Trace.set_current_span(ctx1, @valid_span_ctx)
       assert Otel.API.Trace.current_span(ctx1) == %Otel.API.Trace.SpanContext{}
       assert Otel.API.Trace.current_span(ctx2) == @valid_span_ctx
@@ -65,7 +65,7 @@ defmodule Otel.API.TraceTest do
 
   describe "current_span/0 and set_current_span/1 (implicit context)" do
     setup do
-      Otel.API.Ctx.attach(%{})
+      Otel.API.Ctx.attach(Otel.API.Ctx.new())
       :ok
     end
 
@@ -81,7 +81,7 @@ defmodule Otel.API.TraceTest do
 
   describe "start_span/2,3 (implicit context)" do
     setup do
-      Otel.API.Ctx.attach(%{})
+      Otel.API.Ctx.attach(Otel.API.Ctx.new())
       :ok
     end
 
@@ -113,7 +113,7 @@ defmodule Otel.API.TraceTest do
   describe "start_span/4 (explicit context)" do
     test "uses provided context" do
       tracer = {Otel.API.Trace.Tracer.Noop, []}
-      ctx = Otel.API.Trace.set_current_span(%{}, @valid_span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), @valid_span_ctx)
       span_ctx = Otel.API.Trace.start_span(ctx, tracer, "child_span", [])
       # noop returns parent when valid parent exists
       assert span_ctx == @valid_span_ctx
@@ -121,7 +121,7 @@ defmodule Otel.API.TraceTest do
 
     test "returns invalid SpanContext when no parent in context" do
       tracer = {Otel.API.Trace.Tracer.Noop, []}
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
       span_ctx = Otel.API.Trace.start_span(ctx, tracer, "root_span", [])
       assert span_ctx == %Otel.API.Trace.SpanContext{}
     end
@@ -129,7 +129,7 @@ defmodule Otel.API.TraceTest do
 
   describe "with_span/3,4" do
     setup do
-      Otel.API.Ctx.attach(%{})
+      Otel.API.Ctx.attach(Otel.API.Ctx.new())
       :ok
     end
 
@@ -207,7 +207,7 @@ defmodule Otel.API.TraceTest do
   describe "with_span/5 (explicit context)" do
     test "uses provided context" do
       tracer = {Otel.API.Trace.Tracer.Noop, []}
-      ctx = Otel.API.Trace.set_current_span(%{}, @valid_span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), @valid_span_ctx)
 
       result =
         Otel.API.Trace.with_span(ctx, tracer, "child_span", [], fn span_ctx ->

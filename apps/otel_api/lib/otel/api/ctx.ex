@@ -6,7 +6,8 @@ defmodule Otel.API.Ctx do
   API boundaries within a single process. Cross-cutting concerns
   (Trace, Baggage, …) store their values in the Context.
 
-  A Context is represented as a plain map. The three spec-mandated
+  The Context type `t/0` is `@opaque` — construct via `new/0` and
+  read/write only through the public API. The three spec-mandated
   operations (`create_key/1`, `get_value/2`, `set_value/3`) are pure
   and take a Context as an explicit argument. The three optional
   global operations (`current/0`, `attach/1`, `detach/1`) manage the
@@ -26,7 +27,7 @@ defmodule Otel.API.Ctx do
   |---|---|
   | `create_key/1`, `get_value/2`, `set_value/3` | **OTel API MUST** |
   | `current/0`, `attach/1`, `detach/1` | **OTel API (optional global)** |
-  | `get_value/1`, `set_value/2` | **Local helper** (not in spec) |
+  | `new/0`, `get_value/1`, `set_value/2` | **Local helper** (not in spec) |
 
   ## References
 
@@ -34,18 +35,20 @@ defmodule Otel.API.Ctx do
   """
 
   @typedoc """
-  An OTel Context (spec `context/README.md` §Overview).
+  An opaque OTel Context (spec `context/README.md` §Overview).
 
-  Implemented as a map from caller-supplied keys to arbitrary values.
-  The map shape is part of the public contract — callers may
-  construct an empty context as `%{}` or pass an existing map
-  directly.
+  The internal representation (a plain Elixir map) is not part of the
+  public contract — construct with `new/0` and access only through the
+  public API. Per spec "A Context MUST be immutable, and its write
+  operations MUST result in the creation of a new Context";
+  `set_value/3` returns a new Context and leaves the input unchanged.
 
-  Per spec "A Context MUST be immutable, and its write operations
-  MUST result in the creation of a new Context". `set_value/3`
-  returns a new map; the input is unchanged.
+  `attach/1` returns a value of this type that serves as the **Token**
+  per spec L113 — pass it to `detach/1` to restore the previous
+  Context. Treat attach-returned values as opaque tokens; do not
+  inspect their contents.
   """
-  @type t :: map()
+  @opaque t :: map()
 
   @typedoc """
   A context key (spec `context/README.md` §Create a key, L63-L67).
@@ -62,16 +65,6 @@ defmodule Otel.API.Ctx do
   A context value. Any Erlang term.
   """
   @type value :: term()
-
-  @typedoc """
-  An opaque token returned by `attach/1` and consumed by `detach/1`
-  (spec `context/README.md` L113).
-
-  Internally this is the Context that was current before the attach,
-  but callers must treat it as opaque — the spec mandates a token
-  abstraction.
-  """
-  @opaque token :: t()
 
   @current_key {__MODULE__, :current}
 
@@ -113,11 +106,12 @@ defmodule Otel.API.Ctx do
   **OTel API (optional global)** — "Get current Context"
   (`context/README.md` L101-L103).
 
-  Returns the current process's Context, or an empty map when nothing
-  is attached. Used by SDK components and instrumentation libraries
-  to read the ambient Context. End-user code typically reads domain
-  values through higher-level APIs (`Otel.API.Baggage.current/0`,
-  `Otel.API.Trace.current_span/0`) rather than calling this directly.
+  Returns the current process's Context, or a fresh empty Context
+  when nothing is attached. Used by SDK components and instrumentation
+  libraries to read the ambient Context. End-user code typically reads
+  domain values through higher-level APIs
+  (`Otel.API.Baggage.current/0`, `Otel.API.Trace.current_span/0`)
+  rather than calling this directly.
   """
   @spec current() :: t()
   def current do
@@ -128,13 +122,15 @@ defmodule Otel.API.Ctx do
   **OTel API (optional global)** — "Attach Context"
   (`context/README.md` L105-L117).
 
-  Associates `ctx` with the current process and returns a token that
-  can be passed to `detach/1` to restore the previous Context. On the
-  first attach in a process, the previous Context is normalized from
-  `nil` to an empty map so that the returned token remains a valid
-  Context.
+  Associates `ctx` with the current process and returns the previous
+  Context, which can be passed to `detach/1` as a token per spec L113.
+  On the first attach in a process, the previous Context is normalized
+  from `nil` to an empty Context so that the returned token is always
+  a valid Context value.
+
+  Treat the returned value as an opaque token — do not inspect it.
   """
-  @spec attach(ctx :: t()) :: token()
+  @spec attach(ctx :: t()) :: t()
   def attach(ctx) do
     Process.put(@current_key, ctx) || %{}
   end
@@ -150,11 +146,20 @@ defmodule Otel.API.Ctx do
   calls and emit a signal; this implementation does not, matching the
   reference Erlang behaviour.
   """
-  @spec detach(token :: token()) :: :ok
-  def detach(token) do
-    Process.put(@current_key, token)
+  @spec detach(ctx :: t()) :: :ok
+  def detach(ctx) do
+    Process.put(@current_key, ctx)
     :ok
   end
+
+  @doc """
+  **Local helper** (not in spec).
+
+  Returns a fresh empty Context. Preferred over `%{}` at external
+  call sites because `t/0` is opaque.
+  """
+  @spec new() :: t()
+  def new, do: %{}
 
   @doc """
   **Local helper** (not in spec).

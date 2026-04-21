@@ -11,7 +11,7 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
     end
 
     test "trace_based returns true when span is sampled" do
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
 
       span_ctx = %Otel.API.Trace.SpanContext{
         trace_id: 1,
@@ -24,7 +24,7 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
     end
 
     test "trace_based returns false when span is not sampled" do
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
 
       span_ctx = %Otel.API.Trace.SpanContext{
         trace_id: 1,

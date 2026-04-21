@@ -57,7 +57,7 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
         })
 
       tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
 
       Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "processor_test", [])
 
@@ -81,7 +81,7 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
         })
 
       tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
 
       Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "multi_processor", [])
 
@@ -106,7 +106,7 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
         })
 
       tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
 
       Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "dropped_span", [])
 
