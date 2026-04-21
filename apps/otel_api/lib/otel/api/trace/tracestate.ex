@@ -66,11 +66,18 @@ defmodule Otel.API.Trace.TraceState do
   #   keychar = lcalpha / DIGIT / "_" / "-" / "*" / "/" / "@"
   @key_regex ~r/^[a-z0-9][a-z0-9_\-*\/@]{0,255}$/
 
-  # W3C §3.3.1.3.2 value grammar (see @typedoc `value/0`).
-  # Character-range breakdown (matches `opentelemetry-erlang otel_tracestate`):
-  #   ` -+` : space to +   (0x20-0x2B) — before ","
+  # W3C §3.3.1.3.2 value grammar (L310-L312, see @typedoc `value/0`):
+  #   value    = 0*255(chr) nblk-chr
+  #   nblk-chr = %x21-2B / %x2D-3C / %x3E-7E
+  #   chr      = %x20 / nblk-chr
+  #
+  # Regex character-range breakdown — derived directly from that ABNF:
+  #   ` -+` : space to +   (0x20-0x2B) — `chr` lower band, excludes 0x2C (",")
   #   `--<` : hyphen to <  (0x2D-0x3C) — between "," and "="
-  #   `>-~` : > to ~       (0x3E-0x7E) — after "="
+  #   `>-~` : > to ~       (0x3E-0x7E) — above "=" (0x3D)
+  #
+  # `opentelemetry-erlang otel_tracestate` implements the same ranges —
+  # both sides follow W3C §3.3.1.3.2; this is not a copy-from-erlang.
   @value_regex ~r/^[ -+--<>-~]{0,255}[!-+--<>-~]$/
 
   @doc """
