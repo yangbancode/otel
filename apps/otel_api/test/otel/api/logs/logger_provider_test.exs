@@ -44,6 +44,16 @@ defmodule Otel.API.Logs.LoggerProviderTest do
 
       assert module == FakeLoggerProvider
     end
+
+    test "different scopes produce distinct loggers (no cache collision)" do
+      Otel.API.Logs.LoggerProvider.set_provider({FakeLoggerProvider, :installed})
+
+      scope1 = %Otel.API.InstrumentationScope{name: "my_lib", version: "1.0.0"}
+      scope2 = %Otel.API.InstrumentationScope{name: "my_lib", version: "2.0.0"}
+
+      assert {_, %{scope: ^scope1}} = Otel.API.Logs.LoggerProvider.get_logger(scope1)
+      assert {_, %{scope: ^scope2}} = Otel.API.Logs.LoggerProvider.get_logger(scope2)
+    end
   end
 
   describe "get_logger/0,1" do
@@ -66,23 +76,6 @@ defmodule Otel.API.Logs.LoggerProviderTest do
       logger2 =
         Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{name: "my_lib"})
 
-      assert logger1 == logger2
-    end
-
-    test "different scopes produce separate cache entries" do
-      logger1 =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
-          name: "my_lib",
-          version: "1.0.0"
-        })
-
-      logger2 =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
-          name: "my_lib",
-          version: "2.0.0"
-        })
-
-      # Both are Noop but cached under distinct keys
       assert logger1 == logger2
     end
 

@@ -1,12 +1,45 @@
 defmodule Otel.API.Logs.LoggerProvider do
   @moduledoc """
-  Global LoggerProvider registration and Logger retrieval.
+  Global LoggerProvider registration and Logger retrieval
+  (OTel `logs/api.md` §LoggerProvider, L54-L97).
 
-  Uses `persistent_term` for storage, matching the TracerProvider
-  and MeterProvider pattern. When no SDK is installed, all
-  operations return no-op loggers.
+  Holds the process-wide pointer to the installed
+  LoggerProvider implementation and caches the `Logger`
+  instances it returns. When no SDK is installed, all
+  operations resolve to the no-op logger
+  (`Otel.API.Logs.Logger.Noop`).
 
-  All functions are safe for concurrent use.
+  ## Storage
+
+  Both the global provider pointer and the scope-keyed logger
+  cache live in `:persistent_term`. The dispatch pattern
+  (`{dispatcher_module, state}` tuple + `get_logger/2`
+  callback) is shared across Trace, Metrics, and Logs — see
+  `docs/decisions/provider-dispatch.md`.
+
+  Unlike `Otel.API.Trace.TracerProvider`,
+  `opentelemetry-erlang` has **no** `otel_logger_provider.erl`
+  equivalent — erlang routes Logs through OTP's built-in
+  `:logger` module rather than exposing a dedicated API. This
+  module fills that gap so the API surface stays uniform
+  across the three signals.
+
+  All functions are safe for concurrent use (spec L172-L173).
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `get_logger/0,1` | **OTel API MUST** (Get a Logger, L66-L97) |
+  | `get_logger/2` (callback) | Internal dispatch contract (API ↔ SDK) |
+  | `get_provider/0` | **Local helper** — introspection of current global provider |
+  | `set_provider/1` | **Local helper** — SDK installation hook |
+
+  ## References
+
+  - OTel Logs API §LoggerProvider: `opentelemetry-specification/specification/logs/api.md` L54-L97
+  - OTel Logs API §Concurrency: `opentelemetry-specification/specification/logs/api.md` L172-L173
+  - Dispatch pattern: `docs/decisions/provider-dispatch.md`
   """
 
   @default_logger {Otel.API.Logs.Logger.Noop, []}
@@ -17,21 +50,24 @@ defmodule Otel.API.Logs.LoggerProvider do
   @typedoc """
   A `{dispatcher_module, state}` pair.
 
-  The API layer treats the state as opaque; only `dispatcher_module`
-  knows how to use it. This mirrors `Otel.API.Logs.Logger.t/0` and
-  keeps the API decoupled from SDK internals.
+  The API layer treats the state as opaque; only
+  `dispatcher_module` knows how to use it. This mirrors
+  `Otel.API.Logs.Logger.t/0` and keeps the API decoupled from
+  SDK internals (GenServer, Registry, etc.).
 
-  `dispatcher_module` MUST implement the `Otel.API.Logs.LoggerProvider`
-  behaviour.
+  `dispatcher_module` MUST implement the
+  `Otel.API.Logs.LoggerProvider` behaviour.
   """
   @type t :: {module(), term()}
 
   @doc """
-  Returns a logger for the given instrumentation scope.
+  Dispatch callback invoked by `get_logger/1` on cache miss.
 
-  Called by the API layer when no cached logger matches the scope.
-  Implementations receive the opaque `state` they registered via
-  `set_provider/1`.
+  Implementations receive the opaque `state` they registered
+  via `set_provider/1` along with the requested instrumentation
+  scope, and return the Logger to cache. Not part of the OTel
+  spec — this is the internal dispatch contract between the
+  API and SDK layers.
   """
   @callback get_logger(
               state :: term(),
@@ -39,37 +75,20 @@ defmodule Otel.API.Logs.LoggerProvider do
             ) :: Otel.API.Logs.Logger.t()
 
   @doc """
-  Returns the global LoggerProvider, or `nil` if none is set.
-  """
-  @spec get_provider() :: t() | nil
-  def get_provider do
-    :persistent_term.get(@global_key, nil)
-  end
+  **OTel API MUST** — "Get a Logger" (`logs/api.md` L66-L97).
 
-  @doc """
-  Sets the global LoggerProvider.
+  Returns a Logger for the given instrumentation scope. On
+  cache miss delegates to the registered provider's
+  `get_logger/2` callback, or returns the noop logger when no
+  provider is installed. Subsequent calls with an equal scope
+  return the cached logger.
 
-  Accepts a `{module, state}` tuple. The SDK LoggerProvider calls this
-  from its `init/1` with `{__MODULE__, server_ref}`. `nil` clears the
-  registration.
-  """
-  @spec set_provider(provider :: t() | nil) :: :ok
-  def set_provider({module, _state} = provider) when is_atom(module) do
-    :persistent_term.put(@global_key, provider)
-    :ok
-  end
+  The full `InstrumentationScope` struct (name, version,
+  schema_url, attributes — spec L73-L93) is the cache key, so
+  "identical" and "distinct" loggers (L95-L97) are
+  distinguished automatically by map equality.
 
-  def set_provider(nil) do
-    :persistent_term.put(@global_key, nil)
-    :ok
-  end
-
-  @doc """
-  Returns a Logger for the given instrumentation scope.
-
-  Accepts an `Otel.API.InstrumentationScope` struct. Without arguments,
-  uses a default empty scope. Loggers are cached in `persistent_term`
-  keyed by the scope value.
+  Without arguments, uses a default empty scope.
   """
   @spec get_logger(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Logs.Logger.t()
@@ -87,6 +106,40 @@ defmodule Otel.API.Logs.LoggerProvider do
       logger ->
         logger
     end
+  end
+
+  @doc """
+  **Local helper** — introspection of the current global
+  LoggerProvider.
+
+  Returns `nil` if no provider is registered.
+  """
+  @spec get_provider() :: t() | nil
+  def get_provider do
+    :persistent_term.get(@global_key, nil)
+  end
+
+  @doc """
+  **Local helper** — SDK installation hook.
+
+  Registers the given `{module, state}` as the global
+  LoggerProvider. The SDK LoggerProvider calls this from its
+  `init/1` with `{__MODULE__, server_ref}`; `module` must
+  implement the `Otel.API.Logs.LoggerProvider` behaviour.
+
+  Passing `nil` clears the registration, restoring the no-op
+  fallback. See `docs/decisions/provider-dispatch.md` for the
+  canonical `{module, state}` dispatch form.
+  """
+  @spec set_provider(provider :: t() | nil) :: :ok
+  def set_provider({module, _state} = provider) when is_atom(module) do
+    :persistent_term.put(@global_key, provider)
+    :ok
+  end
+
+  def set_provider(nil) do
+    :persistent_term.put(@global_key, nil)
+    :ok
   end
 
   @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
