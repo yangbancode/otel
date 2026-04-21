@@ -10,9 +10,9 @@ defmodule Otel.API.Trace.Event do
 
   Per spec L540-L542 *"If no custom timestamp is provided by the
   user, the implementation automatically sets the time at which
-  this API is called on the event"* — `new/3` defaults the
-  `timestamp` to `System.system_time(:nanosecond)` when `nil` is
-  passed. Timestamps are nanoseconds since the Unix epoch,
+  this API is called on the event"* — `new/3`'s `timestamp`
+  parameter defaults eagerly to `System.system_time(:nanosecond)`
+  when omitted. Values are nanoseconds since the Unix epoch,
   matching OTLP `time_unix_nano` with no conversion needed.
 
   Per spec L548-L552 timestamps MAY be before the span start or
@@ -42,16 +42,17 @@ defmodule Otel.API.Trace.Event do
   Fields:
 
   - `name` — name of the event.
-  - `timestamp` — nanoseconds since the Unix epoch. Either the
-    time at which the event was added (default via `new/3`) or
-    a custom value supplied by the caller (spec L528-L529).
+  - `timestamp` — `t:timestamp/0`, i.e. Unix epoch nanoseconds
+    (uint64). Either the time at which the event was added
+    (default via `new/3`) or a custom value supplied by the
+    caller (spec L528-L529).
   - `attributes` — zero or more attributes describing the event.
     Values follow OTel attribute rules (primitives and
     homogeneous arrays; no maps, no heterogeneous arrays).
   """
   @type t :: %__MODULE__{
           name: String.t(),
-          timestamp: integer(),
+          timestamp: timestamp(),
           attributes: %{String.t() => primitive() | [primitive()]}
         }
 
@@ -60,22 +61,29 @@ defmodule Otel.API.Trace.Event do
   @doc """
   **Local helper** (not in spec).
 
-  Creates a new `Event` with optional attributes and timestamp.
-  Per spec L540-L542, if `timestamp` is `nil` the implementation
-  sets it to the current system time in nanoseconds. Explicit
-  integer timestamps (including `0`) are preserved verbatim —
-  spec L548-L552 does not require normalisation of caller-
-  supplied values.
+  Creates a new `Event` with optional attributes and
+  timestamp. `timestamp` defaults to
+  `System.system_time(:nanosecond)` — per spec L540-L542 the
+  implementation sets the time when the API is called if the
+  caller doesn't provide one. Explicit integer timestamps
+  (including `0`) are preserved verbatim; spec L548-L552
+  does not require normalisation of caller-supplied values.
+
+  Values are `t:timestamp/0` — Unix epoch nanoseconds (uint64).
+  The type bounds the range but does not guard against unit
+  mistakes: seconds (~1.7e9) and milliseconds (~1.7e12) both
+  fit, so callers are responsible for supplying the correct
+  unit.
   """
   @spec new(
           name :: String.t(),
           attributes :: %{String.t() => primitive() | [primitive()]},
-          timestamp :: integer() | nil
+          timestamp :: timestamp()
         ) :: t()
-  def new(name, attributes \\ %{}, timestamp \\ nil) do
+  def new(name, attributes \\ %{}, timestamp \\ System.system_time(:nanosecond)) do
     %__MODULE__{
       name: name,
-      timestamp: timestamp || System.system_time(:nanosecond),
+      timestamp: timestamp,
       attributes: attributes
     }
   end

@@ -32,13 +32,10 @@ defmodule Otel.API.Trace.EventTest do
       assert event.timestamp == 1_234_567_890
     end
 
-    test "nil timestamp falls back to current time" do
-      before = System.system_time(:nanosecond)
-      event = Otel.API.Trace.Event.new("e", %{}, nil)
-      after_time = System.system_time(:nanosecond)
+    test "explicit zero timestamp is preserved verbatim" do
+      event = Otel.API.Trace.Event.new("e", %{}, 0)
 
-      assert event.timestamp >= before
-      assert event.timestamp <= after_time
+      assert event.timestamp == 0
     end
   end
 

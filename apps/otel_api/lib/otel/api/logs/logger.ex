@@ -81,8 +81,8 @@ defmodule Otel.API.Logs.Logger do
   optional, with current Context substituted when absent).
   """
   @type log_record :: %{
-          optional(:timestamp) => integer(),
-          optional(:observed_timestamp) => integer(),
+          optional(:timestamp) => timestamp(),
+          optional(:observed_timestamp) => timestamp(),
           optional(:severity_number) => 0..24,
           optional(:severity_text) => String.t(),
           optional(:body) => primitive_any(),

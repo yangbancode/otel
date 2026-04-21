@@ -38,7 +38,10 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
   @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(_span_ctx, _name), do: :ok
 
-  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer() | nil) :: :ok
+  @spec end_span(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          timestamp :: timestamp()
+        ) :: :ok
   def end_span(_span_ctx, _timestamp), do: :ok
 
   @spec record_exception(
