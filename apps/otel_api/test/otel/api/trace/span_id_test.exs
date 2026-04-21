@@ -22,12 +22,6 @@ defmodule Otel.API.Trace.SpanIdTest do
     end
   end
 
-  describe "invalid/0" do
-    test "returns the all-zero sentinel" do
-      assert Otel.API.Trace.SpanId.invalid() == 0
-    end
-  end
-
   describe "valid?/1" do
     test "returns false for zero" do
       refute Otel.API.Trace.SpanId.valid?(0)
@@ -82,25 +76,9 @@ defmodule Otel.API.Trace.SpanIdTest do
       assert Otel.API.Trace.SpanId.to_bytes(1) == <<1::64>>
     end
 
-    test "roundtrips via from_bytes/1" do
+    test "encodes integer big-endian" do
       value = 0x0123456789ABCDEF
-      bytes = Otel.API.Trace.SpanId.to_bytes(value)
-      assert Otel.API.Trace.SpanId.from_bytes(bytes) == value
-    end
-  end
-
-  describe "from_hex/1" do
-    test "parses 16-character lowercase hex" do
-      assert Otel.API.Trace.SpanId.from_hex("0000000000000000") == 0
-      assert Otel.API.Trace.SpanId.from_hex("0000000000000001") == 1
-      assert Otel.API.Trace.SpanId.from_hex("ffffffffffffffff") == @max_span_id
-    end
-  end
-
-  describe "from_bytes/1" do
-    test "parses 8-byte binary" do
-      assert Otel.API.Trace.SpanId.from_bytes(<<0::64>>) == 0
-      assert Otel.API.Trace.SpanId.from_bytes(<<1::64>>) == 1
+      assert Otel.API.Trace.SpanId.to_bytes(value) == <<value::unsigned-integer-size(64)>>
     end
   end
 end
