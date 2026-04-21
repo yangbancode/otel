@@ -46,14 +46,6 @@ defmodule Otel.API.Trace.TraceId do
   def invalid, do: 0
 
   @doc """
-  Guard-safe check for the all-zero invalid sentinel.
-
-  Use this in pattern-match guards instead of comparing a `t()` against the
-  integer literal `0`, which would break opacity outside this module.
-  """
-  defguard is_invalid(trace_id) when trace_id === 0
-
-  @doc """
   Escape hatch returning the underlying non-negative integer.
 
   Exposed so samplers and other SDK components can perform bit arithmetic on

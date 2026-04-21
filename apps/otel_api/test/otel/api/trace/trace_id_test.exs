@@ -1,8 +1,6 @@
 defmodule Otel.API.Trace.TraceIdTest do
   use ExUnit.Case, async: true
 
-  require Otel.API.Trace.TraceId
-
   @max_trace_id 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF
 
   describe "new/1" do
@@ -36,28 +34,6 @@ defmodule Otel.API.Trace.TraceIdTest do
     test "returns true for any non-zero in-range value" do
       assert Otel.API.Trace.TraceId.valid?(1)
       assert Otel.API.Trace.TraceId.valid?(@max_trace_id)
-    end
-  end
-
-  describe "is_invalid/1 guard" do
-    test "matches zero in a guard" do
-      result =
-        case 0 do
-          trace_id when Otel.API.Trace.TraceId.is_invalid(trace_id) -> :invalid
-          _ -> :valid
-        end
-
-      assert result == :invalid
-    end
-
-    test "does not match non-zero in a guard" do
-      result =
-        case 42 do
-          trace_id when Otel.API.Trace.TraceId.is_invalid(trace_id) -> :invalid
-          _ -> :valid
-        end
-
-      assert result == :valid
     end
   end
 
