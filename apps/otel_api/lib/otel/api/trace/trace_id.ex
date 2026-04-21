@@ -1,80 +1,99 @@
 defmodule Otel.API.Trace.TraceId do
   @moduledoc """
-  Opaque 128-bit trace identifier.
+  Opaque 128-bit Trace identifier (W3C `trace-id` / OTel
+  `trace/api.md` §SpanContext TraceId, L231-L232).
 
-  The OpenTelemetry spec defines a valid `TraceId` as a 16-byte array with at
-  least one non-zero byte. On the BEAM we store it as a non-negative integer
-  in the range `0..2^128 - 1`, but expose it through `@opaque` so Dialyzer
-  distinguishes it from unrelated integers (including `Otel.API.Trace.SpanId`).
+  The OTel spec defines a valid `TraceId` as a 16-byte array
+  with at least one non-zero byte (L231-L232). On the wire,
+  W3C Trace Context encodes it as a 32-character lowercase hex
+  string (`trace-id = 32HEXDIGLC`, §trace-id). Internally we
+  store it as a non-negative 128-bit integer and expose it
+  through `@opaque` so Dialyzer distinguishes it from
+  unrelated integers — and from `Otel.API.Trace.SpanId`.
 
-  ## Construction
+  Per spec L266 *"The API SHOULD NOT expose details about how
+  they are internally stored"* — callers go through `to_hex/1`
+  / `to_bytes/1` rather than the raw integer. The
+  `to_integer/1` escape hatch exists specifically for SDK
+  samplers that perform bit arithmetic on the id (see
+  `Otel.SDK.Trace.Sampler.TraceIdRatioBased`).
 
-  Build a `t()` with one of:
+  ## Public API
 
-  - `new/1` — from a non-negative integer
-  - `from_hex/1` — from a 32-character lowercase hex string
-  - `from_bytes/1` — from a 16-byte binary
-  - `invalid/0` — the all-zero sentinel (`IsValid` → `false`)
+  | Function | Role |
+  |---|---|
+  | `new/1` | **Local helper** — construct from a validated integer |
+  | `valid?/1` | **OTel API MUST** (non-zero byte check, L231-L232) |
+  | `to_hex/1` | **OTel API MUST** (Hex retrieval, L258-L262) |
+  | `to_bytes/1` | **OTel API MUST** (Binary retrieval, L263-L264) |
+  | `to_integer/1` | **Local helper** — SDK bit-arithmetic escape hatch |
 
-  ## Conversion
+  ## References
 
-  - `to_hex/1` returns a 32-character lowercase hex string
-  - `to_bytes/1` returns a 16-byte binary
-  - `valid?/1` returns `true` iff the trace id has at least one non-zero byte
+  - OTel Trace API §SpanContext TraceId: `opentelemetry-specification/specification/trace/api.md` L231-L232, L256-L266
+  - W3C Trace Context Level 2 §trace-id: `w3c-trace-context/spec/20-http_request_header_format.md` §trace-id
   """
 
   @max_value 0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF
   @hex_length 32
 
-  @typedoc "A 128-bit trace identifier."
+  @typedoc """
+  A 128-bit Trace identifier (W3C `trace-id`).
+
+  Stored as a `0..2^128 - 1` integer but declared `@opaque` so
+  callers cannot construct one with an arbitrary integer literal
+  from outside the module. Use `new/1` at construction
+  boundaries (e.g. random generation in the SDK id generator)
+  and `to_hex/1` / `to_bytes/1` for serialisation.
+
+  The all-zero value is reserved as the invalid sentinel meaning
+  "no trace"; `valid?/1` returns `false` for it (spec L231-L232 +
+  W3C §trace-id L103).
+  """
   @opaque t :: 0..0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF
 
   @doc """
-  Wraps a non-negative integer as a `t()`.
+  **Local helper** — wrap a 128-bit unsigned integer as a `t()`.
 
-  Raises `FunctionClauseError` if the integer is outside the 128-bit range.
+  The opaque-boundary-respecting way to turn a raw integer (e.g.
+  from an ID generator) into a `TraceId.t()`. The `@spec` input
+  range is the type gate — Dialyzer flags literal out-of-range
+  callers; runtime-origin values are the caller's
+  responsibility.
   """
-  @spec new(integer :: non_neg_integer()) :: t()
-  def new(integer) when is_integer(integer) and integer >= 0 and integer <= @max_value do
+  @spec new(integer :: 0..0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF) :: t()
+  def new(integer) do
     integer
   end
 
   @doc """
-  Returns the all-zero invalid trace id sentinel.
+  **OTel API MUST** — "IsValid for TraceId" (`trace/api.md`
+  L231-L232, L268-L271).
+
+  Returns `true` iff the TraceId has at least one non-zero byte.
+  Per spec the all-zero value
+  (`00000000000000000000000000000000`) is explicitly invalid
+  (W3C §trace-id L103).
+
+  Accepts any term as a robust predicate — returns `false` for
+  `0`, negatives, out-of-range integers, and non-integers.
   """
-  @spec invalid() :: t()
-  def invalid, do: 0
-
-  @doc """
-  Escape hatch returning the underlying non-negative integer.
-
-  Exposed so samplers and other SDK components can perform bit arithmetic on
-  the trace id (e.g., `TraceIdRatioBased` takes the lower 64 bits as a
-  probability hash). Callers outside the SDK should prefer `to_hex/1` or
-  `to_bytes/1`.
-  """
-  @spec to_integer(trace_id :: t()) :: non_neg_integer()
-  def to_integer(trace_id)
-      when is_integer(trace_id) and trace_id >= 0 and trace_id <= @max_value,
-      do: trace_id
-
-  @doc """
-  Returns `true` if the trace id has at least one non-zero byte.
-
-  Per spec, the all-zero value is explicitly invalid.
-  """
-  @spec valid?(trace_id :: t()) :: boolean()
-  def valid?(0), do: false
-
+  @spec valid?(trace_id :: term()) :: boolean()
   def valid?(trace_id)
       when is_integer(trace_id) and trace_id > 0 and trace_id <= @max_value,
       do: true
 
+  def valid?(_), do: false
+
   @doc """
-  Returns the trace id as a 32-character lowercase hex string, zero-padded.
+  **OTel API MUST** — "Hex Retrieval" (`trace/api.md` L258-L262).
+
+  Returns the TraceId as a **32-character lowercase** hex string
+  (zero-padded). Matches the W3C `trace-id` wire format
+  (§trace-id: `32HEXDIGLC`).
   """
   @spec to_hex(trace_id :: t()) :: <<_::256>>
-  def to_hex(trace_id) when is_integer(trace_id) and trace_id >= 0 and trace_id <= @max_value do
+  def to_hex(trace_id) do
     trace_id
     |> Integer.to_string(16)
     |> String.downcase()
@@ -82,27 +101,24 @@ defmodule Otel.API.Trace.TraceId do
   end
 
   @doc """
-  Returns the trace id as a 16-byte big-endian binary.
+  **OTel API MUST** — "Binary Retrieval" (`trace/api.md`
+  L263-L264).
+
+  Returns the TraceId as a 16-byte big-endian binary.
   """
   @spec to_bytes(trace_id :: t()) :: <<_::128>>
-  def to_bytes(trace_id) when is_integer(trace_id) and trace_id >= 0 and trace_id <= @max_value do
+  def to_bytes(trace_id) do
     <<trace_id::unsigned-integer-size(128)>>
   end
 
   @doc """
-  Parses a 32-character lowercase hex string into a `t()`.
-  """
-  @spec from_hex(hex :: <<_::256>>) :: t()
-  def from_hex(hex) when is_binary(hex) and byte_size(hex) == @hex_length do
-    {integer, ""} = Integer.parse(hex, 16)
-    integer
-  end
+  **Local helper** — underlying non-negative integer escape hatch.
 
-  @doc """
-  Parses a 16-byte binary into a `t()`.
+  Exposed so SDK components can perform bit arithmetic on the
+  TraceId (e.g. `TraceIdRatioBased` takes the lower 64 bits as a
+  probability hash). Callers outside the SDK should prefer
+  `to_hex/1` or `to_bytes/1`.
   """
-  @spec from_bytes(bytes :: <<_::128>>) :: t()
-  def from_bytes(<<trace_id::unsigned-integer-size(128)>>) do
-    trace_id
-  end
+  @spec to_integer(trace_id :: t()) :: non_neg_integer()
+  def to_integer(trace_id), do: trace_id
 end
