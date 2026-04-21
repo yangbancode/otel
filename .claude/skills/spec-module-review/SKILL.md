@@ -150,6 +150,78 @@ formats, also cross-check against `references/w3c-trace-context/`
   wrapper — consistent with `.claude/rules/code-conventions.md`
   §Happy path only.
 
+### 1.5 Type-level spec drift
+
+Beyond branches and citations (1.1-1.3), `@type` / `@typedoc`
+definitions themselves drift from spec in ways the other
+sweeps don't catch — there's no fake citation, no missing
+MUST, no bogus branch, and (often) no erlang to cross-check.
+The shape of the type alone leaks extra states the spec
+never defined.
+
+Walk through every `@type` and `@typedoc` in the module and
+hold it against the spec field-by-field. Three patterns to
+watch for:
+
+#### Pattern A — Overly permissive field types
+
+Spec describes optional fields as *"may be **missing**"* —
+not *"may be **null**"*. Elixir's `optional(:key) => type`
+already captures "missing or present"; adding `| nil`
+creates a second "missing" spelling the spec doesn't
+define.
+
+**Real example (PR #188)**:
+`Otel.API.Logs.Logger.log_record` had six fields typed
+`integer() | nil`, `String.t() | nil`, etc. Spec
+`logs/data-model.md` L185-L187 uses "missing", never
+"null". `severity_number` was especially leaky — spec L271
+designates `0` as the "unspecified" sentinel, so
+`0..24 | nil` created two ways to say unspecified,
+contradicting the single-sentinel convention. Removed
+`| nil` from the six affected fields.
+
+When spec **explicitly** permits null (e.g. Body is
+`AnyValue` and `common.md` L49-L50 allows language-
+idiomatic null), the permissive type is correct — verify
+each field independently.
+
+#### Pattern B — Value ranges wider than spec
+
+Spec defines a bounded range (e.g. `SeverityNumber 0..24`,
+`trace_flags` 8-bit `0..255`) but the type uses `integer()`
+or widens it. Narrowing the type to the spec range lets
+Dialyzer catch out-of-range literals at the call site
+rather than hoping they fail at runtime.
+
+#### Pattern C — Optional / required mismatch
+
+A spec-required field typed as `optional(:key) => ...`,
+or a spec-optional field typed without `optional()`.
+Compare the spec's "MUST provide" / "optional" / "MAY"
+wording against the typespec's `optional()` wrapper — the
+two should match.
+
+#### Verification steps
+
+1. For every `@type` / `@typedoc` in the module, open the
+   spec section describing that concept and compare field
+   by field.
+2. For each `| nil` / `| null` variant in a field type,
+   check whether the spec uses "null" / "empty value" /
+   "language-idiomatic null" language. If it only uses
+   "missing" / "optional", the nil is drift.
+3. For each integer / range type, verify the bounds match
+   the spec's documented value domain.
+4. For each `optional(:key)`, verify the spec actually
+   allows the field to be absent — a required field
+   behind `optional(...)` invites callers to omit it.
+
+This sweep is type-definition-only — it does not require
+reading function bodies, running tests, or cross-checking
+erlang (which may itself be wrongly permissive). Do it
+alongside 1.1 when reading the module docs.
+
 ---
 
 ## Phase 2 — Simplification
