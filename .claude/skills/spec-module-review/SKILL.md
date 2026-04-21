@@ -28,8 +28,20 @@ the referenced spec file open in parallel while reviewing any section
 that claims alignment.
 
 Memory is unreliable for spec text. Section numbers drift between spec
-versions. Paraphrases invert meaning. Only the file under `references/`
-is authoritative.
+versions. Paraphrases invert meaning. Only the spec file under
+`references/opentelemetry-specification/` (plus the relevant W3C /
+RFC / OTLP submodules) is authoritative.
+
+**When spec and reference implementation disagree, spec wins.** The
+erlang reference under `references/opentelemetry-erlang/` is
+informative, not authoritative. A docstring reading "matching
+opentelemetry-erlang" is **not self-justifying** — if erlang
+diverges from spec (whether by workaround, oversight, or pending
+TODO), our code should match spec, not erlang. This project was
+scaffolded from the erlang reference, and erlang remains the
+primary cross-check for Elixir-on-BEAM idioms, but spec compliance
+takes precedence over reference-implementation fidelity when the
+two conflict.
 
 ## The four phases
 
@@ -94,15 +106,49 @@ Checklist for each branch:
 
 ### 1.4 Reference implementation cross-check
 
-When a docstring says "matching X" (e.g. `opentelemetry-erlang`), open
-X and verify the actual behaviour. Claims drift over time. Verify fresh
-each review.
+When cross-checking against `opentelemetry-erlang`, ask **two**
+questions — not one:
+
+1. Does our code match what erlang actually does?
+2. Does what erlang actually does match the spec?
+
+A "no" to #1 means our docstring claim ("matching X") is wrong or
+has drifted — fix the claim or fix the code. A "no" to #2 means
+erlang itself has a spec gap, in which case our code should
+**follow spec, not inherit erlang's behaviour**. Surface the #2
+case as a decision point in Phase 3 with trade-offs explicit, and
+document the intentional divergence per §3.3.
 
 In this project, the reference is `references/opentelemetry-erlang/`.
 For Elixir modules implementing OTel primitives, the corresponding
 Erlang file is almost always the one to cross-check. For W3C wire
 formats, also cross-check against `references/w3c-trace-context/`
 (pinned to `level-2` branch) or `references/w3c-baggage/`.
+
+**Real examples of erlang diverging from spec:**
+
+- **Baggage propagator percent-encoding** (PR #182) — erlang uses
+  `form_urlencode` with a `TODO: call uri_string:percent_encode`
+  comment (`otel_propagator_baggage.erl` L146-L147). W3C spec
+  `HTTP_HEADER_FORMAT.md` §value L64-L68 requires RFC 3986
+  percent-encoding; §Definition L32 explicitly lists `+` (0x2B) as
+  a valid raw `baggage-octet` character, so the spec treats `+` as
+  literal plus. Erlang's encoder emits `+` for space while its
+  decoder treats `+` as literal, producing an asymmetric round-trip
+  for space-containing values. We switched to strict RFC 3986 via
+  `URI.encode/2 &URI.char_unreserved?/1` and `URI.decode/1` rather
+  than mirror erlang's pending workaround.
+
+- **Composite propagator per-propagator try/catch** (PR #181) —
+  erlang's composite wraps each inner propagator call in
+  `try ... catch C:E:S -> log + skip`
+  (`otel_propagator_text_map_composite.erl` L73-L95). Spec
+  `api-propagators.md` L100-L102 already mandates that individual
+  propagators MUST NOT throw on parse failure, so the composite's
+  catch is defensive programming against non-compliant propagators.
+  We rely on the individual-propagator contract and omit the
+  wrapper — consistent with `.claude/rules/code-conventions.md`
+  §Happy path only.
 
 ---
 
@@ -253,6 +299,49 @@ TraceState *object*'s invariants, which are established by mutation
 operations (`add`/`update`) — not by parsing. Parsing is W3C's
 territory and §3.3.1.6 discretion applies there. The two specs don't
 actually conflict once scope is clear.
+
+### 3.3 Intentional divergence from reference
+
+When our implementation diverges from `opentelemetry-erlang` to
+follow spec more strictly, to match an Elixir idiom that serves
+users better, or to pick a different BEAM-level trade-off, document
+the divergence explicitly. Silent divergence invites a later
+reviewer to "fix" the code back to matching erlang under the
+mistaken assumption that erlang is authoritative.
+
+Placement:
+
+- A **single-module trade-off** goes in the module's `@moduledoc`
+  as a short `## Design notes` subsection.
+- An **architectural choice** affecting multiple modules or a
+  cross-cutting pattern goes in `docs/decisions/` as its own
+  decision doc, linked from the relevant `@moduledoc`.
+
+Documentation format (both placements):
+
+- **What erlang does** — with a file/line reference
+- **What we do** — with a file/line reference (when code exists)
+- **Why** — cite the spec clause, idiom, or use case that
+  justifies our choice. If the choice is deliberately stricter
+  than erlang, name the spec clause; if it's a BEAM idiom, name
+  the alternative and why ours serves users better.
+
+**Real example — decision doc**:
+`docs/decisions/with-span-lifecycle-ownership.md` captures why
+`Trace.with_span/5` delegates to a Tracer callback (matching
+erlang's `otel_tracer.erl` + `otel_tracer_default.erl` split)
+and names the architectural invariant — *"whichever layer
+attaches the context must also detach and handle errors in
+between"* — that makes the choice load-bearing.
+
+**Real example — module `## Design notes`**:
+`apps/otel_api/lib/otel/api/propagator/text_map/baggage.ex`
+`@moduledoc` enumerates four divergences from erlang — strict
+RFC 3986 encoding (spec-aligned, diverges from erlang's pending
+workaround), metadata as opaque string (`Otel.API.Baggage` API
+design), extract merge vs replace (Elixir idiom), Limits not
+enforced at propagator layer (spec says MAY). Each is
+short-form; the module's behaviour speaks for itself.
 
 ---
 
