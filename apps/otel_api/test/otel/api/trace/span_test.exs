@@ -40,7 +40,7 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
 
   @spec end_span(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          timestamp :: timestamp()
+          timestamp :: 0..0xFFFFFFFF_FFFFFFFF
         ) :: :ok
   def end_span(_span_ctx, _timestamp), do: :ok
 
