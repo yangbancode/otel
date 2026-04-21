@@ -106,13 +106,13 @@ defmodule Otel.API.Trace.SpanTest do
 
     test "add_link returns :ok" do
       other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      link = Otel.API.Trace.Link.new(other)
+      link = %Otel.API.Trace.Link{context: other}
       assert Otel.API.Trace.Span.add_link(@valid_ctx, link) == :ok
     end
 
     test "add_link with attributes returns :ok" do
       other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      link = Otel.API.Trace.Link.new(other, %{"key" => "val"})
+      link = %Otel.API.Trace.Link{context: other, attributes: %{"key" => "val"}}
       assert Otel.API.Trace.Span.add_link(@valid_ctx, link) == :ok
     end
 
@@ -230,7 +230,7 @@ defmodule Otel.API.Trace.SpanTest do
 
     test "add_link dispatches to module" do
       other = Otel.API.Trace.SpanContext.new(0xAA, 0xBB)
-      link = Otel.API.Trace.Link.new(other)
+      link = %Otel.API.Trace.Link{context: other}
       assert Otel.API.Trace.Span.add_link(@valid_ctx, link) == :ok
     end
 

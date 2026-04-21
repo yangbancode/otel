@@ -6,24 +6,22 @@ defmodule Otel.API.Trace.LinkTest do
               0xFF00000000000001
             )
 
-  describe "new/1,2" do
-    test "creates a link with default empty attributes" do
-      link = Otel.API.Trace.Link.new(@span_ctx)
+  describe "struct" do
+    test "constructs with context only; attributes default to empty map" do
+      link = %Otel.API.Trace.Link{context: @span_ctx}
 
       assert link.context == @span_ctx
       assert link.attributes == %{}
     end
 
-    test "creates a link with attributes" do
+    test "constructs with context and attributes" do
       attrs = %{"key" => "value", "count" => 42}
-      link = Otel.API.Trace.Link.new(@span_ctx, attrs)
+      link = %Otel.API.Trace.Link{context: @span_ctx, attributes: attrs}
 
       assert link.context == @span_ctx
       assert link.attributes == attrs
     end
-  end
 
-  describe "struct defaults" do
     test "default struct has invalid SpanContext and empty attributes" do
       link = %Otel.API.Trace.Link{}
 
