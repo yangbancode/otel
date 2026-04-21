@@ -150,20 +150,14 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel convenience** — Span Creation + automatic context +
-  exception recording, using the implicit (process-local)
-  context (`trace/api.md` L385 *"MAY be offered additionally
-  as a separate operation"*).
+  **OTel convenience** — dispatches to the Tracer's
+  `with_span/5` callback using the implicit (process-local)
+  context as parent (`trace/api.md` L385).
 
-  Starts a span, sets it as current, runs `fun` with the new
-  SpanContext, and ends the span on completion. If `fun`
-  raises, throws, or exits, the exception is recorded on the
-  span via `Span.record_exception/3` (for `:error` kind) and
-  the span status is set to `:error` via `Span.set_status/2`,
-  then the original kind/reason is re-raised with the original
-  stacktrace.
-
-  Returns whatever `fun` returns.
+  Forwards to the registered Tracer implementation which owns
+  the full span lifecycle (attach/fun/detach/end). See
+  `Otel.API.Trace.Tracer.with_span/5` callback contract for
+  lifecycle-ownership rationale.
   """
   @spec with_span(
           tracer :: Otel.API.Trace.Tracer.t(),
@@ -189,39 +183,7 @@ defmodule Otel.API.Trace do
         ) ::
           result
         when result: term()
-  def with_span(ctx, tracer, name, opts, fun) do
-    span_ctx = start_span(ctx, tracer, name, opts)
-
-    new_ctx = set_current_span(ctx, span_ctx)
-    token = Otel.API.Ctx.attach(new_ctx)
-
-    try do
-      fun.(span_ctx)
-    catch
-      kind, reason ->
-        stacktrace = __STACKTRACE__
-
-        case kind do
-          :error ->
-            normalized = Exception.normalize(:error, reason, stacktrace)
-            Otel.API.Trace.Span.record_exception(span_ctx, normalized, stacktrace)
-
-            Otel.API.Trace.Span.set_status(
-              span_ctx,
-              Otel.API.Trace.Status.new(:error, Exception.message(normalized))
-            )
-
-          _ ->
-            Otel.API.Trace.Span.set_status(
-              span_ctx,
-              Otel.API.Trace.Status.new(:error, Exception.format(kind, reason))
-            )
-        end
-
-        :erlang.raise(kind, reason, stacktrace)
-    after
-      Otel.API.Trace.Span.end_span(span_ctx)
-      Otel.API.Ctx.detach(token)
-    end
+  def with_span(ctx, {module, _config} = tracer, name, opts, fun) do
+    module.with_span(ctx, tracer, name, opts, fun)
   end
 end
