@@ -146,9 +146,9 @@ defmodule Otel.API.Ctx do
   calls and emit a signal; this implementation does not, matching the
   reference Erlang behaviour.
   """
-  @spec detach(token :: t()) :: :ok
-  def detach(token) do
-    Process.put(@current_key, token)
+  @spec detach(ctx :: t()) :: :ok
+  def detach(ctx) do
+    Process.put(@current_key, ctx)
     :ok
   end
 
