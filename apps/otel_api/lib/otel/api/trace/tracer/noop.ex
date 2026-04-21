@@ -1,36 +1,66 @@
 defmodule Otel.API.Trace.Tracer.Noop do
   @moduledoc """
-  No-op tracer used when no SDK is installed.
+  No-op Tracer used when no SDK is installed (spec `trace/api.md`
+  §Behavior of the API in the absence of an installed SDK,
+  L860-L874, Status: **Stable**).
 
-  Returns the parent SpanContext from context if available,
-  otherwise returns an invalid SpanContext with all-zero IDs.
+  Spec summary (L862-L874):
+
+  - Operations MUST have no side effects and do nothing (L862-L863).
+  - `start_span` MUST return a non-recording Span whose
+    `SpanContext` comes from the parent Context when present
+    (L865-L866).
+  - If the parent Span is already non-recording, it SHOULD be
+    returned directly without instantiating a new Span (L867-L868).
+    Elixir's value semantics make this equivalent to returning a
+    fresh default struct — the caller cannot observe a difference.
+  - If the parent Context contains no Span, an empty non-recording
+    Span MUST be returned: all-zero `trace_id`/`span_id`, empty
+    `TraceState`, unsampled `TraceFlags` (L869-L871). This is the
+    `%Otel.API.Trace.SpanContext{}` default struct.
+
+  `enabled?/2` returns `false` per spec L201-L213 (Enabled is a
+  SHOULD API; a no-op tracer is never enabled).
+
+  Registered as the default tracer by `Otel.API.Trace.TracerProvider`
+  and by the SDK tracer provider when no tracer is configured.
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `start_span/4`, `enabled?/2` | **OTel API MUST** (no-op behaviour) |
+
+  ## References
+
+  - OTel Trace API §Behavior in absence of SDK: `opentelemetry-specification/specification/trace/api.md` L860-L874
+  - OTel Trace API §Enabled: `opentelemetry-specification/specification/trace/api.md` L201-L213
   """
 
   @behaviour Otel.API.Trace.Tracer
 
-  @invalid_ctx %Otel.API.Trace.SpanContext{}
-
+  @impl true
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
           name :: String.t(),
           opts :: Otel.API.Trace.Span.start_opts()
         ) :: Otel.API.Trace.SpanContext.t()
-  @impl true
   def start_span(ctx, _tracer, _name, _opts) do
     case Otel.API.Trace.current_span(ctx) do
       %Otel.API.Trace.SpanContext{trace_id: trace_id} = parent when trace_id != 0 ->
         parent
 
       _ ->
-        @invalid_ctx
+        # Spec L869-L871: empty non-recording Span when no parent.
+        %Otel.API.Trace.SpanContext{}
     end
   end
 
+  @impl true
   @spec enabled?(
           tracer :: Otel.API.Trace.Tracer.t(),
           opts :: Otel.API.Trace.Tracer.enabled_opts()
         ) :: boolean()
-  @impl true
   def enabled?(_tracer, _opts \\ []), do: false
 end
