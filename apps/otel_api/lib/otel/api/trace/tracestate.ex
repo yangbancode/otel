@@ -61,10 +61,6 @@ defmodule Otel.API.Trace.TraceState do
   # W3C §3.3.1.1: "There can be a maximum of 32 list-members in a list."
   @max_members 32
 
-  # W3C §3.3.1.5 tracestate Limits: vendors SHOULD propagate at least
-  # 512 characters of a combined header.
-  @max_header_bytes 512
-
   # W3C §3.3.1.3.1 key grammar (Level 2, see @typedoc `key/0`):
   #   key     = (lcalpha / DIGIT) 0*255(keychar)
   #   keychar = lcalpha / DIGIT / "_" / "-" / "*" / "/" / "@"
@@ -174,14 +170,11 @@ defmodule Otel.API.Trace.TraceState do
   **W3C header parsing** (§3.3.1 `tracestate Header Field Values`).
 
   Parses a W3C `tracestate` header value. Returns an **empty**
-  state when:
-
-  - the header exceeds 512 bytes (W3C §3.3.1.5 size cap).
-  - the header contains more than 32 list-members. W3C §3.3.1.1
-    states "There can be a maximum of 32 `list-member`s in a
-    `list`" but does not define parser behaviour beyond the
-    limit; we reject the whole header, matching
-    `opentelemetry-erlang`'s `otel_tracestate:decode_header/1`.
+  state when the header contains more than 32 list-members. W3C
+  §3.3.1.1 states "There can be a maximum of 32 `list-member`s in
+  a `list`" but does not define parser behaviour beyond the
+  limit; we reject the whole header, matching
+  `opentelemetry-erlang`'s `otel_tracestate:decode_header/1`.
 
   Otherwise individual malformed entries (bad key/value format or
   missing `=`) are dropped while the remainder is kept; duplicate
@@ -192,11 +185,7 @@ defmodule Otel.API.Trace.TraceState do
   """
   @spec decode(header :: String.t()) :: t()
   def decode(header) when is_binary(header) do
-    if byte_size(header) > @max_header_bytes do
-      %__MODULE__{}
-    else
-      build_from_header(header)
-    end
+    build_from_header(header)
   end
 
   @doc """

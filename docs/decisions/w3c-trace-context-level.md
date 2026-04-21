@@ -53,7 +53,13 @@ Unchanged between Level 1 and Level 2. See W3C §3.3.1.3.2.
 Unchanged between Level 1 and Level 2:
 
 - 32 list-members (W3C §3.3.1.1)
-- 512 bytes header (W3C §3.3.1.5)
+
+W3C §3.3.1.5 (`tracestate Limits`) states vendors **SHOULD
+propagate at least 512 characters** of a combined header. This is
+a propagation floor, not a parser size cap — the parser is not
+required to reject headers exceeding 512 characters, and
+`Otel.API.Trace.TraceState.decode/1` enforces no byte/character
+limit beyond the 32-member count.
 
 ### Mutation rules
 

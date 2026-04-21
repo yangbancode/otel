@@ -179,21 +179,8 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
   end
 
-  describe "decode rejects oversized header (W3C §3.3.1.5)" do
-    test "returns empty state when header exceeds 512 bytes" do
-      oversized = 1..100 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
-      assert byte_size(oversized) > 512
-      assert TraceState.size(TraceState.decode(oversized)) == 0
-    end
-
-    test "accepts header at or below 512 bytes" do
-      under_limit = String.duplicate("ab,", 50) |> String.trim_trailing(",")
-      assert byte_size(under_limit) < 512
-      # All entries are malformed (no =), so state stays empty but decode doesn't crash
-      assert TraceState.size(TraceState.decode(under_limit)) == 0
-    end
-
-    test "accepts header with exactly 32 list-members (W3C § 3.3.3 boundary)" do
+  describe "decode member limit (W3C §3.3.1.1)" do
+    test "accepts header with exactly 32 list-members (boundary)" do
       header = 1..32 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
       ts = TraceState.decode(header)
       assert TraceState.size(ts) == 32
@@ -204,7 +191,6 @@ defmodule Otel.API.Trace.TraceStateTest do
       # parser behaviour when exceeded. We reject the whole header,
       # matching `opentelemetry-erlang`'s `otel_tracestate:decode_header/1`.
       header = 1..33 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
-      assert byte_size(header) < 512
       assert TraceState.size(TraceState.decode(header)) == 0
     end
   end
