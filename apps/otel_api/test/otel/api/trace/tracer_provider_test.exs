@@ -22,12 +22,6 @@ defmodule Otel.API.Trace.TracerProviderTest do
       Otel.API.Trace.TracerProvider.set_provider({SomeProvider, :opaque_state})
       assert Otel.API.Trace.TracerProvider.get_provider() == {SomeProvider, :opaque_state}
     end
-
-    test "set_provider(nil) clears the registration" do
-      Otel.API.Trace.TracerProvider.set_provider({SomeProvider, :state})
-      Otel.API.Trace.TracerProvider.set_provider(nil)
-      assert Otel.API.Trace.TracerProvider.get_provider() == nil
-    end
   end
 
   describe "get_tracer/1 dispatch via registered provider" do
@@ -53,16 +47,11 @@ defmodule Otel.API.Trace.TracerProviderTest do
     end
   end
 
-  describe "get_tracer/0,1" do
+  describe "get_tracer/1" do
     test "returns noop tracer when no SDK installed" do
       {module, _config} =
         Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{name: "my_lib"})
 
-      assert module == Otel.API.Trace.Tracer.Noop
-    end
-
-    test "returns noop tracer with default empty scope when called with no args" do
-      {module, _config} = Otel.API.Trace.TracerProvider.get_tracer()
       assert module == Otel.API.Trace.Tracer.Noop
     end
 
