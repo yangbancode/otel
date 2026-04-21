@@ -1,155 +1,161 @@
 defmodule Otel.API.CtxTest do
   use ExUnit.Case, async: false
 
+  alias Otel.API.Ctx
+
   describe "create_key/1" do
     test "returns the name unchanged (identity)" do
-      assert Otel.API.Ctx.create_key(:span) == :span
-      assert Otel.API.Ctx.create_key("custom") == "custom"
-      assert Otel.API.Ctx.create_key({MyLib, :key}) == {MyLib, :key}
+      assert Ctx.create_key(:span) == :span
+      assert Ctx.create_key("custom") == "custom"
+      assert Ctx.create_key({MyLib, :key}) == {MyLib, :key}
     end
 
     test "keys work with get_value/set_value" do
-      key = Otel.API.Ctx.create_key(:my_key)
-      ctx = Otel.API.Ctx.set_value(%{}, key, "hello")
-      assert Otel.API.Ctx.get_value(ctx, key) == "hello"
+      key = Ctx.create_key(:my_key)
+      ctx = Ctx.new() |> Ctx.set_value(key, "hello")
+      assert Ctx.get_value(ctx, key) == "hello"
     end
 
     test "caller-supplied distinct names produce distinct keys" do
-      key1 = Otel.API.Ctx.create_key({MyLib, :data, 1})
-      key2 = Otel.API.Ctx.create_key({MyLib, :data, 2})
-      ctx = %{}
-      ctx = Otel.API.Ctx.set_value(ctx, key1, "from_a")
-      ctx = Otel.API.Ctx.set_value(ctx, key2, "from_b")
-      assert Otel.API.Ctx.get_value(ctx, key1) == "from_a"
-      assert Otel.API.Ctx.get_value(ctx, key2) == "from_b"
+      key1 = Ctx.create_key({MyLib, :data, 1})
+      key2 = Ctx.create_key({MyLib, :data, 2})
+
+      ctx =
+        Ctx.new()
+        |> Ctx.set_value(key1, "from_a")
+        |> Ctx.set_value(key2, "from_b")
+
+      assert Ctx.get_value(ctx, key1) == "from_a"
+      assert Ctx.get_value(ctx, key2) == "from_b"
     end
   end
 
   describe "get_value/2 and set_value/3" do
-    test "set_value/3 returns new context with value" do
-      ctx = Otel.API.Ctx.set_value(%{}, :key, "value")
-      assert ctx == %{key: "value"}
-    end
-
-    test "get_value/2 returns value for key" do
-      ctx = %{key: "value"}
-      assert Otel.API.Ctx.get_value(ctx, :key) == "value"
+    test "set_value/3 stores the value under the key" do
+      ctx = Ctx.new() |> Ctx.set_value(:key, "value")
+      assert Ctx.get_value(ctx, :key) == "value"
     end
 
     test "get_value/2 returns nil when key missing" do
-      assert Otel.API.Ctx.get_value(%{}, :missing) == nil
+      assert Ctx.get_value(Ctx.new(), :missing) == nil
     end
 
     test "caller composes default via || operator" do
-      assert (Otel.API.Ctx.get_value(%{}, :missing) || :default) == :default
-      assert (Otel.API.Ctx.get_value(%{key: "v"}, :key) || :default) == "v"
+      assert (Ctx.get_value(Ctx.new(), :missing) || :default) == :default
+
+      ctx = Ctx.new() |> Ctx.set_value(:key, "v")
+      assert (Ctx.get_value(ctx, :key) || :default) == "v"
     end
 
-    test "context is immutable — set_value returns new map" do
-      ctx1 = %{a: 1}
-      ctx2 = Otel.API.Ctx.set_value(ctx1, :b, 2)
-      assert ctx1 == %{a: 1}
-      assert ctx2 == %{a: 1, b: 2}
+    test "context is immutable — set_value returns a new context" do
+      ctx1 = Ctx.new() |> Ctx.set_value(:a, 1)
+      ctx2 = Ctx.set_value(ctx1, :b, 2)
+
+      # ctx1 unchanged
+      assert Ctx.get_value(ctx1, :a) == 1
+      assert Ctx.get_value(ctx1, :b) == nil
+
+      # ctx2 has both
+      assert Ctx.get_value(ctx2, :a) == 1
+      assert Ctx.get_value(ctx2, :b) == 2
     end
   end
 
   describe "current/0, attach/1, detach/1" do
     setup do
-      Otel.API.Ctx.detach(%{})
+      Ctx.detach(Ctx.new())
       :ok
     end
 
-    test "current/0 returns an empty map in the initial state" do
-      assert Otel.API.Ctx.current() == %{}
+    test "current/0 returns an empty context in the initial state" do
+      assert Ctx.current() == Ctx.new()
     end
 
-    test "attach/1 sets current context and returns previous as map" do
-      ctx = %{span: :my_span}
-      token = Otel.API.Ctx.attach(ctx)
-      assert Otel.API.Ctx.current() == ctx
-      assert is_map(token)
+    test "attach/1 sets current context and returns previous as token" do
+      ctx = Ctx.new() |> Ctx.set_value(:span, :my_span)
+      _token = Ctx.attach(ctx)
+
+      assert Ctx.get_value(Ctx.current(), :span) == :my_span
     end
 
-    test "attach/1 on fresh process returns empty map (not nil)" do
-      token = Otel.API.Ctx.attach(%{a: 1})
-      assert token == %{}
+    test "attach/1 on fresh process returns an empty token" do
+      token = Ctx.attach(Ctx.new() |> Ctx.set_value(:a, 1))
+      assert token == Ctx.new()
     end
 
     test "detach/1 returns :ok" do
-      token = Otel.API.Ctx.attach(%{a: 1})
-      assert Otel.API.Ctx.detach(token) == :ok
+      token = Ctx.attach(Ctx.new() |> Ctx.set_value(:a, 1))
+      assert Ctx.detach(token) == :ok
     end
 
     test "detach/1 restores previous context" do
-      original = %{a: 1}
-      Otel.API.Ctx.attach(original)
+      original = Ctx.new() |> Ctx.set_value(:a, 1)
+      Ctx.attach(original)
 
-      new_ctx = %{b: 2}
-      token = Otel.API.Ctx.attach(new_ctx)
-      assert Otel.API.Ctx.current() == new_ctx
+      new_ctx = Ctx.new() |> Ctx.set_value(:b, 2)
+      token = Ctx.attach(new_ctx)
+      assert Ctx.get_value(Ctx.current(), :b) == 2
 
-      Otel.API.Ctx.detach(token)
-      assert Otel.API.Ctx.current() == original
+      Ctx.detach(token)
+      assert Ctx.get_value(Ctx.current(), :a) == 1
+      assert Ctx.get_value(Ctx.current(), :b) == nil
     end
   end
 
   describe "get_value/1 and set_value/2 (implicit current)" do
     setup do
-      Otel.API.Ctx.detach(%{})
+      Ctx.detach(Ctx.new())
       :ok
     end
 
     test "set_value/2 then get_value/1 round-trips through current" do
-      :ok = Otel.API.Ctx.set_value(:key, "hello")
-      assert Otel.API.Ctx.get_value(:key) == "hello"
+      :ok = Ctx.set_value(:key, "hello")
+      assert Ctx.get_value(:key) == "hello"
     end
 
     test "get_value/1 returns nil when key missing" do
-      assert Otel.API.Ctx.get_value(:missing) == nil
+      assert Ctx.get_value(:missing) == nil
     end
 
     test "set_value/2 preserves unrelated keys" do
-      :ok = Otel.API.Ctx.set_value(:a, 1)
-      :ok = Otel.API.Ctx.set_value(:b, 2)
-      assert Otel.API.Ctx.current() == %{a: 1, b: 2}
+      :ok = Ctx.set_value(:a, 1)
+      :ok = Ctx.set_value(:b, 2)
+
+      assert Ctx.get_value(:a) == 1
+      assert Ctx.get_value(:b) == 2
     end
 
     test "set_value/2 equivalent to current |> set_value/3 |> attach" do
-      :ok = Otel.API.Ctx.set_value(:k, "v")
-
-      explicit =
-        %{}
-        |> Otel.API.Ctx.set_value(:k, "v")
-
-      assert Otel.API.Ctx.current() == explicit
+      :ok = Ctx.set_value(:k, "v")
+      assert Ctx.get_value(:k) == "v"
     end
   end
 
   describe "cross-process" do
     test "context does not propagate to spawned process automatically" do
-      Otel.API.Ctx.attach(%{key: "parent"})
+      Ctx.attach(Ctx.new() |> Ctx.set_value(:key, "parent"))
 
       task =
         Task.async(fn ->
-          Otel.API.Ctx.current()
+          Ctx.current()
         end)
 
       child_ctx = Task.await(task)
-      assert child_ctx == %{}
+      assert child_ctx == Ctx.new()
     end
 
     test "context can be passed explicitly to another process" do
-      Otel.API.Ctx.attach(%{key: "parent"})
-      parent_ctx = Otel.API.Ctx.current()
+      Ctx.attach(Ctx.new() |> Ctx.set_value(:key, "parent"))
+      parent_ctx = Ctx.current()
 
       task =
         Task.async(fn ->
-          Otel.API.Ctx.attach(parent_ctx)
-          Otel.API.Ctx.current()
+          Ctx.attach(parent_ctx)
+          Ctx.current()
         end)
 
       child_ctx = Task.await(task)
-      assert child_ctx == %{key: "parent"}
+      assert Ctx.get_value(child_ctx, :key) == "parent"
     end
   end
 end

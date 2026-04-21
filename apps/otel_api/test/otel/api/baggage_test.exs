@@ -77,19 +77,19 @@ defmodule Otel.API.BaggageTest do
 
   describe "context interaction (explicit)" do
     test "current/1 returns empty map by default" do
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
       assert Otel.API.Baggage.current(ctx) == %{}
     end
 
     test "set_current/2 and current/1 roundtrip" do
       baggage = %{"key" => {"value", ""}}
-      ctx = Otel.API.Baggage.set_current(%{}, baggage)
+      ctx = Otel.API.Baggage.set_current(Otel.API.Ctx.new(), baggage)
       assert Otel.API.Baggage.current(ctx) == baggage
     end
 
     test "set_current/2 with empty map clears entries from context" do
       baggage = %{"a" => {"1", ""}, "b" => {"2", ""}}
-      ctx = Otel.API.Baggage.set_current(%{}, baggage)
+      ctx = Otel.API.Baggage.set_current(Otel.API.Ctx.new(), baggage)
       cleared = Otel.API.Baggage.set_current(ctx, %{})
       assert Otel.API.Baggage.current(cleared) == %{}
     end

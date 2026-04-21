@@ -10,7 +10,7 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
 
   describe "start_span/4" do
     test "returns parent SpanContext when parent exists in context" do
-      ctx = Otel.API.Trace.set_current_span(%{}, @valid_parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), @valid_parent)
 
       result =
         Otel.API.Trace.Tracer.Noop.start_span(
@@ -24,7 +24,7 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
     end
 
     test "returns invalid SpanContext when no parent in context" do
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
 
       result =
         Otel.API.Trace.Tracer.Noop.start_span(
@@ -40,7 +40,7 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
 
     test "returns invalid SpanContext when parent has zero trace_id" do
       parent = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 1}
-      ctx = Otel.API.Trace.set_current_span(%{}, parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
 
       result =
         Otel.API.Trace.Tracer.Noop.start_span(

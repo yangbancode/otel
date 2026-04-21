@@ -103,7 +103,7 @@ defmodule Otel.API.Propagator.TextMapTest do
   describe "inject/3 convenience" do
     test "returns carrier unchanged when no global propagator" do
       carrier = [{"existing", "value"}]
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
       assert Otel.API.Propagator.TextMap.inject(ctx, carrier) == carrier
     end
 
@@ -111,7 +111,7 @@ defmodule Otel.API.Propagator.TextMapTest do
       Otel.API.Propagator.TextMap.set_propagator(Otel.API.Propagator.TextMap.TraceContext)
 
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx = Otel.API.Trace.set_current_span(%{}, span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.inject(ctx, [])
       assert Enum.any?(carrier, fn {k, _v} -> k == "traceparent" end)
@@ -120,7 +120,7 @@ defmodule Otel.API.Propagator.TextMapTest do
 
   describe "extract/3 convenience" do
     test "returns context unchanged when no global propagator" do
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
       carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}]
       assert Otel.API.Propagator.TextMap.extract(ctx, carrier) == ctx
     end
@@ -128,7 +128,7 @@ defmodule Otel.API.Propagator.TextMapTest do
     test "dispatches to global propagator" do
       Otel.API.Propagator.TextMap.set_propagator(Otel.API.Propagator.TextMap.TraceContext)
 
-      ctx = %{}
+      ctx = Otel.API.Ctx.new()
       carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}]
       new_ctx = Otel.API.Propagator.TextMap.extract(ctx, carrier)
 
