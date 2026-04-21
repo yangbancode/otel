@@ -118,6 +118,33 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       assert span_ctx.span_id == 0xB7AD6B7169203331
     end
 
+    test "accepts future version at exactly 55 chars (no trailing, W3C L237)" do
+      # W3C §Versioning L237-L238: flags "either at the end of the string or
+      # followed by a dash" — a higher-version header with no extra fields
+      # (exactly 55 chars) MUST still be parsable.
+      carrier = [
+        {"traceparent", "01-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}
+      ]
+
+      ctx = Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      span_ctx = Otel.API.Trace.current_span(ctx)
+
+      assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
+      assert span_ctx.span_id == 0xB7AD6B7169203331
+    end
+
+    test "uppercase version rejected (W3C L83 2HEXDIGLC)" do
+      # Version is specified as 2HEXDIGLC (lowercase hex). Uppercase version
+      # like "FF" or "AB" must be rejected even though the ff-reserved guard
+      # only excludes literal lowercase "ff".
+      carrier = [
+        {"traceparent", "FF-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}
+      ]
+
+      ctx = Otel.API.Ctx.new()
+      assert ctx == Otel.API.Propagator.TextMap.TraceContext.extract(ctx, carrier, @getter)
+    end
+
     test "v00 with trailing bytes leaves ctx unchanged (W3C strict length)" do
       # v00 MUST be exactly 55 chars; any trailing bytes are invalid per W3C.
       # Extract MUST NOT throw (api-propagators.md L102) → returns ctx unchanged.
@@ -202,6 +229,155 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       assert extracted.trace_flags == original.trace_flags
       assert extracted.is_remote == true
       assert Otel.API.Trace.TraceState.get(extracted.tracestate, "vendor") == "value"
+    end
+  end
+
+  describe "encode_traceparent/1" do
+    test "encodes a valid span context as v00 header" do
+      span_ctx =
+        Otel.API.Trace.SpanContext.new(0x0AF7651916CD43DD8448EB211C80319C, 0xB7AD6B7169203331, 1)
+
+      assert Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(span_ctx) ==
+               "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+    end
+
+    test "encodes trace_flags 0 as '00'" do
+      span_ctx = Otel.API.Trace.SpanContext.new(1, 1, 0)
+      header = Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(span_ctx)
+      assert String.ends_with?(header, "-00")
+    end
+
+    test "preserves full flag byte (does not mask reserved bits)" do
+      # W3C §Other Flags L202: outgoing vendors MUST zero unknown bits, but
+      # that's the span-context producer's responsibility — this serializer
+      # renders whatever byte it's given.
+      span_ctx = Otel.API.Trace.SpanContext.new(1, 1, 0xFF)
+      header = Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(span_ctx)
+      assert String.ends_with?(header, "-ff")
+    end
+  end
+
+  describe "decode_traceparent/1" do
+    test "parses v00 at exactly 55 chars" do
+      span_ctx =
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+        )
+
+      assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
+      assert span_ctx.span_id == 0xB7AD6B7169203331
+      assert span_ctx.trace_flags == 1
+    end
+
+    test "parses v01 at exactly 55 chars (forward-compat L237)" do
+      span_ctx =
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "01-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+        )
+
+      assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
+      assert span_ctx.span_id == 0xB7AD6B7169203331
+    end
+
+    test "parses v01 with trailing bytes (forward-compat L238)" do
+      span_ctx =
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "01-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01-extra-bytes"
+        )
+
+      assert span_ctx.trace_id == 0x0AF7651916CD43DD8448EB211C80319C
+      assert span_ctx.span_id == 0xB7AD6B7169203331
+    end
+
+    test "raises on v00 with trailing bytes (strict ABNF L93)" do
+      assert_raise FunctionClauseError, fn ->
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01-extra"
+        )
+      end
+    end
+
+    test "raises on version ff (reserved, L86)" do
+      assert_raise FunctionClauseError, fn ->
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "ff-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+        )
+      end
+    end
+
+    test "raises on uppercase version (L83 2HEXDIGLC)" do
+      assert_raise MatchError, fn ->
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "AB-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+        )
+      end
+    end
+
+    test "raises on uppercase hex in trace-id" do
+      assert_raise MatchError, fn ->
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "00-0AF7651916CD43DD8448EB211C80319C-b7ad6b7169203331-01"
+        )
+      end
+    end
+
+    test "raises on all-zero trace_id" do
+      assert_raise MatchError, fn ->
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "00-00000000000000000000000000000000-b7ad6b7169203331-01"
+        )
+      end
+    end
+
+    test "raises on all-zero span_id" do
+      assert_raise MatchError, fn ->
+        Otel.API.Propagator.TextMap.TraceContext.decode_traceparent(
+          "00-0af7651916cd43dd8448eb211c80319c-0000000000000000-01"
+        )
+      end
+    end
+  end
+
+  describe "extract_tracestate/2" do
+    test "returns empty TraceState when header absent" do
+      result = Otel.API.Propagator.TextMap.TraceContext.extract_tracestate([], @getter)
+      assert Otel.API.Trace.TraceState.empty?(result)
+    end
+
+    test "decodes present header" do
+      carrier = [{"tracestate", "vendor=value"}]
+      result = Otel.API.Propagator.TextMap.TraceContext.extract_tracestate(carrier, @getter)
+      assert Otel.API.Trace.TraceState.get(result, "vendor") == "value"
+    end
+
+    test "trims whitespace before decoding" do
+      carrier = [{"tracestate", "  vendor=value  "}]
+      result = Otel.API.Propagator.TextMap.TraceContext.extract_tracestate(carrier, @getter)
+      assert Otel.API.Trace.TraceState.get(result, "vendor") == "value"
+    end
+  end
+
+  describe "lowercase_hex?/1" do
+    test "accepts lowercase digits and a-f" do
+      assert Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("00")
+      assert Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("deadbeef")
+      assert Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("0123456789abcdef")
+    end
+
+    test "rejects uppercase" do
+      refute Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("FF")
+      refute Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("DEADBEEF")
+      refute Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("AbCd")
+    end
+
+    test "rejects non-hex characters" do
+      refute Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("hello")
+      refute Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("1g")
+      refute Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("00-00")
+    end
+
+    test "rejects empty string" do
+      refute Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("")
     end
   end
 end
