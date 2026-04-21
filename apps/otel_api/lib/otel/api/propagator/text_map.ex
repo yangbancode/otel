@@ -239,7 +239,7 @@ defmodule Otel.API.Propagator.TextMap do
   """
   @spec default_getter(carrier :: [{String.t(), String.t()}], key :: String.t()) ::
           String.t() | nil
-  def default_getter(carrier, key) when is_list(carrier) do
+  def default_getter(carrier, key) do
     lower_key = String.downcase(key)
 
     Enum.find_value(carrier, fn {k, v} ->
@@ -252,10 +252,25 @@ defmodule Otel.API.Propagator.TextMap do
   (`api-propagators.md` L174-L186) for
   `[{String.t(), String.t()}]` carriers.
 
-  Replaces any existing key (case-insensitively) and
-  appends the new pair. The supplied `key` casing is
-  preserved on insertion per spec L186 *"The
-  implementation SHOULD preserve casing"*.
+  Implements spec's *"Replaces a propagated field with the
+  given value"* (L178) together with the casing rule at
+  L186. Two behaviours to notice:
+
+  - **Matching existing entries** — the carrier is scanned
+    case-insensitively and any entry whose key matches the
+    supplied `key` is removed before the new pair is
+    appended. Spec §Setter.Set does not literally mandate
+    case-insensitive matching, but HTTP header names are
+    case-insensitive per RFC 9110 and `[{String.t(),
+    String.t()}]` carriers are HTTP-like, so matching
+    case-insensitively is the only way to honour spec's
+    "Replaces" without leaving duplicate headers behind.
+
+  - **Casing preservation on write** — the supplied `key`
+    is written to the carrier as-is, satisfying spec L186
+    *"The implementation SHOULD preserve casing"* for
+    case-insensitive protocols (MUST for case-sensitive
+    ones).
   """
   @spec default_setter(
           key :: String.t(),
@@ -263,7 +278,7 @@ defmodule Otel.API.Propagator.TextMap do
           carrier :: [{String.t(), String.t()}]
         ) ::
           [{String.t(), String.t()}]
-  def default_setter(key, value, carrier) when is_list(carrier) do
+  def default_setter(key, value, carrier) do
     lower_key = String.downcase(key)
     filtered = Enum.reject(carrier, fn {k, _v} -> String.downcase(k) == lower_key end)
     filtered ++ [{key, value}]
@@ -271,7 +286,30 @@ defmodule Otel.API.Propagator.TextMap do
 
   # --- Internal dispatch ---
 
-  @doc false
+  @doc """
+  **Local helper** — dispatch the `{module, opts}` / atom
+  propagator shape to the underlying module's `inject`.
+
+  Not part of the user-facing API (users should call
+  `inject/3` or rely on `Otel.API.Propagator.TextMap.Composite`
+  to wrap sub-propagators). Exposed rather than `defp`
+  because two modules need this same dispatch:
+
+  - `inject/3` on this facade, when dispatching the global
+    propagator retrieved from `get_propagator/0`.
+  - `Otel.API.Propagator.TextMap.Composite.inject/4`,
+    which loops over inner propagators of a composite.
+
+  Dispatch rule:
+
+  - Tuple `{module, opts}` → `module.inject(opts, ctx,
+    carrier, setter)` (4-arity, for configured propagators
+    like `Composite`).
+  - Atom `module` → `module.inject(ctx, carrier, setter)`
+    (3-arity, matches the `@callback inject/3` behaviour
+    for single propagators like `TraceContext` and
+    `Baggage`).
+  """
   @spec inject_with(
           propagator :: {module(), term()} | module(),
           ctx :: Otel.API.Ctx.t(),
@@ -286,7 +324,16 @@ defmodule Otel.API.Propagator.TextMap do
     module.inject(ctx, carrier, setter)
   end
 
-  @doc false
+  @doc """
+  **Local helper** — dispatch counterpart of
+  `inject_with/4` for extraction.
+
+  Same design and caller set as `inject_with/4` (called
+  from `extract/3` on this facade and from
+  `Otel.API.Propagator.TextMap.Composite.extract/4`). Same
+  tuple-vs-atom dispatch rule, applied to the module's
+  `extract` callback.
+  """
   @spec extract_with(
           propagator :: {module(), term()} | module(),
           ctx :: Otel.API.Ctx.t(),
