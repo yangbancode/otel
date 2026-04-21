@@ -104,3 +104,36 @@ unchecked with a pointer to that decision.
 
 This rule follows from "happy path only": callers supply valid input,
 the SDK does not apologize for caller mistakes.
+
+### Layer independence (API ↛ SDK)
+
+`Otel.API.*` modules define *"what interfaces exist"*; `Otel.SDK.*`
+modules define *"how those interfaces are implemented"*. Dependency
+flows strictly `SDK → API`, never the reverse.
+
+When declaring a `@type` or `@callback` at the API layer, only
+enumerate what the **OTel spec itself defines at that layer**. If
+a spec section leaves behaviour details open (e.g. `trace/api.md`
+L208-L210 *"currently no required parameters"* for
+`Tracer.enabled?`), the API layer **must not** enumerate
+speculative keys that would amount to assuming a particular SDK
+implementation — even if a pattern from another behaviour
+(`Logs.Logger`, `Metrics.Instrument`) suggests candidate keys.
+
+In those cases the API type stays open (`keyword()`, `term()`,
+etc.), and each SDK implementation may document its own accepted
+keys in its own module typedoc.
+
+```elixir
+# API layer — spec defines no keys for Trace's Enabled API
+@type enabled_opts :: keyword()
+
+# SDK layer — free to document its own accepted keys
+@typedoc "Keys recognised by MyRateLimitingTracer"
+@type enabled_opt :: {:rate_override, non_neg_integer()}
+```
+
+Contrast with `Logs.Logger.enabled_opt` and
+`Metrics.Instrument.enabled_opt`, where the spec **does** define
+keys at the API level — enumeration is appropriate there because
+it mirrors a spec contract, not an SDK assumption.
