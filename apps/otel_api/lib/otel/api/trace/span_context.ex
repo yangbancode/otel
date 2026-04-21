@@ -39,7 +39,6 @@ defmodule Otel.API.Trace.SpanContext do
   | `valid?/1` | **OTel API MUST** (§IsValid, L268-L271) |
   | `remote?/1` | **OTel API MUST** (§IsRemote, L273-L278) |
   | `trace_id_hex/1`, `span_id_hex/1`, `trace_id_bytes/1`, `span_id_bytes/1` | **OTel API MUST** (Retrieving, L256-L266) |
-  | `sampled?/1`, `random?/1` | **Local helper** — W3C `trace-flags` bit predicates |
 
   ## References
 
@@ -55,11 +54,11 @@ defmodule Otel.API.Trace.SpanContext do
   exactly 8 bits (range `0..255`). Two bits are currently
   defined:
 
-  - bit 0 (`0b01`): **Sampled** — see `sampled?/1`.
-  - bit 1 (`0b10`): **Random Trace ID Flag** — see `random?/1`
-    (Level 2 addition).
+  - bit 0 (`0b01`): **Sampled**.
+  - bit 1 (`0b10`): **Random Trace ID Flag** (Level 2 addition).
 
-  Other bits are reserved; treat them as opaque.
+  Callers check bits directly with `Bitwise.band/2`; other bits
+  are reserved.
   """
   @type trace_flags :: 0..255
 
@@ -180,31 +179,5 @@ defmodule Otel.API.Trace.SpanContext do
   @spec span_id_bytes(span_ctx :: t()) :: <<_::64>>
   def span_id_bytes(%__MODULE__{span_id: span_id}) do
     Otel.API.Trace.SpanId.to_bytes(span_id)
-  end
-
-  @doc """
-  **Local helper** — W3C `trace-flags` Sampled bit.
-
-  Returns `true` when bit 0 of `trace_flags` is set (the Sampled
-  flag, W3C Trace Context §trace-flags). Callers use this to
-  decide whether the trace has been marked for recording.
-  """
-  @spec sampled?(span_ctx :: t()) :: boolean()
-  def sampled?(%__MODULE__{trace_flags: trace_flags}) do
-    Bitwise.band(trace_flags, 0b01) != 0
-  end
-
-  @doc """
-  **Local helper** — W3C `trace-flags` Random Trace ID bit.
-
-  Returns `true` when bit 1 of `trace_flags` is set (the Random
-  Trace ID Flag added in W3C Trace Context Level 2,
-  §trace-flags). When set, the trace-id is guaranteed to be
-  randomly generated — useful for downstream samplers that want
-  to apply probability-based decisions without re-hashing.
-  """
-  @spec random?(span_ctx :: t()) :: boolean()
-  def random?(%__MODULE__{trace_flags: trace_flags}) do
-    Bitwise.band(trace_flags, 0b10) != 0
   end
 end

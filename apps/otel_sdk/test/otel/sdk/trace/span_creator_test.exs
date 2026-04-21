@@ -176,7 +176,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      assert Otel.API.Trace.SpanContext.sampled?(span_ctx)
+      assert Bitwise.band(span_ctx.trace_flags, 1) != 0
       assert span != nil
       assert span.is_recording == true
       assert span.trace_flags == 1
@@ -195,7 +195,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      refute Otel.API.Trace.SpanContext.sampled?(span_ctx)
+      assert Bitwise.band(span_ctx.trace_flags, 1) == 0
       assert span != nil
       assert span.is_recording == true
       assert span.trace_flags == 0
@@ -214,7 +214,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           []
         )
 
-      refute Otel.API.Trace.SpanContext.sampled?(span_ctx)
+      assert Bitwise.band(span_ctx.trace_flags, 1) == 0
       assert span == nil
     end
 
