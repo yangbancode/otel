@@ -38,8 +38,6 @@ defmodule Otel.API.Trace.Tracer do
   - OTel Trace API §Tracer: `opentelemetry-specification/specification/trace/api.md` L184-L219
   """
 
-  use Otel.API.Common.Types
-
   @typedoc """
   A tracer value — a `{module, config}` tuple where `module`
   implements `Otel.API.Trace.Tracer` and `config` carries
@@ -56,18 +54,24 @@ defmodule Otel.API.Trace.Tracer do
   @typedoc """
   Options accepted by `enabled?/2`.
 
-  Per spec L208-L210 there are no required parameters yet; the
-  type exists to keep the API structurally open for future
-  additions. Currently documented keys (all MAY-support):
+  Per spec `trace/api.md` L208-L210 the Trace API does **not**
+  define common parameters for `Enabled`. Since `Otel.API.Trace`
+  is the API layer — independent of any specific SDK
+  implementation — concrete keys cannot be enumerated here
+  without prematurely coupling to an implementation.
 
-  - `:context` — evaluation context
-  - `:attributes` — attributes that would be attached to the span
+  The type is intentionally open (`keyword()`) at the API layer.
+  Each SDK implementation may interpret any keyword it
+  recognises and ignore the rest; implementations SHOULD
+  document their accepted keys in their own module typedoc.
+
+  Contrast with `Otel.API.Logs.Logger`'s `enabled_opt` and
+  `Otel.API.Metrics.Instrument`'s `enabled_opt`, where the OTel
+  spec itself defines the common keys at the API level —
+  enumeration is appropriate there because it mirrors a spec
+  contract, not an SDK assumption.
   """
-  @type enabled_opt ::
-          {:context, Otel.API.Ctx.t()}
-          | {:attributes, %{String.t() => primitive() | [primitive()]}}
-
-  @type enabled_opts :: [enabled_opt()]
+  @type enabled_opts :: keyword()
 
   @doc """
   **OTel API MUST** — "Create a new Span" (`trace/api.md`
