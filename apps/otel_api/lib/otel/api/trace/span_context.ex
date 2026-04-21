@@ -1,19 +1,86 @@
 defmodule Otel.API.Trace.SpanContext do
   @moduledoc """
-  Immutable context of a Span.
+  Immutable context of a Span (spec `trace/api.md` §SpanContext,
+  Status: **Stable**, L221-L278).
 
-  Contains the trace_id, span_id, trace_flags, and tracestate needed to
-  propagate span identity across process and network boundaries. The
-  identifiers are stored as `Otel.API.Trace.TraceId` and
-  `Otel.API.Trace.SpanId` opaque types so that Dialyzer distinguishes them
-  from unrelated integers (and from each other).
+  Carries the identifiers that must be serialized and propagated
+  alongside any cross-process or cross-service call: a `TraceId`,
+  a `SpanId`, a `TraceFlags` byte, a `TraceState`, and an
+  `is_remote` bit. Representation conforms to the W3C Trace
+  Context Level 2 specification (per spec L226-L229).
 
-  Convenience functions on this module (`trace_id_hex/1`, `trace_id_bytes/1`,
-  etc.) delegate to the corresponding `TraceId` / `SpanId` module functions.
+  Spec requirements met:
+
+  - **MUST** creation API (L252-L254) → `new/2,3,4`
+  - **MUST** hex retrieval for TraceId/SpanId (L256-L266) →
+    `trace_id_hex/1`, `span_id_hex/1`
+  - **MUST** binary retrieval (L256-L266) → `trace_id_bytes/1`,
+    `span_id_bytes/1`
+  - **MUST** IsValid (L268-L271) → `valid?/1`
+  - **MUST** IsRemote (L273-L278) → `remote?/1`
+
+  The TraceId / SpanId are stored as `Otel.API.Trace.TraceId.t()`
+  and `Otel.API.Trace.SpanId.t()` so Dialyzer distinguishes them
+  from unrelated integers (and from each other). Hex / binary
+  accessors delegate to those modules — caller code should go
+  through the accessors rather than the raw field per spec L266
+  *"The API SHOULD NOT expose details about how they are
+  internally stored"*.
+
+  SDK-specific concerns (e.g. `is_recording`, SDK dispatch) are
+  deliberately absent per `.claude/rules/code-conventions.md`
+  §Layer independence — those fields belong to the SDK layer.
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `new/2,3,4` | **OTel API MUST** (creation, L252-L254) |
+  | `valid?/1` | **OTel API MUST** (§IsValid, L268-L271) |
+  | `remote?/1` | **OTel API MUST** (§IsRemote, L273-L278) |
+  | `trace_id_hex/1`, `span_id_hex/1`, `trace_id_bytes/1`, `span_id_bytes/1` | **OTel API MUST** (Retrieving, L256-L266) |
+  | `sampled?/1`, `random?/1` | **Local helper** — W3C `trace-flags` bit predicates |
+
+  ## References
+
+  - OTel Trace API §SpanContext: `opentelemetry-specification/specification/trace/api.md` L221-L278
+  - W3C Trace Context Level 2 §trace-flags: `w3c-trace-context/spec/20-http_request_header_format.md` §trace-flags
   """
 
-  @type trace_flags :: non_neg_integer()
+  @typedoc """
+  W3C `trace-flags` — an 8-bit unsigned integer carrying flags
+  that apply to all traces (spec `trace/api.md` L237-L242).
 
+  Per W3C Trace Context Level 2 §trace-flags the value occupies
+  exactly 8 bits (range `0..255`). Two bits are currently
+  defined:
+
+  - bit 0 (`0b01`): **Sampled** — see `sampled?/1`.
+  - bit 1 (`0b10`): **Random Trace ID Flag** — see `random?/1`
+    (Level 2 addition).
+
+  Other bits are reserved; treat them as opaque.
+  """
+  @type trace_flags :: 0..255
+
+  @typedoc """
+  A SpanContext struct (spec `trace/api.md` §SpanContext,
+  L221-L250).
+
+  Fields:
+
+  - `trace_id` — 128-bit trace identifier (W3C `trace-id`).
+    Valid when at least one byte is non-zero (spec L231-L232).
+  - `span_id` — 64-bit span identifier (W3C `parent-id`). Valid
+    when at least one byte is non-zero (spec L234-L235).
+  - `trace_flags` — 8-bit flag byte (see `t:trace_flags/0`).
+  - `tracestate` — vendor-specific key/value pairs (W3C
+    `tracestate`, §3.3).
+  - `is_remote` — `true` when the SpanContext was propagated
+    from a remote parent (spec L273-L278). The extracting
+    Propagator sets this; child spans produced locally have
+    `is_remote: false`.
+  """
   @type t :: %__MODULE__{
           trace_id: Otel.API.Trace.TraceId.t(),
           span_id: Otel.API.Trace.SpanId.t(),
@@ -29,7 +96,11 @@ defmodule Otel.API.Trace.SpanContext do
             is_remote: false
 
   @doc """
-  Creates a new SpanContext.
+  **OTel API MUST** — "creation" (`trace/api.md` L252-L254).
+
+  Creates a new `SpanContext`. Per spec L252-L254 this is the
+  intended entry point (*"these methods SHOULD be the only way
+  to create a SpanContext"*).
   """
   @spec new(
           trace_id :: Otel.API.Trace.TraceId.t(),
@@ -47,7 +118,10 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  Returns `true` if the SpanContext has a valid (non-zero) trace_id and span_id.
+  **OTel API MUST** — "IsValid" (`trace/api.md` L268-L271).
+
+  Returns `true` iff both `trace_id` and `span_id` are non-zero
+  (per spec's definition of "valid identifier", L231-L235).
   """
   @spec valid?(span_ctx :: t()) :: boolean()
   def valid?(%__MODULE__{trace_id: trace_id, span_id: span_id}) do
@@ -55,21 +129,20 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  Returns `true` if the SpanContext was propagated from a remote parent.
+  **OTel API MUST** — "IsRemote" (`trace/api.md` L273-L278).
+
+  Returns `true` iff this `SpanContext` was extracted from a
+  remote parent by a Propagator. Child spans generated locally
+  have `is_remote: false`.
   """
   @spec remote?(span_ctx :: t()) :: boolean()
   def remote?(%__MODULE__{is_remote: is_remote}), do: is_remote
 
   @doc """
-  Returns `true` if the sampled flag (lowest bit of trace_flags) is set.
-  """
-  @spec sampled?(span_ctx :: t()) :: boolean()
-  def sampled?(%__MODULE__{trace_flags: trace_flags}) do
-    Bitwise.band(trace_flags, 1) != 0
-  end
+  **OTel API MUST** — "hex Retrieving TraceId" (`trace/api.md`
+  L256-L266).
 
-  @doc """
-  Returns the trace_id as a 32-character lowercase hex string.
+  Returns the `trace_id` as a 32-character lowercase hex string.
   """
   @spec trace_id_hex(span_ctx :: t()) :: <<_::256>>
   def trace_id_hex(%__MODULE__{trace_id: trace_id}) do
@@ -77,7 +150,10 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  Returns the span_id as a 16-character lowercase hex string.
+  **OTel API MUST** — "hex Retrieving SpanId" (`trace/api.md`
+  L256-L266).
+
+  Returns the `span_id` as a 16-character lowercase hex string.
   """
   @spec span_id_hex(span_ctx :: t()) :: <<_::128>>
   def span_id_hex(%__MODULE__{span_id: span_id}) do
@@ -85,7 +161,10 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  Returns the trace_id as a 16-byte binary.
+  **OTel API MUST** — "binary Retrieving TraceId" (`trace/api.md`
+  L256-L266).
+
+  Returns the `trace_id` as a 16-byte binary.
   """
   @spec trace_id_bytes(span_ctx :: t()) :: <<_::128>>
   def trace_id_bytes(%__MODULE__{trace_id: trace_id}) do
@@ -93,10 +172,39 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  Returns the span_id as an 8-byte binary.
+  **OTel API MUST** — "binary Retrieving SpanId" (`trace/api.md`
+  L256-L266).
+
+  Returns the `span_id` as an 8-byte binary.
   """
   @spec span_id_bytes(span_ctx :: t()) :: <<_::64>>
   def span_id_bytes(%__MODULE__{span_id: span_id}) do
     Otel.API.Trace.SpanId.to_bytes(span_id)
+  end
+
+  @doc """
+  **Local helper** — W3C `trace-flags` Sampled bit.
+
+  Returns `true` when bit 0 of `trace_flags` is set (the Sampled
+  flag, W3C Trace Context §trace-flags). Callers use this to
+  decide whether the trace has been marked for recording.
+  """
+  @spec sampled?(span_ctx :: t()) :: boolean()
+  def sampled?(%__MODULE__{trace_flags: trace_flags}) do
+    Bitwise.band(trace_flags, 0b01) != 0
+  end
+
+  @doc """
+  **Local helper** — W3C `trace-flags` Random Trace ID bit.
+
+  Returns `true` when bit 1 of `trace_flags` is set (the Random
+  Trace ID Flag added in W3C Trace Context Level 2,
+  §trace-flags). When set, the trace-id is guaranteed to be
+  randomly generated — useful for downstream samplers that want
+  to apply probability-based decisions without re-hashing.
+  """
+  @spec random?(span_ctx :: t()) :: boolean()
+  def random?(%__MODULE__{trace_flags: trace_flags}) do
+    Bitwise.band(trace_flags, 0b10) != 0
   end
 end
