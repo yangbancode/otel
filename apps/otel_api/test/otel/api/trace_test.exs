@@ -19,14 +19,9 @@ defmodule Otel.API.TraceTest do
     :ok
   end
 
-  describe "get_tracer/0,1" do
+  describe "get_tracer/1" do
     test "delegates to TracerProvider with scope" do
       {module, _} = Otel.API.Trace.get_tracer(%Otel.API.InstrumentationScope{name: "my_lib"})
-      assert module == Otel.API.Trace.Tracer.Noop
-    end
-
-    test "defaults to empty scope when no args given" do
-      {module, _} = Otel.API.Trace.get_tracer()
       assert module == Otel.API.Trace.Tracer.Noop
     end
 
