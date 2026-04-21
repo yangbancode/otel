@@ -7,9 +7,11 @@ defmodule Otel.API.Trace.Status do
   optional description. Per spec L574 *"Description MUST only
   be used with the Error StatusCode value"* and L599-L600
   *"Description MUST be IGNORED for StatusCode Ok & Unset
-  values"* — `new/2` discards the description for non-`:error`
-  codes, matching `opentelemetry-erlang`'s
-  `opentelemetry:status/2`.
+  values"* — `new/2` enforces this by discarding the
+  description for non-`:error` codes.
+  `opentelemetry-erlang`'s `opentelemetry:status/2` applies
+  the same rule because both implementations follow the spec
+  mandate.
 
   Per spec L590-L592 the codes form a total order
   `Ok > Error > Unset`: setting `:ok` overrides prior/future

@@ -143,8 +143,12 @@ defmodule Otel.API.Ctx do
   Returns `:ok`.
 
   Per spec L124-L129 an implementation MAY detect wrong-order detach
-  calls and emit a signal; this implementation does not, matching the
-  reference Erlang behaviour.
+  calls and emit a signal. This implementation does not — the clause
+  is a spec MAY (optional), and
+  `.claude/rules/code-conventions.md` §No SHOULD-level diagnostics
+  directs us to skip diagnostic emissions that the spec does not
+  mandate. `opentelemetry-erlang` happens to take the same
+  approach.
   """
   @spec detach(ctx :: t()) :: :ok
   def detach(ctx) do
