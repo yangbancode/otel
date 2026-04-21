@@ -199,7 +199,24 @@ defmodule Otel.API.Trace.TraceState do
   """
   @spec decode(header :: String.t()) :: t()
   def decode(header) when is_binary(header) do
-    build_from_header(header)
+    pairs =
+      header
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+
+    if length(pairs) > @max_members do
+      %__MODULE__{}
+    else
+      members =
+        pairs
+        |> Enum.flat_map(&parse_pair/1)
+        |> Enum.reduce([], fn {key, value}, acc ->
+          List.keystore(acc, key, 0, {key, value})
+        end)
+
+      %__MODULE__{members: members}
+    end
   end
 
   @doc """
@@ -242,28 +259,6 @@ defmodule Otel.API.Trace.TraceState do
   def size(%__MODULE__{members: members}), do: length(members)
 
   # --- Private ---
-
-  @spec build_from_header(header :: String.t()) :: t()
-  defp build_from_header(header) do
-    pairs =
-      header
-      |> String.split(",")
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
-
-    if length(pairs) > @max_members do
-      %__MODULE__{}
-    else
-      members =
-        pairs
-        |> Enum.flat_map(&parse_pair/1)
-        |> Enum.reduce([], fn {key, value}, acc ->
-          List.keystore(acc, key, 0, {key, value})
-        end)
-
-      %__MODULE__{members: members}
-    end
-  end
 
   @spec parse_pair(pair :: String.t()) :: [{key(), value()}]
   defp parse_pair(pair) do
