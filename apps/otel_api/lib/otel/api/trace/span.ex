@@ -60,7 +60,7 @@ defmodule Otel.API.Trace.Span do
           kind: Otel.API.Trace.SpanKind.t(),
           attributes: %{String.t() => primitive() | [primitive()]},
           links: [Otel.API.Trace.Link.t()],
-          start_time: integer(),
+          start_time: timestamp(),
           is_root: boolean()
         ]
 
@@ -225,9 +225,10 @@ defmodule Otel.API.Trace.Span do
 
   Signals that the operation described by the span has ended.
 
-  - L672-L673 if `timestamp` is `nil`, the current time is
-    used (*"MUST be treated equivalent to passing the current
-    time"*)
+  - L672-L673 if `timestamp` is omitted, the current time
+    is used (*"MUST be treated equivalent to passing the
+    current time"*) — the default arg evaluates
+    `System.system_time(:nanosecond)` at call time
   - L652-L653 implementations SHOULD ignore subsequent calls
     to `end_span` and any other Span methods — the span
     becomes non-recording by being ended
@@ -239,9 +240,18 @@ defmodule Otel.API.Trace.Span do
 
   L429-L430: *"Any span that is created MUST also be ended.
   This is the responsibility of the user."*
+
+  Values are `t:timestamp/0` — Unix epoch nanoseconds (uint64),
+  matching OTLP `time_unix_nano`.
   """
-  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer() | nil) :: :ok
-  def end_span(%Otel.API.Trace.SpanContext{} = span_ctx, timestamp \\ nil) do
+  @spec end_span(
+          span_ctx :: Otel.API.Trace.SpanContext.t(),
+          timestamp :: timestamp()
+        ) :: :ok
+  def end_span(
+        %Otel.API.Trace.SpanContext{} = span_ctx,
+        timestamp \\ System.system_time(:nanosecond)
+      ) do
     case get_module() do
       nil -> :ok
       module -> module.end_span(span_ctx, timestamp)
