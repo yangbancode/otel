@@ -46,14 +46,15 @@ defmodule Otel.API.Propagator.TextMap.BaggageTest do
       assert header == "key=value;prop1=val1"
     end
 
-    test "percent-encodes special characters" do
+    test "percent-encodes special characters per RFC 3986" do
       baggage = Otel.API.Baggage.set_value(%{}, "key", "hello world")
       ctx = Otel.API.Baggage.set_current(Otel.API.Ctx.new(), baggage)
 
       carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
 
       header = Otel.API.Propagator.TextMap.default_getter(carrier, "baggage")
-      assert header == "key=hello+world"
+      # Space → %20 per RFC 3986, not + (which would be form-urlencoding).
+      assert header == "key=hello%20world"
     end
 
     test "does not inject for empty baggage" do
@@ -91,12 +92,23 @@ defmodule Otel.API.Propagator.TextMap.BaggageTest do
       assert metadata == "prop1=val1"
     end
 
-    test "percent-decodes values" do
-      carrier = [{"baggage", "key=hello+world"}]
+    test "percent-decodes %20 to space per RFC 3986" do
+      carrier = [{"baggage", "key=hello%20world"}]
       ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       baggage = Otel.API.Baggage.current(ctx)
       assert Otel.API.Baggage.get_value(baggage, "key") == "hello world"
+    end
+
+    test "preserves literal + in value (RFC 3986)" do
+      # Per W3C §Definition L32, `+` (0x2B) is inside `baggage-octet`
+      # and MUST be treated as a literal plus character — not as
+      # an encoded space. This is a key difference from form-urlencoding.
+      carrier = [{"baggage", "key=a+b"}]
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+
+      baggage = Otel.API.Baggage.current(ctx)
+      assert Otel.API.Baggage.get_value(baggage, "key") == "a+b"
     end
 
     test "returns original context for missing header" do
@@ -166,6 +178,125 @@ defmodule Otel.API.Propagator.TextMap.BaggageTest do
       assert Otel.API.Baggage.get_value(extracted, "serverNode") == "node-42"
       {_val, metadata} = Map.get(extracted, "serverNode")
       assert metadata == "region=us-east"
+    end
+  end
+
+  describe "encode_baggage/1" do
+    test "empty map returns empty string" do
+      assert Otel.API.Propagator.TextMap.Baggage.encode_baggage(%{}) == ""
+    end
+
+    test "single entry without metadata" do
+      baggage = %{"key" => {"value", ""}}
+      assert Otel.API.Propagator.TextMap.Baggage.encode_baggage(baggage) == "key=value"
+    end
+
+    test "single entry with metadata appended verbatim" do
+      baggage = %{"key" => {"value", "prop1=val1"}}
+
+      assert Otel.API.Propagator.TextMap.Baggage.encode_baggage(baggage) ==
+               "key=value;prop1=val1"
+    end
+
+    test "multiple entries joined with comma" do
+      baggage = %{"a" => {"1", ""}, "b" => {"2", ""}}
+      header = Otel.API.Propagator.TextMap.Baggage.encode_baggage(baggage)
+      assert String.contains?(header, "a=1")
+      assert String.contains?(header, "b=2")
+      assert String.contains?(header, ",")
+    end
+
+    test "percent-encodes space as %20 per RFC 3986" do
+      baggage = %{"key" => {"hello world", ""}}
+
+      assert Otel.API.Propagator.TextMap.Baggage.encode_baggage(baggage) ==
+               "key=hello%20world"
+    end
+
+    test "percent-encodes literal + as %2B (not treated as space)" do
+      baggage = %{"key" => {"a+b", ""}}
+      assert Otel.API.Propagator.TextMap.Baggage.encode_baggage(baggage) == "key=a%2Bb"
+    end
+  end
+
+  describe "decode_baggage/1" do
+    test "empty string returns empty map" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_baggage("") == %{}
+    end
+
+    test "single entry" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_baggage("key=value") ==
+               %{"key" => {"value", ""}}
+    end
+
+    test "single entry with metadata kept as opaque string" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_baggage("key=value;prop1=val1") ==
+               %{"key" => {"value", "prop1=val1"}}
+    end
+
+    test "multiple entries" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_baggage("a=1,b=2") ==
+               %{"a" => {"1", ""}, "b" => {"2", ""}}
+    end
+
+    test "percent-decodes %20 to space per RFC 3986" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_baggage("key=hello%20world") ==
+               %{"key" => {"hello world", ""}}
+    end
+
+    test "preserves literal + (RFC 3986, not form-urlencoding)" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_baggage("key=a+b") ==
+               %{"key" => {"a+b", ""}}
+    end
+
+    test "trims whitespace around entries" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_baggage(" a = 1 , b = 2 ") ==
+               %{"a" => {"1", ""}, "b" => {"2", ""}}
+    end
+
+    test "raises on list-member without =" do
+      assert_raise MatchError, fn ->
+        Otel.API.Propagator.TextMap.Baggage.decode_baggage("noequals")
+      end
+    end
+  end
+
+  describe "decode_entry/1" do
+    test "parses key=value" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=value") ==
+               {"key", "value", ""}
+    end
+
+    test "parses key=value;metadata" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=value;prop1=val1") ==
+               {"key", "value", "prop1=val1"}
+    end
+
+    test "trims whitespace around key and value" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_entry(" key = value ") ==
+               {"key", "value", ""}
+    end
+
+    test "percent-decodes key and value (RFC 3986)" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key%20a=value%20b") ==
+               {"key a", "value b", ""}
+    end
+
+    test "value may contain additional = (W3C L73-L74)" do
+      # Parsers MUST NOT assume the equal sign is only used to separate key and value.
+      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=a=b") ==
+               {"key", "a=b", ""}
+    end
+
+    test "metadata with multiple properties kept as opaque string" do
+      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=v;k1=v1;k2=v2") ==
+               {"key", "v", "k1=v1;k2=v2"}
+    end
+
+    test "raises on pair without =" do
+      assert_raise MatchError, fn ->
+        Otel.API.Propagator.TextMap.Baggage.decode_entry("noequals")
+      end
     end
   end
 end
