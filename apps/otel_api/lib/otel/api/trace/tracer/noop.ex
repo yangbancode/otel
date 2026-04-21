@@ -29,7 +29,9 @@ defmodule Otel.API.Trace.Tracer.Noop do
 
   | Function | Role |
   |---|---|
-  | `start_span/4`, `enabled?/2` | **OTel API MUST** (no-op behaviour) |
+  | `start_span/4` | **OTel API MUST** (no-op behaviour) |
+  | `with_span/5` | **OTel convenience** (no-op lifecycle) |
+  | `enabled?/2` | **OTel API SHOULD** (always `false`) |
 
   ## References
 
@@ -54,6 +56,27 @@ defmodule Otel.API.Trace.Tracer.Noop do
       _ ->
         # Spec L869-L871: empty non-recording Span when no parent.
         %Otel.API.Trace.SpanContext{}
+    end
+  end
+
+  @impl true
+  @spec with_span(
+          ctx :: Otel.API.Ctx.t(),
+          tracer :: Otel.API.Trace.Tracer.t(),
+          name :: String.t(),
+          opts :: Otel.API.Trace.Span.start_opts(),
+          fun :: (Otel.API.Trace.SpanContext.t() -> result)
+        ) :: result
+        when result: term()
+  def with_span(ctx, tracer, name, opts, fun) do
+    span_ctx = start_span(ctx, tracer, name, opts)
+    new_ctx = Otel.API.Trace.set_current_span(ctx, span_ctx)
+    token = Otel.API.Ctx.attach(new_ctx)
+
+    try do
+      fun.(span_ctx)
+    after
+      Otel.API.Ctx.detach(token)
     end
   end
 

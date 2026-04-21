@@ -35,6 +35,7 @@ Items are ordered by implementation sequence — completing them top to bottom p
 - [x] [Tracer & InstrumentationScope](decisions/tracer-and-instrumentationscope.md)
 - [x] [Span Interface & Lifecycle](decisions/span-interface-and-lifecycle.md)
 - [x] [Span Creation](decisions/span-creation.md)
+- [x] [with_span Lifecycle Ownership](decisions/with-span-lifecycle-ownership.md)
 
 ### Trace SDK
 - [x] [TracerProvider SDK: Configuration](decisions/tracerprovider-sdk-configuration.md)

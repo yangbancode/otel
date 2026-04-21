@@ -15,6 +15,8 @@ defmodule Otel.API.Trace.Tracer do
 
   - **MUST** Create a new Span (L193-L195) → `start_span/4`
   - **SHOULD** Report if Enabled (L197-L199) → `enabled?/2`
+  - **MAY** Span Creation + automatic lifecycle (L385) →
+    `with_span/5`
 
   The `Enabled` API is in **Development** status (L203). Per
   L208-L210 *"the API MUST be structured in a way for parameters
@@ -24,6 +26,23 @@ defmodule Otel.API.Trace.Tracer do
   `enabled?/2` each time before creating a Span to have the
   most up-to-date response.
 
+  ## Lifecycle-ownership invariant
+
+  `with_span/5` is a callback, not an API-layer helper, because
+  the operation attaches a new `Otel.API.Ctx` to the process and
+  must guarantee detach + span end on every exit path (normal,
+  throw, error, exit). The invariant is *"whichever layer
+  performs the attach is responsible for detaching and for
+  cleanup in between"* — so attach/detach/end stay co-located
+  inside one Tracer implementation rather than being split
+  across API and SDK layers.
+
+  This mirrors `opentelemetry-erlang` (`otel_tracer_default.erl`
+  owns the full try/after block; `otel_tracer.erl` is a thin
+  dispatcher). See
+  `docs/decisions/with-span-lifecycle-ownership.md` for the
+  longer rationale.
+
   All functions are safe for concurrent use.
 
   ## Public API
@@ -31,6 +50,7 @@ defmodule Otel.API.Trace.Tracer do
   | Function | Role |
   |---|---|
   | `start_span/4` | **OTel API MUST** (§Tracer) |
+  | `with_span/5` | **OTel convenience** (§Span Creation L385 MAY) |
   | `enabled?/2` | **OTel API SHOULD** (§Enabled, Development) |
 
   ## References
@@ -88,6 +108,34 @@ defmodule Otel.API.Trace.Tracer do
               opts :: Otel.API.Trace.Span.start_opts()
             ) ::
               Otel.API.Trace.SpanContext.t()
+
+  @doc """
+  **OTel convenience** — Span Creation + automatic lifecycle
+  management (`trace/api.md` L385 *"MAY be offered additionally
+  as a separate operation"*).
+
+  The callback owns the full lifecycle:
+
+  1. Start a span (typically by calling back into `start_span/4`)
+  2. Set it as the current span in a new context
+  3. Attach that context to the process
+  4. Run `fun` with the new `SpanContext`
+  5. On completion — normal or exceptional — detach the context
+     and end the span; implementations MAY record exceptions on
+     the span per `trace/exceptions.md` L14-L40
+
+  The re-raise MUST preserve the original kind (error / throw /
+  exit) and stacktrace so callers observe behaviour identical to
+  `fun.(span_ctx)` plus lifecycle side effects.
+  """
+  @callback with_span(
+              ctx :: Otel.API.Ctx.t(),
+              tracer :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Trace.Span.start_opts(),
+              fun :: (Otel.API.Trace.SpanContext.t() -> result)
+            ) :: result
+            when result: term()
 
   @doc """
   **OTel API SHOULD** — "Enabled" (`trace/api.md` L201-L219,

@@ -45,6 +45,50 @@ defmodule Otel.SDK.Trace.Tracer do
     end
   end
 
+  @spec with_span(
+          ctx :: Otel.API.Ctx.t(),
+          tracer :: Otel.API.Trace.Tracer.t(),
+          name :: String.t(),
+          opts :: Otel.API.Trace.Span.start_opts(),
+          fun :: (Otel.API.Trace.SpanContext.t() -> result)
+        ) :: result
+        when result: term()
+  @impl true
+  def with_span(ctx, tracer, name, opts, fun) do
+    span_ctx = start_span(ctx, tracer, name, opts)
+    new_ctx = Otel.API.Trace.set_current_span(ctx, span_ctx)
+    token = Otel.API.Ctx.attach(new_ctx)
+
+    try do
+      fun.(span_ctx)
+    catch
+      kind, reason ->
+        stacktrace = __STACKTRACE__
+
+        case kind do
+          :error ->
+            normalized = Exception.normalize(:error, reason, stacktrace)
+            Otel.API.Trace.Span.record_exception(span_ctx, normalized, stacktrace)
+
+            Otel.API.Trace.Span.set_status(
+              span_ctx,
+              Otel.API.Trace.Status.new(:error, Exception.message(normalized))
+            )
+
+          _ ->
+            Otel.API.Trace.Span.set_status(
+              span_ctx,
+              Otel.API.Trace.Status.new(:error, Exception.format(kind, reason))
+            )
+        end
+
+        :erlang.raise(kind, reason, stacktrace)
+    after
+      Otel.API.Trace.Span.end_span(span_ctx)
+      Otel.API.Ctx.detach(token)
+    end
+  end
+
   @spec enabled?(
           tracer :: Otel.API.Trace.Tracer.t(),
           opts :: Otel.API.Trace.Tracer.enabled_opts()
