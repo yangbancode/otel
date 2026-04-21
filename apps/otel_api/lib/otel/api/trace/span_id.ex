@@ -57,7 +57,7 @@ defmodule Otel.API.Trace.SpanId do
   way to turn a raw integer (e.g. from an ID generator) into a
   `SpanId.t()`.
   """
-  @spec new(integer :: non_neg_integer()) :: t()
+  @spec new(integer :: 0..0xFFFFFFFF_FFFFFFFF) :: t()
   def new(integer) when is_integer(integer) and integer >= 0 and integer <= @max_value do
     integer
   end
