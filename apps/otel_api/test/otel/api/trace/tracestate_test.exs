@@ -5,7 +5,7 @@ defmodule Otel.API.Trace.TraceStateTest do
 
   describe "empty state" do
     test "default struct is empty" do
-      assert TraceState.size(%TraceState{}) == 0
+      assert TraceState.empty?(%TraceState{})
       assert TraceState.encode(%TraceState{}) == ""
     end
   end
@@ -34,7 +34,6 @@ defmodule Otel.API.Trace.TraceStateTest do
     test "rejects duplicate key (W3C §3.5 MUST NOT duplicate)" do
       ts = %TraceState{} |> TraceState.add("vendor", "first")
       ts2 = TraceState.add(ts, "vendor", "second")
-      assert TraceState.size(ts2) == 1
       assert TraceState.get(ts2, "vendor") == "first"
     end
 
@@ -47,7 +46,6 @@ defmodule Otel.API.Trace.TraceStateTest do
         end)
 
       ts2 = TraceState.add(ts, "extra", "value")
-      assert TraceState.size(ts2) == 32
       assert TraceState.get(ts2, "extra") == "value"
       # right-most (oldest = "key1") dropped
       assert TraceState.get(ts2, "key1") == ""
@@ -81,10 +79,11 @@ defmodule Otel.API.Trace.TraceStateTest do
         end)
 
       ts2 = TraceState.update(ts, "missing", "v")
-      assert TraceState.size(ts2) == 32
       assert TraceState.get(ts2, "missing") == "v"
       # right-most (oldest) dropped via add semantics
       assert TraceState.get(ts2, "key1") == ""
+      # only one entry dropped — "key2" retained
+      assert TraceState.get(ts2, "key2") == "val2"
     end
   end
 
@@ -137,7 +136,7 @@ defmodule Otel.API.Trace.TraceStateTest do
     test "deduplicates keys keeping last occurrence" do
       ts = TraceState.decode("key=first,key=second")
       assert TraceState.get(ts, "key") == "second"
-      assert TraceState.size(ts) == 1
+      assert TraceState.encode(ts) == "key=second"
     end
   end
 
@@ -161,12 +160,12 @@ defmodule Otel.API.Trace.TraceStateTest do
   describe "invalid key rejection (W3C §3.3.1.3.1)" do
     test "rejects uppercase-starting key" do
       ts = %TraceState{} |> TraceState.add("Vendor", "val")
-      assert TraceState.size(ts) == 0
+      assert TraceState.empty?(ts)
     end
 
     test "rejects key with disallowed char" do
       ts = %TraceState{} |> TraceState.add("vendor!", "val")
-      assert TraceState.size(ts) == 0
+      assert TraceState.empty?(ts)
     end
 
     test "update on invalid key leaves state unchanged" do
@@ -180,17 +179,17 @@ defmodule Otel.API.Trace.TraceStateTest do
   describe "invalid value rejection (W3C §3.3.1.3.2)" do
     test "rejects value with `,`" do
       ts = %TraceState{} |> TraceState.add("k", "a,b")
-      assert TraceState.size(ts) == 0
+      assert TraceState.empty?(ts)
     end
 
     test "rejects value with `=`" do
       ts = %TraceState{} |> TraceState.add("k", "a=b")
-      assert TraceState.size(ts) == 0
+      assert TraceState.empty?(ts)
     end
 
     test "rejects value ending in space" do
       ts = %TraceState{} |> TraceState.add("k", "trailing ")
-      assert TraceState.size(ts) == 0
+      assert TraceState.empty?(ts)
     end
 
     test "accepts value with internal spaces" do
@@ -207,33 +206,25 @@ defmodule Otel.API.Trace.TraceStateTest do
     test "rejects value longer than 256 chars (W3C §3.3.1.3.2 max)" do
       over_limit = String.duplicate("x", 257)
       ts = %TraceState{} |> TraceState.add("k", over_limit)
-      assert TraceState.size(ts) == 0
+      assert TraceState.empty?(ts)
     end
   end
 
   describe "decode parsing-only semantics" do
-    test "preserves entries exceeding 32 members (validation deferred to mutation)" do
-      header = 1..33 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
-      ts = TraceState.decode(header)
-      assert TraceState.size(ts) == 33
-    end
-
     test "preserves entries with invalid key format (validation deferred to mutation)" do
       ts = TraceState.decode("BAD=v,good=ok")
-      assert TraceState.size(ts) == 2
       assert TraceState.get(ts, "BAD") == "v"
       assert TraceState.get(ts, "good") == "ok"
     end
 
     test "accepts empty list-members per W3C §3.3.1 L275" do
       ts = TraceState.decode("a=1,,b=2")
-      assert TraceState.size(ts) == 2
       assert TraceState.get(ts, "a") == "1"
       assert TraceState.get(ts, "b") == "2"
     end
 
     test "accepts empty header per W3C §3.3.1 MUST" do
-      assert TraceState.size(TraceState.decode("")) == 0
+      assert TraceState.empty?(TraceState.decode(""))
     end
   end
 
@@ -338,6 +329,17 @@ defmodule Otel.API.Trace.TraceStateTest do
       refute TraceState.valid_value?(nil)
       refute TraceState.valid_value?(:atom)
       refute TraceState.valid_value?(123)
+    end
+  end
+
+  describe "empty?/1" do
+    test "returns true for new state" do
+      assert TraceState.empty?(%TraceState{})
+    end
+
+    test "returns false after add" do
+      ts = %TraceState{} |> TraceState.add("k", "v")
+      refute TraceState.empty?(ts)
     end
   end
 

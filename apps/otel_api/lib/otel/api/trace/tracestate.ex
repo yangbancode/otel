@@ -14,7 +14,7 @@ defmodule Otel.API.Trace.TraceState do
   | `get/2`, `add/3`, `update/3`, `delete/2` | **OTel API MUST** |
   | `encode/1`, `decode/1` | **W3C header serialization** |
   | `valid_key?/1`, `valid_value?/1` | **W3C format predicate** |
-  | `new/0`, `size/1` | **Local helper** (not in spec) |
+  | `new/0`, `empty?/1` | **Local helper** (not in spec) |
 
   ## References
 
@@ -245,8 +245,13 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   **Local helper** (not in spec).
 
-  Returns the number of entries.
+  Returns whether the TraceState has no entries.
+
+  Used by `Otel.API.Propagator.TextMap.TraceContext` to skip
+  injecting an empty `tracestate` header (W3C §3.3.1 L275:
+  "SHOULD avoid sending [empty headers]").
   """
-  @spec size(trace_state :: t()) :: non_neg_integer()
-  def size(%__MODULE__{members: members}), do: length(members)
+  @spec empty?(trace_state :: t()) :: boolean()
+  def empty?(%__MODULE__{members: []}), do: true
+  def empty?(%__MODULE__{}), do: false
 end
