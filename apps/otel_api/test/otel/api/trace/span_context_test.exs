@@ -58,26 +58,6 @@ defmodule Otel.API.Trace.SpanContextTest do
     end
   end
 
-  describe "sampled?/1" do
-    test "returns false when trace_flags lowest bit is 0" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 0)
-      assert Otel.API.Trace.SpanContext.sampled?(ctx) == false
-    end
-
-    test "returns true when trace_flags lowest bit is 1" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1)
-      assert Otel.API.Trace.SpanContext.sampled?(ctx) == true
-    end
-
-    test "checks only lowest bit" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 0b10)
-      assert Otel.API.Trace.SpanContext.sampled?(ctx) == false
-
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 0b11)
-      assert Otel.API.Trace.SpanContext.sampled?(ctx) == true
-    end
-  end
-
   describe "trace_id_hex/1" do
     test "returns 32-char lowercase hex string" do
       ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)

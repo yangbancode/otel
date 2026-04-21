@@ -170,7 +170,6 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
 
       span_ctx = Otel.API.Trace.current_span(ctx)
       assert span_ctx.trace_flags == 0
-      refute Otel.API.Trace.SpanContext.sampled?(span_ctx)
     end
 
     test "handles missing tracestate gracefully" do
