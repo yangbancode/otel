@@ -16,25 +16,30 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   ## Design notes
 
-  Four intentional divergences from a strict reading of the
-  W3C spec or from `opentelemetry-erlang`'s
-  `otel_propagator_baggage.erl`. Each is documented so future
+  Four places worth calling out — three intentional
+  divergences from `opentelemetry-erlang`'s
+  `otel_propagator_baggage.erl` and one spec alignment that
+  Erlang has not yet made. Each is documented so future
   readers can see where we stand.
 
-  ### 1. Percent-encoding via form-urlencoding
+  ### 1. Strict RFC 3986 percent-encoding
 
-  W3C §value L64-L68 references RFC 3986 percent-encoding
-  (space → `%20`). We and `opentelemetry-erlang` both use
-  form-urlencoding (`URI.encode_www_form/1` / `form_urlencode`;
-  space → `+`, `+` literal → `%2B`). Erlang carries a
-  `TODO: call uri_string:percent_encode` comment
-  (`otel_propagator_baggage.erl` L146-L147) acknowledging this
-  as a workaround.
+  W3C §value L64-L68 requires RFC 3986 percent-encoding.
+  Per §Definition L32, `baggage-octet` explicitly includes
+  `+` (0x2B) as a valid raw character, so `+` in a value
+  MUST mean literal plus — not an encoded space.
 
-  HTTP receivers typically URL-decode both formats, so
-  interoperability is unaffected; we keep the erlang-matching
-  approach for round-trip consistency with the reference
-  implementation.
+  We honour this strictly:
+  `URI.encode/2` with `&URI.char_unreserved?/1` on inject
+  (space → `%20`), `URI.decode/1` on extract (`+` stays as
+  literal `+`, `%20` decodes to space).
+
+  `opentelemetry-erlang` (`otel_propagator_baggage.erl`
+  L146-L147) still uses `form_urlencode` with a `TODO: call
+  uri_string:percent_encode` comment — its encoder emits `+`
+  for space while its decoder treats `+` as literal, which
+  loses round-trip fidelity for space-containing values and
+  conflates `+` semantics. We do not mirror that limitation.
 
   ### 2. Metadata as opaque string
 
@@ -178,8 +183,8 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   defp encode_baggage(baggage) do
     baggage
     |> Enum.map_join(",", fn {name, {value, metadata}} ->
-      encoded_name = URI.encode_www_form(name)
-      encoded_value = URI.encode_www_form(value)
+      encoded_name = URI.encode(name, &URI.char_unreserved?/1)
+      encoded_value = URI.encode(value, &URI.char_unreserved?/1)
 
       if metadata == "" do
         "#{encoded_name}=#{encoded_value}"
@@ -213,6 +218,6 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
     [name, value] = String.split(String.trim(key_value), "=", parts: 2)
 
-    {URI.decode_www_form(String.trim(name)), URI.decode_www_form(String.trim(value)), metadata}
+    {URI.decode(String.trim(name)), URI.decode(String.trim(value)), metadata}
   end
 end

@@ -46,14 +46,15 @@ defmodule Otel.API.Propagator.TextMap.BaggageTest do
       assert header == "key=value;prop1=val1"
     end
 
-    test "percent-encodes special characters" do
+    test "percent-encodes special characters per RFC 3986" do
       baggage = Otel.API.Baggage.set_value(%{}, "key", "hello world")
       ctx = Otel.API.Baggage.set_current(Otel.API.Ctx.new(), baggage)
 
       carrier = Otel.API.Propagator.TextMap.Baggage.inject(ctx, [], @setter)
 
       header = Otel.API.Propagator.TextMap.default_getter(carrier, "baggage")
-      assert header == "key=hello+world"
+      # Space → %20 per RFC 3986, not + (which would be form-urlencoding).
+      assert header == "key=hello%20world"
     end
 
     test "does not inject for empty baggage" do
@@ -91,12 +92,23 @@ defmodule Otel.API.Propagator.TextMap.BaggageTest do
       assert metadata == "prop1=val1"
     end
 
-    test "percent-decodes values" do
-      carrier = [{"baggage", "key=hello+world"}]
+    test "percent-decodes %20 to space per RFC 3986" do
+      carrier = [{"baggage", "key=hello%20world"}]
       ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
 
       baggage = Otel.API.Baggage.current(ctx)
       assert Otel.API.Baggage.get_value(baggage, "key") == "hello world"
+    end
+
+    test "preserves literal + in value (RFC 3986)" do
+      # Per W3C §Definition L32, `+` (0x2B) is inside `baggage-octet`
+      # and MUST be treated as a literal plus character — not as
+      # an encoded space. This is a key difference from form-urlencoding.
+      carrier = [{"baggage", "key=a+b"}]
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+
+      baggage = Otel.API.Baggage.current(ctx)
+      assert Otel.API.Baggage.get_value(baggage, "key") == "a+b"
     end
 
     test "returns original context for missing header" do
