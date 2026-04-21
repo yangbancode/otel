@@ -55,17 +55,11 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
     {decision, %{}, tracestate}
   end
 
-  require Otel.API.Trace.TraceId
-
   @spec decide(trace_id :: Otel.API.Trace.TraceId.t(), id_upper_bound :: non_neg_integer()) ::
           :record_and_sample | :drop
-  defp decide(trace_id, _id_upper_bound) when Otel.API.Trace.TraceId.is_invalid(trace_id),
-    do: :drop
-
   defp decide(trace_id, id_upper_bound) do
-    lower_64_bits = Bitwise.band(Otel.API.Trace.TraceId.to_integer(trace_id), @max_value)
-
-    if lower_64_bits < id_upper_bound do
+    if Otel.API.Trace.TraceId.valid?(trace_id) and
+         Bitwise.band(Otel.API.Trace.TraceId.to_integer(trace_id), @max_value) < id_upper_bound do
       :record_and_sample
     else
       :drop

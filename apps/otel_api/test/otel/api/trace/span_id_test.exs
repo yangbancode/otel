@@ -1,8 +1,6 @@
 defmodule Otel.API.Trace.SpanIdTest do
   use ExUnit.Case, async: true
 
-  require Otel.API.Trace.SpanId
-
   @max_span_id 0xFFFFFFFF_FFFFFFFF
 
   describe "new/1" do
@@ -28,28 +26,6 @@ defmodule Otel.API.Trace.SpanIdTest do
       refute Otel.API.Trace.SpanId.valid?(@max_span_id + 1)
       refute Otel.API.Trace.SpanId.valid?("string")
       refute Otel.API.Trace.SpanId.valid?(nil)
-    end
-  end
-
-  describe "is_invalid/1 guard" do
-    test "matches zero in a guard" do
-      result =
-        case 0 do
-          span_id when Otel.API.Trace.SpanId.is_invalid(span_id) -> :invalid
-          _ -> :valid
-        end
-
-      assert result == :invalid
-    end
-
-    test "does not match non-zero in a guard" do
-      result =
-        case 42 do
-          span_id when Otel.API.Trace.SpanId.is_invalid(span_id) -> :invalid
-          _ -> :valid
-        end
-
-      assert result == :valid
     end
   end
 

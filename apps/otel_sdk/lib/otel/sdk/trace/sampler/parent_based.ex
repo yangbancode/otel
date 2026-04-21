@@ -66,30 +66,15 @@ defmodule Otel.SDK.Trace.Sampler.ParentBased do
           | :remote_parent_not_sampled
           | :local_parent_sampled
           | :local_parent_not_sampled
-  require Otel.API.Trace.TraceId
-  require Otel.API.Trace.SpanId
+  defp select_sampler(%Otel.API.Trace.SpanContext{} = span_ctx) do
+    sampled? = Bitwise.band(span_ctx.trace_flags, 1) != 0
 
-  defp select_sampler(%Otel.API.Trace.SpanContext{trace_id: trace_id})
-       when Otel.API.Trace.TraceId.is_invalid(trace_id),
-       do: :root
-
-  defp select_sampler(%Otel.API.Trace.SpanContext{span_id: span_id})
-       when Otel.API.Trace.SpanId.is_invalid(span_id),
-       do: :root
-
-  defp select_sampler(%Otel.API.Trace.SpanContext{is_remote: true, trace_flags: trace_flags}) do
-    if Bitwise.band(trace_flags, 1) != 0 do
-      :remote_parent_sampled
-    else
-      :remote_parent_not_sampled
-    end
-  end
-
-  defp select_sampler(%Otel.API.Trace.SpanContext{trace_flags: trace_flags}) do
-    if Bitwise.band(trace_flags, 1) != 0 do
-      :local_parent_sampled
-    else
-      :local_parent_not_sampled
+    cond do
+      not Otel.API.Trace.SpanContext.valid?(span_ctx) -> :root
+      span_ctx.is_remote and sampled? -> :remote_parent_sampled
+      span_ctx.is_remote -> :remote_parent_not_sampled
+      sampled? -> :local_parent_sampled
+      true -> :local_parent_not_sampled
     end
   end
 end

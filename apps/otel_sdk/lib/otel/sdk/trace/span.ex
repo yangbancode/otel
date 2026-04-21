@@ -14,9 +14,6 @@ defmodule Otel.SDK.Trace.Span do
 
   use Otel.API.Common.Types
 
-  require Otel.API.Trace.TraceId
-  require Otel.API.Trace.SpanId
-
   @type t :: %__MODULE__{
           trace_id: non_neg_integer(),
           span_id: non_neg_integer(),
@@ -355,32 +352,30 @@ defmodule Otel.SDK.Trace.Span do
     parent = Otel.API.Trace.current_span(ctx)
     is_root = Keyword.get(opts, :is_root, false)
 
-    case {is_root, parent} do
-      {true, _} ->
-        root_span_ctx(id_generator)
-
-      {_, %Otel.API.Trace.SpanContext{trace_id: trace_id}}
-      when Otel.API.Trace.TraceId.is_invalid(trace_id) ->
-        root_span_ctx(id_generator)
-
-      {_, %Otel.API.Trace.SpanContext{span_id: span_id}}
-      when Otel.API.Trace.SpanId.is_invalid(span_id) ->
-        root_span_ctx(id_generator)
-
-      {_, %Otel.API.Trace.SpanContext{} = parent_ctx} ->
-        span_id = id_generator.generate_span_id()
-
-        {
-          %Otel.API.Trace.SpanContext{
-            trace_id: parent_ctx.trace_id,
-            span_id: span_id,
-            tracestate: parent_ctx.tracestate,
-            is_remote: false
-          },
-          parent_ctx.span_id,
-          parent_ctx.is_remote
-        }
+    if is_root or not Otel.API.Trace.SpanContext.valid?(parent) do
+      root_span_ctx(id_generator)
+    else
+      child_span_ctx(parent, id_generator)
     end
+  end
+
+  @spec child_span_ctx(
+          parent :: Otel.API.Trace.SpanContext.t(),
+          id_generator :: module()
+        ) :: {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t(), boolean()}
+  defp child_span_ctx(parent, id_generator) do
+    span_id = id_generator.generate_span_id()
+
+    {
+      %Otel.API.Trace.SpanContext{
+        trace_id: parent.trace_id,
+        span_id: span_id,
+        tracestate: parent.tracestate,
+        is_remote: false
+      },
+      parent.span_id,
+      parent.is_remote
+    }
   end
 
   @spec root_span_ctx(id_generator :: module()) ::

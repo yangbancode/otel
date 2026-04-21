@@ -23,7 +23,6 @@ defmodule Otel.API.Trace.SpanId do
   | `valid?/1` | **OTel API MUST** (non-zero byte check, L234-L235) |
   | `to_hex/1` | **OTel API MUST** (Hex retrieval, L258-L262) |
   | `to_bytes/1` | **OTel API MUST** (Binary retrieval, L263-L264) |
-  | `is_invalid/1` (guard) | **Local helper** — guard-safe all-zero check |
 
   ## References
 
@@ -62,14 +61,6 @@ defmodule Otel.API.Trace.SpanId do
   def new(integer) do
     integer
   end
-
-  @doc """
-  Guard-safe check for the all-zero invalid sentinel.
-
-  Use inside a pattern-match guard instead of comparing against
-  `0` directly (which would break opacity outside this module).
-  """
-  defguard is_invalid(span_id) when span_id === 0
 
   @doc """
   **OTel API MUST** — "IsValid for SpanId" (`trace/api.md`
