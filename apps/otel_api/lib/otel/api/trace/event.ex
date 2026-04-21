@@ -42,17 +42,18 @@ defmodule Otel.API.Trace.Event do
   Fields:
 
   - `name` — name of the event.
-  - `timestamp` — `t:timestamp/0`, i.e. Unix epoch nanoseconds
-    (uint64). Either the time at which the event was added
-    (default via `new/3`) or a custom value supplied by the
-    caller (spec L528-L529).
+  - `timestamp` — Unix epoch **nanoseconds** (uint64,
+    `0..2^64 - 1`). Either the time at which the event was
+    added (default via `new/3`) or a custom value supplied by
+    the caller (spec L528-L529). The bound matches OTLP's
+    `fixed64` encoding for `time_unix_nano`.
   - `attributes` — zero or more attributes describing the event.
     Values follow OTel attribute rules (primitives and
     homogeneous arrays; no maps, no heterogeneous arrays).
   """
   @type t :: %__MODULE__{
           name: String.t(),
-          timestamp: timestamp(),
+          timestamp: 0..0xFFFFFFFF_FFFFFFFF,
           attributes: %{String.t() => primitive() | [primitive()]}
         }
 
@@ -69,16 +70,16 @@ defmodule Otel.API.Trace.Event do
   (including `0`) are preserved verbatim; spec L548-L552
   does not require normalisation of caller-supplied values.
 
-  Values are `t:timestamp/0` — Unix epoch nanoseconds (uint64).
-  The type bounds the range but does not guard against unit
-  mistakes: seconds (~1.7e9) and milliseconds (~1.7e12) both
-  fit, so callers are responsible for supplying the correct
-  unit.
+  Values are Unix epoch **nanoseconds** (uint64,
+  `0..2^64 - 1`), matching OTLP `time_unix_nano`. The range
+  bound does not guard against unit mistakes: seconds
+  (~1.7e9) and milliseconds (~1.7e12) both fit in the window,
+  so callers are responsible for supplying the correct unit.
   """
   @spec new(
           name :: String.t(),
           attributes :: %{String.t() => primitive() | [primitive()]},
-          timestamp :: timestamp()
+          timestamp :: 0..0xFFFFFFFF_FFFFFFFF
         ) :: t()
   def new(name, attributes \\ %{}, timestamp \\ System.system_time(:nanosecond)) do
     %__MODULE__{

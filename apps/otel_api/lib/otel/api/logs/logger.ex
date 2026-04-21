@@ -59,8 +59,11 @@ defmodule Otel.API.Logs.Logger do
   spec-aligned representation of "either present with a
   proper value or absent".
 
-  - `:timestamp` — `data-model.md#field-timestamp` (L180-L187)
-  - `:observed_timestamp` —
+  - `:timestamp` — Unix epoch **nanoseconds** (uint64,
+    `0..2^64 - 1`); see `data-model.md#field-timestamp`
+    (L180-L187)
+  - `:observed_timestamp` — Unix epoch **nanoseconds**
+    (uint64, `0..2^64 - 1`); see
     `data-model.md#field-observedtimestamp` (L189-L204)
   - `:severity_number` — `0..24` per
     `data-model.md#field-severitynumber` (L260-L271); note
@@ -81,8 +84,8 @@ defmodule Otel.API.Logs.Logger do
   optional, with current Context substituted when absent).
   """
   @type log_record :: %{
-          optional(:timestamp) => timestamp(),
-          optional(:observed_timestamp) => timestamp(),
+          optional(:timestamp) => 0..0xFFFFFFFF_FFFFFFFF,
+          optional(:observed_timestamp) => 0..0xFFFFFFFF_FFFFFFFF,
           optional(:severity_number) => 0..24,
           optional(:severity_text) => String.t(),
           optional(:body) => primitive_any(),
