@@ -69,20 +69,20 @@ raw pid if it was started without a name (the direct-test path). Both
 are valid `GenServer.call/3` targets inside the SDK, but the API
 doesn't see this.
 
-API `set_provider/1` validates only the tuple shape:
+API `set_provider/1` accepts only the `{module, state}` tuple:
 
 ```elixir
-@spec set_provider(provider :: t() | nil) :: :ok
-def set_provider({module, _state} = provider) when is_atom(module) do
+@spec set_provider(provider :: t()) :: :ok
+def set_provider({_module, _state} = provider) do
   :persistent_term.put(@provider_key, provider)
   :ok
 end
-
-def set_provider(nil) do
-  :persistent_term.put(@provider_key, nil)
-  :ok
-end
 ```
+
+No `nil` clause — callers that need to clear the registration
+(tests, re-initialization scenarios) use `:persistent_term.erase/1`
+directly. Adding a `set_provider(nil)` path only to have tests
+call it would widen the API surface without a lib consumer.
 
 ### Dispatch
 

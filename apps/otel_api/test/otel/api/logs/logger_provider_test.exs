@@ -15,12 +15,6 @@ defmodule Otel.API.Logs.LoggerProviderTest do
       Otel.API.Logs.LoggerProvider.set_provider({SomeLoggerProvider, :opaque_state})
       assert Otel.API.Logs.LoggerProvider.get_provider() == {SomeLoggerProvider, :opaque_state}
     end
-
-    test "set_provider(nil) clears the registration" do
-      Otel.API.Logs.LoggerProvider.set_provider({SomeLoggerProvider, :state})
-      Otel.API.Logs.LoggerProvider.set_provider(nil)
-      assert Otel.API.Logs.LoggerProvider.get_provider() == nil
-    end
   end
 
   describe "get_logger/1 dispatch via registered provider" do

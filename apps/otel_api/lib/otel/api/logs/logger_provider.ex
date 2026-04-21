@@ -127,18 +127,13 @@ defmodule Otel.API.Logs.LoggerProvider do
   `init/1` with `{__MODULE__, server_ref}`; `module` must
   implement the `Otel.API.Logs.LoggerProvider` behaviour.
 
-  Passing `nil` clears the registration, restoring the no-op
-  fallback. See `docs/decisions/provider-dispatch.md` for the
-  canonical `{module, state}` dispatch form.
+  To clear the registration (e.g. in tests), use
+  `:persistent_term.erase/1` directly — see
+  `docs/decisions/provider-dispatch.md`.
   """
-  @spec set_provider(provider :: t() | nil) :: :ok
-  def set_provider({module, _state} = provider) when is_atom(module) do
+  @spec set_provider(provider :: t()) :: :ok
+  def set_provider({_module, _state} = provider) do
     :persistent_term.put(@global_key, provider)
-    :ok
-  end
-
-  def set_provider(nil) do
-    :persistent_term.put(@global_key, nil)
     :ok
   end
 
