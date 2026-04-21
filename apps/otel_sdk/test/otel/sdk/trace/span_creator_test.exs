@@ -398,8 +398,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{link_count_limit: 1}
 
       links = [
-        Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(1, 1)),
-        Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(2, 2))
+        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(1, 1)},
+        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(2, 2)}
       ]
 
       {_span_ctx, span} =
@@ -420,10 +420,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1}
 
       links = [
-        Otel.API.Trace.Link.new(
-          Otel.API.Trace.SpanContext.new(1, 1),
-          %{"a" => 1, "b" => 2, "c" => 3}
-        )
+        %Otel.API.Trace.Link{
+          context: Otel.API.Trace.SpanContext.new(1, 1),
+          attributes: %{"a" => 1, "b" => 2, "c" => 3}
+        }
       ]
 
       {_span_ctx, span} =
@@ -445,10 +445,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3}
 
       links = [
-        Otel.API.Trace.Link.new(
-          Otel.API.Trace.SpanContext.new(1, 1),
-          %{"key" => "hello world"}
-        )
+        %Otel.API.Trace.Link{
+          context: Otel.API.Trace.SpanContext.new(1, 1),
+          attributes: %{"key" => "hello world"}
+        }
       ]
 
       {_span_ctx, span} =

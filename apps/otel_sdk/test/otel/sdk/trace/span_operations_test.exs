@@ -283,7 +283,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     test "adds a link after creation" do
       span_ctx = start_span()
       linked_ctx = Otel.API.Trace.SpanContext.new(100, 200)
-      link = Otel.API.Trace.Link.new(linked_ctx, %{"key" => "val"})
+      link = %Otel.API.Trace.Link{context: linked_ctx, attributes: %{"key" => "val"}}
       Otel.SDK.Trace.Span.add_link(span_ctx, link)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
@@ -298,12 +298,12 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
       Otel.SDK.Trace.Span.add_link(
         span_ctx,
-        Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(1, 1))
+        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(1, 1)}
       )
 
       Otel.SDK.Trace.Span.add_link(
         span_ctx,
-        Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(2, 2))
+        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(2, 2)}
       )
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
@@ -314,7 +314,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx = start_span()
       Otel.SDK.Trace.Span.end_span(span_ctx, nil)
 
-      link = Otel.API.Trace.Link.new(Otel.API.Trace.SpanContext.new(1, 1))
+      link = %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(1, 1)}
       assert Otel.SDK.Trace.Span.add_link(span_ctx, link) == :ok
     end
 
@@ -323,10 +323,10 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
         start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 3})
 
       link =
-        Otel.API.Trace.Link.new(
-          Otel.API.Trace.SpanContext.new(1, 1),
-          %{"key" => "hello world"}
-        )
+        %Otel.API.Trace.Link{
+          context: Otel.API.Trace.SpanContext.new(1, 1),
+          attributes: %{"key" => "hello world"}
+        }
 
       Otel.SDK.Trace.Span.add_link(span_ctx, link)
 
@@ -340,10 +340,10 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
         start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1})
 
       link =
-        Otel.API.Trace.Link.new(
-          Otel.API.Trace.SpanContext.new(1, 1),
-          %{"a" => 1, "b" => 2}
-        )
+        %Otel.API.Trace.Link{
+          context: Otel.API.Trace.SpanContext.new(1, 1),
+          attributes: %{"a" => 1, "b" => 2}
+        }
 
       Otel.SDK.Trace.Span.add_link(span_ctx, link)
 

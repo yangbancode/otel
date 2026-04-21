@@ -9,8 +9,15 @@ defmodule Otel.API.Trace.Link do
 
   Per spec L815-L821 the API accepts the linked `SpanContext` and
   optional `Attributes` either as individual parameters or as an
-  **immutable object encapsulating them** — this module is that
-  immutable object; `new/2` is the canonical constructor.
+  **immutable object encapsulating them** — this struct is that
+  immutable object. Construct with a struct literal:
+
+      %Otel.API.Trace.Link{context: span_ctx}
+      %Otel.API.Trace.Link{context: span_ctx, attributes: %{"key" => "val"}}
+
+  No dedicated constructor is provided; there is no construction-
+  time normalisation or opaque boundary that would require one
+  (same rationale as `Otel.API.InstrumentationScope`).
 
   Per spec L853 Links are immutable; an Elixir struct satisfies
   that naturally, and concurrency-safety (SHOULD) follows for the
@@ -20,12 +27,6 @@ defmodule Otel.API.Trace.Link do
   concern — it describes how Link values are passed at Span
   creation, which is the Span builder's responsibility, not this
   type module's.
-
-  ## Public API
-
-  | Function | Role |
-  |---|---|
-  | `new/2` | **Local helper** (not in spec) |
 
   ## References
 
@@ -55,19 +56,4 @@ defmodule Otel.API.Trace.Link do
         }
 
   defstruct context: %Otel.API.Trace.SpanContext{}, attributes: %{}
-
-  @doc """
-  **Local helper** (not in spec).
-
-  Creates a new `Link` from a `SpanContext` and optional
-  attributes. Per spec L815-L821 this is the "immutable object
-  encapsulating them" form of the Link-recording API.
-  """
-  @spec new(
-          context :: Otel.API.Trace.SpanContext.t(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
-        ) :: t()
-  def new(%Otel.API.Trace.SpanContext{} = context, attributes \\ %{}) do
-    %__MODULE__{context: context, attributes: attributes}
-  end
 end
