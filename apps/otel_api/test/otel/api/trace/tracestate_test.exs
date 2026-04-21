@@ -211,34 +211,29 @@ defmodule Otel.API.Trace.TraceStateTest do
     end
   end
 
-  describe "decode member limit (W3C §3.3.1.1)" do
-    test "accepts header with exactly 32 list-members (boundary)" do
-      header = 1..32 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
-      ts = TraceState.decode(header)
-      assert TraceState.size(ts) == 32
-    end
-
-    test "discards whole tracestate when header has more than 32 list-members" do
-      # W3C §3.3.1.1 sets the 32-member limit but does not define
-      # parser behaviour when exceeded. We reject the whole header,
-      # matching `opentelemetry-erlang`'s `otel_tracestate:decode_header/1`.
+  describe "decode parsing-only semantics" do
+    test "preserves entries exceeding 32 members (validation deferred to mutation)" do
       header = 1..33 |> Enum.map_join(",", fn i -> "k#{i}=v#{i}" end)
-      assert TraceState.size(TraceState.decode(header)) == 0
-    end
-  end
-
-  describe "decode drops malformed entries" do
-    test "drops entries without `=`" do
-      ts = TraceState.decode("valid=ok,broken,also=fine")
-      assert TraceState.get(ts, "valid") == "ok"
-      assert TraceState.get(ts, "also") == "fine"
-      assert TraceState.size(ts) == 2
+      ts = TraceState.decode(header)
+      assert TraceState.size(ts) == 33
     end
 
-    test "drops entries with invalid key" do
+    test "preserves entries with invalid key format (validation deferred to mutation)" do
       ts = TraceState.decode("BAD=v,good=ok")
-      assert TraceState.size(ts) == 1
+      assert TraceState.size(ts) == 2
+      assert TraceState.get(ts, "BAD") == "v"
       assert TraceState.get(ts, "good") == "ok"
+    end
+
+    test "accepts empty list-members per W3C §3.3.1 L275" do
+      ts = TraceState.decode("a=1,,b=2")
+      assert TraceState.size(ts) == 2
+      assert TraceState.get(ts, "a") == "1"
+      assert TraceState.get(ts, "b") == "2"
+    end
+
+    test "accepts empty header per W3C §3.3.1 MUST" do
+      assert TraceState.size(TraceState.decode("")) == 0
     end
   end
 

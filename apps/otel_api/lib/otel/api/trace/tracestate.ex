@@ -183,23 +183,32 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   **W3C header parsing** (§3.3.1 `tracestate Header Field Values`).
 
-  Parses a W3C `tracestate` header value. Returns an **empty**
-  state when the header contains more than 32 list-members. W3C
-  §3.3.1.1 states "There can be a maximum of 32 `list-member`s in
-  a `list`" but does not define parser behaviour beyond the
-  limit; we reject the whole header, matching
-  `opentelemetry-erlang`'s `otel_tracestate:decode_header/1`.
+  Splits a W3C `tracestate` header value into `{key, value}`
+  entries, collapsing duplicate keys to the last occurrence.
 
-  Otherwise individual malformed entries (bad key/value format or
-  missing `=`) are dropped while the remainder is kept; duplicate
-  keys collapse to the last occurrence.
+  This function performs **parsing only** — it does not validate
+  individual key/value format (W3C §3.3.1.6 grants parsers
+  discretion on partially-parsed pairs) nor enforce the 32
+  list-member cap (W3C §3.3.1.1 is an "adding" rule). Validation
+  is applied at mutation time by `add/3` / `update/3` per
+  OTel api.md L294-L295. Pairs without `=` raise `MatchError`.
 
   Used by `Otel.API.Propagator.TextMap.TraceContext` when
   extracting incoming requests.
   """
   @spec decode(header :: String.t()) :: t()
-  def decode(header) when is_binary(header) do
-    build_from_header(header)
+  def decode(header) do
+    members =
+      header
+      |> String.split(",")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.reduce([], fn pair, acc ->
+        [key, value] = String.split(pair, "=", parts: 2)
+        List.keystore(acc, key, 0, {key, value})
+      end)
+
+    %__MODULE__{members: members}
   end
 
   @doc """
@@ -240,39 +249,4 @@ defmodule Otel.API.Trace.TraceState do
   """
   @spec size(trace_state :: t()) :: non_neg_integer()
   def size(%__MODULE__{members: members}), do: length(members)
-
-  # --- Private ---
-
-  @spec build_from_header(header :: String.t()) :: t()
-  defp build_from_header(header) do
-    pairs =
-      header
-      |> String.split(",")
-      |> Enum.map(&String.trim/1)
-      |> Enum.reject(&(&1 == ""))
-
-    if length(pairs) > @max_members do
-      %__MODULE__{}
-    else
-      members =
-        pairs
-        |> Enum.flat_map(&parse_pair/1)
-        |> Enum.reduce([], fn {key, value}, acc ->
-          List.keystore(acc, key, 0, {key, value})
-        end)
-
-      %__MODULE__{members: members}
-    end
-  end
-
-  @spec parse_pair(pair :: String.t()) :: [{key(), value()}]
-  defp parse_pair(pair) do
-    case String.split(pair, "=", parts: 2) do
-      [key, value] ->
-        if valid_key?(key) and valid_value?(value), do: [{key, value}], else: []
-
-      _ ->
-        []
-    end
-  end
 end
