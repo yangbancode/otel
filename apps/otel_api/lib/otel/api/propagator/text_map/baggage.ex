@@ -88,6 +88,9 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   | `inject/3` | **OTel API MUST** — TextMap Inject (L155-L182) |
   | `extract/3` | **OTel API MUST** — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L102) |
   | `fields/0` | **OTel API** — Fields (L133-L152) |
+  | `encode_baggage/1` | **W3C header serialization** — §Definition L23-L41 |
+  | `decode_baggage/1` | **W3C header parsing** — §Definition L23-L41 |
+  | `decode_entry/1` | **W3C header parsing** — §Definition L23-L41 (single list-member) |
 
   ## References
 
@@ -139,9 +142,11 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   Per spec L100-L102 **MUST NOT throw on parse failure** —
   malformed input (missing `=`, garbage bytes, encoding
   errors, etc.) causes the original context to be returned
-  unchanged via a `rescue` clause. This is an explicit
-  exception to the project's happy-path policy, listed under
-  "Not error handling" in
+  unchanged via a `catch _, _` clause that covers all three
+  exit kinds (`:error`, `:throw`, `:exit`) so any abnormal
+  exit from the parsing pipeline is swallowed. This is an
+  explicit exception to the project's happy-path policy,
+  listed under "Not error handling" in
   `.claude/rules/code-conventions.md`.
   """
   @impl true
@@ -161,8 +166,8 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
           existing = Otel.API.Baggage.current(ctx)
           merged = Map.merge(existing, baggage)
           Otel.API.Baggage.set_current(ctx, merged)
-        rescue
-          _ -> ctx
+        catch
+          _, _ -> ctx
         end
     end
   end
@@ -179,8 +184,21 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   # --- Encoding ---
 
+  @doc """
+  **W3C header serialization** — encodes an
+  `Otel.API.Baggage.t()` map into a `baggage` header value.
+
+  Produces a comma-separated list of `list-member`s per W3C
+  §Definition L23-L41 (ABNF). Each entry's name and value
+  are RFC 3986 percent-encoded (§value L64-L68); metadata
+  is written verbatim (see the module's `## Design notes`
+  §2 for the opaque-metadata rationale).
+
+  Returns `""` for an empty baggage map. The `inject/3`
+  caller uses that as the signal not to emit the header.
+  """
   @spec encode_baggage(baggage :: Otel.API.Baggage.t()) :: String.t()
-  defp encode_baggage(baggage) do
+  def encode_baggage(baggage) do
     baggage
     |> Enum.map_join(",", fn {name, {value, metadata}} ->
       encoded_name = URI.encode(name, &URI.char_unreserved?/1)
@@ -196,8 +214,24 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   # --- Decoding ---
 
+  @doc """
+  **W3C header parsing** — decodes a `baggage` header value
+  into an `Otel.API.Baggage.t()` map.
+
+  Splits the header on `,` into `list-member`s per W3C
+  §Definition L23-L41, delegates each to `decode_entry/1`,
+  and builds the baggage map. Name and value are RFC 3986
+  percent-decoded (§value L69); metadata is kept verbatim.
+
+  Raises (typically `MatchError`) if any `list-member` is
+  malformed — for example a pair without `=`. Callers that
+  need the spec-mandated graceful recovery
+  (`api-propagators.md` L100-L102 "MUST NOT throw on parse
+  failure") should go through `extract/3`, which wraps this
+  call in a `catch` clause.
+  """
   @spec decode_baggage(header :: String.t()) :: Otel.API.Baggage.t()
-  defp decode_baggage(header) do
+  def decode_baggage(header) do
     header
     |> String.split(",")
     |> Enum.map(&String.trim/1)
@@ -208,8 +242,25 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
     end)
   end
 
+  @doc """
+  **W3C header parsing** — parses a single `list-member`
+  string into `{name, value, metadata}`.
+
+  Input is the pre-trimmed content of one list-member
+  (e.g. `"key=value"` or `"key=value;prop1=val1"`). Name and
+  value are RFC 3986 percent-decoded; metadata is returned
+  verbatim (possibly containing multiple `;`-separated
+  properties) per the module's opaque-metadata design.
+
+  Per W3C §value L73-L74 *"Parsers MUST NOT assume that the
+  equal sign is only used to separate key and value"* — only
+  the **first** `=` is treated as the separator; any
+  subsequent `=` remains in the value.
+
+  Raises `MatchError` when the input lacks a `=` separator.
+  """
   @spec decode_entry(pair :: String.t()) :: {String.t(), String.t(), String.t()}
-  defp decode_entry(pair) do
+  def decode_entry(pair) do
     {key_value, metadata} =
       case String.split(pair, ";", parts: 2) do
         [kv, meta] -> {kv, String.trim(meta)}
