@@ -98,38 +98,44 @@ defmodule Otel.API.Trace.TraceState do
   @doc """
   **OTel API MUST** — "Add a new key/value pair" (`trace/api.md` TraceState).
 
-  Prepends a new `{key, value}` entry to the list. W3C §3.5
-  Mutating: "The new key/value pair SHOULD be added to the
-  beginning of the list."
+  Prepends a new `{key, value}` entry per W3C §3.5 Mutating:
+  "The new key/value pair SHOULD be added to the beginning of the
+  list."
 
   Returns the state unchanged when:
 
   - the key violates W3C §3.3.1.3.1 format,
   - the value violates W3C §3.3.1.3.2 format, or
-  - the list already contains 32 entries (W3C §3.3.1.1).
+  - `key` is already present. W3C §3.5 requires that "Adding a
+    key/value pair MUST NOT result in the same key being present
+    multiple times" — for "update-or-add" semantics use `update/3`.
 
-  No existing-key check is performed; for "update-or-add" semantics
-  use `update/3` instead.
+  If adding would push the list past 32 entries, the right-most
+  (oldest) entry is dropped per W3C §3.3.1.1: "If adding an entry
+  would cause the `tracestate` list to contain more than 32
+  `list-members` the right-most `list-member` should be removed
+  from the list."
   """
   @spec add(trace_state :: t(), key :: key(), value :: value()) :: t()
   def add(%__MODULE__{members: members} = ts, key, value) do
     cond do
       not valid_key?(key) -> ts
       not valid_value?(value) -> ts
-      length(members) >= @max_members -> ts
-      true -> %__MODULE__{ts | members: [{key, value} | members]}
+      List.keymember?(members, key, 0) -> ts
+      true -> %__MODULE__{ts | members: Enum.take([{key, value} | members], @max_members)}
     end
   end
 
   @doc """
   **OTel API MUST** — "Update an existing value" (`trace/api.md` TraceState).
 
-  Removes any existing entry for `key` and prepends a new entry
+  Removes the existing entry for `key` and prepends a new entry
   with `value`. Per W3C §3.5: "Modified keys MUST be moved to the
   beginning (left) of the list."
 
   If `key` is not already present, the behaviour is equivalent to
-  `add/3`, including the 32-member limit.
+  `add/3`, including the 32-member cap (W3C §3.3.1.1) — the
+  right-most entry is dropped to make room.
 
   Returns the state unchanged when the key or value is invalid per
   W3C §3.3.1.3.1 / §3.3.1.3.2.
@@ -137,9 +143,17 @@ defmodule Otel.API.Trace.TraceState do
   @spec update(trace_state :: t(), key :: key(), value :: value()) :: t()
   def update(%__MODULE__{members: members} = ts, key, value) do
     cond do
-      not valid_key?(key) -> ts
-      not valid_value?(value) -> ts
-      true -> %__MODULE__{ts | members: [{key, value} | List.keydelete(members, key, 0)]}
+      not valid_key?(key) ->
+        ts
+
+      not valid_value?(value) ->
+        ts
+
+      List.keymember?(members, key, 0) ->
+        %__MODULE__{ts | members: [{key, value} | List.keydelete(members, key, 0)]}
+
+      true ->
+        add(ts, key, value)
     end
   end
 
