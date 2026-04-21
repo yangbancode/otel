@@ -39,8 +39,6 @@ defmodule Otel.API.Trace.Tracer.Noop do
 
   @behaviour Otel.API.Trace.Tracer
 
-  @invalid_ctx %Otel.API.Trace.SpanContext{}
-
   @impl true
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
@@ -54,7 +52,8 @@ defmodule Otel.API.Trace.Tracer.Noop do
         parent
 
       _ ->
-        @invalid_ctx
+        # Spec L869-L871: empty non-recording Span when no parent.
+        %Otel.API.Trace.SpanContext{}
     end
   end
 
