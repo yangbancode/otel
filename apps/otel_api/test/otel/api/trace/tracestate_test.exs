@@ -208,6 +208,13 @@ defmodule Otel.API.Trace.TraceStateTest do
       ts = %TraceState{} |> TraceState.add("k", over_limit)
       assert TraceState.empty?(ts)
     end
+
+    test "update on invalid value leaves state unchanged" do
+      ts = %TraceState{} |> TraceState.add("a", "1")
+      before = TraceState.encode(ts)
+      result = TraceState.update(ts, "a", "a,b")
+      assert TraceState.encode(result) == before
+    end
   end
 
   describe "decode parsing-only semantics" do
