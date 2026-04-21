@@ -127,7 +127,10 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   Per spec L100-L102 **MUST NOT throw on parse failure** —
   malformed headers (bad hex, zero IDs, uppercase, version
   `"ff"`, etc.) cause the original context to be returned
-  unchanged via a `rescue` clause.
+  unchanged via a `catch _, _` clause covering all three
+  Elixir exit kinds (`:error`, `:throw`, `:exit`). "throw
+  an exception" in the spec uses the general-programming
+  sense; catch gives literal coverage.
   """
   @impl true
   @spec extract(
@@ -146,8 +149,8 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
           tracestate = extract_tracestate(carrier, getter)
           span_ctx = %{span_ctx | tracestate: tracestate, is_remote: true}
           Otel.API.Trace.set_current_span(ctx, span_ctx)
-        rescue
-          _ -> ctx
+        catch
+          _, _ -> ctx
         end
     end
   end
@@ -184,7 +187,15 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   def encode_traceparent(span_ctx) do
     trace_id_hex = Otel.API.Trace.SpanContext.trace_id_hex(span_ctx)
     span_id_hex = Otel.API.Trace.SpanContext.span_id_hex(span_ctx)
-    flags_hex = span_ctx.trace_flags |> Integer.to_string(16) |> String.pad_leading(2, "0")
+
+    # `Integer.to_string/2` emits uppercase hex; W3C §trace-flags L96 requires
+    # 2HEXDIGLC — downcase before padding.
+    flags_hex =
+      span_ctx.trace_flags
+      |> Integer.to_string(16)
+      |> String.downcase()
+      |> String.pad_leading(2, "0")
+
     "00-#{trace_id_hex}-#{span_id_hex}-#{flags_hex}"
   end
 
@@ -209,25 +220,29 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   **Raises** `MatchError` / `ArgumentError` on malformed
   input — callers needing the spec-mandated graceful
   recovery (`api-propagators.md` L100-L102) should use
-  `extract/3`, which wraps this call in a `rescue` clause.
+  `extract/3`, which wraps this call in a `catch` clause.
   """
   @spec decode_traceparent(value :: String.t()) :: Otel.API.Trace.SpanContext.t()
+  # Clause 1: any non-"ff" version at exactly 55 bytes. Matches v00 (strict
+  # length per W3C §version-format L93 ABNF) and higher versions that carry
+  # no additional fields yet (W3C §Versioning L237 "either at the end of the
+  # string or followed by a dash").
   def decode_traceparent(
-        <<"00-", trace_id_hex::binary-size(32), "-", span_id_hex::binary-size(16), "-",
-          flags_hex::binary-size(2)>>
-      ) do
-    decode_span_ctx(trace_id_hex, span_id_hex, flags_hex)
+        <<version::binary-size(2), "-", trace_id_hex::binary-size(32), "-",
+          span_id_hex::binary-size(16), "-", flags_hex::binary-size(2)>>
+      )
+      when version != "ff" do
+    decode_span_ctx(version, trace_id_hex, span_id_hex, flags_hex)
   end
 
-  # Forward-compat clause for future versions. W3C Trace Context requires a
-  # trailing "-" separator before any extra bytes; version "ff" is reserved
-  # and MUST be rejected.
+  # Clause 2: higher versions (> "00", != "ff") with trailing forward-compat
+  # bytes preceded by a dash (W3C §Versioning L237-L238).
   def decode_traceparent(
         <<version::binary-size(2), "-", trace_id_hex::binary-size(32), "-",
           span_id_hex::binary-size(16), "-", flags_hex::binary-size(2), "-", _rest::binary>>
       )
       when version > "00" and version != "ff" do
-    decode_span_ctx(trace_id_hex, span_id_hex, flags_hex)
+    decode_span_ctx(version, trace_id_hex, span_id_hex, flags_hex)
   end
 
   @doc """
@@ -270,11 +285,13 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   # --- Private helpers ---
 
   @spec decode_span_ctx(
+          version :: String.t(),
           trace_id_hex :: String.t(),
           span_id_hex :: String.t(),
           flags_hex :: String.t()
         ) :: Otel.API.Trace.SpanContext.t()
-  defp decode_span_ctx(trace_id_hex, span_id_hex, flags_hex) do
+  defp decode_span_ctx(version, trace_id_hex, span_id_hex, flags_hex) do
+    true = lowercase_hex?(version)
     true = lowercase_hex?(trace_id_hex)
     true = lowercase_hex?(span_id_hex)
     true = lowercase_hex?(flags_hex)
