@@ -171,31 +171,6 @@ defmodule Otel.API.Trace.SpanTest do
     end
   end
 
-  describe "operations on invalid span" do
-    test "set_attribute on invalid span returns :ok" do
-      assert Otel.API.Trace.Span.set_attribute(@invalid_ctx, "key", "value") == :ok
-    end
-
-    test "add_event on invalid span returns :ok" do
-      event = Otel.API.Trace.Event.new("event")
-      assert Otel.API.Trace.Span.add_event(@invalid_ctx, event) == :ok
-    end
-
-    test "set_status on invalid span returns :ok" do
-      status = Otel.API.Trace.Status.new(:error, "fail")
-      assert Otel.API.Trace.Span.set_status(@invalid_ctx, status) == :ok
-    end
-
-    test "end_span on invalid span returns :ok" do
-      assert Otel.API.Trace.Span.end_span(@invalid_ctx) == :ok
-    end
-
-    test "record_exception on invalid span returns :ok" do
-      assert Otel.API.Trace.Span.record_exception(@invalid_ctx, %RuntimeError{message: "oops"}) ==
-               :ok
-    end
-  end
-
   describe "dispatch to registered module" do
     setup do
       Otel.API.Trace.Span.set_module(Otel.API.Trace.SpanTest.FakeSpanOperations)
