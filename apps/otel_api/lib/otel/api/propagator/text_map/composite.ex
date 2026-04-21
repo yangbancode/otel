@@ -130,7 +130,7 @@ defmodule Otel.API.Propagator.TextMap.Composite do
     propagators
     |> Enum.flat_map(fn
       {module, _opts} -> module.fields()
-      module when is_atom(module) -> module.fields()
+      module -> module.fields()
     end)
     |> Enum.uniq()
   end
