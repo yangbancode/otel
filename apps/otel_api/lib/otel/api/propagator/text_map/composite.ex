@@ -1,37 +1,89 @@
 defmodule Otel.API.Propagator.TextMap.Composite do
   @moduledoc """
-  Composite propagator that groups multiple TextMapPropagators.
+  Composite TextMap propagator (OTel
+  `context/api-propagators.md` §Composite Propagator,
+  L259-L305).
 
-  Inject calls each propagator's inject in order on the same carrier.
-  Extract calls each propagator's extract in order, threading the
-  context through each (later propagators see earlier extractions).
+  Groups multiple TextMap propagators into a single entity:
+  `inject/4` calls each inner propagator's inject in order on
+  the same carrier; `extract/4` threads the context through
+  each propagator so later ones see earlier extractions.
+
+  ## Usage
+
+  Obtain a composite via `new/1` and register it with
+  `Otel.API.Propagator.TextMap.set_propagator/1`:
+
+      [Otel.API.Propagator.TextMap.TraceContext,
+       Otel.API.Propagator.TextMap.Baggage]
+      |> Otel.API.Propagator.TextMap.Composite.new()
+      |> Otel.API.Propagator.TextMap.set_propagator()
+
+  Dispatch goes through the facade:
+  `Otel.API.Propagator.TextMap.inject/2,3` and `extract/2,3` →
+  `inject_with`/`extract_with` → `inject/4`/`extract/4` here.
+
+  ## Relationship to the TextMapPropagator behaviour
+
+  Composite is **not itself** an `Otel.API.Propagator.TextMap`
+  implementation — the behaviour's callbacks are 3-arity
+  (`inject(ctx, carrier, setter)`), matching single propagators
+  like `TraceContext` or `Baggage`. Composite is a **configured
+  wrapper** that requires the list of inner propagators, so its
+  public functions are 4-arity (`inject(propagators, ctx,
+  carrier, setter)`) and it is dispatched via the
+  `{Composite, propagators}` tuple that `new/1` returns.
+
+  The facade's `inject_with`/`extract_with` pattern-matches on
+  this tuple shape to route to the 4-arg form, while atom-only
+  propagators route to the 3-arg behaviour callback.
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `new/1` | **OTel API MUST** — "Create a Composite Propagator" (L278-L285) |
+  | `inject/4` | **OTel API MUST** — "Composite Inject" (L297-L305) |
+  | `extract/4` | **OTel API MUST** — "Composite Extract" (L286-L296) |
+  | `fields/1` | **OTel API** — Fields (L133-L152); aggregated from inner propagators |
+
+  ## References
+
+  - OTel Context §Composite Propagator: `opentelemetry-specification/specification/context/api-propagators.md` L259-L305
+  - OTel Context §Fields: `opentelemetry-specification/specification/context/api-propagators.md` L133-L152
+  - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api/src/otel_propagator_text_map_composite.erl`
   """
 
-  @behaviour Otel.API.Propagator.TextMap
+  @typedoc """
+  An inner propagator for composition.
 
+  Either a module implementing the
+  `Otel.API.Propagator.TextMap` behaviour (no options) or a
+  `{module, options}` tuple for a configured propagator
+  (currently only `Composite` itself uses this shape).
+  """
   @type propagator :: module() | {module(), term()}
 
   @doc """
-  Creates a composite propagator from a list of propagators.
+  **OTel API MUST** — "Create a Composite Propagator"
+  (`api-propagators.md` L278-L285).
 
-  Returns a tuple suitable for global registration.
+  Returns a `{Composite, propagators}` tuple suitable for
+  registration via `Otel.API.Propagator.TextMap.set_propagator/1`.
+  Inner propagators are invoked in the order given.
   """
   @spec new(propagators :: [propagator()]) :: {module(), [propagator()]}
   def new(propagators) when is_list(propagators) do
     {__MODULE__, propagators}
   end
 
-  @impl true
-  @spec inject(
-          ctx :: Otel.API.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          setter :: Otel.API.Propagator.TextMap.setter()
-        ) :: Otel.API.Propagator.TextMap.carrier()
-  def inject(ctx, carrier, setter) do
-    inject([], ctx, carrier, setter)
-  end
+  @doc """
+  **OTel API MUST** — "Composite Inject" (`api-propagators.md`
+  L297-L305).
 
-  @doc false
+  Calls each inner propagator's inject in order on the same
+  carrier, threading the carrier through the reduction.
+  """
   @spec inject(
           propagators :: [propagator()],
           ctx :: Otel.API.Ctx.t(),
@@ -44,17 +96,14 @@ defmodule Otel.API.Propagator.TextMap.Composite do
     end)
   end
 
-  @impl true
-  @spec extract(
-          ctx :: Otel.API.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          getter :: Otel.API.Propagator.TextMap.getter()
-        ) :: Otel.API.Ctx.t()
-  def extract(ctx, carrier, getter) do
-    extract([], ctx, carrier, getter)
-  end
+  @doc """
+  **OTel API MUST** — "Composite Extract" (`api-propagators.md`
+  L286-L296).
 
-  @doc false
+  Calls each inner propagator's extract in order, threading
+  the context through the reduction so later propagators see
+  earlier extractions.
+  """
   @spec extract(
           propagators :: [propagator()],
           ctx :: Otel.API.Ctx.t(),
@@ -67,19 +116,21 @@ defmodule Otel.API.Propagator.TextMap.Composite do
     end)
   end
 
-  @impl true
-  @spec fields() :: [String.t()]
-  def fields do
-    fields([])
-  end
+  @doc """
+  **OTel API** — Fields (`api-propagators.md` L133-L152).
 
-  @doc false
+  Returns the deduplicated union of header keys used by all
+  inner propagators. Deduplication prevents callers that
+  pre-read carriers from reading the same key twice when two
+  inner propagators share a field (rare but possible with
+  custom compositions).
+  """
   @spec fields(propagators :: [propagator()]) :: [String.t()]
   def fields(propagators) do
     propagators
     |> Enum.flat_map(fn
       {module, _opts} -> module.fields()
-      module when is_atom(module) -> module.fields()
+      module -> module.fields()
     end)
     |> Enum.uniq()
   end

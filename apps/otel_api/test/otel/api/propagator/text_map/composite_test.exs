@@ -83,38 +83,6 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
     end
   end
 
-  describe "behaviour callbacks (0-arity propagators)" do
-    test "inject/3 with empty propagators" do
-      ctx = Otel.API.Ctx.new()
-
-      carrier =
-        Otel.API.Propagator.TextMap.Composite.inject(
-          ctx,
-          [],
-          &Otel.API.Propagator.TextMap.default_setter/3
-        )
-
-      assert carrier == []
-    end
-
-    test "extract/3 with empty propagators" do
-      ctx = Otel.API.Ctx.new()
-
-      result =
-        Otel.API.Propagator.TextMap.Composite.extract(
-          ctx,
-          [],
-          &Otel.API.Propagator.TextMap.default_getter/2
-        )
-
-      assert result == ctx
-    end
-
-    test "fields/0 with empty propagators" do
-      assert Otel.API.Propagator.TextMap.Composite.fields() == []
-    end
-  end
-
   describe "dispatch via global registration" do
     setup do
       composite =
