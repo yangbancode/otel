@@ -35,12 +35,11 @@ defmodule Otel.Logger.Handler do
   ## Severity mapping
 
   `SeverityNumber` resolution is delegated to
-  `Otel.API.Logs.SeverityNumber.from_syslog_level/1` —
-  `:logger` levels are lowercased RFC 5424 Syslog levels,
-  which is exactly the shape that helper expects. The
-  mapping table and its spec citation
-  (`logs/data-model.md` Appendix B L806-L818) live in the
-  helper's moduledoc.
+  `Otel.API.Logs.Severity.to_number/1` — the helper receives
+  a `:logger.level()` atom and returns the OTel
+  SeverityNumber per `logs/data-model.md` Appendix B Syslog
+  row (L806-L818). The full mapping table and spec citations
+  live in the helper's moduledoc.
 
   `SeverityText` is the source representation (the level
   atom rendered as a string) per `logs/data-model.md`
@@ -172,7 +171,7 @@ defmodule Otel.Logger.Handler do
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
     base = %{
       timestamp: extract_timestamp(meta),
-      severity_number: Otel.API.Logs.SeverityNumber.from_syslog_level(level),
+      severity_number: Otel.API.Logs.Severity.to_number(level),
       severity_text: severity_text(level),
       body: extract_body(msg),
       attributes: extract_attributes(meta)
