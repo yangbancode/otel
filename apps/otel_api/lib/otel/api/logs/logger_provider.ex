@@ -29,10 +29,10 @@ defmodule Otel.API.Logs.LoggerProvider do
 
   | Function | Role |
   |---|---|
-  | `get_logger/0,1` | **OTel API MUST** (Get a Logger, L66-L97) |
-  | `get_logger/2` (callback) | Internal dispatch contract (API ↔ SDK) |
-  | `get_provider/0` | **OTel API SHOULD** — access global provider (L58-L60) |
-  | `set_provider/1` | **OTel API SHOULD** — register global provider (L58-L60) |
+  | `get_logger/0,1` | **Application** (OTel API MUST) — Get a Logger (L66-L97) |
+  | `@callback get_logger/2` | **SDK** (OTel API MUST) — Dispatch callback (L66-L97) |
+  | `get_provider/0` | **SDK** (installation hook) — access global provider (L58-L60) |
+  | `set_provider/1` | **SDK** (installation hook) — register global provider (L58-L60) |
 
   ## References
 
@@ -58,22 +58,11 @@ defmodule Otel.API.Logs.LoggerProvider do
   """
   @type t :: {module(), term()}
 
-  @doc """
-  Dispatch callback invoked by `get_logger/1` on cache miss.
-
-  Implementations receive the opaque `state` they registered
-  via `set_provider/1` along with the requested instrumentation
-  scope, and return the Logger to cache. Not part of the OTel
-  spec — this is the internal dispatch contract between the
-  API and SDK layers.
-  """
-  @callback get_logger(
-              state :: term(),
-              instrumentation_scope :: Otel.API.InstrumentationScope.t()
-            ) :: Otel.API.Logs.Logger.t()
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API MUST** — "Get a Logger" (`logs/api.md` L66-L97).
+  **Application** (OTel API MUST) — "Get a Logger"
+  (`logs/api.md` L66-L97).
 
   Returns a Logger for the given instrumentation scope. On
   cache miss delegates to the registered provider's
@@ -106,9 +95,28 @@ defmodule Otel.API.Logs.LoggerProvider do
     end
   end
 
+  # --- SDK callbacks ---
+
   @doc """
-  **OTel API SHOULD** — access the global LoggerProvider
-  (`logs/api.md` L58-L60).
+  **SDK** (OTel API MUST) — Dispatch callback invoked by
+  `get_logger/1` on cache miss.
+
+  Implementations receive the opaque `state` they registered
+  via `set_provider/1` along with the requested instrumentation
+  scope, and return the Logger to cache. The `get_logger/2`
+  shape is the API↔SDK dispatch contract for §"Get a Logger"
+  (`logs/api.md` L66-L97).
+  """
+  @callback get_logger(
+              state :: term(),
+              instrumentation_scope :: Otel.API.InstrumentationScope.t()
+            ) :: Otel.API.Logs.Logger.t()
+
+  # --- SDK installation hooks ---
+
+  @doc """
+  **SDK** (installation hook) — access the global
+  LoggerProvider (`logs/api.md` L58-L60).
 
   > *"the API SHOULD provide a way to set/register and
   > access a global default `LoggerProvider`."*
@@ -122,8 +130,8 @@ defmodule Otel.API.Logs.LoggerProvider do
   end
 
   @doc """
-  **OTel API SHOULD** — register the global LoggerProvider
-  (`logs/api.md` L58-L60).
+  **SDK** (installation hook) — register the global
+  LoggerProvider (`logs/api.md` L58-L60).
 
   > *"the API SHOULD provide a way to set/register and
   > access a global default `LoggerProvider`."*
