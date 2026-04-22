@@ -35,10 +35,10 @@ defmodule Otel.API.Trace.SpanContext do
 
   | Function | Role |
   |---|---|
-  | `new/2,3,4` | **OTel API MUST** (creation, L252-L254) |
-  | `valid?/1` | **OTel API MUST** (§IsValid, L268-L271) |
-  | `remote?/1` | **OTel API MUST** (§IsRemote, L273-L278) |
-  | `trace_id_hex/1`, `span_id_hex/1`, `trace_id_bytes/1`, `span_id_bytes/1` | **OTel API MUST** (Retrieving, L256-L266) |
+  | `new/2,3,4` | **Application** (OTel API MUST) — Creation (L252-L254) |
+  | `valid?/1` | **Application** (OTel API MUST) — IsValid (L268-L271) |
+  | `remote?/1` | **Application** (OTel API MUST) — IsRemote (L273-L278) |
+  | `trace_id_hex/1`, `span_id_hex/1`, `trace_id_bytes/1`, `span_id_bytes/1` | **Application** (OTel API MUST) — Retrieving (L256-L266) |
 
   ## References
 
@@ -95,7 +95,8 @@ defmodule Otel.API.Trace.SpanContext do
             is_remote: false
 
   @doc """
-  **OTel API MUST** — "creation" (`trace/api.md` L252-L254).
+  **Application** (OTel API MUST) — "creation" (`trace/api.md`
+  L252-L254).
 
   Creates a new `SpanContext`. Per spec L252-L254 this is the
   intended entry point (*"these methods SHOULD be the only way
@@ -117,7 +118,8 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  **OTel API MUST** — "IsValid" (`trace/api.md` L268-L271).
+  **Application** (OTel API MUST) — "IsValid" (`trace/api.md`
+  L268-L271).
 
   Returns `true` iff both `trace_id` and `span_id` are non-zero
   (per spec's definition of "valid identifier", L231-L235).
@@ -128,7 +130,8 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  **OTel API MUST** — "IsRemote" (`trace/api.md` L273-L278).
+  **Application** (OTel API MUST) — "IsRemote" (`trace/api.md`
+  L273-L278).
 
   Returns `true` iff this `SpanContext` was extracted from a
   remote parent by a Propagator. Child spans generated locally
@@ -138,8 +141,8 @@ defmodule Otel.API.Trace.SpanContext do
   def remote?(%__MODULE__{is_remote: is_remote}), do: is_remote
 
   @doc """
-  **OTel API MUST** — "hex Retrieving TraceId" (`trace/api.md`
-  L256-L266).
+  **Application** (OTel API MUST) — "hex Retrieving TraceId"
+  (`trace/api.md` L256-L266).
 
   Returns the `trace_id` as a 32-character lowercase hex string.
   """
@@ -149,8 +152,8 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  **OTel API MUST** — "hex Retrieving SpanId" (`trace/api.md`
-  L256-L266).
+  **Application** (OTel API MUST) — "hex Retrieving SpanId"
+  (`trace/api.md` L256-L266).
 
   Returns the `span_id` as a 16-character lowercase hex string.
   """
@@ -160,8 +163,8 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  **OTel API MUST** — "binary Retrieving TraceId" (`trace/api.md`
-  L256-L266).
+  **Application** (OTel API MUST) — "binary Retrieving TraceId"
+  (`trace/api.md` L256-L266).
 
   Returns the `trace_id` as a 16-byte binary.
   """
@@ -171,8 +174,8 @@ defmodule Otel.API.Trace.SpanContext do
   end
 
   @doc """
-  **OTel API MUST** — "binary Retrieving SpanId" (`trace/api.md`
-  L256-L266).
+  **Application** (OTel API MUST) — "binary Retrieving SpanId"
+  (`trace/api.md` L256-L266).
 
   Returns the `span_id` as an 8-byte binary.
   """

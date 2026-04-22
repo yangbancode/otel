@@ -19,10 +19,10 @@ defmodule Otel.API.Trace.SpanId do
 
   | Function | Role |
   |---|---|
-  | `new/1` | **Local helper** — construct from a validated integer |
-  | `valid?/1` | **OTel API MUST** (non-zero byte check, L234-L235) |
-  | `to_hex/1` | **OTel API MUST** (Hex retrieval, L258-L262) |
-  | `to_bytes/1` | **OTel API MUST** (Binary retrieval, L263-L264) |
+  | `valid?/1` | **Application** (OTel API MUST) — IsValid for SpanId (L234-L235, L268-L271) |
+  | `to_hex/1` | **Application** (OTel API MUST) — Hex retrieval (L258-L262) |
+  | `to_bytes/1` | **Application** (OTel API MUST) — Binary retrieval (L263-L264) |
+  | `new/1` | **SDK** (SDK helper) — wrap a 64-bit integer from an ID generator |
 
   ## References
 
@@ -48,23 +48,11 @@ defmodule Otel.API.Trace.SpanId do
   """
   @opaque t :: 0..0xFFFFFFFF_FFFFFFFF
 
-  @doc """
-  **Local helper** — wrap a 64-bit unsigned integer as a `t()`.
-
-  The opaque-boundary-respecting way to turn a raw integer (e.g.
-  from an ID generator) into a `SpanId.t()`. The `@spec` input
-  range is the type gate — Dialyzer flags literal out-of-range
-  callers; runtime-origin values are the caller's
-  responsibility.
-  """
-  @spec new(integer :: 0..0xFFFFFFFF_FFFFFFFF) :: t()
-  def new(integer) do
-    integer
-  end
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API MUST** — "IsValid for SpanId" (`trace/api.md`
-  L234-L235, L268-L271).
+  **Application** (OTel API MUST) — "IsValid for SpanId"
+  (`trace/api.md` L234-L235, L268-L271).
 
   Returns `true` iff the SpanId has at least one non-zero byte.
   Per spec the all-zero value (`0000000000000000`) is explicitly
@@ -81,7 +69,8 @@ defmodule Otel.API.Trace.SpanId do
   def valid?(_), do: false
 
   @doc """
-  **OTel API MUST** — "Hex Retrieval" (`trace/api.md` L258-L262).
+  **Application** (OTel API MUST) — "Hex Retrieval"
+  (`trace/api.md` L258-L262).
 
   Returns the SpanId as a **16-character lowercase** hex string
   (zero-padded). Matches the W3C `parent-id` wire format
@@ -96,13 +85,30 @@ defmodule Otel.API.Trace.SpanId do
   end
 
   @doc """
-  **OTel API MUST** — "Binary Retrieval" (`trace/api.md`
-  L263-L264).
+  **Application** (OTel API MUST) — "Binary Retrieval"
+  (`trace/api.md` L263-L264).
 
   Returns the SpanId as an 8-byte big-endian binary.
   """
   @spec to_bytes(span_id :: t()) :: <<_::64>>
   def to_bytes(span_id) do
     <<span_id::unsigned-integer-size(64)>>
+  end
+
+  # --- SDK helpers ---
+
+  @doc """
+  **SDK** (SDK helper) — wrap a 64-bit unsigned integer as a
+  `t()`.
+
+  The opaque-boundary-respecting way to turn a raw integer (e.g.
+  from an ID generator) into a `SpanId.t()`. The `@spec` input
+  range is the type gate — Dialyzer flags literal out-of-range
+  callers; runtime-origin values are the caller's
+  responsibility.
+  """
+  @spec new(integer :: 0..0xFFFFFFFF_FFFFFFFF) :: t()
+  def new(integer) do
+    integer
   end
 end

@@ -23,7 +23,7 @@ defmodule Otel.API.Trace.Status do
 
   | Function | Role |
   |---|---|
-  | `new/2` | **Local helper** (not in spec) |
+  | `new/2` | **Application** (Convenience) — Build a Status struct |
 
   ## References
 
@@ -62,7 +62,8 @@ defmodule Otel.API.Trace.Status do
   defstruct code: :unset, description: ""
 
   @doc """
-  **Local helper** (not in spec).
+  **Application** (Convenience) — Build a Status struct for
+  `Otel.API.Trace.Span.set_status/2`.
 
   Creates a new `Status`. Per spec L599-L600 *"Description MUST
   be IGNORED for StatusCode Ok & Unset values"* — only `:error`

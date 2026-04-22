@@ -23,15 +23,15 @@ defmodule Otel.API.Trace do
 
   | Function | Role |
   |---|---|
-  | `get_tracer/1` | **Local helper** — facade over `TracerProvider` |
-  | `current_span/1` | **OTel API MUST** — Extract Span from Context (L167) |
-  | `set_current_span/2` | **OTel API MUST** — Combine Span with Context (L168) |
-  | `current_span/0` | **OTel API SHOULD** — Get active span from implicit context (L177) |
-  | `set_current_span/1` | **OTel API SHOULD** — Set active span into implicit context (L178) |
-  | `start_span/3`, `start_span/4` | **OTel API MUST** — Span Creation (L378-L414) |
-  | `with_span/4`, `with_span/5` | **OTel API MAY** — closure-form separate operation (L385) |
-  | `make_current/1` | **OTel API MAY** — manual "set active span" (L384-L386) |
-  | `detach/1` | **OTel API MAY** — revert `make_current/1` (L384-L386) |
+  | `current_span/1` | **Application** (OTel API MUST) — Extract Span from Context (L167) |
+  | `set_current_span/2` | **Application** (OTel API MUST) — Combine Span with Context (L168) |
+  | `start_span/3`, `start_span/4` | **Application** (OTel API MUST) — Span Creation (L378-L414) |
+  | `current_span/0` | **Application** (OTel API SHOULD) — Get active span from implicit context (L177) |
+  | `set_current_span/1` | **Application** (OTel API SHOULD) — Set active span into implicit context (L178) |
+  | `with_span/4`, `with_span/5` | **Application** (OTel API MAY) — closure-form separate operation (L385) |
+  | `make_current/1` | **Application** (OTel API MAY) — manual "set active span" (L384-L386) |
+  | `detach/1` | **Application** (OTel API MAY) — revert `make_current/1` (L384-L386) |
+  | `get_tracer/1` | **Application** (Convenience) — facade over `TracerProvider` |
 
   ## References
 
@@ -47,22 +47,8 @@ defmodule Otel.API.Trace do
   @span_key {__MODULE__, :span}
 
   @doc """
-  **Local helper** — facade over `Otel.API.Trace.TracerProvider`.
-
-  Returns a Tracer for the given instrumentation scope.
-  Equivalent to calling `Otel.API.Trace.TracerProvider.get_tracer/1`
-  directly but exposed on `Otel.API.Trace` as the user-facing
-  entry point.
-  """
-  @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
-          Otel.API.Trace.Tracer.t()
-  def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    Otel.API.Trace.TracerProvider.get_tracer(instrumentation_scope)
-  end
-
-  @doc """
-  **OTel API MUST** — "Extract the Span from a Context instance"
-  (`trace/api.md` L167).
+  **Application** (OTel API MUST) — "Extract the Span from a
+  Context instance" (`trace/api.md` L167).
 
   Reads the SpanContext stored in `ctx`. When no span has been
   set, returns an empty `SpanContext` struct — the invalid
@@ -74,8 +60,9 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel API MUST** — "Combine the Span with a Context instance,
-  creating a new Context instance" (`trace/api.md` L168).
+  **Application** (OTel API MUST) — "Combine the Span with a
+  Context instance, creating a new Context instance"
+  (`trace/api.md` L168).
 
   Returns a new context with `span_ctx` stored under the Tracing
   API's private key. `ctx` is not modified.
@@ -87,8 +74,8 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel API SHOULD** — "Get the currently active span from the
-  implicit context" (`trace/api.md` L177).
+  **Application** (OTel API SHOULD) — "Get the currently active
+  span from the implicit context" (`trace/api.md` L177).
 
   Equivalent to `current_span(Otel.API.Ctx.current())` reading
   from the process-local ambient context.
@@ -99,8 +86,8 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel API SHOULD** — "Set the currently active span into a
-  new context, and make that the implicit context"
+  **Application** (OTel API SHOULD) — "Set the currently active
+  span into a new context, and make that the implicit context"
   (`trace/api.md` L178).
 
   Writes `span_ctx` under the Tracing API's private key in the
@@ -114,8 +101,9 @@ defmodule Otel.API.Trace do
   # --- Span Creation ---
 
   @doc """
-  **OTel API MUST** — Span Creation using the implicit
-  (process-local) context as parent (`trace/api.md` L378-L414).
+  **Application** (OTel API MUST) — Span Creation using the
+  implicit (process-local) context as parent (`trace/api.md`
+  L378-L414).
 
   Per spec L382, the newly created span is **not** automatically
   set as the current span. Use `with_span/4,5` for automatic
@@ -133,8 +121,8 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel API MUST** — Span Creation with an explicit parent
-  context (`trace/api.md` L378-L414).
+  **Application** (OTel API MUST) — Span Creation with an
+  explicit parent context (`trace/api.md` L378-L414).
 
   Per spec L391-L392, only a full Context is accepted as the
   parent — not a raw Span or SpanContext. Per spec L382 the
@@ -152,7 +140,7 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel convenience** — dispatches to the Tracer's
+  **Application** (OTel API MAY) — dispatches to the Tracer's
   `with_span/5` callback using the implicit (process-local)
   context as parent (`trace/api.md` L385).
 
@@ -173,8 +161,8 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel convenience** — same as `with_span/4` but with an
-  explicit parent context (`trace/api.md` L385).
+  **Application** (OTel API MAY) — same as `with_span/4` but
+  with an explicit parent context (`trace/api.md` L385).
   """
   @spec with_span(
           ctx :: Otel.API.Ctx.t(),
@@ -192,10 +180,10 @@ defmodule Otel.API.Trace do
   # --- Manual active-span management ---
 
   @doc """
-  **OTel API MAY** — set `span_ctx` as the currently active
-  span and return a detach token (`trace/api.md` L384-L386
-  *"this functionality MAY be offered additionally as a
-  separate operation"*).
+  **Application** (OTel API MAY) — set `span_ctx` as the
+  currently active span and return a detach token
+  (`trace/api.md` L384-L386 *"this functionality MAY be offered
+  additionally as a separate operation"*).
 
   For most call sites, prefer `with_span/4,5` — it handles
   attach, exception recording, detach, and `end_span` in a
@@ -228,8 +216,8 @@ defmodule Otel.API.Trace do
   end
 
   @doc """
-  **OTel API MAY** — revert a `make_current/1` call using
-  the token it returned (`trace/api.md` L384-L386).
+  **Application** (OTel API MAY) — revert a `make_current/1`
+  call using the token it returned (`trace/api.md` L384-L386).
 
   Restores the previous ambient context, undoing the most
   recent `make_current/1` whose token is passed. Delegates
@@ -237,4 +225,21 @@ defmodule Otel.API.Trace do
   """
   @spec detach(token :: Otel.API.Ctx.t()) :: :ok
   def detach(token), do: Otel.API.Ctx.detach(token)
+
+  # --- Convenience ---
+
+  @doc """
+  **Application** (Convenience) — facade over
+  `Otel.API.Trace.TracerProvider`.
+
+  Returns a Tracer for the given instrumentation scope.
+  Equivalent to calling `Otel.API.Trace.TracerProvider.get_tracer/1`
+  directly but exposed on `Otel.API.Trace` as the user-facing
+  entry point.
+  """
+  @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
+          Otel.API.Trace.Tracer.t()
+  def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+    Otel.API.Trace.TracerProvider.get_tracer(instrumentation_scope)
+  end
 end

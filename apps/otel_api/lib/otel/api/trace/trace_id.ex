@@ -22,11 +22,11 @@ defmodule Otel.API.Trace.TraceId do
 
   | Function | Role |
   |---|---|
-  | `new/1` | **Local helper** — construct from a validated integer |
-  | `valid?/1` | **OTel API MUST** (non-zero byte check, L231-L232) |
-  | `to_hex/1` | **OTel API MUST** (Hex retrieval, L258-L262) |
-  | `to_bytes/1` | **OTel API MUST** (Binary retrieval, L263-L264) |
-  | `to_integer/1` | **Local helper** — SDK bit-arithmetic escape hatch |
+  | `valid?/1` | **Application** (OTel API MUST) — IsValid for TraceId (L231-L232, L268-L271) |
+  | `to_hex/1` | **Application** (OTel API MUST) — Hex retrieval (L258-L262) |
+  | `to_bytes/1` | **Application** (OTel API MUST) — Binary retrieval (L263-L264) |
+  | `new/1` | **SDK** (SDK helper) — wrap a 128-bit integer from an ID generator |
+  | `to_integer/1` | **SDK** (SDK helper) — bit-arithmetic escape hatch for samplers |
 
   ## References
 
@@ -52,23 +52,11 @@ defmodule Otel.API.Trace.TraceId do
   """
   @opaque t :: 0..0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF
 
-  @doc """
-  **Local helper** — wrap a 128-bit unsigned integer as a `t()`.
-
-  The opaque-boundary-respecting way to turn a raw integer (e.g.
-  from an ID generator) into a `TraceId.t()`. The `@spec` input
-  range is the type gate — Dialyzer flags literal out-of-range
-  callers; runtime-origin values are the caller's
-  responsibility.
-  """
-  @spec new(integer :: 0..0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF) :: t()
-  def new(integer) do
-    integer
-  end
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API MUST** — "IsValid for TraceId" (`trace/api.md`
-  L231-L232, L268-L271).
+  **Application** (OTel API MUST) — "IsValid for TraceId"
+  (`trace/api.md` L231-L232, L268-L271).
 
   Returns `true` iff the TraceId has at least one non-zero byte.
   Per spec the all-zero value
@@ -86,7 +74,8 @@ defmodule Otel.API.Trace.TraceId do
   def valid?(_), do: false
 
   @doc """
-  **OTel API MUST** — "Hex Retrieval" (`trace/api.md` L258-L262).
+  **Application** (OTel API MUST) — "Hex Retrieval"
+  (`trace/api.md` L258-L262).
 
   Returns the TraceId as a **32-character lowercase** hex string
   (zero-padded). Matches the W3C `trace-id` wire format
@@ -101,8 +90,8 @@ defmodule Otel.API.Trace.TraceId do
   end
 
   @doc """
-  **OTel API MUST** — "Binary Retrieval" (`trace/api.md`
-  L263-L264).
+  **Application** (OTel API MUST) — "Binary Retrieval"
+  (`trace/api.md` L263-L264).
 
   Returns the TraceId as a 16-byte big-endian binary.
   """
@@ -111,13 +100,31 @@ defmodule Otel.API.Trace.TraceId do
     <<trace_id::unsigned-integer-size(128)>>
   end
 
+  # --- SDK helpers ---
+
   @doc """
-  **Local helper** — underlying non-negative integer escape hatch.
+  **SDK** (SDK helper) — wrap a 128-bit unsigned integer as a
+  `t()`.
+
+  The opaque-boundary-respecting way to turn a raw integer (e.g.
+  from an ID generator) into a `TraceId.t()`. The `@spec` input
+  range is the type gate — Dialyzer flags literal out-of-range
+  callers; runtime-origin values are the caller's
+  responsibility.
+  """
+  @spec new(integer :: 0..0xFFFFFFFF_FFFFFFFF_FFFFFFFF_FFFFFFFF) :: t()
+  def new(integer) do
+    integer
+  end
+
+  @doc """
+  **SDK** (SDK helper) — underlying non-negative integer escape
+  hatch.
 
   Exposed so SDK components can perform bit arithmetic on the
   TraceId (e.g. `TraceIdRatioBased` takes the lower 64 bits as a
-  probability hash). Callers outside the SDK should prefer
-  `to_hex/1` or `to_bytes/1`.
+  probability hash). Application code should prefer `to_hex/1`
+  or `to_bytes/1`.
   """
   @spec to_integer(trace_id :: t()) :: non_neg_integer()
   def to_integer(trace_id), do: trace_id

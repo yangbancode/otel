@@ -185,10 +185,6 @@ defmodule Otel.API.Trace.SpanTest do
       :ok
     end
 
-    test "get_module returns registered module" do
-      assert Otel.API.Trace.Span.get_module() == Otel.API.Trace.SpanTest.FakeSpanOperations
-    end
-
     test "recording? dispatches to module" do
       assert Otel.API.Trace.Span.recording?(@valid_ctx) == true
     end

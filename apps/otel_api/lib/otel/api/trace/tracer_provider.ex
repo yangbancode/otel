@@ -29,10 +29,10 @@ defmodule Otel.API.Trace.TracerProvider do
 
   | Function | Role |
   |---|---|
-  | `get_tracer/1` | **OTel API MUST** (Get a Tracer, L107-L157) |
-  | `get_tracer/2` (callback) | Internal dispatch contract (API ↔ SDK) |
-  | `get_provider/0` | **OTel API SHOULD** — access global provider (L95-L97) |
-  | `set_provider/1` | **OTel API SHOULD** — register global provider (L95-L97) |
+  | `get_tracer/1` | **Application** (OTel API MUST) — Get a Tracer (L107-L157) |
+  | `@callback get_tracer/2` | **SDK** (OTel API MUST) — Dispatch callback (L107-L157) |
+  | `get_provider/0` | **SDK** (installation hook) — access global provider (L95-L97) |
+  | `set_provider/1` | **SDK** (installation hook) — register global provider (L95-L97) |
 
   ## References
 
@@ -59,22 +59,11 @@ defmodule Otel.API.Trace.TracerProvider do
   """
   @type t :: {module(), term()}
 
-  @doc """
-  Dispatch callback invoked by `get_tracer/1` on cache miss.
-
-  Implementations receive the opaque `state` they registered
-  via `set_provider/1` along with the requested instrumentation
-  scope, and return the Tracer to cache. Not part of the OTel
-  spec — this is the internal dispatch contract between the
-  API and SDK layers.
-  """
-  @callback get_tracer(
-              state :: term(),
-              instrumentation_scope :: Otel.API.InstrumentationScope.t()
-            ) :: Otel.API.Trace.Tracer.t()
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API MUST** — "Get a Tracer" (`trace/api.md` L107-L157).
+  **Application** (OTel API MUST) — "Get a Tracer" (`trace/api.md`
+  L107-L157).
 
   Returns a Tracer for the given instrumentation scope. On
   cache miss delegates to the registered provider's
@@ -100,8 +89,27 @@ defmodule Otel.API.Trace.TracerProvider do
     end
   end
 
+  # --- SDK callbacks ---
+
   @doc """
-  **OTel API SHOULD** — access the global TracerProvider
+  **SDK** (OTel API MUST) — Dispatch callback invoked by
+  `get_tracer/1` on cache miss.
+
+  Implementations receive the opaque `state` they registered
+  via `set_provider/1` along with the requested instrumentation
+  scope, and return the Tracer to cache. The `get_tracer/2`
+  shape is the API↔SDK dispatch contract for §"Get a Tracer"
+  (`trace/api.md` L107-L157).
+  """
+  @callback get_tracer(
+              state :: term(),
+              instrumentation_scope :: Otel.API.InstrumentationScope.t()
+            ) :: Otel.API.Trace.Tracer.t()
+
+  # --- SDK installation hooks ---
+
+  @doc """
+  **SDK** (installation hook) — access the global TracerProvider
   (`trace/api.md` L95-L97).
 
   > *"the API SHOULD provide a way to set/register and
@@ -116,8 +124,8 @@ defmodule Otel.API.Trace.TracerProvider do
   end
 
   @doc """
-  **OTel API SHOULD** — register the global TracerProvider
-  (`trace/api.md` L95-L97).
+  **SDK** (installation hook) — register the global
+  TracerProvider (`trace/api.md` L95-L97).
 
   > *"the API SHOULD provide a way to set/register and
   > access a global default `TracerProvider`."*

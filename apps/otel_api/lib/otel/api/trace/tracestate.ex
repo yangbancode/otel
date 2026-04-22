@@ -11,10 +11,11 @@ defmodule Otel.API.Trace.TraceState do
 
   | Function | Role |
   |---|---|
-  | `get/2`, `add/3`, `update/3`, `delete/2` | **OTel API MUST** |
-  | `encode/1`, `decode/1` | **W3C header serialization** |
-  | `valid_key?/1`, `valid_value?/1` | **W3C format predicate** |
-  | `new/0`, `empty?/1` | **Local helper** (not in spec) |
+  | `get/2`, `add/3`, `update/3`, `delete/2` | **Application** (OTel API MUST) |
+  | `encode/1` | **Application** (W3C header serialization) |
+  | `decode/1` | **Application** (W3C header parsing) |
+  | `valid_key?/1`, `valid_value?/1` | **Application** (W3C format predicate) |
+  | `new/0`, `empty?/1` | **Application** (Convenience) |
 
   ## References
 
@@ -81,7 +82,8 @@ defmodule Otel.API.Trace.TraceState do
   @value_regex ~r/^[ -+--<>-~]{0,255}[!-+--<>-~]$/
 
   @doc """
-  **OTel API MUST** — "Get value" (`trace/api.md` TraceState).
+  **Application** (OTel API MUST) — "Get value" (`trace/api.md`
+  TraceState).
 
   Returns the value associated with `key`, or `""` (empty string)
   when the key is absent.
@@ -99,7 +101,8 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **OTel API MUST** — "Add a new key/value pair" (`trace/api.md` TraceState).
+  **Application** (OTel API MUST) — "Add a new key/value pair"
+  (`trace/api.md` TraceState).
 
   Prepends a new `{key, value}` entry per W3C §3.5 Mutating:
   "The new key/value pair SHOULD be added to the beginning of the
@@ -130,7 +133,8 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **OTel API MUST** — "Update an existing value" (`trace/api.md` TraceState).
+  **Application** (OTel API MUST) — "Update an existing value"
+  (`trace/api.md` TraceState).
 
   Removes the existing entry for `key` and prepends a new entry
   with `value`. Per W3C §3.5: "Modified keys MUST be moved to the
@@ -161,7 +165,8 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **OTel API MUST** — "Delete a key/value pair" (`trace/api.md` TraceState).
+  **Application** (OTel API MUST) — "Delete a key/value pair"
+  (`trace/api.md` TraceState).
 
   Removes the entry for `key`, if present. No-op when `key` is
   absent.
@@ -172,7 +177,8 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **W3C header serialization** (§3.3.1.4 Combined Header Value).
+  **Application** (W3C header serialization) — §3.3.1.4 Combined
+  Header Value.
 
   Serializes to a W3C `tracestate` header value. Returns `""` for
   an empty state.
@@ -188,7 +194,8 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **W3C header parsing** (§3.3.1 `tracestate Header Field Values`).
+  **Application** (W3C header parsing) — §3.3.1 `tracestate
+  Header Field Values`.
 
   Splits a W3C `tracestate` header value into `{key, value}`
   entries, collapsing duplicate keys to the last occurrence.
@@ -219,7 +226,7 @@ defmodule Otel.API.Trace.TraceState do
   end
 
   @doc """
-  **W3C format predicate** — key (§3.3.1.3.1).
+  **Application** (W3C format predicate) — key (§3.3.1.3.1).
 
   Returns whether `key` conforms to the W3C TraceState key format.
   See `t:key/0` for the grammar. Returns `false` for any non-binary
@@ -230,7 +237,7 @@ defmodule Otel.API.Trace.TraceState do
   def valid_key?(_), do: false
 
   @doc """
-  **W3C format predicate** — value (§3.3.1.3.2).
+  **Application** (W3C format predicate) — value (§3.3.1.3.2).
 
   Returns whether `value` conforms to the W3C TraceState value
   format. See `t:value/0` for the grammar. Returns `false` for any
@@ -241,7 +248,7 @@ defmodule Otel.API.Trace.TraceState do
   def valid_value?(_), do: false
 
   @doc """
-  **Local helper** (not in spec).
+  **Application** (Convenience) — build an empty TraceState.
 
   Returns a new (empty) TraceState. Preferred over `%TraceState{}`
   at external call sites because `t/0` is opaque.
@@ -250,7 +257,7 @@ defmodule Otel.API.Trace.TraceState do
   def new, do: %__MODULE__{}
 
   @doc """
-  **Local helper** (not in spec).
+  **Application** (Convenience) — empty-state predicate.
 
   Returns whether the TraceState has no entries.
 

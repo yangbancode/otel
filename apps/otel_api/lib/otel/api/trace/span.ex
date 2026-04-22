@@ -3,8 +3,8 @@ defmodule Otel.API.Trace.Span do
   Span operations facade (OTel `trace/api.md` §Span operations
   L449-L705; Status: **Stable**).
 
-  All operations dispatch to the SDK-registered span module via
-  `get_module/0` and no-op when no SDK is installed (spec
+  All operations dispatch to the SDK-registered span module and
+  no-op when no SDK is installed (spec
   L860-L874 *"Behavior of the API in the absence of an installed
   SDK"*). Once the span has ended, subsequent mutations SHOULD
   be silently ignored (spec L652-L653 *"the Span becomes
@@ -25,17 +25,17 @@ defmodule Otel.API.Trace.Span do
 
   | Function | Role |
   |---|---|
-  | `get_context/1` | **OTel API MUST** (GetContext, L458-L461) |
-  | `recording?/1` | **OTel API MUST** (IsRecording, L463-L493) |
-  | `set_attribute/3` | **OTel API MUST** (SetAttribute, L495-L520) |
-  | `set_attributes/2` | **OTel API MAY** (L506-L508) |
-  | `add_event/2` | **OTel API MUST** (AddEvent, L525-L557) |
-  | `add_link/2` | **OTel API MUST** (AddLink, L562-L564) |
-  | `set_status/2` | **OTel API MUST** (SetStatus, L565-L624) |
-  | `update_name/2` | **OTel API MUST** (UpdateName, L628-L645) |
-  | `end_span/2` | **OTel API MUST** (End, L647-L682) |
-  | `record_exception/4` | **OTel API SHOULD** (Record Exception, L684-L704 + `exceptions.md` L44-L55) |
-  | `set_module/1`, `get_module/0` | **Local helper** — SDK dispatch registration |
+  | `get_context/1` | **Application** (OTel API MUST) — GetContext (L458-L461) |
+  | `recording?/1` | **Application** (OTel API MUST) — IsRecording (L463-L493) |
+  | `set_attribute/3` | **Application** (OTel API MUST) — SetAttribute (L495-L520) |
+  | `set_attributes/2` | **Application** (OTel API MAY) — SetAttributes (L506-L508) |
+  | `add_event/2` | **Application** (OTel API MUST) — AddEvent (L525-L557) |
+  | `add_link/2` | **Application** (OTel API MUST) — AddLink (L562-L564) |
+  | `set_status/2` | **Application** (OTel API MUST) — SetStatus (L565-L624) |
+  | `update_name/2` | **Application** (OTel API MUST) — UpdateName (L628-L645) |
+  | `end_span/2` | **Application** (OTel API MUST) — End (L647-L682) |
+  | `record_exception/4` | **Application** (OTel API SHOULD) — Record Exception (L684-L704 + `exceptions.md` L44-L55) |
+  | `set_module/1` | **SDK** (installation hook) — register SDK Span module |
 
   ## References
 
@@ -66,8 +66,11 @@ defmodule Otel.API.Trace.Span do
 
   @module_key {__MODULE__, :module}
 
+  # --- Application dispatch ---
+
   @doc """
-  **OTel API MUST** — "Get Context" (`trace/api.md` L458-L461).
+  **Application** (OTel API MUST) — "Get Context" (`trace/api.md`
+  L458-L461).
 
   Returns the `SpanContext` associated with this span. On BEAM
   the SpanContext is itself the handle, so this is identity;
@@ -79,7 +82,8 @@ defmodule Otel.API.Trace.Span do
   def get_context(%Otel.API.Trace.SpanContext{} = span_ctx), do: span_ctx
 
   @doc """
-  **OTel API MUST** — "IsRecording" (`trace/api.md` L463-L493).
+  **Application** (OTel API MUST) — "IsRecording" (`trace/api.md`
+  L463-L493).
 
   Returns whether the span is currently recording data. Per
   spec L472-L476 IsRecording is independent of the sampled
@@ -98,8 +102,8 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API MUST** — "SetAttribute" (`trace/api.md`
-  L495-L520).
+  **Application** (OTel API MUST) — "SetAttribute"
+  (`trace/api.md` L495-L520).
 
   Sets a single attribute on the span. Per spec L513-L514
   setting an attribute with the same key as an existing
@@ -121,7 +125,7 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API MAY** — "SetAttributes" convenience
+  **Application** (OTel API MAY) — "SetAttributes" convenience
   (`trace/api.md` L506-L508).
 
   Sets multiple attributes in a single call. Per spec this is
@@ -141,7 +145,8 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API MUST** — "AddEvent" (`trace/api.md` L525-L557).
+  **Application** (OTel API MUST) — "AddEvent" (`trace/api.md`
+  L525-L557).
 
   Records an event on the span. The caller constructs the
   `Event` via `Otel.API.Trace.Event.new/3` — per spec L543-L544
@@ -150,9 +155,9 @@ defmodule Otel.API.Trace.Span do
 
   Per spec L547 events SHOULD preserve the order in which
   they are recorded. This facade dispatches to the
-  SDK-registered module via `get_module/0`, so ordering is
-  the SDK implementation's responsibility; API users
-  relying on order should confirm their SDK honours it.
+  SDK-registered module, so ordering is the SDK
+  implementation's responsibility; API users relying on order
+  should confirm their SDK honours it.
   """
   @spec add_event(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
@@ -166,7 +171,8 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API MUST** — "Add Link" (`trace/api.md` L562-L564).
+  **Application** (OTel API MUST) — "Add Link" (`trace/api.md`
+  L562-L564).
 
   Adds a link to another span after creation. Per spec L563
   adding links at span creation (via `Tracer.start_span/4`
@@ -185,7 +191,8 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API MUST** — "SetStatus" (`trace/api.md` L565-L624).
+  **Application** (OTel API MUST) — "SetStatus" (`trace/api.md`
+  L565-L624).
 
   Sets the status of the span. Status priority per spec L590
   *"These values form a total order: Ok > Error > Unset"*:
@@ -208,7 +215,8 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API MUST** — "UpdateName" (`trace/api.md` L628-L645).
+  **Application** (OTel API MUST) — "UpdateName" (`trace/api.md`
+  L628-L645).
 
   Updates the span name. Per spec L632-L634 any sampling
   behaviour based on span name is implementation-dependent —
@@ -224,7 +232,8 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API MUST** — "End" (`trace/api.md` L647-L682).
+  **Application** (OTel API MUST) — "End" (`trace/api.md`
+  L647-L682).
 
   Signals that the operation described by the span has ended.
 
@@ -262,8 +271,8 @@ defmodule Otel.API.Trace.Span do
   end
 
   @doc """
-  **OTel API SHOULD** — "Record Exception" (`trace/api.md`
-  L684-L704, specialized `AddEvent` variant).
+  **Application** (OTel API SHOULD) — "Record Exception"
+  (`trace/api.md` L684-L704, specialized `AddEvent` variant).
 
   Records an exception as an event on the span. Per spec L688
   this is a specialized variant of `AddEvent`; per L697-L699
@@ -296,12 +305,15 @@ defmodule Otel.API.Trace.Span do
     end
   end
 
+  # --- SDK installation hooks ---
+
   @doc """
-  **Local helper** — SDK dispatch registration hook.
+  **SDK** (installation hook) — register the SDK Span operations
+  module.
 
   Called by `Otel.SDK.Application.start/2` to register the
-  SDK's Span operations module. Operations in this API
-  dispatch to the registered module via `get_module/0`.
+  SDK's Span operations module. The Application-tier operations
+  in this module dispatch to the registered module.
   """
   @spec set_module(module :: module()) :: :ok
   def set_module(module) when is_atom(module) do
@@ -309,15 +321,10 @@ defmodule Otel.API.Trace.Span do
     :ok
   end
 
-  @doc """
-  **Local helper** — introspection of the registered SDK Span
-  operations module.
+  # --- Private ---
 
-  Returns `nil` when no SDK is installed; in that case all
-  operations in this API no-op.
-  """
   @spec get_module() :: module() | nil
-  def get_module do
+  defp get_module do
     :persistent_term.get(@module_key, nil)
   end
 end
