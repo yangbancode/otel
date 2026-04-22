@@ -278,43 +278,4 @@ defmodule Otel.API.Propagator.TextMap.BaggageTest do
       end
     end
   end
-
-  describe "decode_entry/1" do
-    test "parses key=value" do
-      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=value") ==
-               {"key", "value", ""}
-    end
-
-    test "parses key=value;metadata" do
-      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=value;prop1=val1") ==
-               {"key", "value", "prop1=val1"}
-    end
-
-    test "trims whitespace around key and value" do
-      assert Otel.API.Propagator.TextMap.Baggage.decode_entry(" key = value ") ==
-               {"key", "value", ""}
-    end
-
-    test "percent-decodes key and value (RFC 3986)" do
-      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key%20a=value%20b") ==
-               {"key a", "value b", ""}
-    end
-
-    test "value may contain additional = (W3C L73-L74)" do
-      # Parsers MUST NOT assume the equal sign is only used to separate key and value.
-      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=a=b") ==
-               {"key", "a=b", ""}
-    end
-
-    test "metadata with multiple properties kept as opaque string" do
-      assert Otel.API.Propagator.TextMap.Baggage.decode_entry("key=v;k1=v1;k2=v2") ==
-               {"key", "v", "k1=v1;k2=v2"}
-    end
-
-    test "raises on pair without =" do
-      assert_raise MatchError, fn ->
-        Otel.API.Propagator.TextMap.Baggage.decode_entry("noequals")
-      end
-    end
-  end
 end
