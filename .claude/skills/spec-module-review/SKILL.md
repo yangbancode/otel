@@ -495,5 +495,4 @@ identifies changes, the standard flow applies:
 - `docs/decisions/` — existing design decisions (read before proposing
   changes that might conflict)
 - `docs/decisions/error-handling.md` — policy for malformed input
-- `docs/decisions/logging-convention.md` — SHOULD-log policy
 - `references/` — spec submodules (verify here, always)

@@ -62,7 +62,6 @@ These are the known axes; the actual decision is made in Finalization.
 ### References (for future finalization)
 
 - [OTel error-handling spec](../../references/opentelemetry-specification/specification/error-handling.md)
-- [Logging Convention](logging-convention.md)
 - `opentelemetry-erlang` patterns: guard + catch-all (API), try/catch
   (init), let-it-crash (runtime).
 

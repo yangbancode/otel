@@ -90,21 +90,6 @@ end
 - BEAM return conventions — `{:ok, pid} = GenServer.start_link(...)`
   pattern matches the expected success shape.
 
-### No SHOULD-level diagnostics
-
-Spec `SHOULD`-log clauses (e.g. invalid tracer/meter/logger name,
-duplicate instrument registration, dropped attributes, view
-conflicts, unknown advisory parameters) are **not implemented**. The
-project emits logs only for spec `MUST`-log points, which today is
-zero active call sites.
-
-See [logging-convention.md](../../docs/decisions/logging-convention.md)
-for the full rationale. `compliance.md` marks the skipped SHOULDs as
-unchecked with a pointer to that decision.
-
-This rule follows from "happy path only": callers supply valid input,
-the SDK does not apologize for caller mistakes.
-
 ### Layer independence (API ↛ SDK)
 
 `Otel.API.*` modules define *"what interfaces exist"*; `Otel.SDK.*`

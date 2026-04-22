@@ -12,10 +12,9 @@ ETS table owned by MeterProvider, shared across all Meters from the same provide
 
 ### Name Validation
 
-Per the happy-path policy (see [logging-convention.md](logging-convention.md)),
-instrument names are not validated at registration time — the SHOULD-log
-clauses at `metrics/sdk.md` L962/L965 are not implemented. Callers are
-expected to supply valid names.
+Instrument names are not validated at registration time — the
+SHOULD-log clauses at `metrics/sdk.md` L962/L965 are not yet
+implemented. Callers are expected to supply valid names.
 
 ### Duplicate Detection
 
@@ -27,8 +26,8 @@ First-seen wins for name casing and advisory parameters.
 
 ### Advisory Parameter Validation
 
-Advisory parameters pass through unvalidated. Per the happy-path policy,
-the SHOULD-log clauses at `metrics/sdk.md` L985/L986 are not implemented.
+Advisory parameters pass through unvalidated — the SHOULD-log
+clauses at `metrics/sdk.md` L985/L986 are not yet implemented.
 Callers are expected to supply well-formed advisory keyword lists.
 
 ### Unit and Description
