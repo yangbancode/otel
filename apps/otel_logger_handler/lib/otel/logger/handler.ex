@@ -1,11 +1,15 @@
 defmodule Otel.Logger.Handler do
   @moduledoc """
-  Bridges Erlang's `:logger` to the OpenTelemetry Logs API.
+  Bridges Erlang's `:logger` to the OpenTelemetry Logs API
+  (OTel `logs/api.md` + `logs/supplementary-guidelines.md`
+  §How to Create a Log4J Log Appender).
 
-  Converts log events into OTel LogRecords and emits them via
-  `Otel.API.Logs.Logger.emit/3`. When an SDK is installed, log
-  records flow through processors to exporters. Without an SDK,
-  all emits are no-ops.
+  Converts `:logger.log_event/0` into an
+  `Otel.API.Logs.Logger.log_record/0` and emits it via
+  `Otel.API.Logs.Logger.emit/3`. When an SDK is installed,
+  records flow through processors to exporters; without an
+  SDK, `emit/3` routes to `Otel.API.Logs.Logger.Noop` and
+  becomes a silent no-op.
 
   ## Usage
 
@@ -24,8 +28,82 @@ defmodule Otel.Logger.Handler do
   | `scope_version` | `""` | InstrumentationScope version |
   | `otel_logger` | `nil` | Pre-built OTel Logger; if set, skips `LoggerProvider.get_logger` |
 
-  Batching and export are handled by the SDK's processor pipeline,
-  not by this handler. Pair with `BatchProcessor` for production use.
+  Batching and export are handled by the SDK's processor
+  pipeline, not by this handler. Pair with `BatchProcessor`
+  for production use.
+
+  ## Severity mapping
+
+  `SeverityNumber` resolution is delegated to
+  `Otel.API.Logs.SeverityNumber.from_syslog_level/1` —
+  `:logger` levels are lowercased RFC 5424 Syslog levels,
+  which is exactly the shape that helper expects. The
+  mapping table and its spec citation
+  (`logs/data-model.md` Appendix B L806-L818) live in the
+  helper's moduledoc.
+
+  `SeverityText` is the source representation (the level
+  atom rendered as a string) per `logs/data-model.md`
+  L240-L241.
+
+  `SeverityText` carries the **source representation** of
+  the level — the `:logger` level atom rendered as a string
+  (`"emergency"`, `"alert"`, `"critical"`, `"error"`,
+  `"warning"`, `"notice"`, `"info"`, `"debug"`) — per
+  `logs/data-model.md` L240-L241 *"original string
+  representation of the severity as it is known at the
+  source"*. Downstream tooling that wants the OTel short
+  name (`"FATAL"`, `"ERROR3"`, …) can derive it from
+  `severity_number` using the Appendix A / §Displaying
+  Severity L334-L363 table; the short name is a display
+  concern and is not what the `SeverityText` field is for.
+
+  ## Body extraction
+
+  Per `logs/data-model.md` §Field: `Body` L399-L400, Body
+  **MUST** support `AnyValue` to preserve the semantics of
+  structured logs. Elixir `:logger`'s `{:report, term}`
+  carries structured data, so we preserve the structure
+  instead of collapsing to a string:
+
+  | `msg` shape | Body |
+  |---|---|
+  | `{:string, chardata}` | `IO.chardata_to_string/1` |
+  | `{:report, map}` | map with string keys |
+  | `{:report, keyword_list}` | map derived from the keyword list |
+  | `{format, args}` (`:io_lib.format/2` shape) | formatted string |
+  | anything else | `inspect/1` fallback |
+
+  ## Exception events
+
+  Erlang/OTP routes crashes through `:logger` with
+  `meta.crash_reason = {exception, stacktrace}`. We surface
+  this on the `log_record` via the `:exception` field
+  (`Otel.API.Logs.Logger.log_record/0`), which lets
+  downstream processing populate the OTel
+  `exception.*` attributes per `trace/exceptions.md`
+  §Attributes L44-L55.
+
+  ## Attribute mapping
+
+  `meta` fields map to OTel attribute keys per the
+  [semantic conventions](https://github.com/open-telemetry/semantic-conventions)
+  `code.*` registry. The deprecated `code.namespace` /
+  `code.function` / `code.filepath` / `code.lineno` keys are
+  not emitted; we use the current stable names:
+
+  | `:logger` meta | OTel attribute | Notes |
+  |---|---|---|
+  | `mfa: {module, fun, arity}` | `code.function.name` | `"Module.fun/arity"` fully-qualified form |
+  | `file: chardata` | `code.file.path` | |
+  | `line: integer` | `code.line.number` | |
+  | `domain: [atom]` | `log.domain` | non-standard convenience |
+
+  `pid` is intentionally **not** emitted — `process.pid` is
+  an int-typed OS PID attribute in semantic-conventions and
+  does not fit an Erlang PID (`#PID<0.123.0>`). A follow-up
+  decision will settle whether to emit it under a
+  BEAM-specific custom key or drop it entirely.
   """
 
   # --- :logger handler callbacks ---
@@ -92,13 +170,15 @@ defmodule Otel.Logger.Handler do
   @spec build_log_record(log_event :: :logger.log_event()) ::
           Otel.API.Logs.Logger.log_record()
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
-    %{
+    base = %{
       timestamp: extract_timestamp(meta),
-      severity_number: severity_number(level),
+      severity_number: Otel.API.Logs.SeverityNumber.from_syslog_level(level),
       severity_text: severity_text(level),
       body: extract_body(msg),
       attributes: extract_attributes(meta)
     }
+
+    put_exception(base, meta)
   end
 
   @spec extract_timestamp(meta :: map()) :: integer()
@@ -110,17 +190,21 @@ defmodule Otel.Logger.Handler do
     System.system_time(:nanosecond)
   end
 
-  @spec extract_body(msg :: term()) :: String.t()
+  # Body extraction — `logs/data-model.md` L399-L400 requires
+  # preserving `AnyValue` structure for structured logs.
+  # `{:report, term}` is Elixir's structured-log shape; we
+  # preserve it as a map rather than collapsing to a string.
+  @spec extract_body(msg :: term()) :: term()
   defp extract_body({:string, string}) do
     IO.chardata_to_string(string)
   end
 
   defp extract_body({:report, report}) when is_map(report) do
-    inspect(report)
+    stringify_keys(report)
   end
 
   defp extract_body({:report, report}) when is_list(report) do
-    inspect(report)
+    report |> Enum.into(%{}) |> stringify_keys()
   end
 
   defp extract_body({format, args}) when is_list(format) do
@@ -131,24 +215,31 @@ defmodule Otel.Logger.Handler do
     inspect(other)
   end
 
+  @spec stringify_keys(map :: map()) :: %{String.t() => term()}
+  defp stringify_keys(map) do
+    Map.new(map, fn {k, v} -> {to_string(k), v} end)
+  end
+
   @spec extract_attributes(meta :: map()) :: map()
   defp extract_attributes(meta) do
     %{}
-    |> put_mfa_attrs(meta)
-    |> put_meta_attr(meta, :file, "code.filepath", &IO.chardata_to_string/1)
-    |> put_meta_attr(meta, :line, "code.lineno", & &1)
-    |> put_meta_attr(meta, :pid, "process.pid", &inspect/1)
+    |> put_code_function_name(meta)
+    |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
+    |> put_meta_attr(meta, :line, "code.line.number", & &1)
     |> put_meta_attr(meta, :domain, "log.domain", &inspect/1)
   end
 
-  @spec put_mfa_attrs(attrs :: map(), meta :: map()) :: map()
-  defp put_mfa_attrs(attrs, %{mfa: {module, function, arity}}) do
-    attrs
-    |> Map.put("code.namespace", Atom.to_string(module))
-    |> Map.put("code.function", "#{function}/#{arity}")
+  # Elixir/OTP `mfa` → `code.function.name` as a
+  # fully-qualified `"Module.fun/arity"` string, per the
+  # current semantic-conventions guidance that
+  # `code.function.name` absorbs what the deprecated
+  # `code.namespace` + `code.function` pair used to carry.
+  @spec put_code_function_name(attrs :: map(), meta :: map()) :: map()
+  defp put_code_function_name(attrs, %{mfa: {module, function, arity}}) do
+    Map.put(attrs, "code.function.name", "#{inspect(module)}.#{function}/#{arity}")
   end
 
-  defp put_mfa_attrs(attrs, _meta), do: attrs
+  defp put_code_function_name(attrs, _meta), do: attrs
 
   @spec put_meta_attr(
           attrs :: map(),
@@ -165,26 +256,30 @@ defmodule Otel.Logger.Handler do
     end
   end
 
-  # --- Severity mapping ---
-  # OTel severity numbers: https://opentelemetry.io/docs/specs/otel/logs/data-model/#severity-fields
+  # `meta.crash_reason = {exception, stacktrace}` is OTP's
+  # standard way of surfacing process crashes to the log
+  # handler. When present, we route it into the
+  # `log_record.exception` field so downstream processors /
+  # exporters can attach `exception.*` attributes per
+  # `trace/exceptions.md` §Attributes L44-L55.
+  @spec put_exception(
+          log_record :: Otel.API.Logs.Logger.log_record(),
+          meta :: map()
+        ) :: Otel.API.Logs.Logger.log_record()
+  defp put_exception(log_record, %{crash_reason: {%{__exception__: true} = exception, _stack}}) do
+    Map.put(log_record, :exception, exception)
+  end
 
-  @spec severity_number(level :: :logger.level()) :: 1..24
-  defp severity_number(:emergency), do: 21
-  defp severity_number(:alert), do: 18
-  defp severity_number(:critical), do: 17
-  defp severity_number(:error), do: 17
-  defp severity_number(:warning), do: 13
-  defp severity_number(:notice), do: 12
-  defp severity_number(:info), do: 9
-  defp severity_number(:debug), do: 5
+  defp put_exception(log_record, _meta), do: log_record
 
+  # `SeverityText` per `logs/data-model.md` L240-L241 — the
+  # *"original string representation of the severity as it
+  # is known at the source"*. For `:logger` the source
+  # representation is the level atom; `Atom.to_string/1`
+  # preserves it faithfully (`:emergency → "emergency"`,
+  # etc.). OTel short names (`"FATAL"`, `"ERROR3"`) are a
+  # display concern derivable from `severity_number`, not
+  # what `SeverityText` is for.
   @spec severity_text(level :: :logger.level()) :: String.t()
-  defp severity_text(:emergency), do: "FATAL"
-  defp severity_text(:alert), do: "ERROR3"
-  defp severity_text(:critical), do: "ERROR"
-  defp severity_text(:error), do: "ERROR"
-  defp severity_text(:warning), do: "WARN"
-  defp severity_text(:notice), do: "INFO4"
-  defp severity_text(:info), do: "INFO"
-  defp severity_text(:debug), do: "DEBUG"
+  defp severity_text(level), do: Atom.to_string(level)
 end
