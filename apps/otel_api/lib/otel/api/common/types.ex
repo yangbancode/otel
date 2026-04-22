@@ -49,6 +49,32 @@ defmodule Otel.API.Common.Types do
   refuses to encode non-UTF-8 bytes into a `string_value`
   field).
 
+  ## Empty values (nil)
+
+  `primitive/0` includes `nil` per `common/README.md`
+  §AnyValue L50-L51 language-dependent clause:
+
+  > *"an empty value if supported by the language, (e.g.
+  > `null`, `undefined` in JavaScript/TypeScript, `None` in
+  > Python, `nil` in Go/Ruby, not supported in Erlang, etc.)"*
+
+  Elixir supports `nil` natively, and spec L63 confirms that
+  *"null is a valid attribute value"* for the attribute-map
+  contexts where `primitive/0` appears. `nil` is also
+  preserved through `primitive_any/0` for `LogRecord.body`
+  and through `[primitive()]` for array attribute values per
+  spec L67-L68 MUST *"null values within arrays MUST be
+  preserved as-is (i.e., passed on to processors / exporters
+  as null)"*.
+
+  This diverges from `opentelemetry-erlang`, which — per
+  spec — does not support empty values (Erlang is explicitly
+  listed as "not supported"). Our inclusion is spec-aligned
+  via the language-dependent clause; Elixir's idiomatic
+  nullable pattern makes `nil` the natural empty
+  representation and matches what Elixir users already
+  expect from any struct field typed as `String.t() | nil`.
+
   ## Integer range
 
   Per spec L44 integer values must fit in a signed 64-bit
@@ -82,7 +108,8 @@ defmodule Otel.API.Common.Types do
 
   ## References
 
-  - OTel Common §AnyValue: `opentelemetry-specification/specification/common/README.md` L39-L62
+  - OTel Common §AnyValue: `opentelemetry-specification/specification/common/README.md` L39-L74
+  - OTel Common §Attributes: `opentelemetry-specification/specification/common/README.md` L179-L187
   - OTLP `AnyValue` proto: `opentelemetry-proto/opentelemetry/proto/common/v1/common.proto` L25-L53
   """
 
