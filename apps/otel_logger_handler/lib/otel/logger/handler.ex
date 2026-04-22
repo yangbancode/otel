@@ -34,29 +34,45 @@ defmodule Otel.Logger.Handler do
 
   ## Severity mapping
 
-  `SeverityNumber` resolution is delegated to
-  `Otel.API.Logs.SeverityNumber.from_syslog_level/1` —
-  `:logger` levels are lowercased RFC 5424 Syslog levels,
-  which is exactly the shape that helper expects. The
-  mapping table and its spec citation
-  (`logs/data-model.md` Appendix B L806-L818) live in the
-  helper's moduledoc.
+  Maps `:logger` levels — which are the lowercased
+  RFC 5424 Syslog levels — to OTel `SeverityNumber` per
+  `logs/data-model.md` §Mapping of `SeverityNumber`
+  (L273-L296) and the Syslog row of Appendix B
+  (`data-model-appendix.md` L806-L818):
 
-  `SeverityText` is the source representation (the level
-  atom rendered as a string) per `logs/data-model.md`
-  L240-L241.
+  | `:logger` level | SeverityNumber | SeverityText (source) | OTel short name (display) |
+  |---|---|---|---|
+  | `:emergency` | 21 | `"emergency"` | FATAL |
+  | `:alert` | 19 | `"alert"` | ERROR3 |
+  | `:critical` | 18 | `"critical"` | ERROR2 |
+  | `:error` | 17 | `"error"` | ERROR |
+  | `:warning` | 13 | `"warning"` | WARN |
+  | `:notice` | 10 | `"notice"` | INFO2 |
+  | `:info` | 9 | `"info"` | INFO |
+  | `:debug` | 5 | `"debug"` | DEBUG |
+
+  Distinct `:logger` levels within the same SeverityNumber
+  range (e.g. `:error` vs `:critical` vs `:alert` in ERROR)
+  are assigned different numbers per spec L280-L283,
+  preserving their relative ordering.
 
   `SeverityText` carries the **source representation** of
   the level — the `:logger` level atom rendered as a string
-  (`"emergency"`, `"alert"`, `"critical"`, `"error"`,
-  `"warning"`, `"notice"`, `"info"`, `"debug"`) — per
-  `logs/data-model.md` L240-L241 *"original string
+  per `logs/data-model.md` L240-L241 *"original string
   representation of the severity as it is known at the
   source"*. Downstream tooling that wants the OTel short
   name (`"FATAL"`, `"ERROR3"`, …) can derive it from
-  `severity_number` using the Appendix A / §Displaying
-  Severity L334-L363 table; the short name is a display
-  concern and is not what the `SeverityText` field is for.
+  `severity_number` using the §Displaying Severity
+  L334-L363 table; the short name is a display concern and
+  is not what the `SeverityText` field is for.
+
+  The mapping is internal to this module rather than shared
+  in `otel_api` — `Otel.API.Logs` owns the two **types**
+  (`severity_number/0`, `severity_level/0`) but the
+  `:logger`-specific conversion lives where it is consumed.
+  Other bridges targeting non-`:logger` sources (e.g. a
+  direct Syslog priority number, a `:telemetry` handler)
+  define their own conversion the same way.
 
   ## Body extraction
 
@@ -172,7 +188,7 @@ defmodule Otel.Logger.Handler do
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
     base = %{
       timestamp: extract_timestamp(meta),
-      severity_number: Otel.API.Logs.SeverityNumber.from_syslog_level(level),
+      severity_number: severity_number(level),
       severity_text: severity_text(level),
       body: extract_body(msg),
       attributes: extract_attributes(meta)
@@ -271,6 +287,24 @@ defmodule Otel.Logger.Handler do
   end
 
   defp put_exception(log_record, _meta), do: log_record
+
+  # Severity mapping per `logs/data-model.md` §Mapping of
+  # `SeverityNumber` L273-L296 + Appendix B Syslog row
+  # (L806-L818). `:logger` levels are lowercased RFC 5424
+  # Syslog levels, so Appendix B is the authoritative
+  # source for the numeric values here. Kept private
+  # because only this handler consumes it — other bridges
+  # define their own mapping from their source format.
+  @spec severity_number(level :: :logger.level()) ::
+          Otel.API.Logs.severity_number()
+  defp severity_number(:emergency), do: 21
+  defp severity_number(:alert), do: 19
+  defp severity_number(:critical), do: 18
+  defp severity_number(:error), do: 17
+  defp severity_number(:warning), do: 13
+  defp severity_number(:notice), do: 10
+  defp severity_number(:info), do: 9
+  defp severity_number(:debug), do: 5
 
   # `SeverityText` per `logs/data-model.md` L240-L241 — the
   # *"original string representation of the severity as it

@@ -86,7 +86,7 @@ defmodule Otel.API.Logs.Logger do
   @type log_record :: %{
           optional(:timestamp) => integer(),
           optional(:observed_timestamp) => integer(),
-          optional(:severity_number) => 0..24,
+          optional(:severity_number) => Otel.API.Logs.severity_number(),
           optional(:severity_text) => String.t(),
           optional(:body) => primitive_any(),
           optional(:attributes) => %{String.t() => primitive() | [primitive()]},
@@ -112,7 +112,7 @@ defmodule Otel.API.Logs.Logger do
   (`.claude/rules/code-conventions.md` §Layer independence).
   """
   @type enabled_opt ::
-          {:severity_number, 0..24}
+          {:severity_number, Otel.API.Logs.severity_number()}
           | {:event_name, String.t()}
           | {:ctx, Otel.API.Ctx.t()}
 
