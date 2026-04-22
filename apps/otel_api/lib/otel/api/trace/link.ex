@@ -28,6 +28,36 @@ defmodule Otel.API.Trace.Link do
   creation, which is the Span builder's responsibility, not this
   type module's.
 
+  ## Design notes
+
+  ### Zero-TraceId / zero-SpanId links permitted by design
+
+  Spec L820-L823 SHOULD:
+
+  > *"Implementations SHOULD record links containing
+  > SpanContext with empty TraceId or SpanId (all zeros)
+  > as long as either the attribute set or TraceState is
+  > non-empty."*
+
+  This struct does no validation on `context` — any
+  `SpanContext`, including one with all-zero `trace_id` or
+  `span_id`, is accepted. Validating at this type module
+  would pre-reject spec-compliant Links whose recording
+  decision belongs to the SDK.
+
+  The SHOULD's *"as long as attributes or TraceState is
+  non-empty"* condition is a **recording decision** — it
+  belongs to the SDK's span-storage path (the module
+  registered via `Otel.API.Trace.Span.set_module/1`), where
+  the full Link data (context + attributes + tracestate) is
+  available and where the policy "retain or drop" applies.
+
+  API callers can construct any Link; the SDK handles
+  recording per SHOULD. A `valid?/1` / `should_record?/1`
+  predicate is intentionally **not exposed** on this module
+  because the "should record" rule depends on SDK policy,
+  not struct shape.
+
   ## References
 
   - OTel Trace API §Link: `opentelemetry-specification/specification/trace/api.md` L803-L834
@@ -40,12 +70,9 @@ defmodule Otel.API.Trace.Link do
 
   Fields:
 
-  - `context` — the `SpanContext` of the Span being linked to.
-    Per spec L822-L823 implementations SHOULD record links even
-    when `context` has zero `trace_id`/`span_id`, as long as
-    `attributes` or `context.tracestate` is non-empty; that
-    acceptance is implemented at the Span level, not by this
-    struct.
+  - `context` — the `SpanContext` of the Span being linked
+    to. Zero-TraceId / zero-SpanId contexts are permitted;
+    see the module's `## Design notes` for the rationale.
   - `attributes` — zero or more attributes describing the
     relationship. Values follow OTel attribute rules (primitives
     and homogeneous arrays; no maps, no heterogeneous arrays).
