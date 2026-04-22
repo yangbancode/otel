@@ -86,7 +86,7 @@ classification; field selection is left to their own future Decisions.
 | `Status` | `defstruct` | Named fields (code, description) |
 | `Measurement` | `defstruct` | Named fields (value, attributes) |
 | `Instrument` | `defstruct` | Named fields (name, kind, unit, description) |
-| `SpanContext` | `defstruct` | Named fields (trace_id, span_id, trace_flags, tracestate, is_remote) — already a struct, see [spancontext-struct.md](spancontext-struct.md) |
+| `SpanContext` | `defstruct` | Named fields (trace_id, span_id, trace_flags, tracestate, is_remote) — `apps/otel_api/lib/otel/api/trace/span_context.ex` |
 | `SeverityNumber` | range literal `0..24 \| nil` | Bounded integer with a small explicit range (spec defines 1..24 with 0 as UNSPECIFIED) |
 | `TraceId` | `@opaque` on `non_neg_integer()` | Identity semantics on a 128-bit primitive; must be distinguishable from other integers at module boundaries |
 | `SpanId` | `@opaque` on `non_neg_integer()` | Identity semantics on a 64-bit primitive; must be distinguishable from `TraceId` and other integers |
@@ -137,21 +137,19 @@ classification; field selection is left to their own future Decisions.
   implementations have. The benefit is Dialyzer-visible type safety on the
   identifiers that matter most.
 
-### Relationship to other Decisions
+### Where this policy is applied
 
-- **Does not supersede any prior Decision.** The earlier
-  [attribute-and-anyvalue-types.md](attribute-and-anyvalue-types.md)
-  Decision is fully consistent with this policy: `AnyValue` and `Attribute`
-  are Q4 results (`@type` aliases for a union and a map shape reused across
-  signals). This policy reframes that earlier choice as a specific
-  application of a general rule, rather than a one-off stylistic preference.
-- **[spancontext-struct.md](spancontext-struct.md)** is a Q1 result — five
-  named fields (`trace_id`, `span_id`, `trace_flags`, `tracestate`,
-  `is_remote`) with distinct semantics make `defstruct` the only fit.
-- **Future Decisions** for composite entities (`Link`, `Event`, `Status`,
-  `LogRecord`, `Measurement`, `Instrument`) will cite this policy as their
-  justification for choosing `defstruct`, and will focus their own prose on
-  field selection and lifecycle rather than re-arguing the shape choice.
+- **`AnyValue` and `Attribute`** (`apps/otel_api/lib/otel/api/common/types.ex`)
+  are Q4 results — `@type` aliases for a union and a map shape reused across
+  signals.
+- **`SpanContext`** (`apps/otel_api/lib/otel/api/trace/span_context.ex`) is a
+  Q1 result — five named fields (`trace_id`, `span_id`, `trace_flags`,
+  `tracestate`, `is_remote`) with distinct semantics make `defstruct` the
+  only fit.
+- **Composite entities** (`Link`, `Event`, `Status`, `LogRecord`,
+  `Measurement`, `Instrument`) are Q1 results; each is a `defstruct` module
+  under `apps/otel_api/lib/otel/api/`. Field selection and lifecycle notes
+  live in each module's moduledoc rather than re-arguing the shape choice.
 
 ## Modules
 
@@ -171,9 +169,9 @@ Both modules follow the policy's Q3 contract: callers outside the defining
 module may not construct or inspect the underlying integer directly, and all
 conversions go through the provided functions.
 
-## Compliance
+## Spec references
 
-- [Trace API](../compliance.md)
+- `opentelemetry-specification/specification/trace/api.md`
   * SpanContext — binary 16-byte TraceId, binary 8-byte SpanId (satisfied by
     `TraceId.to_bytes/1` and `SpanId.to_bytes/1`)
   * Retrieving the TraceId and SpanId — 32-char hex TraceId, 16-char hex

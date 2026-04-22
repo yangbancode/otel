@@ -257,7 +257,7 @@ See `.claude/rules/code-conventions.md`. Remove:
 
 Use direct pattern match (`[k, v] = split(...)`) and trust the caller.
 Malformed input raises `MatchError`; the finalization phase (see
-`docs/decisions/error-handling.md`) will decide how to surface these.
+`docs/architecture/error-handling.md`) will decide how to surface these.
 
 **Not error handling** (keep these):
 - Spec-mandated fallbacks (e.g. Noop dispatcher when no SDK registered)
@@ -386,8 +386,11 @@ Placement:
 - A **single-module trade-off** goes in the module's `@moduledoc`
   as a short `## Design notes` subsection.
 - An **architectural choice** affecting multiple modules or a
-  cross-cutting pattern goes in `docs/decisions/` as its own
-  decision doc, linked from the relevant `@moduledoc`.
+  cross-cutting pattern goes in `docs/architecture/` as its own
+  doc, linked from the relevant `@moduledoc`. The bar is high —
+  only add a new file when the rationale spans enough modules
+  that repeating it in each moduledoc would be painful and the
+  rationale is not recoverable from the code.
 
 Documentation format (both placements):
 
@@ -398,8 +401,8 @@ Documentation format (both placements):
   than erlang, name the spec clause; if it's a BEAM idiom, name
   the alternative and why ours serves users better.
 
-**Real example — decision doc**:
-`docs/decisions/with-span-lifecycle-ownership.md` captures why
+**Real example — architecture doc**:
+`docs/architecture/with-span-lifecycle-ownership.md` captures why
 `Trace.with_span/5` delegates to a Tracer callback (matching
 erlang's `otel_tracer.erl` + `otel_tracer_default.erl` split)
 and names the architectural invariant — *"whichever layer
@@ -471,8 +474,9 @@ identifies changes, the standard flow applies:
    mix credo --strict
    mix dialyzer
    ```
-6. **Update docs** — Decision document, `compliance.md` checkboxes,
-   `decisions.md` checkboxes if relevant
+6. **Update docs** — if the change affects an architectural decision,
+   update or add a doc under `docs/architecture/`. Otherwise update
+   the relevant module's `@moduledoc` to reflect the new behaviour.
 7. **PR** — single commit preferred; PR title = commit subject, PR
    body = commit body verbatim (per `git-conventions.md` and
    `memory/feedback_pr_body_verbatim.md`)
@@ -492,7 +496,8 @@ identifies changes, the standard flow applies:
 - `.claude/rules/code-conventions.md` — happy-path, `@spec`, no-alias
 - `.claude/rules/documentation.md` — `@doc` role markers
 - `.claude/rules/git-conventions.md` — commit/PR format
-- `docs/decisions/` — existing design decisions (read before proposing
-  changes that might conflict)
-- `docs/decisions/error-handling.md` — policy for malformed input
+- `docs/architecture/` — BEAM-specific design decisions not
+  recoverable from code alone (read before proposing changes that
+  might conflict)
+- `docs/architecture/error-handling.md` — policy for malformed input
 - `references/` — spec submodules (verify here, always)

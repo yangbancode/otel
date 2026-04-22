@@ -20,13 +20,15 @@ defmodule Otel.API.Metrics.Instrument do
 
   ## Unified API + SDK struct
 
-  Per `docs/decisions/api-instrument-struct.md`, this is a
-  single struct shared by both API and SDK layers rather
+  A single struct shared by both API and SDK layers rather
   than an API-handle + SDK-record split. The `meter` field
   carries the `{module, config}` dispatcher so the
   instrument is a self-sufficient handle; recording
   resolves the SDK module from `instrument.meter` without
-  an auxiliary lookup.
+  an auxiliary lookup. Spec `metrics/api.md` L190-L191
+  treats Instrument as a single concept; erlang's reference
+  implementation likewise defines one `#instrument{}`
+  record shared across its API and SDK.
 
   The SDK stores the same struct in its `instruments_tab`
   ETS table. Stateless helpers that pure-pattern-match on
@@ -77,7 +79,6 @@ defmodule Otel.API.Metrics.Instrument do
   - OTel Metrics API §Enabled (no required parameters): `opentelemetry-specification/specification/metrics/api.md` L485-L487
   - OTel Metrics SDK §Duplicate instrument registration: `opentelemetry-specification/specification/metrics/sdk.md` L904-L958
   - OTel Metrics Data Model §Temporality: `opentelemetry-specification/specification/metrics/data-model.md` L400-L465
-  - Decision: `docs/decisions/api-instrument-struct.md`
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_instrument.erl`
   """
 

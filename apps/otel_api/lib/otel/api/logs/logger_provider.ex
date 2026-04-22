@@ -14,8 +14,7 @@ defmodule Otel.API.Logs.LoggerProvider do
   Both the global provider pointer and the scope-keyed logger
   cache live in `:persistent_term`. The dispatch pattern
   (`{dispatcher_module, state}` tuple + `get_logger/2`
-  callback) is shared across Trace, Metrics, and Logs — see
-  `docs/decisions/provider-dispatch.md`.
+  callback) is shared across Trace, Metrics, and Logs.
 
   Unlike `Otel.API.Trace.TracerProvider`,
   `opentelemetry-erlang` has **no** `otel_logger_provider.erl`
@@ -39,7 +38,6 @@ defmodule Otel.API.Logs.LoggerProvider do
 
   - OTel Logs API §LoggerProvider: `opentelemetry-specification/specification/logs/api.md` L54-L97
   - OTel Logs API §Concurrency: `opentelemetry-specification/specification/logs/api.md` L172-L173
-  - Dispatch pattern: `docs/decisions/provider-dispatch.md`
   """
 
   @default_logger {Otel.API.Logs.Logger.Noop, []}
@@ -128,8 +126,7 @@ defmodule Otel.API.Logs.LoggerProvider do
   implement the `Otel.API.Logs.LoggerProvider` behaviour.
 
   To clear the registration (e.g. in tests), use
-  `:persistent_term.erase/1` directly — see
-  `docs/decisions/provider-dispatch.md`.
+  `:persistent_term.erase/1` directly.
   """
   @spec set_provider(provider :: t()) :: :ok
   def set_provider({_module, _state} = provider) do

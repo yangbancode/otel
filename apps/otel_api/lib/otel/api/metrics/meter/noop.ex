@@ -57,10 +57,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
      behaviour.
   2. **`register_callback` return value** — erlang returns
      `ok`. We return `{__MODULE__, :noop}` as the
-     canonical registration handle per
-     `docs/decisions/asynchronous-instruments-and-callbacks.md`
-     — keeps the shape consistent with the SDK-installed
-     path, so `unregister_callback/1` has a uniform input.
+     registration handle — keeps the shape consistent with
+     the SDK-installed path, so `unregister_callback/1` has
+     a uniform input.
   3. **`unregister_callback/1`** — erlang has no such
      function. We implement it per spec `api.md`
      L419-L420 MUST (*"user MUST be able to undo
@@ -112,7 +111,6 @@ defmodule Otel.API.Metrics.Meter.Noop do
   - OTel Metrics Noop: `opentelemetry-specification/specification/metrics/noop.md`
   - OTel Metrics API §Asynchronous Instrument API: `opentelemetry-specification/specification/metrics/api.md` L350-L472
   - OTel Metrics API §Enabled: `opentelemetry-specification/specification/metrics/api.md` L475-L495
-  - Decision: `docs/decisions/asynchronous-instruments-and-callbacks.md`
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_meter_noop.erl`
   """
 
@@ -312,10 +310,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
   registration, L408-L420).
 
   Returns `{__MODULE__, :noop}` as the registration
-  handle, per
-  `docs/decisions/asynchronous-instruments-and-callbacks.md`.
-  `_callback` and `_callback_args` are discarded per the
-  Noop no-retention invariant.
+  handle. `_callback` and `_callback_args` are discarded
+  per the Noop no-retention invariant.
   """
   @impl true
   @spec register_callback(
