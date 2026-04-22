@@ -63,16 +63,15 @@ defmodule Otel.API.Propagator.TextMap do
 
   | Function | Role |
   |---|---|
-  | `@callback inject/3` | **OTel API MUST** — TextMap Inject (L155-L182) |
-  | `@callback extract/3` | **OTel API MUST** — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L100-L102) |
-  | `@callback fields/0` | **OTel API** — Fields (L133-L152) |
-  | `get_propagator/0` | **OTel API MUST** — Get Global Propagator (L334-L338) |
-  | `set_propagator/1` | **OTel API MUST** — Set Global Propagator (L340-L346) |
-  | `inject/3` | **OTel convenience** — Global facade |
-  | `extract/3` | **OTel convenience** — Global facade |
-  | `default_getter/2` | **W3C header parsing helper** — Getter.Get (L216-L225) |
-  | `default_setter/3` | **W3C header serialization helper** — Setter.Set (L174-L186) |
-  | `inject_with/4`, `extract_with/4` | **Local helper** — dispatch for `{module, opts}` vs atom |
+  | `inject/3` | **Application** (OTel API SHOULD) — global-propagator inject (L310-L313) |
+  | `extract/3` | **Application** (OTel API SHOULD) — global-propagator extract (L310-L313) |
+  | `get_propagator/0` | **Application** (OTel API MUST) — Get Global Propagator (L334-L338) |
+  | `set_propagator/1` | **Application** (OTel API MUST) — Set Global Propagator (L340-L346) |
+  | `default_getter/2` | **Application** (W3C header parsing) — Getter.Get (L216-L225) for `[{String.t(), String.t()}]` carriers |
+  | `default_setter/3` | **Application** (W3C header serialization) — Setter.Set (L174-L186) for `[{String.t(), String.t()}]` carriers |
+  | `@callback inject/3` | **SDK** (OTel API MUST) — TextMap Inject (L155-L182) |
+  | `@callback extract/3` | **SDK** (OTel API MUST) — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L100-L102) |
+  | `@callback fields/0` | **SDK** (OTel API MUST) — Fields (L133-L152) |
 
   ## References
 
@@ -103,51 +102,10 @@ defmodule Otel.API.Propagator.TextMap do
   """
   @type setter :: (key :: String.t(), value :: String.t(), carrier() -> carrier())
 
-  @doc """
-  **OTel API MUST** — TextMap "Inject" (`api-propagators.md`
-  L155-L182).
-
-  Implementations inject cross-cutting-concern values from
-  `ctx` into `carrier` via `setter`. The setter MAY be
-  invoked multiple times for multi-field propagators
-  (L168-L169).
-  """
-  @callback inject(
-              ctx :: Otel.API.Ctx.t(),
-              carrier :: carrier(),
-              setter :: setter()
-            ) :: carrier()
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API MUST** — TextMap "Extract" (`api-propagators.md`
-  L185-L203).
-
-  Implementations read values out of `carrier` via `getter`
-  and return a new `Context` derived from `ctx` with the
-  extracted value. Per spec L100-L102 the implementation
-  **MUST NOT throw** on parse failure and **MUST NOT store a
-  new value** — malformed carriers yield the original `ctx`
-  unchanged.
-  """
-  @callback extract(
-              ctx :: Otel.API.Ctx.t(),
-              carrier :: carrier(),
-              getter :: getter()
-            ) :: Otel.API.Ctx.t()
-
-  @doc """
-  **OTel API** — Fields (`api-propagators.md` L133-L152).
-
-  Returns the list of header keys this propagator reads and
-  writes. Used by carriers that want to pre-allocate or
-  pre-clear fields before injection (L146-L149).
-  """
-  @callback fields() :: [String.t()]
-
-  # --- Global propagator registration ---
-
-  @doc """
-  **OTel API MUST** — "Get Global Propagator"
+  **Application** (OTel API MUST) — "Get Global Propagator"
   (`api-propagators.md` L334-L338).
 
   Returns the globally registered TextMap propagator. When no
@@ -166,7 +124,7 @@ defmodule Otel.API.Propagator.TextMap do
   end
 
   @doc """
-  **OTel API MUST** — "Set Global Propagator"
+  **Application** (OTel API MUST) — "Set Global Propagator"
   (`api-propagators.md` L340-L346).
 
   Registers a propagator as the global TextMap propagator.
@@ -185,8 +143,8 @@ defmodule Otel.API.Propagator.TextMap do
   # --- Convenience facade using the global propagator ---
 
   @doc """
-  **OTel convenience** — inject via the global propagator
-  (`api-propagators.md` L310-L313 *"Instrumentation
+  **Application** (OTel API SHOULD) — inject via the global
+  propagator (`api-propagators.md` L310-L313 *"Instrumentation
   libraries SHOULD call propagators to extract and inject
   the context on all remote calls"*).
 
@@ -203,8 +161,8 @@ defmodule Otel.API.Propagator.TextMap do
   end
 
   @doc """
-  **OTel convenience** — extract via the global propagator
-  (`api-propagators.md` L310-L313).
+  **Application** (OTel API SHOULD) — extract via the global
+  propagator (`api-propagators.md` L310-L313).
 
   Dispatches to `get_propagator/0`'s current value. When no
   propagator is installed the Noop default returns the
@@ -222,7 +180,7 @@ defmodule Otel.API.Propagator.TextMap do
   # --- Default carrier functions for [{String.t(), String.t()}] ---
 
   @doc """
-  **W3C header parsing helper** — Getter.Get
+  **Application** (W3C header parsing) — Getter.Get
   (`api-propagators.md` L216-L225) for
   `[{String.t(), String.t()}]` carriers.
 
@@ -266,7 +224,7 @@ defmodule Otel.API.Propagator.TextMap do
   end
 
   @doc """
-  **W3C header serialization helper** — Setter.Set
+  **Application** (W3C header serialization) — Setter.Set
   (`api-propagators.md` L174-L186) for
   `[{String.t(), String.t()}]` carriers.
 
@@ -302,32 +260,65 @@ defmodule Otel.API.Propagator.TextMap do
     filtered ++ [{key, value}]
   end
 
-  # --- Internal dispatch ---
+  # --- SDK callbacks ---
 
   @doc """
-  **Local helper** — dispatch the `{module, opts}` / atom
-  propagator shape to the underlying module's `inject`.
+  **SDK** (OTel API MUST) — TextMap "Inject"
+  (`api-propagators.md` L155-L182).
 
-  Not part of the user-facing API (users should call
-  `inject/3` or rely on `Otel.API.Propagator.TextMap.Composite`
-  to wrap sub-propagators). Exposed rather than `defp`
-  because two modules need this same dispatch:
-
-  - `inject/3` on this facade, when dispatching the global
-    propagator retrieved from `get_propagator/0`.
-  - `Otel.API.Propagator.TextMap.Composite.inject/4`,
-    which loops over inner propagators of a composite.
-
-  Dispatch rule:
-
-  - Tuple `{module, opts}` → `module.inject(opts, ctx,
-    carrier, setter)` (4-arity, for configured propagators
-    like `Composite`).
-  - Atom `module` → `module.inject(ctx, carrier, setter)`
-    (3-arity, matches the `@callback inject/3` behaviour
-    for single propagators like `TraceContext` and
-    `Baggage`).
+  Implementations inject cross-cutting-concern values from
+  `ctx` into `carrier` via `setter`. The setter MAY be
+  invoked multiple times for multi-field propagators
+  (L168-L169).
   """
+  @callback inject(
+              ctx :: Otel.API.Ctx.t(),
+              carrier :: carrier(),
+              setter :: setter()
+            ) :: carrier()
+
+  @doc """
+  **SDK** (OTel API MUST) — TextMap "Extract"
+  (`api-propagators.md` L185-L203).
+
+  Implementations read values out of `carrier` via `getter`
+  and return a new `Context` derived from `ctx` with the
+  extracted value. Per spec L100-L102 the implementation
+  **MUST NOT throw** on parse failure and **MUST NOT store a
+  new value** — malformed carriers yield the original `ctx`
+  unchanged.
+  """
+  @callback extract(
+              ctx :: Otel.API.Ctx.t(),
+              carrier :: carrier(),
+              getter :: getter()
+            ) :: Otel.API.Ctx.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Fields (`api-propagators.md`
+  L133-L152).
+
+  Returns the list of header keys this propagator reads and
+  writes. Used by carriers that want to pre-allocate or
+  pre-clear fields before injection (L146-L149).
+  """
+  @callback fields() :: [String.t()]
+
+  # --- Internal dispatch ---
+
+  # Internal: cross-module helper called by this facade's
+  # `inject/3` and by `Otel.API.Propagator.TextMap.Composite.inject/4`
+  # (which loops over inner propagators of a composite).
+  # Dispatches the `{module, opts}` vs atom propagator shape:
+  #
+  # - Tuple `{module, opts}` → `module.inject(opts, ctx,
+  #   carrier, setter)` (4-arity, for configured propagators
+  #   like `Composite`).
+  # - Atom `module` → `module.inject(ctx, carrier, setter)`
+  #   (3-arity, matches the `@callback inject/3` behaviour
+  #   for single propagators like `TraceContext` and
+  #   `Baggage`).
+  @doc false
   @spec inject_with(
           propagator :: {module(), term()} | module(),
           ctx :: Otel.API.Ctx.t(),
@@ -342,16 +333,12 @@ defmodule Otel.API.Propagator.TextMap do
     module.inject(ctx, carrier, setter)
   end
 
-  @doc """
-  **Local helper** — dispatch counterpart of
-  `inject_with/4` for extraction.
-
-  Same design and caller set as `inject_with/4` (called
-  from `extract/3` on this facade and from
-  `Otel.API.Propagator.TextMap.Composite.extract/4`). Same
-  tuple-vs-atom dispatch rule, applied to the module's
-  `extract` callback.
-  """
+  # Internal: dispatch counterpart of `inject_with/4` for
+  # extraction. Called from this facade's `extract/3` and from
+  # `Otel.API.Propagator.TextMap.Composite.extract/4`. Same
+  # tuple-vs-atom dispatch rule, applied to the module's
+  # `extract` callback.
+  @doc false
   @spec extract_with(
           propagator :: {module(), term()} | module(),
           ctx :: Otel.API.Ctx.t(),

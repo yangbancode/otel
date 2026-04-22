@@ -42,10 +42,9 @@ defmodule Otel.API.Propagator.TextMap.Composite do
 
   | Function | Role |
   |---|---|
-  | `new/1` | **OTel API MUST** — "Create a Composite Propagator" (L278-L285) |
-  | `inject/4` | **OTel API MUST** — "Composite Inject" (L297-L305) |
-  | `extract/4` | **OTel API MUST** — "Composite Extract" (L286-L296) |
-  | `fields/1` | **OTel API** — Fields (L133-L152); aggregated from inner propagators |
+  | `new/1` | **Application** (OTel API MUST) — Create a Composite Propagator (L278-L285) |
+  | `fields/1` | **Application** (OTel API MAY) — Aggregated inner-propagator Fields (L133-L152) |
+  | `inject/4`, `extract/4` | **SDK** (dispatch target) — invoked via `TextMap.inject_with/4` / `extract_with/4` on the `{Composite, propagators}` tuple |
 
   ## References
 
@@ -65,8 +64,8 @@ defmodule Otel.API.Propagator.TextMap.Composite do
   @type propagator :: module() | {module(), term()}
 
   @doc """
-  **OTel API MUST** — "Create a Composite Propagator"
-  (`api-propagators.md` L278-L285).
+  **Application** (OTel API MUST) — "Create a Composite
+  Propagator" (`api-propagators.md` L278-L285).
 
   Returns a `{Composite, propagators}` tuple suitable for
   registration via `Otel.API.Propagator.TextMap.set_propagator/1`.
@@ -78,11 +77,15 @@ defmodule Otel.API.Propagator.TextMap.Composite do
   end
 
   @doc """
-  **OTel API MUST** — "Composite Inject" (`api-propagators.md`
-  L297-L305).
+  **SDK** (dispatch target) — "Composite Inject"
+  (`api-propagators.md` L297-L305).
 
   Calls each inner propagator's inject in order on the same
   carrier, threading the carrier through the reduction.
+
+  Not called directly by application code — invoked via
+  `Otel.API.Propagator.TextMap.inject_with/4` when the global
+  propagator is a `{Composite, propagators}` tuple.
   """
   @spec inject(
           propagators :: [propagator()],
@@ -97,12 +100,16 @@ defmodule Otel.API.Propagator.TextMap.Composite do
   end
 
   @doc """
-  **OTel API MUST** — "Composite Extract" (`api-propagators.md`
-  L286-L296).
+  **SDK** (dispatch target) — "Composite Extract"
+  (`api-propagators.md` L286-L296).
 
   Calls each inner propagator's extract in order, threading
   the context through the reduction so later propagators see
   earlier extractions.
+
+  Not called directly by application code — invoked via
+  `Otel.API.Propagator.TextMap.extract_with/4` when the global
+  propagator is a `{Composite, propagators}` tuple.
   """
   @spec extract(
           propagators :: [propagator()],
@@ -117,7 +124,8 @@ defmodule Otel.API.Propagator.TextMap.Composite do
   end
 
   @doc """
-  **OTel API** — Fields (`api-propagators.md` L133-L152).
+  **Application** (OTel API MAY) — Fields (`api-propagators.md`
+  L133-L152).
 
   Returns the deduplicated union of header keys used by all
   inner propagators. Deduplication prevents callers that

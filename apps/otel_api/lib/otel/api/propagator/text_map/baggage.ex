@@ -87,11 +87,11 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   | Function | Role |
   |---|---|
-  | `inject/3` | **OTel API MUST** — TextMap Inject (L155-L182) |
-  | `extract/3` | **OTel API MUST** — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L102) |
-  | `fields/0` | **OTel API** — Fields (L133-L152) |
-  | `encode_baggage/1` | **W3C header serialization** — §Definition L23-L41 |
-  | `decode_baggage/1` | **W3C header parsing** — §Definition L23-L41 |
+  | `inject/3` | **SDK** (OTel API MUST) — TextMap Inject (L155-L182); `@impl Otel.API.Propagator.TextMap` |
+  | `extract/3` | **SDK** (OTel API MUST) — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L102) |
+  | `fields/0` | **SDK** (OTel API MUST) — Fields (L133-L152) |
+  | `encode_baggage/1` | **Application** (W3C header serialization) — §Definition L23-L41 |
+  | `decode_baggage/1` | **Application** (W3C header parsing) — §Definition L23-L41 |
 
   ## References
 
@@ -106,8 +106,9 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   @baggage_header "baggage"
 
   @doc """
-  **OTel API MUST** — TextMap "Inject" (`api-propagators.md`
-  L155-L182) for the W3C `baggage` header.
+  **SDK** (OTel API MUST) — TextMap "Inject"
+  (`api-propagators.md` L155-L182) for the W3C `baggage`
+  header.
 
   Serialises `Otel.API.Baggage.current(ctx)` into a single
   comma-separated `baggage` header value and sets it on the
@@ -132,8 +133,9 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   end
 
   @doc """
-  **OTel API MUST** — TextMap "Extract" (`api-propagators.md`
-  L185-L203) for the W3C `baggage` header.
+  **SDK** (OTel API MUST) — TextMap "Extract"
+  (`api-propagators.md` L185-L203) for the W3C `baggage`
+  header.
 
   Parses the `baggage` header into `{value, metadata}` pairs
   and merges the result into `Otel.API.Baggage.current(ctx)`
@@ -174,7 +176,8 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   end
 
   @doc """
-  **OTel API** — "Fields" (`api-propagators.md` L133-L152).
+  **SDK** (OTel API MUST) — "Fields" (`api-propagators.md`
+  L133-L152).
 
   Returns `["baggage"]` — the single header name this
   propagator reads and writes.
@@ -186,7 +189,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   # --- Encoding ---
 
   @doc """
-  **W3C header serialization** — encodes an
+  **Application** (W3C header serialization) — encodes an
   `Otel.API.Baggage.t()` map into a `baggage` header value.
 
   Produces a comma-separated list of `list-member`s per W3C
@@ -216,8 +219,8 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   # --- Decoding ---
 
   @doc """
-  **W3C header parsing** — decodes a `baggage` header value
-  into an `Otel.API.Baggage.t()` map.
+  **Application** (W3C header parsing) — decodes a `baggage`
+  header value into an `Otel.API.Baggage.t()` map.
 
   Splits the header on `,` into `list-member`s per W3C
   §Definition L23-L41, delegates each to `decode_entry/1`,

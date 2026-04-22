@@ -34,9 +34,9 @@ defmodule Otel.API.Baggage do
 
   | Function | Role |
   |---|---|
-  | `get_value/2`, `get_all/1`, `set_value/4`, `remove_value/2` | **OTel API MUST** (Operations) |
-  | `current/1`, `set_current/2` | **OTel API MUST** (Context Interaction) |
-  | `current/0`, `set_current/1` | **OTel API (implicit-context SHOULD)** |
+  | `get_value/2`, `get_all/1`, `set_value/4`, `remove_value/2` | **Application** (OTel API MUST) — Operations (L87-L136) |
+  | `current/1`, `set_current/2` | **Application** (OTel API MUST) — Context Interaction (L143-L151) |
+  | `current/0`, `set_current/1` | **Application** (OTel API SHOULD) — implicit-context variants (L153-L167) |
 
   ## References
 
@@ -96,7 +96,8 @@ defmodule Otel.API.Baggage do
   # --- Operations on Baggage (spec §Operations, MUST) ---
 
   @doc """
-  **OTel API MUST** — "Get Value" (`baggage/api.md` L89-L98).
+  **Application** (OTel API MUST) — "Get Value"
+  (`baggage/api.md` L89-L98).
 
   Returns the value for `name`, or `nil` when the name is not
   present. Spec L91-L93: *"takes the name as input, and returns a
@@ -112,7 +113,8 @@ defmodule Otel.API.Baggage do
   end
 
   @doc """
-  **OTel API MUST** — "Get All Values" (`baggage/api.md` L99-L104).
+  **Application** (OTel API MUST) — "Get All Values"
+  (`baggage/api.md` L99-L104).
 
   Returns all entries as a map of `%{name => {value, metadata}}`.
   Per spec L101-L102 the order of name/value pairs MUST NOT be
@@ -122,7 +124,8 @@ defmodule Otel.API.Baggage do
   def get_all(baggage), do: baggage
 
   @doc """
-  **OTel API MUST** — "Set Value" (`baggage/api.md` L106-L124).
+  **Application** (OTel API MUST) — "Set Value"
+  (`baggage/api.md` L106-L124).
 
   Returns a new Baggage with `name` mapped to `{value, metadata}`.
   If `name` already exists the new value takes precedence per
@@ -143,7 +146,8 @@ defmodule Otel.API.Baggage do
   end
 
   @doc """
-  **OTel API MUST** — "Remove Value" (`baggage/api.md` L126-L136).
+  **Application** (OTel API MUST) — "Remove Value"
+  (`baggage/api.md` L126-L136).
 
   Returns a new Baggage no longer containing `name`. Spec
   L128-L129: *"Returns a new Baggage which no longer contains the
@@ -157,8 +161,8 @@ defmodule Otel.API.Baggage do
   # --- Context interaction (spec §Context Interaction) ---
 
   @doc """
-  **OTel API (implicit-context SHOULD)** — "Get current Baggage"
-  (`baggage/api.md` L153-L159).
+  **Application** (OTel API SHOULD) — "Get current Baggage"
+  (`baggage/api.md` L153-L159, implicit-context variant).
 
   Returns the Baggage stored under this module's reserved key in
   the implicit process Context, or an empty Baggage when none is
@@ -170,8 +174,8 @@ defmodule Otel.API.Baggage do
   end
 
   @doc """
-  **OTel API MUST** — "Extract Baggage from Context"
-  (`baggage/api.md` L143-L151).
+  **Application** (OTel API MUST) — "Extract Baggage from
+  Context" (`baggage/api.md` L143-L151).
 
   Returns the Baggage stored under this module's reserved key in
   `ctx`, or an empty Baggage when none is set. Per spec L149-L151
@@ -185,8 +189,8 @@ defmodule Otel.API.Baggage do
   end
 
   @doc """
-  **OTel API (implicit-context SHOULD)** — "Set current Baggage"
-  (`baggage/api.md` L153-L162).
+  **Application** (OTel API SHOULD) — "Set current Baggage"
+  (`baggage/api.md` L153-L162, implicit-context variant).
 
   Sets `baggage` under this module's reserved key in the implicit
   process Context, replacing any existing Baggage.
@@ -197,8 +201,8 @@ defmodule Otel.API.Baggage do
   end
 
   @doc """
-  **OTel API MUST** — "Insert Baggage into Context"
-  (`baggage/api.md` L143-L151).
+  **Application** (OTel API MUST) — "Insert Baggage into
+  Context" (`baggage/api.md` L143-L151).
 
   Returns a new Context with `baggage` set under this module's
   reserved key, replacing any existing Baggage.

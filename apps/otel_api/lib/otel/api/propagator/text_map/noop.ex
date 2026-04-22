@@ -31,9 +31,9 @@ defmodule Otel.API.Propagator.TextMap.Noop do
 
   | Function | Role |
   |---|---|
-  | `inject/3` | **OTel API MUST** — TextMap Inject (no-op) |
-  | `extract/3` | **OTel API MUST** — TextMap Extract (no-op) |
-  | `fields/0` | **OTel API** — Fields (empty list) |
+  | `inject/3` | **SDK** (Noop implementation) — TextMap Inject (no-op) |
+  | `extract/3` | **SDK** (Noop implementation) — TextMap Extract (no-op) |
+  | `fields/0` | **SDK** (Noop implementation) — Fields (empty list) |
 
   ## References
 
@@ -44,7 +44,8 @@ defmodule Otel.API.Propagator.TextMap.Noop do
   @behaviour Otel.API.Propagator.TextMap
 
   @doc """
-  **OTel API MUST** — No-op Inject.
+  **SDK** (Noop implementation) — No-op Inject
+  (`api-propagators.md` L322-L325).
 
   Returns the carrier unchanged. The `ctx` and `setter`
   parameters are accepted for behaviour conformance but
@@ -59,7 +60,8 @@ defmodule Otel.API.Propagator.TextMap.Noop do
   def inject(_ctx, carrier, _setter), do: carrier
 
   @doc """
-  **OTel API MUST** — No-op Extract.
+  **SDK** (Noop implementation) — No-op Extract
+  (`api-propagators.md` L322-L325).
 
   Returns the context unchanged. The `carrier` and `getter`
   parameters are accepted for behaviour conformance but
@@ -76,7 +78,8 @@ defmodule Otel.API.Propagator.TextMap.Noop do
   def extract(ctx, _carrier, _getter), do: ctx
 
   @doc """
-  **OTel API** — Fields.
+  **SDK** (Noop implementation) — Fields
+  (`api-propagators.md` L322-L325).
 
   Returns `[]` — the no-op propagator reads and writes no
   headers.
