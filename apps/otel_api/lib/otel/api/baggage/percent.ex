@@ -33,6 +33,13 @@ defmodule Otel.API.Baggage.Percent do
     environment variable parsing (same Baggage-like
     format per `resource/sdk.md`)
 
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `encode/1` | **Application** (W3C header serialization) — percent-encode a UTF-8 value |
+  | `decode/1` | **Application** (W3C header parsing) — percent-decode with `U+FFFD` replacement |
+
   ## References
 
   - W3C Baggage §value: `w3c-baggage/baggage/HTTP_HEADER_FORMAT.md` L61-L80
@@ -43,8 +50,8 @@ defmodule Otel.API.Baggage.Percent do
   @replacement "\uFFFD"
 
   @doc """
-  **W3C header serialization** — percent-encodes a UTF-8
-  string per W3C Baggage §value L64-L68.
+  **Application** (W3C header serialization) — percent-encodes
+  a UTF-8 string per W3C Baggage §value L64-L68.
 
   Emits RFC 3986 Section 2.1 percent-encoding over the
   `URI.char_unreserved?/1` predicate. The unreserved set
@@ -63,8 +70,8 @@ defmodule Otel.API.Baggage.Percent do
   def encode(value), do: URI.encode(value, &URI.char_unreserved?/1)
 
   @doc """
-  **W3C header parsing** — percent-decodes a string per
-  W3C Baggage §value L69.
+  **Application** (W3C header parsing) — percent-decodes a
+  string per W3C Baggage §value L69.
 
   Decodes RFC 3986 Section 2.1 percent sequences. Any
   decoded octet sequence that is not valid UTF-8 is

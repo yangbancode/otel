@@ -25,9 +25,9 @@ defmodule Otel.API.Ctx do
 
   | Function | Role |
   |---|---|
-  | `create_key/1`, `get_value/2`, `set_value/3` | **OTel API MUST** |
-  | `current/0`, `attach/1`, `detach/1` | **OTel API (optional global)** |
-  | `new/0`, `get_value/1`, `set_value/2` | **Local helper** (not in spec) |
+  | `create_key/1`, `get_value/2`, `set_value/3` | **Application** (OTel API MUST) — core Context ops (L56-L92) |
+  | `current/0`, `attach/1`, `detach/1` | **Application** (OTel API SHOULD) — optional global ops (L95-L136) |
+  | `new/0` | **Application** (Convenience) — build an empty Context |
 
   ## References
 
@@ -69,7 +69,8 @@ defmodule Otel.API.Ctx do
   @current_key {__MODULE__, :current}
 
   @doc """
-  **OTel API MUST** — "Create a key" (`context/README.md` L56-L67).
+  **Application** (OTel API MUST) — "Create a key"
+  (`context/README.md` L56-L67).
 
   Returns the given name unchanged as a context key.
 
@@ -84,7 +85,8 @@ defmodule Otel.API.Ctx do
   def create_key(name), do: name
 
   @doc """
-  **OTel API MUST** — "Get value" (`context/README.md` L69-L79).
+  **Application** (OTel API MUST) — "Get value"
+  (`context/README.md` L69-L79).
 
   Returns the value in `ctx` for `key`, or `nil` when the key is not
   present. Callers who want a default value compose
@@ -94,7 +96,8 @@ defmodule Otel.API.Ctx do
   def get_value(ctx, key), do: Map.get(ctx, key)
 
   @doc """
-  **OTel API MUST** — "Set value" (`context/README.md` L81-L92).
+  **Application** (OTel API MUST) — "Set value"
+  (`context/README.md` L81-L92).
 
   Returns a new Context with `key` mapped to `value`. The spec
   requires immutability — the input `ctx` is unchanged.
@@ -103,8 +106,8 @@ defmodule Otel.API.Ctx do
   def set_value(ctx, key, value), do: Map.put(ctx, key, value)
 
   @doc """
-  **OTel API (optional global)** — "Get current Context"
-  (`context/README.md` L101-L103).
+  **Application** (OTel API SHOULD) — "Get current Context"
+  (`context/README.md` L101-L103, optional global operation).
 
   Returns the current process's Context, or a fresh empty Context
   when nothing is attached. Used by SDK components and instrumentation
@@ -119,8 +122,8 @@ defmodule Otel.API.Ctx do
   end
 
   @doc """
-  **OTel API (optional global)** — "Attach Context"
-  (`context/README.md` L105-L117).
+  **Application** (OTel API SHOULD) — "Attach Context"
+  (`context/README.md` L105-L117, optional global operation).
 
   Associates `ctx` with the current process and returns the previous
   Context, which can be passed to `detach/1` as a token per spec L113.
@@ -136,8 +139,8 @@ defmodule Otel.API.Ctx do
   end
 
   @doc """
-  **OTel API (optional global)** — "Detach Context"
-  (`context/README.md` L119-L136).
+  **Application** (OTel API SHOULD) — "Detach Context"
+  (`context/README.md` L119-L136, optional global operation).
 
   Restores the previous Context from a token returned by `attach/1`.
   Returns `:ok`.
@@ -157,7 +160,7 @@ defmodule Otel.API.Ctx do
   end
 
   @doc """
-  **Local helper** (not in spec).
+  **Application** (Convenience) — build an empty Context.
 
   Returns a fresh empty Context. Preferred over `%{}` at external
   call sites because `t/0` is opaque.
@@ -165,22 +168,19 @@ defmodule Otel.API.Ctx do
   @spec new() :: t()
   def new, do: %{}
 
-  @doc """
-  **Local helper** (not in spec).
-
-  Reads through the current process Context. Equivalent to
-  `get_value(current(), key)`. Returns `nil` when the key is absent;
-  compose `|| default` for fallback.
-  """
+  # Internal: cross-module helper used by `Otel.API.Baggage` and
+  # `Otel.API.Trace` to read a value through the implicit
+  # process-local current Context. Equivalent to
+  # `get_value(current(), key)`.
+  @doc false
   @spec get_value(key :: key()) :: value()
   def get_value(key), do: get_value(current(), key)
 
-  @doc """
-  **Local helper** (not in spec).
-
-  Writes through the current process Context. Equivalent to
-  `current() |> set_value(key, value) |> attach()`. Returns `:ok`.
-  """
+  # Internal: cross-module helper used by `Otel.API.Baggage` and
+  # `Otel.API.Trace` to write a value through the implicit
+  # process-local current Context. Equivalent to
+  # `current() |> set_value(key, value) |> attach()`.
+  @doc false
   @spec set_value(key :: key(), value :: value()) :: :ok
   def set_value(key, value) do
     current()

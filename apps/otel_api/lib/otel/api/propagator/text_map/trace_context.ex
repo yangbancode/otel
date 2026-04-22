@@ -99,12 +99,12 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
 
   | Function | Role |
   |---|---|
-  | `inject/3` | **OTel API MUST** — TextMap Inject (L155-L182) |
-  | `extract/3` | **OTel API MUST** — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L100-L102) |
-  | `fields/0` | **OTel API** — Fields (L133-L152) |
-  | `encode_traceparent/1` | **W3C header serialization** — §traceparent L75-L96 |
-  | `decode_traceparent/1` | **W3C header parsing** — §traceparent L75-L96 + §Versioning L228-L244 |
-  | `lowercase_hex?/1` | **W3C format predicate** — 2HEXDIGLC check |
+  | `inject/3` | **SDK** (OTel API MUST) — TextMap Inject (L155-L182); `@impl Otel.API.Propagator.TextMap` |
+  | `extract/3` | **SDK** (OTel API MUST) — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L100-L102) |
+  | `fields/0` | **SDK** (OTel API MUST) — Fields (L133-L152) |
+  | `encode_traceparent/1` | **Application** (W3C header serialization) — §traceparent L75-L96 |
+  | `decode_traceparent/1` | **Application** (W3C header parsing) — §traceparent L75-L96 + §Versioning L228-L244 |
+  | `lowercase_hex?/1` | **Application** (W3C format predicate) — 2HEXDIGLC check |
 
   ## References
 
@@ -120,9 +120,9 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   @tracestate_header "tracestate"
 
   @doc """
-  **OTel API MUST** — TextMap "Inject" (`api-propagators.md`
-  L155-L182) for the W3C `traceparent` and `tracestate`
-  headers.
+  **SDK** (OTel API MUST) — TextMap "Inject"
+  (`api-propagators.md` L155-L182) for the W3C `traceparent`
+  and `tracestate` headers.
 
   Reads the current `SpanContext` from `ctx`. If it's valid
   (non-zero trace_id and span_id per
@@ -158,9 +158,9 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   end
 
   @doc """
-  **OTel API MUST** — TextMap "Extract" (`api-propagators.md`
-  L185-L203) for the W3C `traceparent` and `tracestate`
-  headers.
+  **SDK** (OTel API MUST) — TextMap "Extract"
+  (`api-propagators.md` L185-L203) for the W3C `traceparent`
+  and `tracestate` headers.
 
   Parses `traceparent` via `decode_traceparent/1` and folds
   `tracestate` in via `extract_tracestate/2`. The resulting
@@ -199,7 +199,8 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   end
 
   @doc """
-  **OTel API** — Fields (`api-propagators.md` L133-L152).
+  **SDK** (OTel API MUST) — Fields (`api-propagators.md`
+  L133-L152).
 
   Returns `["traceparent", "tracestate"]` — the two header
   names this propagator reads and writes.
@@ -211,8 +212,8 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   # --- Encoding ---
 
   @doc """
-  **W3C header serialization** — encodes a `SpanContext` as
-  a v00 `traceparent` header value.
+  **Application** (W3C header serialization) — encodes a
+  `SpanContext` as a v00 `traceparent` header value.
 
   Produces `"00-<trace-id>-<parent-id>-<trace-flags>"` per
   W3C §version-format L93 ABNF. All hex segments are
@@ -245,8 +246,9 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   # --- Decoding ---
 
   @doc """
-  **W3C header parsing** — parses a v00 or higher-version
-  `traceparent` header value into a `SpanContext`.
+  **Application** (W3C header parsing) — parses a v00 or
+  higher-version `traceparent` header value into a
+  `SpanContext`.
 
   Accepts two forms per W3C §Versioning L228-L244:
 
@@ -302,8 +304,8 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   # --- Format predicates ---
 
   @doc """
-  **W3C format predicate** — returns `true` iff `hex` is a
-  non-empty string of ASCII lowercase hex digits
+  **Application** (W3C format predicate) — returns `true` iff
+  `hex` is a non-empty string of ASCII lowercase hex digits
   (`0-9a-f`).
 
   Used internally to enforce W3C §Header Field Values L83 /

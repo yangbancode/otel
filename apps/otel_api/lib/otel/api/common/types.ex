@@ -1,7 +1,14 @@
 defmodule Otel.API.Common.Types do
   @moduledoc """
-  **Local helper** (not in spec) — macro module injecting
-  shared OTel type aliases into consumer modules.
+  Macro module injecting shared OTel type aliases into consumer
+  modules.
+
+  Not a spec-aligned module — this is an internal compile-time
+  helper with no runtime API surface, so the Tier
+  (Application/SDK/Internal) system in
+  `.claude/rules/documentation.md` does not apply. The single
+  public entry point is `__using__/1`, invoked via
+  `use Otel.API.Common.Types`.
 
   Consumer modules `use Otel.API.Common.Types` to gain two
   type aliases that describe every value our public and SDK
