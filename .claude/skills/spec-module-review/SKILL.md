@@ -295,6 +295,12 @@ both directions — what should be hidden and what should be exposed.
   boundary and warns on field access outside the module.
 - The same logic applies to `defstruct` fields being pattern-matched
   externally — if they leak, provide accessor functions instead.
+- **Tier classification is part of encapsulation.** A function
+  that only SDKs call should be `**SDK**`, not `**Application**`;
+  a function only other `otel_api` modules call should be
+  `@doc false` + `# Internal:` comment (if it cannot be `defp`
+  because of cross-module callers). Mismatched tier markers
+  invite apps to depend on SDK-only surface.
 
 **Expose (surface widening):**
 - A `defp` predicate that external callers might reasonably want
@@ -325,6 +331,12 @@ both directions — what should be hidden and what should be exposed.
 - Does any `defp` predicate check a module-owned invariant that
   callers might also want to check? → consider promoting to `def`.
 - Is any public function unused in lib? → consider removing (2.3).
+- Does every public `def` have a tier marker (`**Application**`,
+  `**SDK**`, or `@doc false` for Tier 3) matching its callsite
+  evidence? See `.claude/rules/documentation.md` §Tier
+  classification.
+- Are Tier 3 helpers marked `@doc false` with a `# Internal:`
+  comment above, rather than a public-looking `@doc`?
 
 ---
 
