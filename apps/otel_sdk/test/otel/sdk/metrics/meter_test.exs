@@ -418,6 +418,48 @@ defmodule Otel.SDK.Metrics.MeterTest do
       {_module, config} = meter
       assert :ok == Otel.SDK.Metrics.Meter.run_callbacks(config)
     end
+
+    test "run_callbacks distinguishes instrument per observation (spec L452-L453)",
+         %{meter: meter} do
+      # Multi-instrument callback registered via register_callback/5.
+      # Callback returns [{Instrument, Measurement}] pairs per spec
+      # L1302-L1303 — the observation for each instrument is identified
+      # by the paired instrument, not applied to both instruments.
+      usage_inst = Otel.SDK.Metrics.Meter.create_observable_counter(meter, "usage", [])
+      pressure_inst = Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "pressure", [])
+
+      cb = fn _args ->
+        [
+          {usage_inst, %Otel.API.Metrics.Measurement{value: 42, attributes: %{"id" => "a"}}},
+          {pressure_inst, %Otel.API.Metrics.Measurement{value: 1013, attributes: %{"id" => "a"}}}
+        ]
+      end
+
+      Otel.API.Metrics.Meter.register_callback(meter, [usage_inst, pressure_inst], cb, nil, [])
+
+      {_module, config} = meter
+      Otel.SDK.Metrics.Meter.run_callbacks(config)
+
+      usage_dps =
+        Otel.SDK.Metrics.Aggregation.Sum.collect(
+          config.metrics_tab,
+          {"usage", config.scope},
+          %{}
+        )
+
+      pressure_dps =
+        Otel.SDK.Metrics.Aggregation.LastValue.collect(
+          config.metrics_tab,
+          {"pressure", config.scope},
+          %{}
+        )
+
+      # Each observation was routed to its paired instrument only.
+      assert [dp_usage] = usage_dps
+      assert dp_usage.value == 42
+      assert [dp_pressure] = pressure_dps
+      assert dp_pressure.value == 1013
+    end
   end
 
   describe "cardinality limits" do
