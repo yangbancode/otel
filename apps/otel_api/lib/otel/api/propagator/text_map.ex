@@ -20,17 +20,18 @@ defmodule Otel.API.Propagator.TextMap do
   The API owns a single global TextMapPropagator slot stored
   in `:persistent_term`. `set_propagator/1` registers,
   `get_propagator/0` reads, `inject/3` and `extract/3`
-  dispatch. When unset, inject/extract act as no-ops (spec
-  L322-L325 *"MUST use no-op propagators unless explicitly
-  configured"*). The SDK does not pre-configure a default;
-  callers install e.g. a composite of
-  `Otel.API.Propagator.TextMap.TraceContext` +
+  dispatch. When unset, `get_propagator/0` returns
+  `Otel.API.Propagator.TextMap.Noop`, satisfying spec
+  L322-L325 *"The OpenTelemetry API MUST use no-op
+  propagators unless explicitly configured otherwise"*. The
+  SDK does not pre-configure a default; callers install e.g.
+  a composite of `Otel.API.Propagator.TextMap.TraceContext` +
   `Otel.API.Propagator.TextMap.Baggage` via
   `Otel.API.Propagator.TextMap.Composite.new/1`.
 
   ## Design notes
 
-  Three places where we diverge from
+  Two places where we diverge from
   `opentelemetry-erlang`'s `otel_propagator_text_map.erl`.
 
   ### 1. 3-arity behaviour (no options parameter)
@@ -58,14 +59,6 @@ defmodule Otel.API.Propagator.TextMap do
   behaviour omits Keys, and the module does not provide
   `default_keys/1` / `default_get_all/2` helpers.
 
-  ### 3. `nil` as no-op rather than a concrete Noop module
-
-  Spec L322-L325 mandates "no-op propagators" as the
-  default. We implement that by returning `nil` from
-  `get_propagator/0` and short-circuiting the facade when
-  unset. A concrete `TextMap.Noop` module would be more
-  OO-faithful but adds surface area for no behavioural gain.
-
   ## Public API
 
   | Function | Role |
@@ -89,6 +82,8 @@ defmodule Otel.API.Propagator.TextMap do
   """
 
   @global_key {__MODULE__, :global}
+
+  @default_propagator Otel.API.Propagator.TextMap.Noop
 
   @typedoc "A generic carrier — typically a list of HTTP header tuples."
   @type carrier :: term()
@@ -155,15 +150,19 @@ defmodule Otel.API.Propagator.TextMap do
   **OTel API MUST** — "Get Global Propagator"
   (`api-propagators.md` L334-L338).
 
-  Returns the globally registered TextMap propagator, or
-  `nil` if none is set. Per spec L322-L325 unconfigured
-  state yields no-op behaviour; the nil return is our
-  no-op signal (see `## Design notes` §3 in the
-  `@moduledoc`).
+  Returns the globally registered TextMap propagator. When no
+  propagator has been installed via `set_propagator/1`,
+  returns `Otel.API.Propagator.TextMap.Noop`, satisfying spec
+  L322-L325 *"MUST use no-op propagators unless explicitly
+  configured otherwise"*.
+
+  Callers can pass the result directly to `inject_with/4` /
+  `extract_with/4` without nil-checking — the Noop
+  implementation is spec-conformant and always present.
   """
-  @spec get_propagator() :: {module(), term()} | module() | nil
+  @spec get_propagator() :: {module(), term()} | module()
   def get_propagator do
-    :persistent_term.get(@global_key, nil)
+    :persistent_term.get(@global_key, @default_propagator)
   end
 
   @doc """
@@ -191,28 +190,25 @@ defmodule Otel.API.Propagator.TextMap do
   libraries SHOULD call propagators to extract and inject
   the context on all remote calls"*).
 
-  Dispatches to `get_propagator/0`'s current value.
-  Returns `carrier` unchanged when no propagator is
-  registered (no-op per spec L322-L325).
+  Dispatches to `get_propagator/0`'s current value. When no
+  propagator is installed the Noop default returns the
+  carrier unchanged (spec L322-L325).
 
   `setter` defaults to `default_setter/3` for
   `[{String.t(), String.t()}]` carriers.
   """
   @spec inject(ctx :: Otel.API.Ctx.t(), carrier :: carrier(), setter :: setter()) :: carrier()
   def inject(ctx, carrier, setter \\ &default_setter/3) do
-    case get_propagator() do
-      nil -> carrier
-      propagator -> inject_with(propagator, ctx, carrier, setter)
-    end
+    inject_with(get_propagator(), ctx, carrier, setter)
   end
 
   @doc """
   **OTel convenience** — extract via the global propagator
   (`api-propagators.md` L310-L313).
 
-  Dispatches to `get_propagator/0`'s current value.
-  Returns `ctx` unchanged when no propagator is registered
-  (no-op per spec L322-L325).
+  Dispatches to `get_propagator/0`'s current value. When no
+  propagator is installed the Noop default returns the
+  context unchanged (spec L322-L325).
 
   `getter` defaults to `default_getter/2` for
   `[{String.t(), String.t()}]` carriers.
@@ -220,10 +216,7 @@ defmodule Otel.API.Propagator.TextMap do
   @spec extract(ctx :: Otel.API.Ctx.t(), carrier :: carrier(), getter :: getter()) ::
           Otel.API.Ctx.t()
   def extract(ctx, carrier, getter \\ &default_getter/2) do
-    case get_propagator() do
-      nil -> ctx
-      propagator -> extract_with(propagator, ctx, carrier, getter)
-    end
+    extract_with(get_propagator(), ctx, carrier, getter)
   end
 
   # --- Default carrier functions for [{String.t(), String.t()}] ---
