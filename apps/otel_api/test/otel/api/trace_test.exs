@@ -213,4 +213,82 @@ defmodule Otel.API.TraceTest do
       assert result == :from_explicit
     end
   end
+
+  describe "make_current/1 and detach/1" do
+    setup do
+      Otel.API.Ctx.attach(Otel.API.Ctx.new())
+      :ok
+    end
+
+    test "make_current sets span as current in implicit context" do
+      assert Otel.API.Trace.current_span() == %Otel.API.Trace.SpanContext{}
+      _token = Otel.API.Trace.make_current(@valid_span_ctx)
+      assert Otel.API.Trace.current_span() == @valid_span_ctx
+    end
+
+    test "detach restores the previous active span" do
+      token = Otel.API.Trace.make_current(@valid_span_ctx)
+      assert Otel.API.Trace.current_span() == @valid_span_ctx
+
+      Otel.API.Trace.detach(token)
+      assert Otel.API.Trace.current_span() == %Otel.API.Trace.SpanContext{}
+    end
+
+    test "nested make_current/detach stack LIFO" do
+      span_a = %Otel.API.Trace.SpanContext{
+        trace_id: 0xAA000000000000000000000000000001,
+        span_id: 0xAA00000000000001
+      }
+
+      span_b = %Otel.API.Trace.SpanContext{
+        trace_id: 0xBB000000000000000000000000000001,
+        span_id: 0xBB00000000000001
+      }
+
+      token_a = Otel.API.Trace.make_current(span_a)
+      assert Otel.API.Trace.current_span() == span_a
+
+      token_b = Otel.API.Trace.make_current(span_b)
+      assert Otel.API.Trace.current_span() == span_b
+
+      Otel.API.Trace.detach(token_b)
+      assert Otel.API.Trace.current_span() == span_a
+
+      Otel.API.Trace.detach(token_a)
+      assert Otel.API.Trace.current_span() == %Otel.API.Trace.SpanContext{}
+    end
+
+    test "make_current preserves unrelated context values" do
+      key = Otel.API.Ctx.create_key(:unrelated)
+      Otel.API.Ctx.set_value(key, :preserved)
+
+      _token = Otel.API.Trace.make_current(@valid_span_ctx)
+
+      assert Otel.API.Ctx.get_value(key) == :preserved
+      assert Otel.API.Trace.current_span() == @valid_span_ctx
+    end
+
+    test "accepts the invalid default SpanContext without validation" do
+      invalid = %Otel.API.Trace.SpanContext{}
+
+      token = Otel.API.Trace.make_current(invalid)
+      assert Otel.API.Trace.current_span() == invalid
+
+      Otel.API.Trace.detach(token)
+    end
+
+    test "survives try/after on exception, detach reverts context" do
+      assert_raise RuntimeError, "boom", fn ->
+        token = Otel.API.Trace.make_current(@valid_span_ctx)
+
+        try do
+          raise "boom"
+        after
+          Otel.API.Trace.detach(token)
+        end
+      end
+
+      assert Otel.API.Trace.current_span() == %Otel.API.Trace.SpanContext{}
+    end
+  end
 end

@@ -29,7 +29,9 @@ defmodule Otel.API.Trace do
   | `current_span/0` | **OTel API SHOULD** — Get active span from implicit context (L177) |
   | `set_current_span/1` | **OTel API SHOULD** — Set active span into implicit context (L178) |
   | `start_span/3`, `start_span/4` | **OTel API MUST** — Span Creation (L378-L414) |
-  | `with_span/4`, `with_span/5` | **OTel convenience** — MAY be offered as separate operation (L385) |
+  | `with_span/4`, `with_span/5` | **OTel API MAY** — closure-form separate operation (L385) |
+  | `make_current/1` | **OTel API MAY** — manual "set active span" (L384-L386) |
+  | `detach/1` | **OTel API MAY** — revert `make_current/1` (L384-L386) |
 
   ## References
 
@@ -186,4 +188,53 @@ defmodule Otel.API.Trace do
   def with_span(ctx, {module, _config} = tracer, name, opts, fun) do
     module.with_span(ctx, tracer, name, opts, fun)
   end
+
+  # --- Manual active-span management ---
+
+  @doc """
+  **OTel API MAY** — set `span_ctx` as the currently active
+  span and return a detach token (`trace/api.md` L384-L386
+  *"this functionality MAY be offered additionally as a
+  separate operation"*).
+
+  For most call sites, prefer `with_span/4,5` — it handles
+  attach, exception recording, detach, and `end_span` in a
+  single closure-safe call. `make_current/1` exists for
+  cases where the active span must outlive a single
+  function scope — async handoff, test fixtures, or
+  non-closure interop.
+
+  Callers MUST pair each `make_current/1` with a `detach/1`
+  on every exit path. Use `try/after` or equivalent to
+  guarantee revert on exceptions:
+
+      token = Otel.API.Trace.make_current(span_ctx)
+      try do
+        # ... work ...
+      after
+        Otel.API.Trace.detach(token)
+      end
+
+  Internally composes `set_current_span/2` with
+  `Otel.API.Ctx.attach/1`. Stacked calls are LIFO — nested
+  `make_current`/`detach` pairs restore the prior active
+  span in reverse order.
+  """
+  @spec make_current(span_ctx :: Otel.API.Trace.SpanContext.t()) :: Otel.API.Ctx.t()
+  def make_current(%Otel.API.Trace.SpanContext{} = span_ctx) do
+    old_ctx = Otel.API.Ctx.current()
+    new_ctx = set_current_span(old_ctx, span_ctx)
+    Otel.API.Ctx.attach(new_ctx)
+  end
+
+  @doc """
+  **OTel API MAY** — revert a `make_current/1` call using
+  the token it returned (`trace/api.md` L384-L386).
+
+  Restores the previous ambient context, undoing the most
+  recent `make_current/1` whose token is passed. Delegates
+  to `Otel.API.Ctx.detach/1`.
+  """
+  @spec detach(token :: Otel.API.Ctx.t()) :: :ok
+  def detach(token), do: Otel.API.Ctx.detach(token)
 end
