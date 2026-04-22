@@ -104,7 +104,6 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   | `fields/0` | **OTel API** — Fields (L133-L152) |
   | `encode_traceparent/1` | **W3C header serialization** — §traceparent L75-L96 |
   | `decode_traceparent/1` | **W3C header parsing** — §traceparent L75-L96 + §Versioning L228-L244 |
-  | `extract_tracestate/2` | **W3C header parsing** — `tracestate` helper |
   | `lowercase_hex?/1` | **W3C format predicate** — 2HEXDIGLC check |
 
   ## References
@@ -289,22 +288,11 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
     decode_span_ctx(version, trace_id_hex, span_id_hex, flags_hex)
   end
 
-  @doc """
-  **W3C header parsing** — reads the `tracestate` header
-  from `carrier` via `getter` and decodes it.
-
-  Returns an empty `TraceState` when the header is absent.
-  Leading/trailing whitespace is trimmed before decoding.
-  Decoding delegates to
-  `Otel.API.Trace.TraceState.decode/1`, which tolerates
-  malformed entries by dropping them (W3C §tracestate parse
-  robustness).
-  """
   @spec extract_tracestate(
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           getter :: Otel.API.Propagator.TextMap.getter()
         ) :: Otel.API.Trace.TraceState.t()
-  def extract_tracestate(carrier, getter) do
+  defp extract_tracestate(carrier, getter) do
     case getter.(carrier, @tracestate_header) do
       nil -> Otel.API.Trace.TraceState.new()
       value -> Otel.API.Trace.TraceState.decode(String.trim(value))

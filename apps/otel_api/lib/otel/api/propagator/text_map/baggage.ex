@@ -92,7 +92,6 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   | `fields/0` | **OTel API** — Fields (L133-L152) |
   | `encode_baggage/1` | **W3C header serialization** — §Definition L23-L41 |
   | `decode_baggage/1` | **W3C header parsing** — §Definition L23-L41 |
-  | `decode_entry/1` | **W3C header parsing** — §Definition L23-L41 (single list-member) |
 
   ## References
 
@@ -244,25 +243,8 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
     end)
   end
 
-  @doc """
-  **W3C header parsing** — parses a single `list-member`
-  string into `{name, value, metadata}`.
-
-  Input is the pre-trimmed content of one list-member
-  (e.g. `"key=value"` or `"key=value;prop1=val1"`). Name and
-  value are RFC 3986 percent-decoded; metadata is returned
-  verbatim (possibly containing multiple `;`-separated
-  properties) per the module's opaque-metadata design.
-
-  Per W3C §value L73-L74 *"Parsers MUST NOT assume that the
-  equal sign is only used to separate key and value"* — only
-  the **first** `=` is treated as the separator; any
-  subsequent `=` remains in the value.
-
-  Raises `MatchError` when the input lacks a `=` separator.
-  """
   @spec decode_entry(pair :: String.t()) :: {String.t(), String.t(), String.t()}
-  def decode_entry(pair) do
+  defp decode_entry(pair) do
     {key_value, metadata} =
       case String.split(pair, ";", parts: 2) do
         [kv, meta] -> {kv, String.trim(meta)}

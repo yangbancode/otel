@@ -338,25 +338,6 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
     end
   end
 
-  describe "extract_tracestate/2" do
-    test "returns empty TraceState when header absent" do
-      result = Otel.API.Propagator.TextMap.TraceContext.extract_tracestate([], @getter)
-      assert Otel.API.Trace.TraceState.empty?(result)
-    end
-
-    test "decodes present header" do
-      carrier = [{"tracestate", "vendor=value"}]
-      result = Otel.API.Propagator.TextMap.TraceContext.extract_tracestate(carrier, @getter)
-      assert Otel.API.Trace.TraceState.get(result, "vendor") == "value"
-    end
-
-    test "trims whitespace before decoding" do
-      carrier = [{"tracestate", "  vendor=value  "}]
-      result = Otel.API.Propagator.TextMap.TraceContext.extract_tracestate(carrier, @getter)
-      assert Otel.API.Trace.TraceState.get(result, "vendor") == "value"
-    end
-  end
-
   describe "lowercase_hex?/1" do
     test "accepts lowercase digits and a-f" do
       assert Otel.API.Propagator.TextMap.TraceContext.lowercase_hex?("00")
