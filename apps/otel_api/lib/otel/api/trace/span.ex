@@ -60,7 +60,7 @@ defmodule Otel.API.Trace.Span do
           kind: Otel.API.Trace.SpanKind.t(),
           attributes: %{String.t() => primitive() | [primitive()]},
           links: [Otel.API.Trace.Link.t()],
-          start_time: 0..0xFFFFFFFF_FFFFFFFF,
+          start_time: integer(),
           is_root: boolean()
         ]
 
@@ -241,12 +241,13 @@ defmodule Otel.API.Trace.Span do
   L429-L430: *"Any span that is created MUST also be ended.
   This is the responsibility of the user."*
 
-  Values are Unix epoch **nanoseconds** (uint64,
-  `0..2^64 - 1`), matching OTLP `time_unix_nano`.
+  Values are Unix epoch **nanoseconds** (OTLP
+  `time_unix_nano`). The typespec is plain `integer()` per
+  `docs/decisions/type-representation-policy.md`.
   """
   @spec end_span(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          timestamp :: 0..0xFFFFFFFF_FFFFFFFF
+          timestamp :: integer()
         ) :: :ok
   def end_span(
         %Otel.API.Trace.SpanContext{} = span_ctx,
