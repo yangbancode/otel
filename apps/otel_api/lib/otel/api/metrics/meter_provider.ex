@@ -45,8 +45,8 @@ defmodule Otel.API.Metrics.MeterProvider do
   |---|---|
   | `get_meter/0,1` | **OTel API MUST** (Get a Meter, L120-L155) |
   | `get_meter/2` (callback) | Internal dispatch contract (API ↔ SDK) |
-  | `get_provider/0` | **Local helper** — introspection of current global provider |
-  | `set_provider/1` | **Local helper** — SDK installation hook |
+  | `get_provider/0` | **OTel API SHOULD** — access global provider (L110-L112) |
+  | `set_provider/1` | **OTel API SHOULD** — register global provider (L110-L112) |
 
   ## References
 
@@ -123,10 +123,14 @@ defmodule Otel.API.Metrics.MeterProvider do
   end
 
   @doc """
-  **Local helper** — introspection of the current global
-  MeterProvider.
+  **OTel API SHOULD** — access the global MeterProvider
+  (`metrics/api.md` L110-L112).
 
-  Returns `nil` if no provider is registered.
+  > *"the API SHOULD provide a way to set/register and
+  > access a global default `MeterProvider`."*
+
+  Returns the currently registered provider, or `nil` if
+  none is registered.
   """
   @spec get_provider() :: t() | nil
   def get_provider do
@@ -134,7 +138,11 @@ defmodule Otel.API.Metrics.MeterProvider do
   end
 
   @doc """
-  **Local helper** — SDK installation hook.
+  **OTel API SHOULD** — register the global MeterProvider
+  (`metrics/api.md` L110-L112).
+
+  > *"the API SHOULD provide a way to set/register and
+  > access a global default `MeterProvider`."*
 
   Registers the given `{module, state}` as the global
   MeterProvider. The SDK MeterProvider calls this from its
