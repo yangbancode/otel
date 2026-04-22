@@ -54,7 +54,7 @@ defmodule Otel.API.Metrics.ObservableCounter do
 
   | Function | Role |
   |---|---|
-  | `create/3`, `create/5` | **OTel API MUST** (Asynchronous Counter creation, L613-L703) |
+  | `create/3`, `create/5` | **Application** (OTel API MUST) — Asynchronous Counter creation (L613-L703) |
 
   ## References
 
@@ -64,9 +64,9 @@ defmodule Otel.API.Metrics.ObservableCounter do
   """
 
   @doc """
-  **OTel API MUST** — "Asynchronous Counter creation"
-  without an inline callback (`metrics/api.md` §Asynchronous
-  Counter creation, L613-L629).
+  **Application** (OTel API MUST) — "Asynchronous Counter
+  creation" without an inline callback (`metrics/api.md`
+  §Asynchronous Counter creation, L613-L629).
 
   Creates the instrument handle; callbacks can be registered
   later via `Otel.API.Metrics.Meter.register_callback/5`
@@ -92,9 +92,9 @@ defmodule Otel.API.Metrics.ObservableCounter do
   end
 
   @doc """
-  **OTel API MUST** — "Asynchronous Counter creation" with
-  an inline callback (`metrics/api.md` §Asynchronous Counter
-  creation, L613-L703).
+  **Application** (OTel API MUST) — "Asynchronous Counter
+  creation" with an inline callback (`metrics/api.md`
+  §Asynchronous Counter creation, L613-L703).
 
   Creates the instrument and permanently attaches
   `callback`. Per spec L446-L447 MUST, callbacks registered

@@ -62,9 +62,9 @@ defmodule Otel.API.Metrics.Gauge do
 
   | Function | Role |
   |---|---|
-  | `create/3` | **OTel API MUST** (Gauge creation, L852-L872) |
-  | `record/3` | **OTel API MUST** (Gauge Record, L876-L915) |
-  | `enabled?/2` | **OTel API SHOULD** (Enabled, L479-L495) |
+  | `create/3` | **Application** (OTel API MUST) — Gauge creation (L852-L872) |
+  | `record/3` | **Application** (OTel API MUST) — Gauge Record (L876-L915) |
+  | `enabled?/2` | **Application** (OTel API SHOULD) — Enabled (L479-L495) |
 
   ## References
 
@@ -77,8 +77,8 @@ defmodule Otel.API.Metrics.Gauge do
   use Otel.API.Common.Types
 
   @doc """
-  **OTel API MUST** — "Gauge creation" (`metrics/api.md`
-  §Gauge creation, L852-L872).
+  **Application** (OTel API MUST) — "Gauge creation"
+  (`metrics/api.md` §Gauge creation, L852-L872).
 
   Creates the instrument handle via the given Meter. Per
   spec L854, there is no other API surface for creating a
@@ -103,8 +103,8 @@ defmodule Otel.API.Metrics.Gauge do
   end
 
   @doc """
-  **OTel API MUST** — "Record" (`metrics/api.md` §Gauge
-  operations — Record, L876-L915).
+  **Application** (OTel API MUST) — "Record" (`metrics/api.md`
+  §Gauge operations — Record, L876-L915).
 
   Records the current absolute value of the Gauge. Per
   spec L883-L885 the value is a numeric absolute reading,
@@ -134,8 +134,8 @@ defmodule Otel.API.Metrics.Gauge do
   end
 
   @doc """
-  **OTel API SHOULD** — "Enabled" (`metrics/api.md`
-  §General operations — Enabled, L479-L495).
+  **Application** (OTel API SHOULD) — "Enabled"
+  (`metrics/api.md` §General operations — Enabled, L479-L495).
 
   Returns whether the instrument is enabled. Per spec
   L493-L495 the returned value is **not static** — it can

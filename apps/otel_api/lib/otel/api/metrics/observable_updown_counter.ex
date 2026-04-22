@@ -60,7 +60,7 @@ defmodule Otel.API.Metrics.ObservableUpDownCounter do
 
   | Function | Role |
   |---|---|
-  | `create/3`, `create/5` | **OTel API MUST** (Asynchronous UpDownCounter creation, L1176-L1270) |
+  | `create/3`, `create/5` | **Application** (OTel API MUST) — Asynchronous UpDownCounter creation (L1176-L1270) |
 
   ## References
 
@@ -70,9 +70,10 @@ defmodule Otel.API.Metrics.ObservableUpDownCounter do
   """
 
   @doc """
-  **OTel API MUST** — "Asynchronous UpDownCounter creation"
-  without an inline callback (`metrics/api.md`
-  §Asynchronous UpDownCounter creation, L1176-L1194).
+  **Application** (OTel API MUST) — "Asynchronous
+  UpDownCounter creation" without an inline callback
+  (`metrics/api.md` §Asynchronous UpDownCounter creation,
+  L1176-L1194).
 
   Creates the instrument handle; callbacks can be registered
   later via `Otel.API.Metrics.Meter.register_callback/5`
@@ -98,9 +99,10 @@ defmodule Otel.API.Metrics.ObservableUpDownCounter do
   end
 
   @doc """
-  **OTel API MUST** — "Asynchronous UpDownCounter creation"
-  with an inline callback (`metrics/api.md` §Asynchronous
-  UpDownCounter creation, L1176-L1270).
+  **Application** (OTel API MUST) — "Asynchronous
+  UpDownCounter creation" with an inline callback
+  (`metrics/api.md` §Asynchronous UpDownCounter creation,
+  L1176-L1270).
 
   Creates the instrument and permanently attaches
   `callback`. Per spec L446-L447 MUST, callbacks registered

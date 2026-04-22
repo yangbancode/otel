@@ -56,9 +56,9 @@ defmodule Otel.API.Metrics.Counter do
 
   | Function | Role |
   |---|---|
-  | `create/3` | **OTel API MUST** (Counter creation, L510-L542) |
-  | `add/3` | **OTel API MUST** (Counter Add, L545-L598) |
-  | `enabled?/2` | **OTel API SHOULD** (Enabled, L479-L495) |
+  | `create/3` | **Application** (OTel API MUST) — Counter creation (L510-L542) |
+  | `add/3` | **Application** (OTel API MUST) — Counter Add (L545-L598) |
+  | `enabled?/2` | **Application** (OTel API SHOULD) — Enabled (L479-L495) |
 
   ## References
 
@@ -71,8 +71,8 @@ defmodule Otel.API.Metrics.Counter do
   use Otel.API.Common.Types
 
   @doc """
-  **OTel API MUST** — "Counter creation" (`metrics/api.md`
-  §Counter creation, L510-L542).
+  **Application** (OTel API MUST) — "Counter creation"
+  (`metrics/api.md` §Counter creation, L510-L542).
 
   Creates the instrument handle via the given Meter. Per
   spec L512, there is no other API surface for creating a
@@ -97,8 +97,8 @@ defmodule Otel.API.Metrics.Counter do
   end
 
   @doc """
-  **OTel API MUST** — "Add" (`metrics/api.md` §Counter
-  operations — Add, L545-L598).
+  **Application** (OTel API MUST) — "Add" (`metrics/api.md`
+  §Counter operations — Add, L545-L598).
 
   Increments the Counter by `value`. Per spec L561-L564 the
   value is expected to be non-negative; the API does not
@@ -127,8 +127,8 @@ defmodule Otel.API.Metrics.Counter do
   end
 
   @doc """
-  **OTel API SHOULD** — "Enabled" (`metrics/api.md`
-  §General operations — Enabled, L479-L495).
+  **Application** (OTel API SHOULD) — "Enabled"
+  (`metrics/api.md` §General operations — Enabled, L479-L495).
 
   Returns whether the instrument is enabled. Per spec
   L493-L495 the returned value is **not static** — it can
