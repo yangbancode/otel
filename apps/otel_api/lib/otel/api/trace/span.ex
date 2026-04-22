@@ -19,6 +19,25 @@ defmodule Otel.API.Trace.Span do
   same for the entire Span lifetime"* is satisfied
   automatically by the value-semantic `SpanContext`.
 
+  ## Dispatch shape
+
+  Unlike `Tracer` / `Meter` / `Logger` — which receive a
+  `{module, config}` tuple as their handle and pattern-match on
+  it — `Span`'s handle is a `SpanContext`, a pure W3C-defined
+  data value that does not carry the SDK dispatcher. Instead,
+  the SDK registers its Span operations module via
+  `set_module/1` and each facade function looks it up through
+  a private `get_module/0` which reads from
+  `:persistent_term`.
+
+  `get_module/0` defaults to `Otel.API.Trace.Span.Noop` when no
+  SDK has registered, so every dispatch returns a valid
+  module pointer and each facade function is a direct call.
+  This mirrors how `TracerProvider.get_tracer/1` returns
+  `{Tracer.Noop, []}` when no SDK is installed — a Noop
+  dispatcher is always available, the absence-of-SDK branch is
+  absorbed into the Noop module's own no-op implementations.
+
   All functions are safe for concurrent use.
 
   ## Public API
@@ -35,6 +54,7 @@ defmodule Otel.API.Trace.Span do
   | `update_name/2` | **Application** (OTel API MUST) — UpdateName (L628-L645) |
   | `end_span/2` | **Application** (OTel API MUST) — End (L647-L682) |
   | `record_exception/4` | **Application** (OTel API SHOULD) — Record Exception (L684-L704 + `exceptions.md` L44-L55) |
+  | `@callback` for each of the above mutations | **SDK** (OTel API MUST/SHOULD) — SDK dispatch contract |
   | `set_module/1` | **SDK** (installation hook) — register SDK Span module |
 
   ## References
@@ -91,14 +111,12 @@ defmodule Otel.API.Trace.Span do
   the trace is not sampled for export. Per spec L478-L481 an
   ended span SHOULD become non-recording.
 
-  Without an SDK installed always returns `false`.
+  Without an SDK installed always returns `false` via
+  `Otel.API.Trace.Span.Noop`.
   """
   @spec recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
   def recording?(%Otel.API.Trace.SpanContext{} = span_ctx) do
-    case get_module() do
-      nil -> false
-      module -> module.recording?(span_ctx)
-    end
+    get_module().recording?(span_ctx)
   end
 
   @doc """
@@ -118,10 +136,7 @@ defmodule Otel.API.Trace.Span do
           value :: primitive() | [primitive()]
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
-    case get_module() do
-      nil -> :ok
-      module -> module.set_attribute(span_ctx, key, value)
-    end
+    get_module().set_attribute(span_ctx, key, value)
   end
 
   @doc """
@@ -138,10 +153,7 @@ defmodule Otel.API.Trace.Span do
         ) ::
           :ok
   def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
-    case get_module() do
-      nil -> :ok
-      module -> module.set_attributes(span_ctx, attributes)
-    end
+    get_module().set_attributes(span_ctx, attributes)
   end
 
   @doc """
@@ -164,10 +176,7 @@ defmodule Otel.API.Trace.Span do
           event :: Otel.API.Trace.Event.t()
         ) :: :ok
   def add_event(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Event{} = event) do
-    case get_module() do
-      nil -> :ok
-      module -> module.add_event(span_ctx, event)
-    end
+    get_module().add_event(span_ctx, event)
   end
 
   @doc """
@@ -184,10 +193,7 @@ defmodule Otel.API.Trace.Span do
           link :: Otel.API.Trace.Link.t()
         ) :: :ok
   def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Link{} = link) do
-    case get_module() do
-      nil -> :ok
-      module -> module.add_link(span_ctx, link)
-    end
+    get_module().add_link(span_ctx, link)
   end
 
   @doc """
@@ -208,10 +214,7 @@ defmodule Otel.API.Trace.Span do
           status :: Otel.API.Trace.Status.t()
         ) :: :ok
   def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{} = status) do
-    case get_module() do
-      nil -> :ok
-      module -> module.set_status(span_ctx, status)
-    end
+    get_module().set_status(span_ctx, status)
   end
 
   @doc """
@@ -225,10 +228,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(%Otel.API.Trace.SpanContext{} = span_ctx, name) do
-    case get_module() do
-      nil -> :ok
-      module -> module.update_name(span_ctx, name)
-    end
+    get_module().update_name(span_ctx, name)
   end
 
   @doc """
@@ -264,10 +264,7 @@ defmodule Otel.API.Trace.Span do
         %Otel.API.Trace.SpanContext{} = span_ctx,
         timestamp \\ System.system_time(:nanosecond)
       ) do
-    case get_module() do
-      nil -> :ok
-      module -> module.end_span(span_ctx, timestamp)
-    end
+    get_module().end_span(span_ctx, timestamp)
   end
 
   @doc """
@@ -299,11 +296,129 @@ defmodule Otel.API.Trace.Span do
         stacktrace \\ [],
         attributes \\ %{}
       ) do
-    case get_module() do
-      nil -> :ok
-      module -> module.record_exception(span_ctx, exception, stacktrace, attributes)
-    end
+    get_module().record_exception(span_ctx, exception, stacktrace, attributes)
   end
+
+  # --- SDK callbacks ---
+
+  @doc """
+  **SDK** (OTel API MUST) — "IsRecording" (`trace/api.md`
+  L463-L493).
+
+  Returns whether the span is currently recording. Per spec
+  L472-L476 IsRecording is independent of the sampled flag in
+  `TraceFlags`; per L478-L481 an ended span SHOULD become
+  non-recording.
+  """
+  @callback recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
+
+  @doc """
+  **SDK** (OTel API MUST) — "SetAttribute" (`trace/api.md`
+  L495-L520).
+
+  Per spec L513-L514 setting an attribute with the same key as
+  an existing attribute SHOULD overwrite the previous value.
+  Silently ignored if the span is non-recording (L468-L469) or
+  already ended (L652-L653).
+  """
+  @callback set_attribute(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              key :: String.t(),
+              value :: primitive() | [primitive()]
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API MAY) — "SetAttributes" convenience
+  (`trace/api.md` L506-L508).
+
+  Sets multiple attributes in a single call. Same overwrite
+  and recording-state rules as `set_attribute/3`.
+  """
+  @callback set_attributes(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              attributes :: %{String.t() => primitive() | [primitive()]}
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API MUST) — "AddEvent" (`trace/api.md`
+  L525-L557).
+
+  Per spec L547 events SHOULD preserve the order in which
+  they are recorded.
+  """
+  @callback add_event(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              event :: Otel.API.Trace.Event.t()
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API MUST) — "Add Link" (`trace/api.md`
+  L562-L564).
+
+  Per spec L563 adding links at span creation (via
+  `Tracer.start_span/4` opts) is preferred — samplers may not
+  consider links added later.
+  """
+  @callback add_link(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              link :: Otel.API.Trace.Link.t()
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API MUST) — "SetStatus" (`trace/api.md`
+  L565-L624).
+
+  Status priority per L590: `Ok > Error > Unset`. L599
+  `Description` MUST be IGNORED for `:ok`/`:unset`; L604 an
+  attempt to set `:unset` SHOULD be ignored; L619-L620 once
+  set to `:ok`, further attempts SHOULD be ignored.
+  """
+  @callback set_status(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              status :: Otel.API.Trace.Status.t()
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API MUST) — "UpdateName" (`trace/api.md`
+  L628-L645).
+  """
+  @callback update_name(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              name :: String.t()
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API MUST) — "End" (`trace/api.md` L647-L682).
+
+  - L672-L673 if timestamp is omitted upstream, the facade
+    substitutes `System.system_time(:nanosecond)`; this
+    callback always receives an explicit integer
+  - L652-L653 implementations SHOULD ignore subsequent calls
+    to `end_span` and any other Span methods
+  - L677 MUST NOT perform blocking I/O on the calling thread
+  - L665-L668 ending the span MUST NOT inactivate it in any
+    Context it is active in
+  """
+  @callback end_span(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              timestamp :: integer()
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API SHOULD) — "Record Exception" (`trace/api.md`
+  L684-L704 + `exceptions.md` L44-L55).
+
+  A specialized variant of `AddEvent` (L688). Per L697-L699
+  `attributes` take precedence over attributes generated from
+  the exception object. The emitted event follows
+  `exceptions.md` §Attributes L44-L55.
+  """
+  @callback record_exception(
+              span_ctx :: Otel.API.Trace.SpanContext.t(),
+              exception :: Exception.t(),
+              stacktrace :: list(),
+              attributes :: %{String.t() => primitive() | [primitive()]}
+            ) :: :ok
 
   # --- SDK installation hooks ---
 
@@ -313,7 +428,11 @@ defmodule Otel.API.Trace.Span do
 
   Called by `Otel.SDK.Application.start/2` to register the
   SDK's Span operations module. The Application-tier operations
-  in this module dispatch to the registered module.
+  in this module dispatch to the registered module; when no SDK
+  has been installed, `get_module/0` falls back to
+  `Otel.API.Trace.Span.Noop`.
+
+  `module` must implement the `Otel.API.Trace.Span` behaviour.
   """
   @spec set_module(module :: module()) :: :ok
   def set_module(module) when is_atom(module) do
@@ -323,8 +442,29 @@ defmodule Otel.API.Trace.Span do
 
   # --- Private ---
 
-  @spec get_module() :: module() | nil
+  # Internal: resolve the currently-registered SDK Span
+  # operations module, defaulting to `Otel.API.Trace.Span.Noop`
+  # when no SDK has registered via `set_module/1`. Every
+  # Application-tier function dispatches through this; the
+  # Noop default removes any "no SDK installed" branch from
+  # the facade, mirroring the `{Tracer.Noop, []}` default that
+  # `TracerProvider.get_tracer/1` returns.
+  #
+  # Expressed as an explicit `case` rather than passing
+  # `Span.Noop` as the 2-arg default to
+  # `:persistent_term.get/2` so both branches (registered
+  # module / Noop fallback) are hit repeatedly by every
+  # no-SDK and every dispatch-to-registered-module test.
+  # `mix test --cover` / `:cover`'s per-line counters have a
+  # known quirk where many similar-shape function heads in a
+  # single module can drop a hit under certain test-ordering
+  # seeds (e.g. 863017); concentrating the branching here
+  # gives the counters enough traffic to stabilise.
+  @spec get_module() :: module()
   defp get_module do
-    :persistent_term.get(@module_key, nil)
+    case :persistent_term.get(@module_key, nil) do
+      nil -> Otel.API.Trace.Span.Noop
+      module -> module
+    end
   end
 end
