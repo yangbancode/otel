@@ -64,6 +64,22 @@ defmodule Otel.API.Common.Types do
   far as Dialyzer is concerned; runtime homogeneity is a
   caller obligation documented here but not checked.
 
+  ## Performance
+
+  Per `common/README.md` L56-L57 SHOULD:
+
+  > *"APIs SHOULD be documented in a way to communicate to
+  > users that using array and map values may carry higher
+  > performance overhead compared to primitive values."*
+
+  Single-primitive attribute values (`String.t()`,
+  `integer()`, etc.) are the cheapest. `[primitive()]`
+  arrays and `primitive_any()` map/list values
+  (`LogRecord.body`) carry additional allocation and
+  traversal cost at recording time, during SDK aggregation,
+  and at exporter serialization. Prefer primitives where
+  the signal permits.
+
   ## References
 
   - OTel Common §AnyValue: `opentelemetry-specification/specification/common/README.md` L39-L62

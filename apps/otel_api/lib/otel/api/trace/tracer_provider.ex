@@ -31,8 +31,8 @@ defmodule Otel.API.Trace.TracerProvider do
   |---|---|
   | `get_tracer/1` | **OTel API MUST** (Get a Tracer, L107-L157) |
   | `get_tracer/2` (callback) | Internal dispatch contract (API ↔ SDK) |
-  | `get_provider/0` | **Local helper** — introspection of current global provider |
-  | `set_provider/1` | **Local helper** — SDK installation hook |
+  | `get_provider/0` | **OTel API SHOULD** — access global provider (L95-L97) |
+  | `set_provider/1` | **OTel API SHOULD** — register global provider (L95-L97) |
 
   ## References
 
@@ -101,10 +101,14 @@ defmodule Otel.API.Trace.TracerProvider do
   end
 
   @doc """
-  **Local helper** — introspection of the current global
-  TracerProvider.
+  **OTel API SHOULD** — access the global TracerProvider
+  (`trace/api.md` L95-L97).
 
-  Returns `nil` if no provider is registered.
+  > *"the API SHOULD provide a way to set/register and
+  > access a global default `TracerProvider`."*
+
+  Returns the currently registered provider, or `nil` if
+  none is registered.
   """
   @spec get_provider() :: t() | nil
   def get_provider do
@@ -112,7 +116,11 @@ defmodule Otel.API.Trace.TracerProvider do
   end
 
   @doc """
-  **Local helper** — SDK installation hook.
+  **OTel API SHOULD** — register the global TracerProvider
+  (`trace/api.md` L95-L97).
+
+  > *"the API SHOULD provide a way to set/register and
+  > access a global default `TracerProvider`."*
 
   Registers the given `{module, state}` as the global
   TracerProvider. The SDK TracerProvider calls this from its

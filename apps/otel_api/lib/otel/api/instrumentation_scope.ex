@@ -5,9 +5,25 @@ defmodule Otel.API.InstrumentationScope do
   `common/instrumentation-scope.md`, Status: **Stable**).
 
   The tuple SHOULD uniquely identify the emitting software unit and is
-  used to obtain a `Tracer`, `Meter`, or `Logger`. Per spec `name`
-  SHOULD be specified; `version`, `schema_url`, and `attributes` are
-  optional.
+  used to obtain a `Tracer`, `Meter`, or `Logger`.
+
+  ## Name SHOULD be specified
+
+  Per `common/instrumentation-scope.md` L27-L28:
+
+  > *"The instrumentation scope's name SHOULD be specified."*
+
+  The struct defaults `name: ""` to support the default-scope pattern
+  used by `Otel.API.Metrics.MeterProvider.get_meter/0`,
+  `Otel.API.Logs.LoggerProvider.get_logger/0`, and similar zero-arity
+  entry points, but an empty name represents an **unspecified** scope.
+  Instrumentation libraries SHOULD supply a meaningful name —
+  typically the library's own module path — when creating a Tracer,
+  Meter, or Logger, since downstream consumers (samplers, exporters,
+  backends) rely on the scope name to disambiguate telemetry by
+  origin.
+
+  `version`, `schema_url`, and `attributes` are optional.
 
   ## References
 

@@ -31,8 +31,8 @@ defmodule Otel.API.Logs.LoggerProvider do
   |---|---|
   | `get_logger/0,1` | **OTel API MUST** (Get a Logger, L66-L97) |
   | `get_logger/2` (callback) | Internal dispatch contract (API ↔ SDK) |
-  | `get_provider/0` | **Local helper** — introspection of current global provider |
-  | `set_provider/1` | **Local helper** — SDK installation hook |
+  | `get_provider/0` | **OTel API SHOULD** — access global provider (L58-L60) |
+  | `set_provider/1` | **OTel API SHOULD** — register global provider (L58-L60) |
 
   ## References
 
@@ -107,10 +107,14 @@ defmodule Otel.API.Logs.LoggerProvider do
   end
 
   @doc """
-  **Local helper** — introspection of the current global
-  LoggerProvider.
+  **OTel API SHOULD** — access the global LoggerProvider
+  (`logs/api.md` L58-L60).
 
-  Returns `nil` if no provider is registered.
+  > *"the API SHOULD provide a way to set/register and
+  > access a global default `LoggerProvider`."*
+
+  Returns the currently registered provider, or `nil` if
+  none is registered.
   """
   @spec get_provider() :: t() | nil
   def get_provider do
@@ -118,7 +122,11 @@ defmodule Otel.API.Logs.LoggerProvider do
   end
 
   @doc """
-  **Local helper** — SDK installation hook.
+  **OTel API SHOULD** — register the global LoggerProvider
+  (`logs/api.md` L58-L60).
+
+  > *"the API SHOULD provide a way to set/register and
+  > access a global default `LoggerProvider`."*
 
   Registers the given `{module, state}` as the global
   LoggerProvider. The SDK LoggerProvider calls this from its

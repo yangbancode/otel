@@ -148,8 +148,11 @@ defmodule Otel.API.Trace.Span do
   if no timestamp is supplied the implementation sets it to
   the time at which the API is called.
 
-  Per spec L547 events SHOULD preserve the order in which they
-  are recorded.
+  Per spec L547 events SHOULD preserve the order in which
+  they are recorded. This facade dispatches to the
+  SDK-registered module via `get_module/0`, so ordering is
+  the SDK implementation's responsibility; API users
+  relying on order should confirm their SDK honours it.
   """
   @spec add_event(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
