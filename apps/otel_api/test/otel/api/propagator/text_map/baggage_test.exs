@@ -82,6 +82,24 @@ defmodule Otel.API.Propagator.TextMap.BaggageTest do
       assert Otel.API.Baggage.get_value(baggage, "b") == "2"
     end
 
+    test "extracts from multiple baggage headers (W3C L6)" do
+      # Carrier preserving raw split form (e.g. Plug.Conn style).
+      # W3C Baggage L6 allows multiple headers; the default getter
+      # joins them comma-separated, so all entries survive.
+      carrier = [
+        {"baggage", "a=1"},
+        {"baggage", "b=2"},
+        {"baggage", "c=3"}
+      ]
+
+      ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)
+
+      baggage = Otel.API.Baggage.current(ctx)
+      assert Otel.API.Baggage.get_value(baggage, "a") == "1"
+      assert Otel.API.Baggage.get_value(baggage, "b") == "2"
+      assert Otel.API.Baggage.get_value(baggage, "c") == "3"
+    end
+
     test "extracts metadata" do
       carrier = [{"baggage", "key=value;prop1=val1"}]
       ctx = Otel.API.Propagator.TextMap.Baggage.extract(Otel.API.Ctx.new(), carrier, @getter)

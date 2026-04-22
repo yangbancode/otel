@@ -83,27 +83,6 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   necessary they belong in `Otel.API.Baggage`'s mutation
   surface, not the wire-format propagator.
 
-  ### 5. Multiple `baggage:` headers read via the supplied getter
-
-  W3C §Limits L114 notes *"If there are multiple `baggage`
-  headers, all limits apply to the combination of all
-  `baggage` headers and not each header individually."* — the
-  spec assumes multi-header carriers are possible.
-
-  `extract/3` delegates header lookup to the caller-supplied
-  `getter` (`Otel.API.Propagator.TextMap.getter/0`). The
-  default getter in `Otel.API.Propagator.TextMap` returns the
-  first matching header only. This is safe for RFC 9110 §5.3
-  compliant intermediaries (which fold duplicate list-valued
-  headers into a single comma-joined value), but misses
-  entries on carriers that preserve the raw split form.
-
-  Users who need raw-split multi-header semantics (e.g.
-  collecting from a `Plug.Conn` that exposes list headers as
-  multiple entries) should supply a custom `getter` that
-  returns the headers comma-joined. The propagator itself
-  requires no change.
-
   ## Public API
 
   | Function | Role |

@@ -226,8 +226,24 @@ defmodule Otel.API.Propagator.TextMap do
   (`api-propagators.md` L216-L225) for
   `[{String.t(), String.t()}]` carriers.
 
-  Case-insensitive key lookup returning the first matching
-  value or `nil`. Spec L225 mandates case insensitivity for
+  Case-insensitive key lookup. Returns `nil` when no
+  matching entry exists; for a single match, returns the
+  value as-is; for multiple matching entries (e.g. a
+  carrier preserving the raw split form of a multi-header
+  HTTP field), returns their values joined with `", "` —
+  the RFC 9110 §5.3 list-value combination rule.
+
+  This lets multi-header wire formats survive carriers
+  that don't pre-fold duplicate fields, without requiring
+  callers to supply a custom getter:
+
+  - W3C Baggage L6 *"Multiple `baggage` headers are
+    allowed. Values can be combined in a single header
+    according to RFC 7230."*
+  - W3C TraceContext §3.3.1.5 — multiple `tracestate`
+    headers are combined into one by concatenation.
+
+  Spec L225 mandates case-insensitive matching for
   HTTP-like carriers.
   """
   @spec default_getter(carrier :: [{String.t(), String.t()}], key :: String.t()) ::
@@ -235,9 +251,11 @@ defmodule Otel.API.Propagator.TextMap do
   def default_getter(carrier, key) do
     lower_key = String.downcase(key)
 
-    Enum.find_value(carrier, fn {k, v} ->
-      if String.downcase(k) == lower_key, do: v
-    end)
+    case Enum.filter(carrier, fn {k, _v} -> String.downcase(k) == lower_key end) do
+      [] -> nil
+      [{_k, v}] -> v
+      matches -> Enum.map_join(matches, ", ", fn {_k, v} -> v end)
+    end
   end
 
   @doc """

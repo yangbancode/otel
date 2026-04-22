@@ -50,9 +50,26 @@ defmodule Otel.API.Propagator.TextMapTest do
       assert Otel.API.Propagator.TextMap.default_getter(carrier, "traceparent") == nil
     end
 
-    test "returns first match" do
-      carrier = [{"key", "first"}, {"key", "second"}]
-      assert Otel.API.Propagator.TextMap.default_getter(carrier, "key") == "first"
+    test "joins multiple matches with ', ' (RFC 9110 §5.3)" do
+      carrier = [{"baggage", "a=1"}, {"baggage", "b=2"}]
+      assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") == "a=1, b=2"
+    end
+
+    test "joins multiple matches across different casings" do
+      carrier = [{"Baggage", "a=1"}, {"BAGGAGE", "b=2"}, {"baggage", "c=3"}]
+      assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") == "a=1, b=2, c=3"
+    end
+
+    test "preserves order of matching headers" do
+      carrier = [
+        {"baggage", "first"},
+        {"other", "ignored"},
+        {"baggage", "second"},
+        {"baggage", "third"}
+      ]
+
+      assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") ==
+               "first, second, third"
     end
   end
 
