@@ -38,6 +38,16 @@ defmodule Otel.API.Metrics.MeterProviderTest do
 
       assert module == FakeMeterProvider
     end
+
+    test "different scopes produce distinct meters (no cache collision)" do
+      Otel.API.Metrics.MeterProvider.set_provider({FakeMeterProvider, :installed})
+
+      scope_a = %Otel.API.InstrumentationScope{name: "lib", attributes: %{"env" => "prod"}}
+      scope_b = %Otel.API.InstrumentationScope{name: "lib", attributes: %{"env" => "staging"}}
+
+      assert {_, %{scope: ^scope_a}} = Otel.API.Metrics.MeterProvider.get_meter(scope_a)
+      assert {_, %{scope: ^scope_b}} = Otel.API.Metrics.MeterProvider.get_meter(scope_b)
+    end
   end
 
   describe "get_meter/0,1" do
@@ -61,17 +71,6 @@ defmodule Otel.API.Metrics.MeterProviderTest do
         Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "my_lib"})
 
       assert meter1 == meter2
-    end
-
-    test "scopes differing by any field produce distinct cache entries" do
-      scope_a = %Otel.API.InstrumentationScope{name: "lib", attributes: %{"env" => "prod"}}
-      scope_b = %Otel.API.InstrumentationScope{name: "lib", attributes: %{"env" => "staging"}}
-
-      assert {Otel.API.Metrics.Meter.Noop, []} ==
-               Otel.API.Metrics.MeterProvider.get_meter(scope_a)
-
-      assert {Otel.API.Metrics.Meter.Noop, []} ==
-               Otel.API.Metrics.MeterProvider.get_meter(scope_b)
     end
 
     test "caches meter in persistent_term" do
