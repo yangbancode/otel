@@ -94,17 +94,17 @@ defmodule Otel.API.Metrics.Meter.Noop do
 
   | Function | Role |
   |---|---|
-  | `create_counter/3` | **OTel API MUST** (`noop.md` §Counter Creation, L95-L107) |
-  | `create_updown_counter/3` | **OTel API MUST** (`noop.md` §UpDownCounter Creation, L109-L121) |
-  | `create_histogram/3` | **OTel API MUST** (`noop.md` §Histogram Creation, L123-L135) |
-  | `create_gauge/3` | **OTel API MUST** (`api.md` §Gauge; `noop.md` general §Meter invariants) |
-  | `create_observable_counter/3,5` | **OTel API MUST** (`noop.md` §Async Counter Creation, L137-L149) |
-  | `create_observable_updown_counter/3,5` | **OTel API MUST** (`noop.md` §Async UpDownCounter Creation, L151-L164) |
-  | `create_observable_gauge/3,5` | **OTel API MUST** (`noop.md` §Async Gauge Creation, L166-L179) |
-  | `record/3` | **OTel API MUST** (`noop.md` §Counter Add / §UpDownCounter Add / §Histogram Record / §Gauge Record, L196-L227) |
-  | `register_callback/5` | **OTel API MUST** (`api.md` L408-L410 creation with callbacks) |
-  | `unregister_callback/1` | **OTel API MUST** (`api.md` L419-L420 undo registration) |
-  | `enabled?/2` | **OTel API SHOULD** (`api.md` §Enabled, L475-L495) |
+  | `create_counter/3` | **SDK** (Noop implementation) — `noop.md` §Counter Creation (L95-L107) |
+  | `create_updown_counter/3` | **SDK** (Noop implementation) — `noop.md` §UpDownCounter Creation (L109-L121) |
+  | `create_histogram/3` | **SDK** (Noop implementation) — `noop.md` §Histogram Creation (L123-L135) |
+  | `create_gauge/3` | **SDK** (Noop implementation) — `api.md` §Gauge; `noop.md` general §Meter invariants |
+  | `create_observable_counter/3,5` | **SDK** (Noop implementation) — `noop.md` §Async Counter Creation (L137-L149) |
+  | `create_observable_updown_counter/3,5` | **SDK** (Noop implementation) — `noop.md` §Async UpDownCounter Creation (L151-L164) |
+  | `create_observable_gauge/3,5` | **SDK** (Noop implementation) — `noop.md` §Async Gauge Creation (L166-L179) |
+  | `record/3` | **SDK** (Noop implementation) — `noop.md` §Counter Add / §UpDownCounter Add / §Histogram Record / §Gauge Record (L196-L227) |
+  | `register_callback/5` | **SDK** (Noop implementation) — `api.md` L408-L410 creation with callbacks |
+  | `unregister_callback/1` | **SDK** (Noop implementation) — `api.md` L419-L420 undo registration |
+  | `enabled?/2` | **SDK** (Noop implementation) — `api.md` §Enabled (L475-L495) |
 
   ## References
 
@@ -119,8 +119,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @behaviour Otel.API.Metrics.Meter
 
   @doc """
-  **OTel API MUST** — No-op Counter Creation (`noop.md`
-  §Counter Creation, L95-L107).
+  **SDK** (Noop implementation) — No-op Counter Creation
+  (`noop.md` §Counter Creation, L95-L107).
 
   Returns an `Otel.API.Metrics.Instrument` struct with
   `kind: :counter`. No validation (L106-L107).
@@ -134,8 +134,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
   def create_counter(meter, name, opts), do: build(meter, name, :counter, opts)
 
   @doc """
-  **OTel API MUST** — No-op UpDownCounter Creation
-  (`noop.md` §UpDownCounter Creation, L109-L121).
+  **SDK** (Noop implementation) — No-op UpDownCounter
+  Creation (`noop.md` §UpDownCounter Creation, L109-L121).
 
   Returns an `Otel.API.Metrics.Instrument` struct with
   `kind: :updown_counter`. No validation (L120-L121).
@@ -149,8 +149,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
   def create_updown_counter(meter, name, opts), do: build(meter, name, :updown_counter, opts)
 
   @doc """
-  **OTel API MUST** — No-op Histogram Creation (`noop.md`
-  §Histogram Creation, L123-L135).
+  **SDK** (Noop implementation) — No-op Histogram Creation
+  (`noop.md` §Histogram Creation, L123-L135).
 
   Returns an `Otel.API.Metrics.Instrument` struct with
   `kind: :histogram`. No validation (L134-L135).
@@ -164,9 +164,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
   def create_histogram(meter, name, opts), do: build(meter, name, :histogram, opts)
 
   @doc """
-  **OTel API MUST** — No-op Gauge Creation (`api.md`
-  §Gauge L828-L916; `noop.md` §Meter general invariants
-  L86-L93).
+  **SDK** (Noop implementation) — No-op Gauge Creation
+  (`api.md` §Gauge L828-L916; `noop.md` §Meter general
+  invariants L86-L93).
 
   Returns an `Otel.API.Metrics.Instrument` struct with
   `kind: :gauge`. Sync Gauge is not explicitly enumerated
@@ -184,8 +184,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
   def create_gauge(meter, name, opts), do: build(meter, name, :gauge, opts)
 
   @doc """
-  **OTel API MUST** — No-op Asynchronous Counter Creation
-  without inline callback (`noop.md` §Async Counter
+  **SDK** (Noop implementation) — No-op Asynchronous Counter
+  Creation without inline callback (`noop.md` §Async Counter
   Creation, L137-L149).
   """
   @impl true
@@ -198,9 +198,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
     do: build(meter, name, :observable_counter, opts)
 
   @doc """
-  **OTel API MUST** — No-op Asynchronous Counter Creation
-  with inline callback (`noop.md` §Async Counter Creation,
-  L137-L149).
+  **SDK** (Noop implementation) — No-op Asynchronous Counter
+  Creation with inline callback (`noop.md` §Async Counter
+  Creation, L137-L149).
 
   Per spec L149 *"MUST NOT hold any reference to the
   passed callbacks"* — `_callback` and `_callback_args`
@@ -219,9 +219,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
     do: build(meter, name, :observable_counter, opts)
 
   @doc """
-  **OTel API MUST** — No-op Asynchronous UpDownCounter
-  Creation without inline callback (`noop.md` §Async
-  UpDownCounter Creation, L151-L164).
+  **SDK** (Noop implementation) — No-op Asynchronous
+  UpDownCounter Creation without inline callback (`noop.md`
+  §Async UpDownCounter Creation, L151-L164).
   """
   @impl true
   @spec create_observable_updown_counter(
@@ -233,9 +233,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
     do: build(meter, name, :observable_updown_counter, opts)
 
   @doc """
-  **OTel API MUST** — No-op Asynchronous UpDownCounter
-  Creation with inline callback (`noop.md` §Async
-  UpDownCounter Creation, L151-L164).
+  **SDK** (Noop implementation) — No-op Asynchronous
+  UpDownCounter Creation with inline callback (`noop.md`
+  §Async UpDownCounter Creation, L151-L164).
 
   Per spec L164 *"MUST NOT hold any reference to the
   passed callbacks"* — same contract as
@@ -253,8 +253,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
     do: build(meter, name, :observable_updown_counter, opts)
 
   @doc """
-  **OTel API MUST** — No-op Asynchronous Gauge Creation
-  without inline callback (`noop.md` §Async Gauge
+  **SDK** (Noop implementation) — No-op Asynchronous Gauge
+  Creation without inline callback (`noop.md` §Async Gauge
   Creation, L166-L179).
   """
   @impl true
@@ -267,9 +267,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
     do: build(meter, name, :observable_gauge, opts)
 
   @doc """
-  **OTel API MUST** — No-op Asynchronous Gauge Creation
-  with inline callback (`noop.md` §Async Gauge Creation,
-  L166-L179).
+  **SDK** (Noop implementation) — No-op Asynchronous Gauge
+  Creation with inline callback (`noop.md` §Async Gauge
+  Creation, L166-L179).
 
   Per spec L179 *"MUST NOT hold any reference to the
   passed callbacks"* — same contract as
@@ -287,10 +287,10 @@ defmodule Otel.API.Metrics.Meter.Noop do
     do: build(meter, name, :observable_gauge, opts)
 
   @doc """
-  **OTel API MUST** — No-op Add / Record (`noop.md`
-  §Counter Add L196-L200, §UpDownCounter Add L210-L214,
-  §Histogram Record L223-L227, and — by general §Meter
-  invariants — §Gauge Record).
+  **SDK** (Noop implementation) — No-op Add / Record
+  (`noop.md` §Counter Add L196-L200, §UpDownCounter Add
+  L210-L214, §Histogram Record L223-L227, and — by general
+  §Meter invariants — §Gauge Record).
 
   Returns `:ok` without validating or retaining any state
   about the arguments received (L199-L200, L213-L214,
@@ -305,7 +305,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   def record(_instrument, _value, _attributes), do: :ok
 
   @doc """
-  **OTel API MUST** — No-op callback registration
+  **SDK** (Noop implementation) — No-op callback registration
   (`api.md` §Asynchronous Instrument API — callback
   registration, L408-L420).
 
@@ -326,9 +326,9 @@ defmodule Otel.API.Metrics.Meter.Noop do
     do: {__MODULE__, :noop}
 
   @doc """
-  **OTel API MUST** — No-op callback unregistration
-  (`api.md` L419-L420 *"user MUST be able to undo
-  registration of the specific callback"*).
+  **SDK** (Noop implementation) — No-op callback
+  unregistration (`api.md` L419-L420 *"user MUST be able to
+  undo registration of the specific callback"*).
 
   Accepts the opaque state from any prior
   `register_callback/5` call and returns `:ok` — there is
@@ -339,7 +339,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   def unregister_callback(_state), do: :ok
 
   @doc """
-  **OTel API SHOULD** — Enabled (`api.md` §General
+  **SDK** (Noop implementation) — Enabled (`api.md` §General
   operations — Enabled, L475-L495).
 
   Always returns `false` — signals to instrumentation

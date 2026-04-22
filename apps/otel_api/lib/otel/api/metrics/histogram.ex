@@ -65,9 +65,9 @@ defmodule Otel.API.Metrics.Histogram do
 
   | Function | Role |
   |---|---|
-  | `create/3` | **OTel API MUST** (Histogram creation, L746-L777) |
-  | `record/3` | **OTel API MUST** (Histogram Record, L781-L826) |
-  | `enabled?/2` | **OTel API SHOULD** (Enabled, L479-L495) |
+  | `create/3` | **Application** (OTel API MUST) — Histogram creation (L746-L777) |
+  | `record/3` | **Application** (OTel API MUST) — Histogram Record (L781-L826) |
+  | `enabled?/2` | **Application** (OTel API SHOULD) — Enabled (L479-L495) |
 
   ## References
 
@@ -80,8 +80,8 @@ defmodule Otel.API.Metrics.Histogram do
   use Otel.API.Common.Types
 
   @doc """
-  **OTel API MUST** — "Histogram creation" (`metrics/api.md`
-  §Histogram creation, L746-L777).
+  **Application** (OTel API MUST) — "Histogram creation"
+  (`metrics/api.md` §Histogram creation, L746-L777).
 
   Creates the instrument handle via the given Meter. Per
   spec L748, there is no other API surface for creating a
@@ -107,8 +107,8 @@ defmodule Otel.API.Metrics.Histogram do
   end
 
   @doc """
-  **OTel API MUST** — "Record" (`metrics/api.md` §Histogram
-  operations — Record, L781-L826).
+  **Application** (OTel API MUST) — "Record" (`metrics/api.md`
+  §Histogram operations — Record, L781-L826).
 
   Updates the histogram statistics with `value`. Per spec
   L797-L800 the value is expected to be non-negative; the
@@ -138,8 +138,8 @@ defmodule Otel.API.Metrics.Histogram do
   end
 
   @doc """
-  **OTel API SHOULD** — "Enabled" (`metrics/api.md`
-  §General operations — Enabled, L479-L495).
+  **Application** (OTel API SHOULD) — "Enabled"
+  (`metrics/api.md` §General operations — Enabled, L479-L495).
 
   Returns whether the instrument is enabled. Per spec
   L493-L495 the returned value is **not static** — it can

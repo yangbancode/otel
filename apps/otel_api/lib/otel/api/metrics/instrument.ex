@@ -66,9 +66,9 @@ defmodule Otel.API.Metrics.Instrument do
 
   | Function | Role |
   |---|---|
-  | `downcased_name/1` | **Local helper** — case-insensitive comparison key (`sdk.md` L945-L958 MUST) |
-  | `default_temporality_mapping/0` | **Local helper** — OTLP default export temporality preference |
-  | `monotonic?/1` | **Local helper** — OTLP Sum `is_monotonic` for a given kind |
+  | `downcased_name/1` | **SDK** (SDK helper) — case-insensitive comparison key (`sdk.md` L945-L958 MUST) |
+  | `default_temporality_mapping/0` | **SDK** (SDK helper) — OTLP default export temporality preference |
+  | `monotonic?/1` | **SDK** (SDK helper) — OTLP Sum `is_monotonic` for a given kind |
 
   All functions are safe for concurrent use.
 
@@ -218,8 +218,7 @@ defmodule Otel.API.Metrics.Instrument do
             scope: %Otel.API.InstrumentationScope{}
 
   @doc """
-  **Local helper** (not in spec) — case-insensitive
-  comparison key.
+  **SDK** (SDK helper) — case-insensitive comparison key.
 
   Returns the lowercased instrument name. Used by
   `Otel.SDK.Metrics.Meter` to key the ETS instruments and
@@ -234,8 +233,8 @@ defmodule Otel.API.Metrics.Instrument do
   def downcased_name(name), do: String.downcase(name)
 
   @doc """
-  **Local helper** (not in spec) — default export-time
-  temporality preference per instrument kind.
+  **SDK** (SDK helper) — default export-time temporality
+  preference per instrument kind.
 
   Returns `%{kind() => :cumulative}` for every kind —
   matching the OTLP Exporter default preference
@@ -265,8 +264,8 @@ defmodule Otel.API.Metrics.Instrument do
   end
 
   @doc """
-  **Local helper** (not in spec) — whether the given
-  instrument `kind`'s Sum aggregation is monotonic.
+  **SDK** (SDK helper) — whether the given instrument
+  `kind`'s Sum aggregation is monotonic.
 
   Maps to OTLP's `Sum.is_monotonic` field
   (`opentelemetry-proto` `metrics.proto`). Only Counter

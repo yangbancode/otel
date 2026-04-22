@@ -57,7 +57,7 @@ defmodule Otel.API.Metrics.ObservableGauge do
 
   | Function | Role |
   |---|---|
-  | `create/3`, `create/5` | **OTel API MUST** (Asynchronous Gauge creation, L934-L1031) |
+  | `create/3`, `create/5` | **Application** (OTel API MUST) — Asynchronous Gauge creation (L934-L1031) |
 
   ## References
 
@@ -67,9 +67,9 @@ defmodule Otel.API.Metrics.ObservableGauge do
   """
 
   @doc """
-  **OTel API MUST** — "Asynchronous Gauge creation" without
-  an inline callback (`metrics/api.md` §Asynchronous Gauge
-  creation, L934-L950).
+  **Application** (OTel API MUST) — "Asynchronous Gauge
+  creation" without an inline callback (`metrics/api.md`
+  §Asynchronous Gauge creation, L934-L950).
 
   Creates the instrument handle; callbacks can be registered
   later via `Otel.API.Metrics.Meter.register_callback/5`
@@ -95,9 +95,9 @@ defmodule Otel.API.Metrics.ObservableGauge do
   end
 
   @doc """
-  **OTel API MUST** — "Asynchronous Gauge creation" with an
-  inline callback (`metrics/api.md` §Asynchronous Gauge
-  creation, L934-L1031).
+  **Application** (OTel API MUST) — "Asynchronous Gauge
+  creation" with an inline callback (`metrics/api.md`
+  §Asynchronous Gauge creation, L934-L1031).
 
   Creates the instrument and permanently attaches
   `callback`. Per spec L446-L447 MUST, callbacks registered

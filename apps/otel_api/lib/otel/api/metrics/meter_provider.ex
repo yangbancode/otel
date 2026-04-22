@@ -43,10 +43,10 @@ defmodule Otel.API.Metrics.MeterProvider do
 
   | Function | Role |
   |---|---|
-  | `get_meter/0,1` | **OTel API MUST** (Get a Meter, L120-L155) |
-  | `get_meter/2` (callback) | Internal dispatch contract (API ↔ SDK) |
-  | `get_provider/0` | **OTel API SHOULD** — access global provider (L110-L112) |
-  | `set_provider/1` | **OTel API SHOULD** — register global provider (L110-L112) |
+  | `get_meter/0,1` | **Application** (OTel API MUST) — Get a Meter (L120-L155) |
+  | `@callback get_meter/2` | **SDK** (OTel API MUST) — Dispatch callback (L120-L155) |
+  | `get_provider/0` | **SDK** (installation hook) — access global provider (L110-L112) |
+  | `set_provider/1` | **SDK** (installation hook) — register global provider (L110-L112) |
 
   ## References
 
@@ -73,23 +73,11 @@ defmodule Otel.API.Metrics.MeterProvider do
   """
   @type t :: {module(), term()}
 
-  @doc """
-  Dispatch callback invoked by `get_meter/1` on cache miss.
-
-  Implementations receive the opaque `state` they registered
-  via `set_provider/1` along with the requested
-  instrumentation scope, and return the Meter to cache. Not
-  part of the OTel spec — this is the internal dispatch
-  contract between the API and SDK layers.
-  """
-  @callback get_meter(
-              state :: term(),
-              instrumentation_scope :: Otel.API.InstrumentationScope.t()
-            ) :: Otel.API.Metrics.Meter.t()
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API MUST** — "Get a Meter" (`metrics/api.md`
-  L120-L155).
+  **Application** (OTel API MUST) — "Get a Meter"
+  (`metrics/api.md` L120-L155).
 
   Returns a Meter for the given instrumentation scope. On
   cache miss delegates to the registered provider's
@@ -122,9 +110,28 @@ defmodule Otel.API.Metrics.MeterProvider do
     end
   end
 
+  # --- SDK callbacks ---
+
   @doc """
-  **OTel API SHOULD** — access the global MeterProvider
-  (`metrics/api.md` L110-L112).
+  **SDK** (OTel API MUST) — Dispatch callback invoked by
+  `get_meter/1` on cache miss.
+
+  Implementations receive the opaque `state` they registered
+  via `set_provider/1` along with the requested
+  instrumentation scope, and return the Meter to cache. The
+  `get_meter/2` shape is the API↔SDK dispatch contract for
+  §"Get a Meter" (`metrics/api.md` L120-L155).
+  """
+  @callback get_meter(
+              state :: term(),
+              instrumentation_scope :: Otel.API.InstrumentationScope.t()
+            ) :: Otel.API.Metrics.Meter.t()
+
+  # --- SDK installation hooks ---
+
+  @doc """
+  **SDK** (installation hook) — access the global
+  MeterProvider (`metrics/api.md` L110-L112).
 
   > *"the API SHOULD provide a way to set/register and
   > access a global default `MeterProvider`."*
@@ -138,8 +145,8 @@ defmodule Otel.API.Metrics.MeterProvider do
   end
 
   @doc """
-  **OTel API SHOULD** — register the global MeterProvider
-  (`metrics/api.md` L110-L112).
+  **SDK** (installation hook) — register the global
+  MeterProvider (`metrics/api.md` L110-L112).
 
   > *"the API SHOULD provide a way to set/register and
   > access a global default `MeterProvider`."*

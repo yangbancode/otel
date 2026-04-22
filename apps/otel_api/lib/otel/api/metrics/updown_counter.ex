@@ -59,9 +59,9 @@ defmodule Otel.API.Metrics.UpDownCounter do
 
   | Function | Role |
   |---|---|
-  | `create/3` | **OTel API MUST** (UpDownCounter creation, L1084-L1115) |
-  | `add/3` | **OTel API MUST** (UpDownCounter Add, L1118-L1156) |
-  | `enabled?/2` | **OTel API SHOULD** (Enabled, L479-L495) |
+  | `create/3` | **Application** (OTel API MUST) — UpDownCounter creation (L1084-L1115) |
+  | `add/3` | **Application** (OTel API MUST) — UpDownCounter Add (L1118-L1156) |
+  | `enabled?/2` | **Application** (OTel API SHOULD) — Enabled (L479-L495) |
 
   ## References
 
@@ -74,7 +74,7 @@ defmodule Otel.API.Metrics.UpDownCounter do
   use Otel.API.Common.Types
 
   @doc """
-  **OTel API MUST** — "UpDownCounter creation"
+  **Application** (OTel API MUST) — "UpDownCounter creation"
   (`metrics/api.md` §UpDownCounter creation, L1084-L1115).
 
   Creates the instrument handle via the given Meter. Per
@@ -101,7 +101,7 @@ defmodule Otel.API.Metrics.UpDownCounter do
   end
 
   @doc """
-  **OTel API MUST** — "Add" (`metrics/api.md`
+  **Application** (OTel API MUST) — "Add" (`metrics/api.md`
   §UpDownCounter operations — Add, L1118-L1156).
 
   Increments or decrements the UpDownCounter by `value`.
@@ -131,8 +131,8 @@ defmodule Otel.API.Metrics.UpDownCounter do
   end
 
   @doc """
-  **OTel API SHOULD** — "Enabled" (`metrics/api.md`
-  §General operations — Enabled, L479-L495).
+  **Application** (OTel API SHOULD) — "Enabled"
+  (`metrics/api.md` §General operations — Enabled, L479-L495).
 
   Returns whether the instrument is enabled. Per spec
   L493-L495 the returned value is **not static** — it can

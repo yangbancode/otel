@@ -70,22 +70,18 @@ defmodule Otel.API.Metrics.Meter do
 
   | Function | Role |
   |---|---|
-  | `create_counter/3` | **OTel API MUST** (Counter creation, `api.md` L510-L542) |
-  | `create_histogram/3` | **OTel API MUST** (Histogram creation, `api.md` L746-L777) |
-  | `create_gauge/3` | **OTel API MUST** (Gauge creation, `api.md` L852-L872) |
-  | `create_updown_counter/3` | **OTel API MUST** (UpDownCounter creation, `api.md` L1084-L1115) |
-  | `create_observable_counter/3,5` | **OTel API MUST** (Async Counter creation, `api.md` L613-L703) |
-  | `create_observable_gauge/3,5` | **OTel API MUST** (Async Gauge creation, `api.md` L934-L1031) |
-  | `create_observable_updown_counter/3,5` | **OTel API MUST** (Async UpDownCounter creation, `api.md` L1176-L1277) |
-  | `record/3` | **OTel API MUST** (Counter Add / Histogram Record / Gauge Record / UpDownCounter Add dispatch) |
-  | `register_callback/5` | **OTel API MUST** (callback creation, `api.md` L408-L410) |
-  | `unregister_callback/1` | **OTel API MUST** (`api.md` L419-L420) |
-  | `enabled?/2` | **OTel API SHOULD** (Enabled, `api.md` L475-L495) |
-
-  Each dispatch function has a corresponding `@callback`
-  of the same name and arity — the internal contract
-  between this facade and the SDK-registered dispatcher
-  module.
+  | `create_counter/3` | **Application** (OTel API MUST) — Counter creation (`api.md` L510-L542) |
+  | `create_histogram/3` | **Application** (OTel API MUST) — Histogram creation (`api.md` L746-L777) |
+  | `create_gauge/3` | **Application** (OTel API MUST) — Gauge creation (`api.md` L852-L872) |
+  | `create_updown_counter/3` | **Application** (OTel API MUST) — UpDownCounter creation (`api.md` L1084-L1115) |
+  | `create_observable_counter/3,5` | **Application** (OTel API MUST) — Async Counter creation (`api.md` L613-L703) |
+  | `create_observable_gauge/3,5` | **Application** (OTel API MUST) — Async Gauge creation (`api.md` L934-L1031) |
+  | `create_observable_updown_counter/3,5` | **Application** (OTel API MUST) — Async UpDownCounter creation (`api.md` L1176-L1277) |
+  | `record/3` | **Application** (OTel API MUST) — Counter Add / Histogram Record / Gauge Record / UpDownCounter Add dispatch |
+  | `register_callback/5` | **Application** (OTel API MUST) — callback creation (`api.md` L408-L410) |
+  | `unregister_callback/1` | **Application** (OTel API MUST) — undo registration (`api.md` L419-L420) |
+  | `enabled?/2` | **Application** (OTel API SHOULD) — Enabled (`api.md` L475-L495) |
+  | `@callback` declarations of the above | **SDK** (OTel API MUST/SHOULD) — SDK dispatch contract |
 
   ## References
 
@@ -134,118 +130,11 @@ defmodule Otel.API.Metrics.Meter do
   """
   @type registration :: {module(), term()}
 
-  # --- Synchronous Instruments (behaviour callbacks) ---
-
-  @callback create_counter(
-              meter :: t(),
-              name :: String.t(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_histogram(
-              meter :: t(),
-              name :: String.t(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_gauge(
-              meter :: t(),
-              name :: String.t(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_updown_counter(
-              meter :: t(),
-              name :: String.t(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  # --- Asynchronous Instruments (behaviour callbacks) ---
-
-  @callback create_observable_counter(
-              meter :: t(),
-              name :: String.t(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_observable_counter(
-              meter :: t(),
-              name :: String.t(),
-              callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
-              callback_args :: term(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_observable_gauge(
-              meter :: t(),
-              name :: String.t(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_observable_gauge(
-              meter :: t(),
-              name :: String.t(),
-              callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
-              callback_args :: term(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_observable_updown_counter(
-              meter :: t(),
-              name :: String.t(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  @callback create_observable_updown_counter(
-              meter :: t(),
-              name :: String.t(),
-              callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
-              callback_args :: term(),
-              opts :: Otel.API.Metrics.Instrument.create_opts()
-            ) :: Otel.API.Metrics.Instrument.t()
-
-  # --- Callback Registration (behaviour callbacks) ---
-
-  # Callback return shape is spec-defined at `api.md`
-  # L1302-L1303 *"The list (or tuple, etc.) returned by the
-  # callback function contains `(Instrument, Measurement)`
-  # pairs"* — combined with the L452-L453 MUST that
-  # *"Idiomatic APIs for multiple-instrument Callbacks MUST
-  # distinguish the instrument associated with each observed
-  # Measurement value"*. The instrument tag is therefore a
-  # spec-mandated part of the return shape.
-  @callback register_callback(
-              meter :: t(),
-              instruments :: [Otel.API.Metrics.Instrument.t()],
-              callback ::
-                (term() ->
-                   [{Otel.API.Metrics.Instrument.t(), Otel.API.Metrics.Measurement.t()}]),
-              callback_args :: term(),
-              opts :: Otel.API.Metrics.Instrument.register_callback_opts()
-            ) :: registration()
-
-  @callback unregister_callback(state :: term()) :: :ok
-
-  # --- Recording (behaviour callback) ---
-
-  @callback record(
-              instrument :: Otel.API.Metrics.Instrument.t(),
-              value :: number(),
-              attributes :: %{String.t() => primitive() | [primitive()]}
-            ) :: :ok
-
-  # --- Enabled (behaviour callback) ---
-
-  @callback enabled?(
-              instrument :: Otel.API.Metrics.Instrument.t(),
-              opts :: Otel.API.Metrics.Instrument.enabled_opts()
-            ) :: boolean()
-
-  # --- Dispatch Functions ---
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API MUST** — "Counter creation" (`api.md`
-  L510-L542). Dispatches to
+  **Application** (OTel API MUST) — "Counter creation"
+  (`api.md` L510-L542). Dispatches to
   `dispatcher_module.create_counter/3`.
   """
   @spec create_counter(
@@ -258,8 +147,8 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Histogram creation" (`api.md`
-  L746-L777). Dispatches to
+  **Application** (OTel API MUST) — "Histogram creation"
+  (`api.md` L746-L777). Dispatches to
   `dispatcher_module.create_histogram/3`.
   """
   @spec create_histogram(
@@ -272,8 +161,8 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Gauge creation" (`api.md`
-  L852-L872). Dispatches to
+  **Application** (OTel API MUST) — "Gauge creation"
+  (`api.md` L852-L872). Dispatches to
   `dispatcher_module.create_gauge/3`.
   """
   @spec create_gauge(
@@ -286,8 +175,8 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "UpDownCounter creation" (`api.md`
-  L1084-L1115). Dispatches to
+  **Application** (OTel API MUST) — "UpDownCounter creation"
+  (`api.md` L1084-L1115). Dispatches to
   `dispatcher_module.create_updown_counter/3`.
   """
   @spec create_updown_counter(
@@ -300,8 +189,8 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Async Counter creation" without
-  inline callback (`api.md` L613-L703). Dispatches to
+  **Application** (OTel API MUST) — "Async Counter creation"
+  without inline callback (`api.md` L613-L703). Dispatches to
   `dispatcher_module.create_observable_counter/3`.
   """
   @spec create_observable_counter(
@@ -314,9 +203,9 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Async Counter creation" with inline
-  callback (`api.md` L613-L703). `callback` is a 1-arity
-  function receiving `callback_args` and returning
+  **Application** (OTel API MUST) — "Async Counter creation"
+  with inline callback (`api.md` L613-L703). `callback` is a
+  1-arity function receiving `callback_args` and returning
   `[Measurement.t()]` per spec L441-L442 list-return form.
   Dispatches to
   `dispatcher_module.create_observable_counter/5`.
@@ -333,9 +222,9 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Async Gauge creation" without
-  inline callback (`api.md` L934-L1031). Dispatches to
-  `dispatcher_module.create_observable_gauge/3`.
+  **Application** (OTel API MUST) — "Async Gauge creation"
+  without inline callback (`api.md` L934-L1031). Dispatches
+  to `dispatcher_module.create_observable_gauge/3`.
   """
   @spec create_observable_gauge(
           meter :: t(),
@@ -347,9 +236,9 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Async Gauge creation" with inline
-  callback (`api.md` L934-L1031). Same callback contract as
-  `create_observable_counter/5`.
+  **Application** (OTel API MUST) — "Async Gauge creation"
+  with inline callback (`api.md` L934-L1031). Same callback
+  contract as `create_observable_counter/5`.
   """
   @spec create_observable_gauge(
           meter :: t(),
@@ -363,8 +252,8 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Async UpDownCounter creation"
-  without inline callback (`api.md` L1176-L1277).
+  **Application** (OTel API MUST) — "Async UpDownCounter
+  creation" without inline callback (`api.md` L1176-L1277).
   Dispatches to
   `dispatcher_module.create_observable_updown_counter/3`.
   """
@@ -378,9 +267,9 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — "Async UpDownCounter creation" with
-  inline callback (`api.md` L1176-L1277). Same callback
-  contract as `create_observable_counter/5`.
+  **Application** (OTel API MUST) — "Async UpDownCounter
+  creation" with inline callback (`api.md` L1176-L1277).
+  Same callback contract as `create_observable_counter/5`.
   """
   @spec create_observable_updown_counter(
           meter :: t(),
@@ -394,8 +283,8 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — Records a measurement for the given
-  instrument.
+  **Application** (OTel API MUST) — Records a measurement
+  for the given instrument.
 
   All synchronous recording paths route through here:
 
@@ -426,9 +315,9 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — Registers a callback for one or more
-  asynchronous instruments (`api.md` L408-L410 MUST support
-  callback creation).
+  **Application** (OTel API MUST) — Registers a callback for
+  one or more asynchronous instruments (`api.md` L408-L410
+  MUST support callback creation).
 
   All `instruments` MUST belong to the same Meter (spec
   L455-L457). The callback is 1-arity and receives
@@ -454,9 +343,10 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API MUST** — Undoes a prior `register_callback/5`
-  registration (`api.md` L419-L420 *"user MUST be able to
-  undo registration of the specific callback"*).
+  **Application** (OTel API MUST) — Undoes a prior
+  `register_callback/5` registration (`api.md` L419-L420
+  *"user MUST be able to undo registration of the specific
+  callback"*).
 
   `registration` is the opaque handle returned by
   `register_callback/5`. After this call the callback is no
@@ -468,8 +358,8 @@ defmodule Otel.API.Metrics.Meter do
   end
 
   @doc """
-  **OTel API SHOULD** — "Enabled" (`api.md` §General
-  operations — Enabled, L475-L495).
+  **Application** (OTel API SHOULD) — "Enabled" (`api.md`
+  §General operations — Enabled, L475-L495).
 
   Returns whether the instrument is enabled. Per spec
   L493-L495 the returned value is **not static** — it can
@@ -485,4 +375,174 @@ defmodule Otel.API.Metrics.Meter do
   def enabled?(%Otel.API.Metrics.Instrument{meter: {module, _}} = instrument, opts \\ []) do
     module.enabled?(instrument, opts)
   end
+
+  # --- SDK callbacks ---
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_counter/3` (`api.md` §Counter creation L510-L542).
+  """
+  @callback create_counter(
+              meter :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_histogram/3` (`api.md` §Histogram creation
+  L746-L777).
+  """
+  @callback create_histogram(
+              meter :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_gauge/3` (`api.md` §Gauge creation L852-L872).
+  """
+  @callback create_gauge(
+              meter :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_updown_counter/3` (`api.md` §UpDownCounter
+  creation L1084-L1115).
+  """
+  @callback create_updown_counter(
+              meter :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_observable_counter/3` without inline callback
+  (`api.md` §Asynchronous Counter creation L613-L703).
+  """
+  @callback create_observable_counter(
+              meter :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_observable_counter/5` with inline callback
+  (`api.md` L613-L703 + L446-L447 MUST — callbacks
+  registered at creation time).
+  """
+  @callback create_observable_counter(
+              meter :: t(),
+              name :: String.t(),
+              callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
+              callback_args :: term(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_observable_gauge/3` without inline callback
+  (`api.md` §Asynchronous Gauge creation L934-L1031).
+  """
+  @callback create_observable_gauge(
+              meter :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_observable_gauge/5` with inline callback
+  (`api.md` L934-L1031 + L446-L447 MUST).
+  """
+  @callback create_observable_gauge(
+              meter :: t(),
+              name :: String.t(),
+              callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
+              callback_args :: term(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_observable_updown_counter/3` without inline
+  callback (`api.md` §Asynchronous UpDownCounter creation
+  L1176-L1277).
+  """
+  @callback create_observable_updown_counter(
+              meter :: t(),
+              name :: String.t(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `create_observable_updown_counter/5` with inline callback
+  (`api.md` L1176-L1277 + L446-L447 MUST).
+  """
+  @callback create_observable_updown_counter(
+              meter :: t(),
+              name :: String.t(),
+              callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
+              callback_args :: term(),
+              opts :: Otel.API.Metrics.Instrument.create_opts()
+            ) :: Otel.API.Metrics.Instrument.t()
+
+  # Callback return shape is spec-defined at `api.md`
+  # L1302-L1303 *"The list (or tuple, etc.) returned by the
+  # callback function contains `(Instrument, Measurement)`
+  # pairs"* — combined with the L452-L453 MUST that
+  # *"Idiomatic APIs for multiple-instrument Callbacks MUST
+  # distinguish the instrument associated with each observed
+  # Measurement value"*. The instrument tag is therefore a
+  # spec-mandated part of the return shape.
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `register_callback/5` (`api.md` L408-L410 — callback
+  creation for async instruments).
+  """
+  @callback register_callback(
+              meter :: t(),
+              instruments :: [Otel.API.Metrics.Instrument.t()],
+              callback ::
+                (term() ->
+                   [{Otel.API.Metrics.Instrument.t(), Otel.API.Metrics.Measurement.t()}]),
+              callback_args :: term(),
+              opts :: Otel.API.Metrics.Instrument.register_callback_opts()
+            ) :: registration()
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for
+  `unregister_callback/1` (`api.md` L419-L420 — undo
+  callback registration).
+  """
+  @callback unregister_callback(state :: term()) :: :ok
+
+  @doc """
+  **SDK** (OTel API MUST) — Dispatch callback for `record/3`
+  (`api.md` §Counter Add L545-L598 / §Histogram Record
+  L781-L826 / §Gauge Record L876-L915 / §UpDownCounter Add
+  L1118-L1156).
+  """
+  @callback record(
+              instrument :: Otel.API.Metrics.Instrument.t(),
+              value :: number(),
+              attributes :: %{String.t() => primitive() | [primitive()]}
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API SHOULD) — Dispatch callback for
+  `enabled?/2` (`api.md` §General operations — Enabled,
+  L475-L495).
+  """
+  @callback enabled?(
+              instrument :: Otel.API.Metrics.Instrument.t(),
+              opts :: Otel.API.Metrics.Instrument.enabled_opts()
+            ) :: boolean()
 end
