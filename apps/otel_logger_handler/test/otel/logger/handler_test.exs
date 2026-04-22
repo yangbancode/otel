@@ -95,49 +95,50 @@ defmodule Otel.Logger.HandlerTest do
   end
 
   # Per `logs/data-model.md` §Mapping of `SeverityNumber`
-  # (L273-L296) + Appendix B Syslog row (L806-L818). Asserts
-  # on the numeric value and OTel short-name text for every
-  # `:logger` level, matching `opentelemetry-erlang`'s
-  # `otel_otlp_logs:level_to_severity/1`.
+  # (L273-L296) + Appendix B Syslog row (L806-L818).
+  # `SeverityNumber` per Appendix B; `SeverityText` carries
+  # the source representation (the `:logger` level atom as a
+  # string) per L240-L241 *"original string representation
+  # of the severity as it is known at the source"*.
   describe "severity mapping" do
-    test ":emergency → 21 FATAL", %{logger: logger} do
+    test ~s|:emergency → 21 / "emergency"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:emergency, {:string, "e"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 21, severity_text: "FATAL"}}
+      assert_received {:captured_log, _, %{severity_number: 21, severity_text: "emergency"}}
     end
 
-    test ":alert → 19 ERROR3", %{logger: logger} do
+    test ~s|:alert → 19 / "alert"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:alert, {:string, "a"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 19, severity_text: "ERROR3"}}
+      assert_received {:captured_log, _, %{severity_number: 19, severity_text: "alert"}}
     end
 
-    test ":critical → 18 ERROR2", %{logger: logger} do
+    test ~s|:critical → 18 / "critical"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:critical, {:string, "c"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 18, severity_text: "ERROR2"}}
+      assert_received {:captured_log, _, %{severity_number: 18, severity_text: "critical"}}
     end
 
-    test ":error → 17 ERROR", %{logger: logger} do
+    test ~s|:error → 17 / "error"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:error, {:string, "err"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 17, severity_text: "ERROR"}}
+      assert_received {:captured_log, _, %{severity_number: 17, severity_text: "error"}}
     end
 
-    test ":warning → 13 WARN", %{logger: logger} do
+    test ~s|:warning → 13 / "warning"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:warning, {:string, "w"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 13, severity_text: "WARN"}}
+      assert_received {:captured_log, _, %{severity_number: 13, severity_text: "warning"}}
     end
 
-    test ":notice → 10 INFO2", %{logger: logger} do
+    test ~s|:notice → 10 / "notice"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:notice, {:string, "n"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 10, severity_text: "INFO2"}}
+      assert_received {:captured_log, _, %{severity_number: 10, severity_text: "notice"}}
     end
 
-    test ":info → 9 INFO", %{logger: logger} do
+    test ~s|:info → 9 / "info"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:info, {:string, "i"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 9, severity_text: "INFO"}}
+      assert_received {:captured_log, _, %{severity_number: 9, severity_text: "info"}}
     end
 
-    test ":debug → 5 DEBUG", %{logger: logger} do
+    test ~s|:debug → 5 / "debug"|, %{logger: logger} do
       Otel.Logger.Handler.log(log_event(:debug, {:string, "d"}, %{}), config_with(logger))
-      assert_received {:captured_log, _, %{severity_number: 5, severity_text: "DEBUG"}}
+      assert_received {:captured_log, _, %{severity_number: 5, severity_text: "debug"}}
     end
   end
 
