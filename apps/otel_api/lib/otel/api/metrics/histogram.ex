@@ -1,25 +1,102 @@
 defmodule Otel.API.Metrics.Histogram do
   @moduledoc """
-  Synchronous Histogram instrument.
+  Synchronous Histogram instrument facade (OTel
+  `metrics/api.md` §Histogram, Status: **Stable**,
+  L735-L827).
 
-  A Histogram reports arbitrary values that are likely to be
-  statistically meaningful. Created exclusively through a Meter.
+  A Histogram reports arbitrary values that are likely to
+  be statistically meaningful — intended for statistics
+  such as histograms, summaries, and percentiles (spec
+  L737-L739). Example uses: request duration, response
+  payload size (spec L743-L744).
 
-  The value is expected to be non-negative. The API does not
-  validate the value; validation is deferred to the SDK.
+  Created exclusively through a `Meter` per spec L748
+  *"MUST NOT be any API for creating a Histogram other
+  than with a Meter"*.
 
-  All functions are safe for concurrent use.
+  ## Non-negative value contract
+
+  Per spec L797-L800, the recorded value is **expected to
+  be non-negative**. The API:
+
+  - SHOULD be documented to communicate the non-negative
+    expectation (satisfied here)
+  - SHOULD NOT validate — validation is the SDK's
+    responsibility
+
+  A negative value passed to `record/3` will be accepted
+  at the API boundary and forwarded to the SDK.
+
+  ## Advisory parameters
+
+  The `:advisory` keyword accepts instrument-specific
+  hints per §Instrument advisory parameters. For
+  Histogram, the relevant hint is
+  `explicit_bucket_boundaries` (bucket layout override).
+  The API SHOULD NOT validate advisory parameters (spec
+  L400 — same blanket rule across instruments).
+
+  ## BEAM representation
+
+  `opentelemetry-erlang` implements this as a `defmacro`
+  that resolves the meter implicitly via
+  `opentelemetry_experimental:get_meter/1` at expansion
+  time and injects `OpenTelemetry.Ctx.get_current()` into
+  `:otel_histogram.record/5`
+  (`lib/open_telemetry/histogram.ex`). We take a different
+  path:
+
+  - plain `def` with an explicit `Meter.t()` handle —
+    macro-free, Dialyzer-visible, consistent with the
+    `Tracer` and `Meter` facades project-wide
+  - no implicit context threaded through `record/3` —
+    synchronous metric measurements are not
+    context-associated at the API boundary; the SDK
+    attaches context per `Otel.API.Ctx` if relevant
+
+  Erlang also does not expose `enabled?/2` on sync
+  instruments; we add it per spec L475-L477 (SHOULD
+  provide) and spec L479-L495 (Enabled API).
+
+  All functions are safe for concurrent use (spec
+  L1351-L1352, §Concurrency §Instrument).
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `create/3` | **OTel API MUST** (Histogram creation, L746-L777) |
+  | `record/3` | **OTel API MUST** (Histogram Record, L781-L826) |
+  | `enabled?/2` | **OTel API SHOULD** (Enabled, L479-L495) |
+
+  ## References
+
+  - OTel Metrics API §Histogram: `opentelemetry-specification/specification/metrics/api.md` L735-L827
+  - OTel Metrics API §Synchronous Instrument API: `opentelemetry-specification/specification/metrics/api.md` L302-L348
+  - OTel Metrics API §General operations / Enabled: `opentelemetry-specification/specification/metrics/api.md` L473-L495
+  - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
+  - Decision: `docs/decisions/synchronous-instruments.md`
   """
 
   use Otel.API.Common.Types
 
   @doc """
-  Creates a Histogram instrument via the given Meter.
+  **OTel API MUST** — "Histogram creation" (`metrics/api.md`
+  §Histogram creation, L746-L777).
 
-  Options:
-  - `:unit` — case-sensitive ASCII string (max 63 chars)
-  - `:description` — opaque string (BMP, at least 1023 chars)
-  - `:advisory` — advisory parameters (e.g. `explicit_bucket_boundaries`)
+  Creates the instrument handle via the given Meter. Per
+  spec L748, there is no other API surface for creating a
+  Histogram.
+
+  Options (per §Synchronous Instrument API L302-L348):
+
+  - `:unit` — case-sensitive ASCII string, max 63 chars
+  - `:description` — opaque string (BMP Plane 0), at least
+    1023 chars supported
+  - `:advisory` — advisory parameters (e.g.
+    `explicit_bucket_boundaries`)
+
+  Delegates to `Otel.API.Metrics.Meter.create_histogram/3`.
   """
   @spec create(
           meter :: Otel.API.Metrics.Meter.t(),
@@ -31,27 +108,27 @@ defmodule Otel.API.Metrics.Histogram do
   end
 
   @doc """
-  Returns whether the instrument is enabled.
+  **OTel API MUST** — "Record" (`metrics/api.md` §Histogram
+  operations — Record, L781-L826).
 
-  Instrumentation authors should call this before each recording
-  to avoid expensive computation when disabled. The return value
-  can change over time.
-  """
-  @spec enabled?(
-          instrument :: Otel.API.Metrics.Instrument.t(),
-          opts :: Otel.API.Metrics.Instrument.enabled_opts()
-        ) :: boolean()
-  def enabled?(instrument, opts \\ []) do
-    Otel.API.Metrics.Meter.enabled?(instrument, opts)
-  end
+  Updates the histogram statistics with `value`. Per spec
+  L797-L800 the value is expected to be non-negative; the
+  API does not validate (`SHOULD NOT validate` per spec —
+  SDK's job).
 
-  @doc """
-  Records a value in the Histogram.
+  Attributes default to `%{}` per spec L801-L805 *"MUST be
+  structured to accept a variable number of attributes,
+  including none"*.
 
-  The value is expected to be non-negative. Attributes are optional.
+  Instrumentation authors should call `enabled?/2` before
+  each `record/3` to avoid expensive computation when the
+  instrument is disabled (spec L493-L495 — the enabled
+  state is not static).
 
-  Instrumentation authors should call `enabled?/2` before each call
-  to avoid expensive computation when disabled.
+  Delegates to `Otel.API.Metrics.Meter.record/3` — both
+  Histogram.record and the synchronous siblings share a
+  single Meter dispatch per
+  `docs/decisions/synchronous-instruments.md`.
   """
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
@@ -60,5 +137,29 @@ defmodule Otel.API.Metrics.Histogram do
         ) :: :ok
   def record(instrument, value, attributes \\ %{}) do
     Otel.API.Metrics.Meter.record(instrument, value, attributes)
+  end
+
+  @doc """
+  **OTel API SHOULD** — "Enabled" (`metrics/api.md`
+  §General operations — Enabled, L479-L495).
+
+  Returns whether the instrument is enabled. Per spec
+  L493-L495 the returned value is **not static** — it can
+  change over time as configuration or sampling state
+  evolves. Instrumentation authors SHOULD call this each
+  time before recording to have the most up-to-date
+  response.
+
+  Spec L485-L487: no required parameters today; the API is
+  structured to accept future additions via a keyword list.
+
+  Delegates to `Otel.API.Metrics.Meter.enabled?/2`.
+  """
+  @spec enabled?(
+          instrument :: Otel.API.Metrics.Instrument.t(),
+          opts :: Otel.API.Metrics.Instrument.enabled_opts()
+        ) :: boolean()
+  def enabled?(instrument, opts \\ []) do
+    Otel.API.Metrics.Meter.enabled?(instrument, opts)
   end
 end
