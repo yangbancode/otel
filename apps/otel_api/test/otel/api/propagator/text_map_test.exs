@@ -50,14 +50,14 @@ defmodule Otel.API.Propagator.TextMapTest do
       assert Otel.API.Propagator.TextMap.default_getter(carrier, "traceparent") == nil
     end
 
-    test "joins multiple matches with ', ' (RFC 9110 §5.3)" do
+    test "joins multiple matches with ',' (RFC 9110 §5.3, minimal bytes)" do
       carrier = [{"baggage", "a=1"}, {"baggage", "b=2"}]
-      assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") == "a=1, b=2"
+      assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") == "a=1,b=2"
     end
 
     test "joins multiple matches across different casings" do
       carrier = [{"Baggage", "a=1"}, {"BAGGAGE", "b=2"}, {"baggage", "c=3"}]
-      assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") == "a=1, b=2, c=3"
+      assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") == "a=1,b=2,c=3"
     end
 
     test "preserves order of matching headers" do
@@ -69,7 +69,7 @@ defmodule Otel.API.Propagator.TextMapTest do
       ]
 
       assert Otel.API.Propagator.TextMap.default_getter(carrier, "baggage") ==
-               "first, second, third"
+               "first,second,third"
     end
   end
 
