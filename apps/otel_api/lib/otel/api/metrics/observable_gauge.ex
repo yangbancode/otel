@@ -20,7 +20,7 @@ defmodule Otel.API.Metrics.ObservableGauge do
   Created exclusively through a `Meter` per spec L936
   *"MUST NOT be any API for creating an Asynchronous Gauge
   other than with a Meter"*. Two creation styles per
-  `docs/decisions/asynchronous-instruments-and-callbacks.md`:
+  `docs/architecture/asynchronous-instruments-and-callbacks.md`:
 
   - `create/3` — create the instrument without callbacks;
     register them later via
@@ -65,7 +65,7 @@ defmodule Otel.API.Metrics.ObservableGauge do
   - OTel Metrics API §Asynchronous Gauge: `opentelemetry-specification/specification/metrics/api.md` L917-L1031
   - OTel Metrics API §Asynchronous Instrument API: `opentelemetry-specification/specification/metrics/api.md` L350-L472
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
-  - Decision: `docs/decisions/asynchronous-instruments-and-callbacks.md`
+  - Decision: `docs/architecture/asynchronous-instruments-and-callbacks.md`
   """
 
   @doc """

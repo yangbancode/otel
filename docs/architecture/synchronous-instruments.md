@@ -8,8 +8,7 @@ How to implement synchronous instruments (Counter, Histogram, Gauge, UpDownCount
 
 ### Architecture
 
-Each instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter`. Creation returns an `Otel.API.Metrics.Instrument.t()` handle; recording takes that handle and dispatches via the meter embedded in it. See
-[api-instrument-struct.md](api-instrument-struct.md) for the handle shape.
+Each instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter`. Creation returns an `Otel.API.Metrics.Instrument.t()` handle; recording takes that handle and dispatches via the meter embedded in it. The handle struct is defined at `apps/otel_api/lib/otel/api/metrics/instrument.ex`.
 
 ### Recording Path
 
@@ -53,16 +52,16 @@ Without SDK: creation returns an `Otel.API.Metrics.Instrument.t()` with only ide
 | `Otel.API.Metrics.Gauge` | `apps/otel_api/lib/otel/api/metrics/gauge.ex` | Gauge facade |
 | `Otel.API.Metrics.UpDownCounter` | `apps/otel_api/lib/otel/api/metrics/updown_counter.ex` | UpDownCounter facade |
 
-## Compliance
+## Spec references
 
-- [Metrics API](../compliance.md)
+- `opentelemetry-specification/specification/metrics/api.md`
   * Instrument — L194
   * Instrument unit — L225, L223
   * Instrument description — L235, L237, L242
   * Instrument advisory parameters — L254
-  * Synchronous Instrument API — L304, L308, L310, L313, L315, L320, L324, L326, L331, L334, L343, L348
+  * Synchronous Instrument API — L304-L348
   * General operations (Enabled) — L475, L487, L489, L494
-  * Counter — L512, L549, L552, L557, L558, L562, L563, L569, L577
-  * Histogram — L748, L785, L788, L792, L794, L797, L799, L804
-  * Gauge — L854, L880, L883, L888, L889, L894, L902
-  * UpDownCounter — L1086, L1122, L1125, L1129, L1131, L1136
+  * Counter — L512, L549-L577
+  * Histogram — L748, L785-L804
+  * Gauge — L854, L880-L902
+  * UpDownCounter — L1086, L1122-L1136

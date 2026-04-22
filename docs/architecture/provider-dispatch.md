@@ -170,18 +170,16 @@ lookup, or anything else can plug in without touching the API.
 - `apps/otel_sdk/lib/otel/sdk/metrics/meter_provider.ex`
 - `apps/otel_sdk/lib/otel/sdk/logs/logger_provider.ex`
 
-## Compliance
+## Spec references
 
-- [Trace API](../compliance.md) — `# Trace API` TracerProvider:
-  "MUST NOT require users to repeatedly obtain a Tracer with the same
-  identity to pick up configuration changes" (L146).
-- [Metrics API](../compliance.md) — `# Metrics API` MeterProvider:
-  equivalent.
-- [Logs API](../compliance.md) — `# Logs API` LoggerProvider:
-  equivalent.
-- Spec v1.13.0 identity of `(name, version, schema_url, attributes)`:
-  relevant lines in each signal's compliance section.
-- [error-handling.md L34](../../references/opentelemetry-specification/specification/error-handling.md)
-  "API call sites will not crash on attempts to access methods and
-  properties of null objects": satisfied by the SDK's liveness
+- TracerProvider identity caching — `opentelemetry-specification/specification/trace/api.md` L146
+  *"MUST NOT require users to repeatedly obtain a Tracer with the same
+  identity to pick up configuration changes"*. Equivalent MeterProvider
+  and LoggerProvider requirements apply.
+- Instrumentation scope identity — spec v1.13.0 adds `attributes` to the
+  `(name, version, schema_url)` scope key.
+- No-crash guarantee —
+  `opentelemetry-specification/specification/error-handling.md` L34
+  *"API call sites will not crash on attempts to access methods and
+  properties of null objects"*. Satisfied by the SDK's liveness
   fallback to Noop.

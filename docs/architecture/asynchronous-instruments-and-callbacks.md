@@ -8,7 +8,7 @@ How to implement asynchronous instruments and callback registration/execution on
 
 ### Architecture
 
-Each async instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter` for creation. Creation returns an `Otel.API.Metrics.Instrument.t()` handle — same struct as synchronous instruments; see [api-instrument-struct.md](api-instrument-struct.md). Supports two creation styles:
+Each async instrument is a thin facade module that delegates to `Otel.API.Metrics.Meter` for creation. Creation returns an `Otel.API.Metrics.Instrument.t()` handle — the same struct used by synchronous instruments, defined at `apps/otel_api/lib/otel/api/metrics/instrument.ex`. Supports two creation styles:
 
 1. **Without callback** (`create/3`) — instrument created, callback registered later via `Meter.register_callback/5` passing the list of Instrument handles.
 2. **With inline callback** (`create/5`) — callback permanently attached at creation time
@@ -64,12 +64,13 @@ Without SDK: creation returns an `Otel.API.Metrics.Instrument.t()` with only ide
 | `Otel.API.Metrics.ObservableGauge` | `apps/otel_api/lib/otel/api/metrics/observable_gauge.ex` | Observable Gauge facade |
 | `Otel.API.Metrics.ObservableUpDownCounter` | `apps/otel_api/lib/otel/api/metrics/observable_updown_counter.ex` | Observable UpDownCounter facade |
 
-## Compliance
+## Spec references
 
-- [Metrics API](../compliance.md)
+- `opentelemetry-specification/specification/metrics/api.md`
   * Instrument — L194
-  * Asynchronous Instrument API — L357, L361, L363, L366, L368, L373, L377, L379, L383, L387, L395, L400, L405, L408, L415, L419, L422, L428, L430, L431, L446, L452, L455, L462, L467
+  * Asynchronous Instrument API — L357-L467 (registration, callbacks, lifetime)
   * Asynchronous Counter — L615, L652, L655
   * Asynchronous Gauge — L936
   * Asynchronous UpDownCounter — L1178
   * Measurement — L1294
+  * Multi-instrument callback shape — L1302-L1303, L452-L453 MUST

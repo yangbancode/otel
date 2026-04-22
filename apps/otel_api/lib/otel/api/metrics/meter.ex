@@ -20,7 +20,7 @@ defmodule Otel.API.Metrics.Meter do
   A Meter is represented as a `{dispatcher_module, state}`
   tuple — the same shape `Tracer` and `Logger` use and the
   canonical facade-dispatch form documented in
-  `docs/decisions/provider-dispatch.md`. Callers obtain a
+  `docs/architecture/provider-dispatch.md`. Callers obtain a
   Meter via `Otel.API.Metrics.MeterProvider.get_meter/1`
   rather than constructing the tuple directly; the
   `dispatcher_module` MUST implement this behaviour.
@@ -40,8 +40,8 @@ defmodule Otel.API.Metrics.Meter do
      instrument kind (10 callbacks total across `/3` and
      `/5` arities). Matches the facade-per-kind pattern
      (`Counter`, `Histogram`, `ObservableGauge`, …) that
-     `docs/decisions/synchronous-instruments.md` and
-     `docs/decisions/asynchronous-instruments-and-callbacks.md`
+     `docs/architecture/synchronous-instruments.md` and
+     `docs/architecture/asynchronous-instruments-and-callbacks.md`
      describe.
   2. **`register_callback/5` signature** — erlang has
      `register_callback/4` (no `opts`, returns `ok`). We
@@ -56,7 +56,7 @@ defmodule Otel.API.Metrics.Meter do
      instrument-enabled API; we implement it.
   5. **`record/3` without context** — erlang threads
      `Ctx` through `record/5`. Per
-     `docs/decisions/synchronous-instruments.md`, our
+     `docs/architecture/synchronous-instruments.md`, our
      synchronous metric recording does not associate with
      context at the API boundary.
   6. **`scope/1` not exposed** — erlang returns the
@@ -97,9 +97,9 @@ defmodule Otel.API.Metrics.Meter do
   - OTel Metrics API §Asynchronous Instrument API: `opentelemetry-specification/specification/metrics/api.md` L350-L472
   - OTel Metrics API §General operations / Enabled: `opentelemetry-specification/specification/metrics/api.md` L473-L495
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
-  - Decision: `docs/decisions/synchronous-instruments.md`
-  - Decision: `docs/decisions/asynchronous-instruments-and-callbacks.md`
-  - Decision: `docs/decisions/provider-dispatch.md`
+  - Decision: `docs/architecture/synchronous-instruments.md`
+  - Decision: `docs/architecture/asynchronous-instruments-and-callbacks.md`
+  - Decision: `docs/architecture/provider-dispatch.md`
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_meter.erl`
   """
 

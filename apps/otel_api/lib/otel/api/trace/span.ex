@@ -243,7 +243,7 @@ defmodule Otel.API.Trace.Span do
 
   Values are Unix epoch **nanoseconds** (OTLP
   `time_unix_nano`). The typespec is plain `integer()` per
-  `docs/decisions/type-representation-policy.md`.
+  `docs/architecture/type-representation-policy.md`.
   """
   @spec end_span(
           span_ctx :: Otel.API.Trace.SpanContext.t(),

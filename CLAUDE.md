@@ -1,10 +1,22 @@
 # CLAUDE.md
 
-## Docs
+## Primary sources
 
-- [Tech Spec](docs/tech-spec.md)
-- [Compliance](docs/compliance.md)
-- [Decisions](docs/decisions.md)
+- `references/opentelemetry-specification/` — OTel spec (authoritative)
+- `references/opentelemetry-erlang/` — Erlang reference impl (cross-check)
+- `references/opentelemetry-proto/`, `references/w3c-trace-context/`,
+  `references/w3c-baggage/`, `references/semantic-conventions/` — wire formats
+
+## Architecture docs
+
+- [docs/architecture/](docs/architecture/) — BEAM-specific design
+  decisions that aren't recoverable from code alone (provider
+  dispatch, type representation, error handling policy,
+  sync/async instrument shape, `with_span` lifecycle ownership).
+
+Per-module rationale lives in each module's `@moduledoc`
+(`## Design notes` section where applicable). Spec compliance is
+verified against `references/` directly, not a secondary checklist.
 
 ## Rules
 

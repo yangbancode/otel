@@ -11,17 +11,17 @@ defmodule Otel.API.Metrics.Measurement do
   generator, enumerator, etc.) of individual `Measurement`
   values"*. Synchronous recording APIs (`Counter.add/4`,
   `Histogram.record/4`, etc.) keep their `(value, attributes)`
-  positional shape and do **not** use this struct; see
-  `docs/decisions/composite-entity-structs.md` for the
-  project's split between struct-carried and positional
-  shapes.
+  positional shape and do **not** use this struct — the
+  callback-return path is the only place the handle flows
+  across the API boundary as data.
 
   `opentelemetry-erlang` has **no** dedicated Measurement
-  record; it passes raw `(value, attributes)` tuples. We use
-  a struct per `composite-entity-structs.md` — every
-  multi-field spec entity in this project is modelled as a
-  `defstruct` so `%Measurement{}` patterns carry the shape
-  through Dialyzer.
+  record; it passes raw `(value, attributes)` tuples. We
+  model every multi-field spec entity in this project as a
+  `defstruct` (Q1 of
+  `docs/architecture/type-representation-policy.md`) so
+  `%Measurement{}` patterns carry the shape through
+  Dialyzer.
 
   ## Construction
 
@@ -47,8 +47,7 @@ defmodule Otel.API.Metrics.Measurement do
 
   - OTel Metrics API §Measurement: `opentelemetry-specification/specification/metrics/api.md` L1278-L1287
   - OTel Metrics API §Async callback shape: `opentelemetry-specification/specification/metrics/api.md` L441-L442
-  - Decision: `docs/decisions/composite-entity-structs.md`
-  - Decision: `docs/decisions/type-representation-policy.md` (Q1 — defstruct for multi-field entities)
+  - Type policy: `docs/architecture/type-representation-policy.md` (Q1 — defstruct for multi-field entities)
   """
 
   use Otel.API.Common.Types

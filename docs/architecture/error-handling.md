@@ -61,16 +61,16 @@ These are the known axes; the actual decision is made in Finalization.
 
 ### References (for future finalization)
 
-- [OTel error-handling spec](../../references/opentelemetry-specification/specification/error-handling.md)
+- `opentelemetry-specification/specification/error-handling.md`
 - `opentelemetry-erlang` patterns: guard + catch-all (API), try/catch
   (init), let-it-crash (runtime).
 
-## Compliance
+## Spec references
 
-Once the finalization pass is complete, the following compliance items
+Once the finalization pass is complete, the following spec clauses
 will be revisited:
 
-- Spec L13, L15, L18, L19, L24, L34, L52, L57 from `error-handling.md`.
+- `error-handling.md` L13, L15, L18, L19, L24, L34, L52, L57.
 - Per-signal MUST NOT throw requirements (Propagator Extract, SpanProcessor
   OnStart/OnEnd, LogRecordProcessor OnEmit, MetricReader Collect, etc.).
 - Per-signal SHOULD log requirements (name validation, advisory parameter

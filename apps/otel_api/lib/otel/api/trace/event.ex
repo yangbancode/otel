@@ -71,7 +71,7 @@ defmodule Otel.API.Trace.Event do
 
   Values are Unix epoch **nanoseconds** (OTLP
   `time_unix_nano`). The typespec is plain `integer()` per
-  `docs/decisions/type-representation-policy.md` — range
+  `docs/architecture/type-representation-policy.md` — range
   checks are the exporter's responsibility. Callers are
   responsible for supplying the correct unit: seconds
   (~1.7e9) and milliseconds (~1.7e12) both look like valid

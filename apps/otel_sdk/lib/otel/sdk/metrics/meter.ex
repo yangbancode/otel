@@ -7,6 +7,51 @@ defmodule Otel.SDK.Metrics.Meter do
   MeterProvider.
 
   All functions are safe for concurrent use.
+
+  ## Design notes
+
+  ### Duplicate registration
+
+  `register_instrument/4` keys instruments by
+  `{scope, downcased_name}` and uses `:ets.insert_new/2` so the
+  first registration wins. Subsequent `create_*` calls for the same
+  key return the already-stored struct unchanged. This satisfies the
+  case-insensitive identity requirement of
+  `metrics/sdk.md` L945-L958 *"The name of an Instrument is defined to
+  be case-insensitive."*.
+
+  The spec's SHOULD-log clauses for identifying-field conflicts
+  (`sdk.md` L904-L958, L990) are not currently emitted; a caller
+  that re-creates an instrument with a different `kind`, `unit`,
+  or `description` gets the original instrument back silently. This
+  matches the project's happy-path policy and will be revisited in
+  the finalization error-handling pass.
+
+  ### View vs advisory precedence
+
+  When both a matching View and instrument advisory parameters
+  influence the same stream aspect, the View wins. Concretely:
+
+  - **Aggregation / bucket boundaries.** If a View explicitly
+    specifies an aggregation (e.g. `ExplicitBucketHistogram`),
+    advisory `:explicit_bucket_boundaries` are ignored entirely —
+    even when the View does not supply custom boundaries
+    (`metrics/sdk.md` L1003-L1005). Advisory boundaries only apply
+    when no View matched or the matching View uses default
+    aggregation (`stream.aggregation == nil`), resolved in
+    `Stream.from_view/2` → `Stream.resolve/1` and
+    `Stream.from_instrument/1`.
+  - **Attribute keys.** `Stream.from_view/2` falls back to advisory
+    `:attributes` only when the View has no `:attribute_keys`.
+
+  ### `enabled?/2` with Drop aggregation
+
+  `enabled?/2` returns `false` only when every resolved stream (for
+  a registered instrument) or every matching View (for an unregistered
+  instrument name) uses `Drop` aggregation. Any non-Drop stream/view
+  makes the instrument enabled. This matches `metrics/sdk.md` L1029
+  and L1037 and lets user code skip measurement computation cheaply
+  when the pipeline would discard the value anyway.
   """
 
   @behaviour Otel.API.Metrics.Meter

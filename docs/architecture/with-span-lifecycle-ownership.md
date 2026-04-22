@@ -114,8 +114,8 @@ re-raises preserving the kind and stacktrace. `after` calls
   Tracer must implement it. Unavoidable if we want per-Tracer
   lifecycle control.
 
-## Compliance
+## Spec references
 
-- [OTel Trace API §Span Creation L378-L414](../compliance.md) — span
-  creation MUSTs are carried by `start_span/4`; this decision
+- `opentelemetry-specification/specification/trace/api.md` L378-L414 —
+  span creation MUSTs are carried by `start_span/4`; this decision
   governs only the `MAY` at L385.
