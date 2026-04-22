@@ -42,7 +42,10 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     end
 
     test "collects gauge data via callback", %{meter: meter, config: config} do
-      cb = fn _args -> [Otel.API.Metrics.Measurement.new(42, %{"host" => "a"})] end
+      cb = fn _args ->
+        [%Otel.API.Metrics.Measurement{value: 42, attributes: %{"host" => "a"}}]
+      end
+
       Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
 
       metrics = Otel.SDK.Metrics.MetricReader.collect(config)

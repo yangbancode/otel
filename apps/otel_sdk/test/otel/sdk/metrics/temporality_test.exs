@@ -151,7 +151,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     test "observable_counter is cumulative and monotonic" do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
-      cb = fn _args -> [Otel.API.Metrics.Measurement.new(100)] end
+      cb = fn _args -> [%Otel.API.Metrics.Measurement{value: 100}] end
       _ = Otel.SDK.Metrics.Meter.create_observable_counter(meter, "bytes", cb, nil, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
@@ -164,7 +164,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     test "observable_gauge has no temporality" do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
-      cb = fn _args -> [Otel.API.Metrics.Measurement.new(42)] end
+      cb = fn _args -> [%Otel.API.Metrics.Measurement{value: 42}] end
       _ = Otel.SDK.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
 
       [metric] = Otel.SDK.Metrics.MetricReader.collect(config)
@@ -177,7 +177,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     test "observable_updown_counter is not monotonic" do
       %{meter: meter, config: config, provider: pid} = setup_default_provider()
 
-      cb = fn _args -> [Otel.API.Metrics.Measurement.new(10)] end
+      cb = fn _args -> [%Otel.API.Metrics.Measurement{value: 10}] end
 
       _ =
         Otel.SDK.Metrics.Meter.create_observable_updown_counter(

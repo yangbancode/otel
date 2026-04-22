@@ -45,7 +45,7 @@ defmodule Otel.API.Metrics.ObservableGaugeTest do
 
     test "passes callback_args for state", %{meter: meter} do
       callback = fn sensor_id ->
-        [Otel.API.Metrics.Measurement.new(21.0, %{"sensor.id" => sensor_id})]
+        [%Otel.API.Metrics.Measurement{value: 21.0, attributes: %{"sensor.id" => sensor_id}}]
       end
 
       assert %Otel.API.Metrics.Instrument{kind: :observable_gauge, unit: "celsius"} =
