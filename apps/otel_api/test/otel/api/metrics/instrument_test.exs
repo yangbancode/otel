@@ -11,95 +11,39 @@ defmodule Otel.API.Metrics.InstrumentTest do
     end
   end
 
-  describe "identical?/2" do
-    test "identical instruments" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "d"}
-      b = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "d"}
-      assert Otel.API.Metrics.Instrument.identical?(a, b)
-    end
+  describe "default_temporality_mapping/0" do
+    test "returns :cumulative for every instrument kind (OTLP default preference)" do
+      mapping = Otel.API.Metrics.Instrument.default_temporality_mapping()
 
-    test "case-insensitive name match" do
-      a = %Otel.API.Metrics.Instrument{name: "Req", kind: :counter, unit: "1", description: "d"}
-      b = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "d"}
-      assert Otel.API.Metrics.Instrument.identical?(a, b)
-    end
-
-    test "different kind not identical" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "d"}
-
-      b = %Otel.API.Metrics.Instrument{
-        name: "req",
-        kind: :histogram,
-        unit: "1",
-        description: "d"
-      }
-
-      refute Otel.API.Metrics.Instrument.identical?(a, b)
-    end
-
-    test "different unit not identical" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "d"}
-      b = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "ms", description: "d"}
-      refute Otel.API.Metrics.Instrument.identical?(a, b)
-    end
-
-    test "different description not identical" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
-      b = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "b"}
-      refute Otel.API.Metrics.Instrument.identical?(a, b)
+      for kind <- [
+            :counter,
+            :histogram,
+            :gauge,
+            :updown_counter,
+            :observable_counter,
+            :observable_gauge,
+            :observable_updown_counter
+          ] do
+        assert Map.fetch!(mapping, kind) == :cumulative
+      end
     end
   end
 
-  describe "conflict_type/2" do
-    test "description_only when only description differs" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
-      b = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "b"}
-      assert :description_only == Otel.API.Metrics.Instrument.conflict_type(a, b)
+  describe "monotonic?/1" do
+    test "returns true for Counter and Observable Counter (Sum kinds)" do
+      assert Otel.API.Metrics.Instrument.monotonic?(:counter) == true
+      assert Otel.API.Metrics.Instrument.monotonic?(:observable_counter) == true
     end
 
-    test "distinguishable when kind differs" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
-
-      b = %Otel.API.Metrics.Instrument{
-        name: "req",
-        kind: :histogram,
-        unit: "1",
-        description: "a"
-      }
-
-      assert :distinguishable == Otel.API.Metrics.Instrument.conflict_type(a, b)
+    test "returns false for UpDownCounter / Observable UpDownCounter (bidirectional Sum)" do
+      assert Otel.API.Metrics.Instrument.monotonic?(:updown_counter) == false
+      assert Otel.API.Metrics.Instrument.monotonic?(:observable_updown_counter) == false
     end
 
-    test "unresolvable when unit differs" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
-      b = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "ms", description: "a"}
-      assert :unresolvable == Otel.API.Metrics.Instrument.conflict_type(a, b)
-    end
-
-    test "distinguishable when kind differs but unit matches" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
-
-      b = %Otel.API.Metrics.Instrument{
-        name: "req",
-        kind: :histogram,
-        unit: "1",
-        description: "b"
-      }
-
-      assert :distinguishable == Otel.API.Metrics.Instrument.conflict_type(a, b)
-    end
-
-    test "distinguishable when both kind and unit differ" do
-      a = %Otel.API.Metrics.Instrument{name: "req", kind: :counter, unit: "1", description: "a"}
-
-      b = %Otel.API.Metrics.Instrument{
-        name: "req",
-        kind: :histogram,
-        unit: "ms",
-        description: "a"
-      }
-
-      assert :distinguishable == Otel.API.Metrics.Instrument.conflict_type(a, b)
+    test "returns false for Histogram and Gauge kinds (not Sum datapoints)" do
+      assert Otel.API.Metrics.Instrument.monotonic?(:histogram) == false
+      assert Otel.API.Metrics.Instrument.monotonic?(:gauge) == false
+      assert Otel.API.Metrics.Instrument.monotonic?(:observable_gauge) == false
     end
   end
 end

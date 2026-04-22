@@ -499,16 +499,6 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
   end
 
   describe "instrument helpers" do
-    test "temporality per kind" do
-      assert Otel.API.Metrics.Instrument.temporality(:counter) == :delta
-      assert Otel.API.Metrics.Instrument.temporality(:updown_counter) == :delta
-      assert Otel.API.Metrics.Instrument.temporality(:histogram) == :delta
-      assert Otel.API.Metrics.Instrument.temporality(:gauge) == :cumulative
-      assert Otel.API.Metrics.Instrument.temporality(:observable_counter) == :cumulative
-      assert Otel.API.Metrics.Instrument.temporality(:observable_gauge) == :cumulative
-      assert Otel.API.Metrics.Instrument.temporality(:observable_updown_counter) == :cumulative
-    end
-
     test "default mapping is cumulative for all" do
       mapping = Otel.API.Metrics.Instrument.default_temporality_mapping()
 

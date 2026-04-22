@@ -84,15 +84,24 @@ technical one — these functions are stateless pure pattern matches with
 no runtime coupling to SDK state, and Erlang places the same helpers on
 its API-layer `otel_instrument` module for the same reason.
 
-### All Instrument helpers live on `Otel.API.Metrics.Instrument`
+### Instrument helpers on `Otel.API.Metrics.Instrument`
 
-No separate SDK helper module. The following functions sit alongside
-the struct definition:
+No separate SDK helper module. Stateless helpers that
+pure-pattern-match on `kind` or name sit alongside the struct
+definition:
 
-- `downcased_name/1` — case-insensitive comparison key
-- `temporality/1`, `default_temporality_mapping/0` — kind → temporality (sdk.md)
-- `identical?/2`, `conflict_type/2` — duplicate detection (sdk.md)
-- `monotonic?/1` — aggregation hint (sdk.md)
+- `downcased_name/1` — case-insensitive comparison key (sdk.md L945-L958)
+- `default_temporality_mapping/0` — OTLP default export temporality preference
+- `monotonic?/1` — OTLP Sum `is_monotonic` predicate for a given kind
+
+An earlier draft also included `identical?/2`, `conflict_type/2`
+(duplicate detection, sdk.md L904-L958) and `temporality/1` (natural
+per-kind temporality from data-model.md §Temporality). Those were
+removed in the instrument.ex polish PR as YAGNI — no lib callers in
+the current SDK. If an SDK refactor introduces spec-correct
+duplicate-registration warnings (sdk.md L917-L930 SHOULD-log) or
+per-kind natural-temporality conversion, the helpers can be
+re-added at that point rather than speculatively carried.
 
 We rejected `@behaviour` here: these functions have exactly one
 implementation, no pluggable dispatch, and the spec does not leave
