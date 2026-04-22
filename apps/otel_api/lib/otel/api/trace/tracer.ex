@@ -47,9 +47,9 @@ defmodule Otel.API.Trace.Tracer do
 
   | Function | Role |
   |---|---|
-  | `start_span/4` | **OTel API MUST** (§Tracer) |
-  | `with_span/5` | **OTel convenience** (§Span Creation L385 MAY) |
-  | `enabled?/2` | **OTel API SHOULD** (§Enabled, Development) |
+  | `@callback start_span/4` | **SDK** (OTel API MUST) — Create a new Span (L193-L195) |
+  | `@callback with_span/5` | **SDK** (OTel API MAY) — Automatic span lifecycle (L385) |
+  | `@callback enabled?/2` | **SDK** (OTel API SHOULD) — Enabled (L201-L219) |
 
   ## References
 
@@ -92,7 +92,7 @@ defmodule Otel.API.Trace.Tracer do
   @type enabled_opts :: keyword()
 
   @doc """
-  **OTel API MUST** — "Create a new Span" (`trace/api.md`
+  **SDK** (OTel API MUST) — "Create a new Span" (`trace/api.md`
   L193-L195).
 
   Starts a new span and returns its `SpanContext`.
@@ -108,7 +108,7 @@ defmodule Otel.API.Trace.Tracer do
               Otel.API.Trace.SpanContext.t()
 
   @doc """
-  **OTel convenience** — Span Creation + automatic lifecycle
+  **SDK** (OTel API MAY) — Span Creation + automatic lifecycle
   management (`trace/api.md` L385 *"MAY be offered additionally
   as a separate operation"*).
 
@@ -136,8 +136,8 @@ defmodule Otel.API.Trace.Tracer do
             when result: term()
 
   @doc """
-  **OTel API SHOULD** — "Enabled" (`trace/api.md` L201-L219,
-  Status: **Development**).
+  **SDK** (OTel API SHOULD) — "Enabled" (`trace/api.md`
+  L201-L219, Status: **Development**).
 
   Returns whether the tracer is enabled for the given arguments.
   Per spec L208-L210 `opts` exists for future extensibility —

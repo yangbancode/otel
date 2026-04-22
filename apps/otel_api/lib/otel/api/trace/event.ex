@@ -26,7 +26,7 @@ defmodule Otel.API.Trace.Event do
 
   | Function | Role |
   |---|---|
-  | `new/3` | **Local helper** (not in spec) |
+  | `new/3` | **Application** (Convenience) — Build an Event struct |
 
   ## References
 
@@ -59,7 +59,8 @@ defmodule Otel.API.Trace.Event do
   defstruct name: "", timestamp: 0, attributes: %{}
 
   @doc """
-  **Local helper** (not in spec).
+  **Application** (Convenience) — Build an Event struct for
+  `Otel.API.Trace.Span.add_event/2`.
 
   Creates a new `Event` with optional attributes and
   timestamp. `timestamp` defaults to

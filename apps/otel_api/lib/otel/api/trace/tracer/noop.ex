@@ -29,9 +29,9 @@ defmodule Otel.API.Trace.Tracer.Noop do
 
   | Function | Role |
   |---|---|
-  | `start_span/4` | **OTel API MUST** (no-op behaviour) |
-  | `with_span/5` | **OTel convenience** (no-op lifecycle) |
-  | `enabled?/2` | **OTel API SHOULD** (always `false`) |
+  | `start_span/4` | **SDK** (Noop implementation) — `trace/api.md` L865-L871 |
+  | `with_span/5` | **SDK** (Noop implementation) — no-op lifecycle |
+  | `enabled?/2` | **SDK** (Noop implementation) — `trace/api.md` L201-L213 |
 
   ## References
 
@@ -41,6 +41,14 @@ defmodule Otel.API.Trace.Tracer.Noop do
 
   @behaviour Otel.API.Trace.Tracer
 
+  @doc """
+  **SDK** (Noop implementation) — `start_span/4` no-op per
+  `trace/api.md` §"Behavior in the absence of an installed SDK"
+  (L860-L874).
+
+  Returns the parent's `SpanContext` when present (L865-L866);
+  otherwise an empty non-recording `SpanContext` (L869-L871).
+  """
   @impl true
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
@@ -59,6 +67,14 @@ defmodule Otel.API.Trace.Tracer.Noop do
     end
   end
 
+  @doc """
+  **SDK** (Noop implementation) — `with_span/5` no-op lifecycle.
+
+  Runs `fun` with the (non-recording) `SpanContext` attached to
+  the context. Lifecycle ownership (attach/detach) is preserved
+  so callers observe the same context-stack behaviour as a real
+  SDK, but no recording occurs.
+  """
   @impl true
   @spec with_span(
           ctx :: Otel.API.Ctx.t(),
@@ -80,6 +96,13 @@ defmodule Otel.API.Trace.Tracer.Noop do
     end
   end
 
+  @doc """
+  **SDK** (Noop implementation) — `enabled?/2` always `false`
+  (`trace/api.md` §Enabled L201-L213).
+
+  A no-op tracer is by definition not enabled — no parameters
+  can change that answer.
+  """
   @impl true
   @spec enabled?(
           tracer :: Otel.API.Trace.Tracer.t(),
