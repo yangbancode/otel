@@ -21,6 +21,20 @@ defmodule Otel.API.Trace.Span do
 
   All functions are safe for concurrent use.
 
+  ## Dispatch shape
+
+  Each public mutation delegates to a single `dispatch/3`
+  helper rather than expanding the no-SDK branch inline per
+  function. That keeps the no-SDK fallback expressed once —
+  easier to audit — and is the shape `mix test --cover`
+  measures reliably. The per-function inline shape
+  (`case get_module() do nil -> ...; module -> ... end`
+  repeated 9 times) was flaky on GitHub Actions: `:cover`'s
+  per-clause line counters sometimes failed to attribute the
+  `nil -> :ok` hit to the right line under parallel-test
+  interleaving, producing a non-deterministic 96.97% coverage
+  drop on otherwise-passing PRs (first seen on PR #221).
+
   ## Public API
 
   | Function | Role |
@@ -95,10 +109,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec recording?(span_ctx :: Otel.API.Trace.SpanContext.t()) :: boolean()
   def recording?(%Otel.API.Trace.SpanContext{} = span_ctx) do
-    case get_module() do
-      nil -> false
-      module -> module.recording?(span_ctx)
-    end
+    dispatch(:recording?, [span_ctx], false)
   end
 
   @doc """
@@ -118,10 +129,7 @@ defmodule Otel.API.Trace.Span do
           value :: primitive() | [primitive()]
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
-    case get_module() do
-      nil -> :ok
-      module -> module.set_attribute(span_ctx, key, value)
-    end
+    dispatch(:set_attribute, [span_ctx, key, value])
   end
 
   @doc """
@@ -138,10 +146,7 @@ defmodule Otel.API.Trace.Span do
         ) ::
           :ok
   def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
-    case get_module() do
-      nil -> :ok
-      module -> module.set_attributes(span_ctx, attributes)
-    end
+    dispatch(:set_attributes, [span_ctx, attributes])
   end
 
   @doc """
@@ -164,10 +169,7 @@ defmodule Otel.API.Trace.Span do
           event :: Otel.API.Trace.Event.t()
         ) :: :ok
   def add_event(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Event{} = event) do
-    case get_module() do
-      nil -> :ok
-      module -> module.add_event(span_ctx, event)
-    end
+    dispatch(:add_event, [span_ctx, event])
   end
 
   @doc """
@@ -184,10 +186,7 @@ defmodule Otel.API.Trace.Span do
           link :: Otel.API.Trace.Link.t()
         ) :: :ok
   def add_link(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Link{} = link) do
-    case get_module() do
-      nil -> :ok
-      module -> module.add_link(span_ctx, link)
-    end
+    dispatch(:add_link, [span_ctx, link])
   end
 
   @doc """
@@ -208,10 +207,7 @@ defmodule Otel.API.Trace.Span do
           status :: Otel.API.Trace.Status.t()
         ) :: :ok
   def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{} = status) do
-    case get_module() do
-      nil -> :ok
-      module -> module.set_status(span_ctx, status)
-    end
+    dispatch(:set_status, [span_ctx, status])
   end
 
   @doc """
@@ -225,10 +221,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec update_name(span_ctx :: Otel.API.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(%Otel.API.Trace.SpanContext{} = span_ctx, name) do
-    case get_module() do
-      nil -> :ok
-      module -> module.update_name(span_ctx, name)
-    end
+    dispatch(:update_name, [span_ctx, name])
   end
 
   @doc """
@@ -264,10 +257,7 @@ defmodule Otel.API.Trace.Span do
         %Otel.API.Trace.SpanContext{} = span_ctx,
         timestamp \\ System.system_time(:nanosecond)
       ) do
-    case get_module() do
-      nil -> :ok
-      module -> module.end_span(span_ctx, timestamp)
-    end
+    dispatch(:end_span, [span_ctx, timestamp])
   end
 
   @doc """
@@ -299,10 +289,7 @@ defmodule Otel.API.Trace.Span do
         stacktrace \\ [],
         attributes \\ %{}
       ) do
-    case get_module() do
-      nil -> :ok
-      module -> module.record_exception(span_ctx, exception, stacktrace, attributes)
-    end
+    dispatch(:record_exception, [span_ctx, exception, stacktrace, attributes])
   end
 
   # --- SDK installation hooks ---
@@ -322,6 +309,26 @@ defmodule Otel.API.Trace.Span do
   end
 
   # --- Private ---
+
+  # Centralised dispatch for all Application-tier mutations.
+  # Looks up the SDK-registered Span operations module; when
+  # absent (no SDK installed), returns `default` — `:ok` for
+  # void-returning mutations, `false` for `recording?/1`.
+  # Centralising the nil-branch into one place keeps the
+  # no-SDK fallback expressed once and avoids the cover
+  # instrumentation flakiness that shows up when 9 nearly-
+  # identical `case get_module() do nil -> ...` blocks live
+  # in the same module (see moduledoc §Dispatch shape).
+  @spec dispatch(fun :: atom(), args :: [term()], default :: term()) :: term()
+  defp dispatch(fun, args, default \\ :ok) do
+    case get_module() do
+      nil ->
+        default
+
+      module ->
+        apply(module, fun, args)
+    end
+  end
 
   @spec get_module() :: module() | nil
   defp get_module do
