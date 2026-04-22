@@ -34,28 +34,29 @@ defmodule Otel.Logger.Handler do
 
   ## Severity mapping
 
-  Maps `:logger` levels — which are the lowercased
-  RFC 5424 Syslog levels — to OTel `SeverityNumber` per
-  `logs/data-model.md` §Mapping of `SeverityNumber` (L273-L296)
-  and the Syslog row of Appendix B (L806-L818):
+  `SeverityNumber` resolution is delegated to
+  `Otel.API.Logs.SeverityNumber.from_syslog_level/1` —
+  `:logger` levels are lowercased RFC 5424 Syslog levels,
+  which is exactly the shape that helper expects. The
+  mapping table and its spec citation
+  (`logs/data-model.md` Appendix B L806-L818) live in the
+  helper's moduledoc.
 
-  | `:logger` level | SeverityNumber | Short name |
-  |---|---|---|
-  | `:emergency` | 21 | FATAL |
-  | `:alert` | 19 | ERROR3 |
-  | `:critical` | 18 | ERROR2 |
-  | `:error` | 17 | ERROR |
-  | `:warning` | 13 | WARN |
-  | `:notice` | 10 | INFO2 |
-  | `:info` | 9 | INFO |
-  | `:debug` | 5 | DEBUG |
+  `SeverityText` is the source representation (the level
+  atom rendered as a string) per `logs/data-model.md`
+  L240-L241.
 
-  `SeverityText` currently carries the OTel short-name form
-  (`"FATAL"`, `"ERROR3"`, …); migrating it to the source
-  representation (`"emergency"`, `"alert"`, …) per
+  `SeverityText` carries the **source representation** of
+  the level — the `:logger` level atom rendered as a string
+  (`"emergency"`, `"alert"`, `"critical"`, `"error"`,
+  `"warning"`, `"notice"`, `"info"`, `"debug"`) — per
   `logs/data-model.md` L240-L241 *"original string
   representation of the severity as it is known at the
-  source"* is deferred to a follow-up refactor.
+  source"*. Downstream tooling that wants the OTel short
+  name (`"FATAL"`, `"ERROR3"`, …) can derive it from
+  `severity_number` using the Appendix A / §Displaying
+  Severity L334-L363 table; the short name is a display
+  concern and is not what the `SeverityText` field is for.
 
   ## Body extraction
 
@@ -171,7 +172,7 @@ defmodule Otel.Logger.Handler do
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
     base = %{
       timestamp: extract_timestamp(meta),
-      severity_number: severity_number(level),
+      severity_number: Otel.API.Logs.SeverityNumber.from_syslog_level(level),
       severity_text: severity_text(level),
       body: extract_body(msg),
       attributes: extract_attributes(meta)
@@ -271,27 +272,14 @@ defmodule Otel.Logger.Handler do
 
   defp put_exception(log_record, _meta), do: log_record
 
-  # Severity mapping — `logs/data-model.md` §Mapping of
-  # `SeverityNumber` L273-L296 + Appendix B Syslog row
-  # (L806-L818). `:logger` levels are lowercased Syslog
-  # levels (RFC 5424).
-  @spec severity_number(level :: :logger.level()) :: 1..24
-  defp severity_number(:emergency), do: 21
-  defp severity_number(:alert), do: 19
-  defp severity_number(:critical), do: 18
-  defp severity_number(:error), do: 17
-  defp severity_number(:warning), do: 13
-  defp severity_number(:notice), do: 10
-  defp severity_number(:info), do: 9
-  defp severity_number(:debug), do: 5
-
+  # `SeverityText` per `logs/data-model.md` L240-L241 — the
+  # *"original string representation of the severity as it
+  # is known at the source"*. For `:logger` the source
+  # representation is the level atom; `Atom.to_string/1`
+  # preserves it faithfully (`:emergency → "emergency"`,
+  # etc.). OTel short names (`"FATAL"`, `"ERROR3"`) are a
+  # display concern derivable from `severity_number`, not
+  # what `SeverityText` is for.
   @spec severity_text(level :: :logger.level()) :: String.t()
-  defp severity_text(:emergency), do: "FATAL"
-  defp severity_text(:alert), do: "ERROR3"
-  defp severity_text(:critical), do: "ERROR2"
-  defp severity_text(:error), do: "ERROR"
-  defp severity_text(:warning), do: "WARN"
-  defp severity_text(:notice), do: "INFO2"
-  defp severity_text(:info), do: "INFO"
-  defp severity_text(:debug), do: "DEBUG"
+  defp severity_text(level), do: Atom.to_string(level)
 end
