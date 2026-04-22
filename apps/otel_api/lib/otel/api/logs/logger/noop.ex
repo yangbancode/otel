@@ -20,8 +20,8 @@ defmodule Otel.API.Logs.Logger.Noop do
 
   | Function | Role |
   |---|---|
-  | `emit/3` | **OTel API MUST** — Noop Emit LogRecord (`noop.md` L57-L58) |
-  | `enabled?/2` | **OTel API MUST** — Noop Enabled (`noop.md` L62) |
+  | `emit/3` | **SDK** (Noop implementation) — Emit LogRecord (`noop.md` L57-L58) |
+  | `enabled?/2` | **SDK** (Noop implementation) — Enabled (`noop.md` L62) |
 
   ## References
 
@@ -33,8 +33,8 @@ defmodule Otel.API.Logs.Logger.Noop do
   @behaviour Otel.API.Logs.Logger
 
   @doc """
-  **OTel API MUST** — "Emit LogRecord" for a No-Op Logger
-  (`logs/noop.md` L57-L58).
+  **SDK** (Noop implementation) — "Emit LogRecord" for a
+  No-Op Logger (`logs/noop.md` L57-L58).
 
   Silently discards the log record. Per `noop.md` L33-L35 no
   validation is performed on `logger`, `ctx`, or
@@ -50,8 +50,8 @@ defmodule Otel.API.Logs.Logger.Noop do
   def emit(_logger, _ctx, _log_record), do: :ok
 
   @doc """
-  **OTel API MUST** — "Enabled" for a No-Op Logger
-  (`logs/noop.md` L62 *"MUST always return `false`"*).
+  **SDK** (Noop implementation) — "Enabled" for a No-Op
+  Logger (`logs/noop.md` L62 *"MUST always return `false`"*).
 
   Always returns `false` — a no-op logger is by definition
   not enabled for any severity, event name, or context.

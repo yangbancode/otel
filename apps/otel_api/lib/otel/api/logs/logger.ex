@@ -19,11 +19,11 @@ defmodule Otel.API.Logs.Logger do
 
   | Function | Role |
   |---|---|
-  | `@callback emit/3` | **OTel API MUST** — Emit a LogRecord (L111-L131) |
-  | `@callback enabled?/2` | **OTel API SHOULD** — Enabled (L133-L154) |
-  | `emit/2` | **OTel API MUST** — Emit via implicit context (L121-L123) |
-  | `emit/3` | **OTel API MUST** — Emit via explicit context (L119-L121) |
-  | `enabled?/2` | **OTel API SHOULD** — Enabled dispatch |
+  | `emit/2` | **Application** (OTel API MUST) — Emit via implicit context (L121-L123) |
+  | `emit/3` | **Application** (OTel API MUST) — Emit via explicit context (L119-L121) |
+  | `enabled?/2` | **Application** (OTel API SHOULD) — Enabled dispatch |
+  | `@callback emit/3` | **SDK** (OTel API MUST) — Emit a LogRecord (L111-L131) |
+  | `@callback enabled?/2` | **SDK** (OTel API SHOULD) — Enabled (L133-L154) |
 
   ## References
 
@@ -119,56 +119,14 @@ defmodule Otel.API.Logs.Logger do
   @typedoc "A keyword list of `enabled_opt/0` values."
   @type enabled_opts :: [enabled_opt()]
 
-  @doc """
-  **OTel API MUST** — "Emit a LogRecord" (`logs/api.md`
-  L111-L131).
-
-  Emits the given `log_record` to the processing pipeline.
-  All fields of `log_record` are optional per L117-L131; the
-  caller may supply any subset including the empty map.
-
-  Per spec L119-L121 the `ctx` parameter is the Context
-  associated with the LogRecord. The API-layer dispatch
-  functions (`emit/2`, `emit/3`) handle the implicit /
-  explicit context split; this callback always receives an
-  explicit context.
-  """
-  @callback emit(
-              logger :: t(),
-              ctx :: Otel.API.Ctx.t(),
-              log_record :: log_record()
-            ) :: :ok
+  # --- Application dispatch ---
 
   @doc """
-  **OTel API SHOULD** — "Enabled" (`logs/api.md` L133-L154,
-  Status: **Development**).
-
-  Returns whether the logger is enabled for the supplied
-  `opts`. Per L148-L153 the returned value is **not static**
-  — it can change over time as configuration or sampling
-  state evolves. Instrumentation authors SHOULD call this
-  function each time before they
-  [emit a LogRecord](#emit-a-logrecord) to have the most
-  up-to-date response.
-
-  `opts` keys are spec-defined (L137-L142): `:ctx`,
-  `:severity_number`, `:event_name`. The API-layer
-  dispatch (`enabled?/2`) fills in `:ctx` from the current
-  context when omitted per L137-L140.
-  """
-  @callback enabled?(
-              logger :: t(),
-              opts :: enabled_opts()
-            ) :: boolean()
-
-  # --- Dispatch Functions ---
-
-  @doc """
-  **OTel API MUST** — Emit a LogRecord using the implicit
-  (process-local) context (`logs/api.md` L119-L123
-  *"When implicit Context is supported, then this parameter
-  SHOULD be optional and if unspecified then MUST use current
-  Context"*).
+  **Application** (OTel API MUST) — Emit a LogRecord using
+  the implicit (process-local) context (`logs/api.md`
+  L119-L123 *"When implicit Context is supported, then this
+  parameter SHOULD be optional and if unspecified then MUST
+  use current Context"*).
 
   Injects `Otel.API.Ctx.current/0` as the context and
   delegates to the Logger's `emit/3` callback. `log_record`
@@ -182,8 +140,8 @@ defmodule Otel.API.Logs.Logger do
   end
 
   @doc """
-  **OTel API MUST** — Emit a LogRecord with an explicit
-  context (`logs/api.md` L119-L121).
+  **Application** (OTel API MUST) — Emit a LogRecord with
+  an explicit context (`logs/api.md` L119-L121).
 
   Delegates directly to the Logger's `emit/3` callback
   without context injection. Use when the caller wants a
@@ -195,8 +153,8 @@ defmodule Otel.API.Logs.Logger do
   end
 
   @doc """
-  **OTel API SHOULD** — Enabled dispatch (`logs/api.md`
-  L133-L154).
+  **Application** (OTel API SHOULD) — Enabled dispatch
+  (`logs/api.md` L133-L154).
 
   Delegates to the Logger's `enabled?/2` callback after
   ensuring `:ctx` is set. When `opts` does not supply
@@ -220,4 +178,48 @@ defmodule Otel.API.Logs.Logger do
 
     module.enabled?(logger, opts)
   end
+
+  # --- SDK callbacks ---
+
+  @doc """
+  **SDK** (OTel API MUST) — "Emit a LogRecord"
+  (`logs/api.md` L111-L131).
+
+  Emits the given `log_record` to the processing pipeline.
+  All fields of `log_record` are optional per L117-L131; the
+  caller may supply any subset including the empty map.
+
+  Per spec L119-L121 the `ctx` parameter is the Context
+  associated with the LogRecord. The API-layer dispatch
+  functions (`emit/2`, `emit/3`) handle the implicit /
+  explicit context split; this callback always receives an
+  explicit context.
+  """
+  @callback emit(
+              logger :: t(),
+              ctx :: Otel.API.Ctx.t(),
+              log_record :: log_record()
+            ) :: :ok
+
+  @doc """
+  **SDK** (OTel API SHOULD) — "Enabled" (`logs/api.md`
+  L133-L154, Status: **Development**).
+
+  Returns whether the logger is enabled for the supplied
+  `opts`. Per L148-L153 the returned value is **not static**
+  — it can change over time as configuration or sampling
+  state evolves. Instrumentation authors SHOULD call this
+  function each time before they
+  [emit a LogRecord](#emit-a-logrecord) to have the most
+  up-to-date response.
+
+  `opts` keys are spec-defined (L137-L142): `:ctx`,
+  `:severity_number`, `:event_name`. The API-layer
+  dispatch (`enabled?/2`) fills in `:ctx` from the current
+  context when omitted per L137-L140.
+  """
+  @callback enabled?(
+              logger :: t(),
+              opts :: enabled_opts()
+            ) :: boolean()
 end
