@@ -75,6 +75,43 @@ defmodule Otel.API.Common.Types do
   representation and matches what Elixir users already
   expect from any struct field typed as `String.t() | nil`.
 
+  ## Attribute key constraints
+
+  Spec `common/README.md` §Attribute L185 MUST:
+
+  > *"The attribute key MUST be a non-`null` and non-empty
+  > string."*
+
+  The attribute-carrying maps across this project use
+  `String.t()` as the key type:
+
+      attributes: %{String.t() => primitive() | [primitive()]}
+
+  Two aspects of the MUST:
+
+  - **Non-null is enforced at compile time.** `String.t()`
+    is an alias for `t:binary/0`, which does not include
+    `nil` (nil is an atom, not a binary). Dialyzer rejects
+    a literal `%{nil => value}` at the call site.
+
+  - **Non-empty is not expressible in Elixir's type
+    system.** Dialyzer has no "non-empty binary" primitive —
+    `<<_::_*8>>` matches any byte count including zero. An
+    empty-string key `%{"" => value}` passes the typespec
+    unflagged.
+
+  Runtime enforcement of the non-empty MUST is therefore an
+  SDK concern — the API layer is a happy-path dispatcher
+  (per `.claude/rules/code-conventions.md`
+  §"Not error handling") and does not guard against empty
+  keys. SDK implementations are expected to drop or
+  otherwise handle empty-key attributes at storage /
+  export time per spec L185.
+
+  API users are responsible for not passing empty-string
+  keys. Downstream behaviour on empty keys depends on the
+  installed SDK and exporter.
+
   ## Integer range
 
   Per spec L44 integer values must fit in a signed 64-bit
