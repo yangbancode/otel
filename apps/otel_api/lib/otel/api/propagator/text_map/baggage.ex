@@ -22,17 +22,19 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   Erlang has not yet made. Each is documented so future
   readers can see where we stand.
 
-  ### 1. Strict RFC 3986 percent-encoding
+  ### 1. Strict RFC 3986 percent-encoding with U+FFFD replacement
 
   W3C §value L64-L68 requires RFC 3986 percent-encoding.
   Per §Definition L32, `baggage-octet` explicitly includes
   `+` (0x2B) as a valid raw character, so `+` in a value
   MUST mean literal plus — not an encoded space.
 
-  We honour this strictly:
-  `URI.encode/2` with `&URI.char_unreserved?/1` on inject
-  (space → `%20`), `URI.decode/1` on extract (`+` stays as
-  literal `+`, `%20` decodes to space).
+  Encoding and decoding are delegated to
+  `Otel.API.Baggage.Percent`, which also implements the §L69
+  MUST that percent-encoded octet sequences not matching
+  UTF-8 must be replaced with `U+FFFD`. Inject produces
+  `%20` for space; extract decodes `%20` to space and leaves
+  `+` as literal, preserving round-trip fidelity.
 
   `opentelemetry-erlang` (`otel_propagator_baggage.erl`
   L146-L147) still uses `form_urlencode` with a `TODO: call
@@ -201,8 +203,8 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   def encode_baggage(baggage) do
     baggage
     |> Enum.map_join(",", fn {name, {value, metadata}} ->
-      encoded_name = URI.encode(name, &URI.char_unreserved?/1)
-      encoded_value = URI.encode(value, &URI.char_unreserved?/1)
+      encoded_name = Otel.API.Baggage.Percent.encode(name)
+      encoded_value = Otel.API.Baggage.Percent.encode(value)
 
       if metadata == "" do
         "#{encoded_name}=#{encoded_value}"
@@ -269,6 +271,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
     [name, value] = String.split(String.trim(key_value), "=", parts: 2)
 
-    {URI.decode(String.trim(name)), URI.decode(String.trim(value)), metadata}
+    {Otel.API.Baggage.Percent.decode(String.trim(name)),
+     Otel.API.Baggage.Percent.decode(String.trim(value)), metadata}
   end
 end

@@ -103,7 +103,11 @@ defmodule Otel.SDK.Resource do
     |> Enum.reduce(%{}, fn pair, acc ->
       case String.split(String.trim(pair), "=", parts: 2) do
         [key, val] when key != "" ->
-          Map.put(acc, URI.decode(String.trim(key)), URI.decode(String.trim(val)))
+          Map.put(
+            acc,
+            Otel.API.Baggage.Percent.decode(String.trim(key)),
+            Otel.API.Baggage.Percent.decode(String.trim(val))
+          )
 
         _ ->
           acc
