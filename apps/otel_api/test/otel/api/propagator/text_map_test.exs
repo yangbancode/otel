@@ -7,8 +7,8 @@ defmodule Otel.API.Propagator.TextMapTest do
   end
 
   describe "get/set_propagator" do
-    test "returns nil by default" do
-      assert Otel.API.Propagator.TextMap.get_propagator() == nil
+    test "returns Noop by default (spec L322-L325 MUST)" do
+      assert Otel.API.Propagator.TextMap.get_propagator() == Otel.API.Propagator.TextMap.Noop
     end
 
     test "sets and gets propagator module" do
@@ -24,6 +24,13 @@ defmodule Otel.API.Propagator.TextMapTest do
 
       Otel.API.Propagator.TextMap.set_propagator(propagator)
       assert Otel.API.Propagator.TextMap.get_propagator() == propagator
+    end
+
+    test "erasing the registration reverts to Noop" do
+      Otel.API.Propagator.TextMap.set_propagator(Otel.API.Propagator.TextMap.TraceContext)
+      :persistent_term.erase({Otel.API.Propagator.TextMap, :global})
+
+      assert Otel.API.Propagator.TextMap.get_propagator() == Otel.API.Propagator.TextMap.Noop
     end
   end
 
