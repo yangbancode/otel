@@ -25,6 +25,64 @@ defmodule Otel.API.InstrumentationScope do
 
   `version`, `schema_url`, and `attributes` are optional.
 
+  ## API shape: struct, not variadic arguments
+
+  Each signal's `Get a Tracer` / `Get a Meter` / `Get a
+  Logger` spec requires that the API
+  *"MUST be structured to accept a variable number of
+  attributes, including none"*:
+
+  - `trace/api.md` §TracerProvider operations
+  - `metrics/api.md` L147-L149
+  - `logs/api.md` L91-L93
+
+  We satisfy this MUST by passing a single
+  `%Otel.API.InstrumentationScope{}` struct whose
+  `attributes: %{}` field accepts 0 to N entries:
+
+      get_logger(%InstrumentationScope{})
+      # => 0 attributes
+
+      get_logger(%InstrumentationScope{attributes: %{"env" => "prod"}})
+      # => 1 attribute
+
+      get_logger(%InstrumentationScope{attributes: %{...}})
+      # => N attributes
+
+  ### Interpretation
+
+  *"structured to accept a variable number of attributes"*
+  describes the API's **acceptance range** — it must permit 0
+  to N attributes — not a particular caller syntax. Different
+  language implementations meet this with different shapes:
+  Java uses a builder, Go uses variadic options, Python uses
+  `**kwargs`, Erlang uses positional arguments, and Elixir
+  uses a struct with a map field.
+
+  ### Why struct rather than keyword list
+
+  - **Dialyzer checks fields at compile time** —
+    `%InstrumentationScope{name: 123}` is rejected;
+    `get_logger(name: 123)` would not be.
+  - **Struct equality supports the spec's cache rule.** The
+    *"identical vs distinct"* Tracer/Meter/Logger rule (spec:
+    same parameters → same instance) maps directly to Elixir
+    map equality on the four struct fields, evaluated in one
+    operation with no keyword-order sensitivity.
+  - **Consistency across signals.** `TracerProvider.get_tracer/1`,
+    `MeterProvider.get_meter/0,1`, and
+    `LoggerProvider.get_logger/0,1` all accept the same shape,
+    so callers learn one pattern.
+
+  ### Divergence from opentelemetry-erlang
+
+  Erlang's `otel_tracer_provider:get_tracer/4` takes positional
+  arguments (`Name, Vsn, SchemaUrl, Extra`). We accept a
+  struct instead. Both satisfy the spec MUST; the struct is
+  the Elixir-idiomatic choice for grouped identity tuples and
+  matches the broader ecosystem (`%Ecto.Schema{}`,
+  `%Plug.Conn{}`, `%Date{}`).
+
   ## References
 
   - OTel Instrumentation Scope: `opentelemetry-specification/specification/common/instrumentation-scope.md`
