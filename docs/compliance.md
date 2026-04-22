@@ -8,7 +8,7 @@
 
 ### Create a Key
 - [x] API MUST accept the key name parameter — [L63](../references/opentelemetry-specification/specification/context/README.md#L63)
-- [ ] Multiple calls to CreateKey with same name SHOULD NOT return same value — [L65](../references/opentelemetry-specification/specification/context/README.md#L65) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md); `create_key/1` is identity in our impl, callers supply uniqueness when needed
+- [ ] Multiple calls to CreateKey with same name SHOULD NOT return same value — [L65](../references/opentelemetry-specification/specification/context/README.md#L65) — SHOULD not yet implemented; `create_key/1` is identity in our impl, callers supply uniqueness when needed
 - [x] API MUST return an opaque object representing the newly created key — [L67](../references/opentelemetry-specification/specification/context/README.md#L67)
 
 ### Get Value
@@ -44,7 +44,7 @@
 - [x] `name` SHOULD uniquely identify the instrumentation scope — [L117](../references/opentelemetry-specification/specification/trace/api.md#L117)
 - [x] If invalid name (null or empty string), a working Tracer MUST be returned as fallback rather than returning null or throwing an exception — [L126](../references/opentelemetry-specification/specification/trace/api.md#L126)
 - [x] If invalid name, Tracer's `name` property SHOULD be set to an empty string — [L128](../references/opentelemetry-specification/specification/trace/api.md#L128)
-- [ ] If invalid name, a message reporting that the specified value is invalid SHOULD be logged — [L129](../references/opentelemetry-specification/specification/trace/api.md#L129) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
+- [ ] If invalid name, a message reporting that the specified value is invalid SHOULD be logged — [L129](../references/opentelemetry-specification/specification/trace/api.md#L129) — SHOULD not yet implemented
 - [x] Get a Tracer API MUST accept optional `version` parameter — [L135](../references/opentelemetry-specification/specification/trace/api.md#L135)
 - [x] Get a Tracer API MUST accept optional `schema_url` parameter (since 1.4.0) — [L137](../references/opentelemetry-specification/specification/trace/api.md#L137)
 - [x] Get a Tracer API SHOULD accept `attributes` parameter (since 1.13.0) — [L139](../references/opentelemetry-specification/specification/trace/api.md#L139)
@@ -1149,7 +1149,7 @@
 - [x] The input provided by the user MUST be used to create an InstrumentationScope instance stored on the created Meter — [L126](../references/opentelemetry-specification/specification/metrics/sdk.md#L126)
 - [x] In the case where an invalid name is specified, a working Meter MUST be returned as a fallback — [L131](../references/opentelemetry-specification/specification/metrics/sdk.md#L131)
 - [x] Invalid name Meter's name SHOULD keep the original invalid value — [L132](../references/opentelemetry-specification/specification/metrics/sdk.md#L132)
-- [ ] A message reporting that the specified value is invalid SHOULD be logged — [L133](../references/opentelemetry-specification/specification/metrics/sdk.md#L133) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
+- [ ] A message reporting that the specified value is invalid SHOULD be logged — [L133](../references/opentelemetry-specification/specification/metrics/sdk.md#L133) — SHOULD not yet implemented
 
 #### Configuration
 
@@ -1216,7 +1216,7 @@
 
 - [x] SDK SHOULD use the specified logic to determine how to process Measurements — [L420](../references/opentelemetry-specification/specification/metrics/sdk.md#L420)
 - [x] When no View registered, instrument advisory parameters MUST be honored — [L428](../references/opentelemetry-specification/specification/metrics/sdk.md#L428)
-- [ ] If applying a View results in conflicting metric identities, SDK SHOULD apply the View and emit a warning — [L439](../references/opentelemetry-specification/specification/metrics/sdk.md#L439) — SHOULD warn not implemented per [happy-path policy](decisions/logging-convention.md); conflict still resolved (Views are applied).
+- [ ] If applying a View results in conflicting metric identities, SDK SHOULD apply the View and emit a warning — [L439](../references/opentelemetry-specification/specification/metrics/sdk.md#L439) — SHOULD warn not yet implemented; conflict still resolved (Views are applied).
 - [x] If both a View and instrument advisory parameters specify the same aspect, the View MUST take precedence — [L446](../references/opentelemetry-specification/specification/metrics/sdk.md#L446)
 - [x] If Instrument could not match any registered Views, SDK SHOULD enable the instrument using default aggregation and temporality — [L448](../references/opentelemetry-specification/specification/metrics/sdk.md#L448)
 
@@ -1282,7 +1282,7 @@
 #### Duplicate Instrument Registration
 
 - [x] Meter MUST return a functional instrument even for duplicate instrument registrations — [L912](../references/opentelemetry-specification/specification/metrics/sdk.md#L912)
-- [ ] When duplicate instrument registration occurs (not corrected with a View), a warning SHOULD be emitted — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919) — SHOULD warn not implemented per [happy-path policy](decisions/logging-convention.md); first-seen behavior preserved.
+- [ ] When duplicate instrument registration occurs (not corrected with a View), a warning SHOULD be emitted — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919) — SHOULD warn not yet implemented; first-seen behavior preserved.
 - [x] Warning SHOULD include information on how to resolve the conflict — [L919](../references/opentelemetry-specification/specification/metrics/sdk.md#L919)
 - [x] If conflict involves multiple `description` properties, setting description through a View SHOULD avoid the warning — [L923](../references/opentelemetry-specification/specification/metrics/sdk.md#L923)
 - [x] If conflict involves instruments distinguishable by a supported View selector, a renaming View recipe SHOULD be included — [L926](../references/opentelemetry-specification/specification/metrics/sdk.md#L926)
@@ -1295,8 +1295,8 @@
 
 ### Instrument Name
 
-- [ ] Meter SHOULD validate instrument name conforms to syntax — [L962](../references/opentelemetry-specification/specification/metrics/sdk.md#L962) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
-- [ ] If instrument name does not conform, Meter SHOULD emit an error — [L965](../references/opentelemetry-specification/specification/metrics/sdk.md#L965) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
+- [ ] Meter SHOULD validate instrument name conforms to syntax — [L962](../references/opentelemetry-specification/specification/metrics/sdk.md#L962) — SHOULD not yet implemented
+- [ ] If instrument name does not conform, Meter SHOULD emit an error — [L965](../references/opentelemetry-specification/specification/metrics/sdk.md#L965) — SHOULD not yet implemented
 
 ### Instrument Unit
 
@@ -1310,8 +1310,8 @@
 
 ### Instrument Advisory Parameters (Stable)
 
-- [ ] Meter SHOULD validate instrument advisory parameters — [L985](../references/opentelemetry-specification/specification/metrics/sdk.md#L985) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
-- [ ] If advisory parameter is not valid, Meter SHOULD emit an error and proceed as if the parameter was not provided — [L986](../references/opentelemetry-specification/specification/metrics/sdk.md#L986) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
+- [ ] Meter SHOULD validate instrument advisory parameters — [L985](../references/opentelemetry-specification/specification/metrics/sdk.md#L985) — SHOULD not yet implemented
+- [ ] If advisory parameter is not valid, Meter SHOULD emit an error and proceed as if the parameter was not provided — [L986](../references/opentelemetry-specification/specification/metrics/sdk.md#L986) — SHOULD not yet implemented
 - [x] If multiple identical Instruments have different advisory parameters, Meter MUST return instrument using first-seen advisory parameters and log an error — [L990](../references/opentelemetry-specification/specification/metrics/sdk.md#L990)
 - [x] If View and advisory parameters specify the same aspect, View MUST take precedence — [L996](../references/opentelemetry-specification/specification/metrics/sdk.md#L996)
 
@@ -1582,7 +1582,7 @@
 - [x] Input provided by user MUST be used to create InstrumentationScope stored on Logger — [L74](../references/opentelemetry-specification/specification/logs/sdk.md#L74)
 - [x] If invalid name, a working Logger MUST be returned as fallback — [L79](../references/opentelemetry-specification/specification/logs/sdk.md#L79)
 - [x] Invalid name SHOULD keep the original invalid value — [L80](../references/opentelemetry-specification/specification/logs/sdk.md#L80)
-- [ ] A message reporting invalid value SHOULD be logged — [L81](../references/opentelemetry-specification/specification/logs/sdk.md#L81) — SHOULD not implemented per [happy-path policy](decisions/logging-convention.md)
+- [ ] A message reporting invalid value SHOULD be logged — [L81](../references/opentelemetry-specification/specification/logs/sdk.md#L81) — SHOULD not yet implemented
 
 ### Configuration
 - [x] Configuration (LogRecordProcessors) MUST be owned by LoggerProvider — [L92](../references/opentelemetry-specification/specification/logs/sdk.md#L92)
@@ -1624,7 +1624,7 @@
 - [x] LogRecord attributes MUST adhere to common rules of attribute limits — [L323](../references/opentelemetry-specification/specification/logs/sdk.md#L323)
 - [x] If SDK implements attribute limits, it MUST provide a way to change them via LoggerProvider configuration — [L326](../references/opentelemetry-specification/specification/logs/sdk.md#L326)
 - [x] Options SHOULD be called LogRecordLimits — [L331](../references/opentelemetry-specification/specification/logs/sdk.md#L331)
-- [ ] There SHOULD be a message in SDK log when attribute is discarded due to limit — [L345](../references/opentelemetry-specification/specification/logs/sdk.md#L345) — SHOULD log not implemented per [happy-path policy](decisions/logging-convention.md); attributes are silently dropped.
+- [ ] There SHOULD be a message in SDK log when attribute is discarded due to limit — [L345](../references/opentelemetry-specification/specification/logs/sdk.md#L345) — SHOULD log not yet implemented; attributes are silently dropped.
 - [x] The message MUST be printed at most once per LogRecord — [L347](../references/opentelemetry-specification/specification/logs/sdk.md#L347)
 
 ### LogRecordProcessor
