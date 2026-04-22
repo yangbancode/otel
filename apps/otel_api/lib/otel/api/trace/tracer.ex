@@ -39,9 +39,7 @@ defmodule Otel.API.Trace.Tracer do
 
   This mirrors `opentelemetry-erlang` (`otel_tracer_default.erl`
   owns the full try/after block; `otel_tracer.erl` is a thin
-  dispatcher). See
-  `docs/architecture/with-span-lifecycle-ownership.md` for the
-  longer rationale.
+  dispatcher).
 
   All functions are safe for concurrent use.
 

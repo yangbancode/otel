@@ -16,8 +16,7 @@ defmodule Otel.API.Metrics.ObservableCounter do
 
   Created exclusively through a `Meter` per spec L615
   *"MUST NOT be any API for creating an Asynchronous Counter
-  other than with a Meter"*. Two creation styles per
-  `docs/architecture/asynchronous-instruments-and-callbacks.md`:
+  other than with a Meter"*. Two creation styles:
 
   - `create/3` — create the instrument without callbacks;
     register them later via
@@ -62,7 +61,6 @@ defmodule Otel.API.Metrics.ObservableCounter do
   - OTel Metrics API §Asynchronous Counter: `opentelemetry-specification/specification/metrics/api.md` L599-L733
   - OTel Metrics API §Asynchronous Instrument API: `opentelemetry-specification/specification/metrics/api.md` L350-L472
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
-  - Decision: `docs/architecture/asynchronous-instruments-and-callbacks.md`
   """
 
   @doc """

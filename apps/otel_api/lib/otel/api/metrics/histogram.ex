@@ -75,7 +75,6 @@ defmodule Otel.API.Metrics.Histogram do
   - OTel Metrics API §Synchronous Instrument API: `opentelemetry-specification/specification/metrics/api.md` L302-L348
   - OTel Metrics API §General operations / Enabled: `opentelemetry-specification/specification/metrics/api.md` L473-L495
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
-  - Decision: `docs/architecture/synchronous-instruments.md`
   """
 
   use Otel.API.Common.Types
@@ -127,8 +126,7 @@ defmodule Otel.API.Metrics.Histogram do
 
   Delegates to `Otel.API.Metrics.Meter.record/3` — both
   Histogram.record and the synchronous siblings share a
-  single Meter dispatch per
-  `docs/architecture/synchronous-instruments.md`.
+  single Meter dispatch.
   """
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),

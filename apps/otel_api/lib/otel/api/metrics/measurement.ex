@@ -18,10 +18,8 @@ defmodule Otel.API.Metrics.Measurement do
   `opentelemetry-erlang` has **no** dedicated Measurement
   record; it passes raw `(value, attributes)` tuples. We
   model every multi-field spec entity in this project as a
-  `defstruct` (Q1 of
-  `docs/architecture/type-representation-policy.md`) so
-  `%Measurement{}` patterns carry the shape through
-  Dialyzer.
+  `defstruct` so `%Measurement{}` patterns carry the shape
+  through Dialyzer.
 
   ## Construction
 
@@ -47,7 +45,6 @@ defmodule Otel.API.Metrics.Measurement do
 
   - OTel Metrics API §Measurement: `opentelemetry-specification/specification/metrics/api.md` L1278-L1287
   - OTel Metrics API §Async callback shape: `opentelemetry-specification/specification/metrics/api.md` L441-L442
-  - Type policy: `docs/architecture/type-representation-policy.md` (Q1 — defstruct for multi-field entities)
   """
 
   use Otel.API.Common.Types

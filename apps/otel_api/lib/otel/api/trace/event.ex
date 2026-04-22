@@ -70,10 +70,9 @@ defmodule Otel.API.Trace.Event do
   does not require normalisation of caller-supplied values.
 
   Values are Unix epoch **nanoseconds** (OTLP
-  `time_unix_nano`). The typespec is plain `integer()` per
-  `docs/architecture/type-representation-policy.md` — range
-  checks are the exporter's responsibility. Callers are
-  responsible for supplying the correct unit: seconds
+  `time_unix_nano`). The typespec is plain `integer()` —
+  range checks are the exporter's responsibility. Callers
+  are responsible for supplying the correct unit: seconds
   (~1.7e9) and milliseconds (~1.7e12) both look like valid
   integers but produce nonsense wire values.
   """

@@ -15,8 +15,7 @@ defmodule Otel.API.Metrics.MeterProvider do
   Both the global provider pointer and the scope-keyed meter
   cache live in `:persistent_term`. The dispatch pattern
   (`{dispatcher_module, state}` tuple + `get_meter/2`
-  callback) is shared across Trace, Metrics, and Logs — see
-  `docs/architecture/provider-dispatch.md`.
+  callback) is shared across Trace, Metrics, and Logs.
 
   `opentelemetry-erlang` diverges in three places:
 
@@ -53,7 +52,6 @@ defmodule Otel.API.Metrics.MeterProvider do
 
   - OTel Metrics API §MeterProvider: `opentelemetry-specification/specification/metrics/api.md` L106-L155
   - OTel Metrics API §Concurrency: `opentelemetry-specification/specification/metrics/api.md` L1345-L1346
-  - Dispatch pattern: `docs/architecture/provider-dispatch.md`
   - Reference impl (raw `gen_server:call`): `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_meter_provider.erl`
   """
 
@@ -144,8 +142,7 @@ defmodule Otel.API.Metrics.MeterProvider do
   implement the `Otel.API.Metrics.MeterProvider` behaviour.
 
   To clear the registration (e.g. in tests), use
-  `:persistent_term.erase/1` directly — see
-  `docs/architecture/provider-dispatch.md`.
+  `:persistent_term.erase/1` directly.
   """
   @spec set_provider(provider :: t()) :: :ok
   def set_provider({_module, _state} = provider) do
