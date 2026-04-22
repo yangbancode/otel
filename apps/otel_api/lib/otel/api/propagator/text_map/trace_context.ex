@@ -51,6 +51,50 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   `"00"`/`"01"` (`error(badarg)`); we accept the full
   `0..255` range and store the byte verbatim.
 
+  ### 3. Participating propagator, not pass-through service
+
+  W3C §Versioning L232 advises *"Pass-through services
+  should not analyze the version. They should expect that
+  headers may have larger size limits in the future and
+  only disallow prohibitively large headers."*
+
+  This guidance targets **pass-through services** —
+  intermediaries that forward the `traceparent` header
+  without parsing it (proxies, gateways, load balancers).
+
+  This module is a **participating propagator**: we decode
+  the header into a `SpanContext`, use it as the parent of
+  new spans, and re-emit our own `traceparent` outbound.
+  The participating-role MUSTs at W3C §Versioning
+  L233-L244 apply to us, and `decode_traceparent/1`
+  satisfies each:
+
+  - L233 unparseable version prefix → restart trace.
+    Pattern-match failure bubbles a `MatchError` to
+    `extract/3`'s `catch`, which returns the original
+    context (= fresh trace start).
+  - L235 higher-version header shorter than 55 chars →
+    restart. The binary pattern requires at least 55
+    bytes (clause 1) or a 55-byte core plus dash plus
+    suffix (clause 2); anything shorter fails to match.
+  - L236-L238 hex / dash shape checks for trace-id
+    (32 hex + dash), parent-id (16 hex + dash), and flags
+    (2 chars at end or followed by dash) — enforced by
+    the binary pattern itself and `lowercase_hex?/1`.
+  - L243 *"MUST NOT parse or assume anything about
+    unknown fields"* — clause 2 captures the trailing
+    bytes as `_rest` and discards them.
+  - L244 *"MUST use these fields to construct the new
+    `traceparent` field according to the highest version
+    of the specification known to the implementation"* —
+    `encode_traceparent/1` emits `"00-..."`, the highest
+    version this module implements.
+
+  The L232 hint about "prohibitively large headers" is a
+  pass-through concern, not a MUST, and does not apply to
+  our role. HTTP-layer size limits (Cowboy, Plug, etc.)
+  govern the upper bound in practice.
+
   ## Public API
 
   | Function | Role |
