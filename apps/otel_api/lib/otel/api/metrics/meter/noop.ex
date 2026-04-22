@@ -213,7 +213,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_observable_counter(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          callback :: function(),
+          callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
           callback_args :: term(),
           opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
@@ -247,7 +247,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_observable_updown_counter(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          callback :: function(),
+          callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
           callback_args :: term(),
           opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
@@ -281,7 +281,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec create_observable_gauge(
           meter :: Otel.API.Metrics.Meter.t(),
           name :: String.t(),
-          callback :: function(),
+          callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
           callback_args :: term(),
           opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
@@ -321,7 +321,8 @@ defmodule Otel.API.Metrics.Meter.Noop do
   @spec register_callback(
           meter :: Otel.API.Metrics.Meter.t(),
           instruments :: [Otel.API.Metrics.Instrument.t()],
-          callback :: function(),
+          callback ::
+            (term() -> [{Otel.API.Metrics.Instrument.t(), Otel.API.Metrics.Measurement.t()}]),
           callback_args :: term(),
           opts :: Otel.API.Metrics.Instrument.register_callback_opts()
         ) :: Otel.API.Metrics.Meter.registration()

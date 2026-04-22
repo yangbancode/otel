@@ -123,6 +123,7 @@ defmodule Otel.SDK.Metrics.Meter do
       :ets.insert(config.callbacks_tab, {
         {config.scope, Otel.API.Metrics.Instrument.downcased_name(instrument.name)},
         ref,
+        :multi,
         callback,
         callback_args,
         instrument
@@ -275,13 +276,13 @@ defmodule Otel.SDK.Metrics.Meter do
   @spec store_callback(
           config :: map(),
           instrument :: Otel.API.Metrics.Instrument.t(),
-          callback :: function(),
+          callback :: (term() -> [Otel.API.Metrics.Measurement.t()]),
           callback_args :: term()
         ) :: true
   defp store_callback(config, instrument, callback, callback_args) do
     key = {config.scope, Otel.API.Metrics.Instrument.downcased_name(instrument.name)}
     ref = make_ref()
-    :ets.insert(config.callbacks_tab, {key, ref, callback, callback_args, instrument})
+    :ets.insert(config.callbacks_tab, {key, ref, :single, callback, callback_args, instrument})
   end
 
   @doc """
@@ -294,45 +295,90 @@ defmodule Otel.SDK.Metrics.Meter do
   @impl true
   @spec unregister_callback(state :: {reference(), :ets.table()}) :: :ok
   def unregister_callback({ref, callbacks_tab}) do
-    :ets.match_delete(callbacks_tab, {:_, ref, :_, :_, :_})
+    :ets.match_delete(callbacks_tab, {:_, ref, :_, :_, :_, :_})
     :ok
   end
 
   @doc """
-  Executes all registered callbacks for the given meter config and
-  aggregates the observations into the metrics pipeline.
+  Executes all registered callbacks for the given meter
+  config and aggregates the observations into the metrics
+  pipeline.
 
-  Called by MetricReader during collection. Each callback returns
-  a list of `Otel.API.Metrics.Measurement.t()`.
+  Called by MetricReader during collection. Two callback
+  shapes are supported, distinguished by the shape marker
+  stored in each ETS entry:
+
+  - `:single` — inline callback registered via
+    `create_observable_*/5` → `store_callback/4`. Callback
+    returns `[Measurement.t()]` per
+    `metrics/api.md` L441-L442.
+  - `:multi` — callback registered via
+    `register_callback/5`. Callback returns
+    `[{Instrument.t(), Measurement.t()}]` per
+    `metrics/api.md` L1302-L1303 + L452-L453 MUST
+    (multi-instrument callbacks MUST distinguish the
+    instrument for each observation).
+
+  Internally both shapes are normalised to the multi-shape
+  (a list of pairs) so `apply_observations/2` has a single
+  code path that looks up streams per-instrument.
   """
   @spec run_callbacks(config :: map()) :: :ok
   def run_callbacks(config) do
     callbacks = :ets.tab2list(config.callbacks_tab)
 
     callbacks
-    |> Enum.group_by(fn {_key, ref, callback, callback_args, _inst} ->
+    |> Enum.group_by(fn {_key, ref, _shape, callback, callback_args, _inst} ->
       {ref, callback, callback_args}
     end)
-    |> Enum.each(fn {{_ref, callback, callback_args}, entries} ->
-      measurements = callback.(callback_args)
-      apply_observations(config, entries, measurements)
+    |> Enum.each(fn {_group_key, entries} ->
+      pairs = invoke_callback_and_normalize(entries)
+      apply_observations(config, pairs)
     end)
+  end
+
+  @spec invoke_callback_and_normalize(entries :: [tuple()]) ::
+          [{Otel.API.Metrics.Instrument.t(), Otel.API.Metrics.Measurement.t()}]
+  defp invoke_callback_and_normalize([first | _] = entries) do
+    {_key, _ref, shape, callback, callback_args, _inst} = first
+    result = callback.(callback_args)
+
+    case shape do
+      :single ->
+        # Inline callback — `result` is `[Measurement.t()]`.
+        # There is exactly one ETS entry in the group (one
+        # instrument per inline callback); wrap each
+        # measurement with that instrument.
+        {_, _, _, _, _, instrument} = first
+        Enum.map(result, fn measurement -> {instrument, measurement} end)
+
+      :multi ->
+        # Multi-instrument callback — `result` is already
+        # `[{Instrument, Measurement}]` per spec
+        # L1302-L1303. Use as-is. `entries` (with all
+        # registered instruments) is not needed here; the
+        # callback provides the instrument tag per
+        # observation.
+        _unused_entries = entries
+        result
+    end
   end
 
   @spec apply_observations(
           config :: map(),
-          entries :: [tuple()],
-          measurements :: [Otel.API.Metrics.Measurement.t()]
+          pairs :: [{Otel.API.Metrics.Instrument.t(), Otel.API.Metrics.Measurement.t()}]
         ) :: :ok
-  defp apply_observations(config, entries, measurements) do
-    streams = lookup_callback_streams(config, entries)
+  defp apply_observations(config, pairs) do
     ctx = Otel.API.Ctx.current()
     now = System.system_time(:nanosecond)
 
-    Enum.each(measurements, fn %Otel.API.Metrics.Measurement{
-                                 value: value,
-                                 attributes: attributes
-                               } ->
+    Enum.each(pairs, fn {%Otel.API.Metrics.Instrument{} = instrument,
+                         %Otel.API.Metrics.Measurement{
+                           value: value,
+                           attributes: attributes
+                         }} ->
+      streams = lookup_streams_for_instrument(config, instrument)
+
       Enum.each(streams, fn stream ->
         filtered_attrs = filter_stream_attributes(stream, attributes)
         agg_key = {stream.name, stream.instrument.scope, stream.reader_id, filtered_attrs}
@@ -460,13 +506,18 @@ defmodule Otel.SDK.Metrics.Meter do
     end
   end
 
-  @spec lookup_callback_streams(config :: map(), entries :: [tuple()]) ::
-          [Otel.SDK.Metrics.Stream.t()]
-  defp lookup_callback_streams(config, entries) do
-    Enum.flat_map(entries, fn {instrument_key, _ref, _cb, _args, _instrument} ->
-      config.streams_tab
-      |> :ets.lookup(instrument_key)
-      |> Enum.map(fn {_key, stream} -> stream end)
-    end)
+  @spec lookup_streams_for_instrument(
+          config :: map(),
+          instrument :: Otel.API.Metrics.Instrument.t()
+        ) :: [Otel.SDK.Metrics.Stream.t()]
+  defp lookup_streams_for_instrument(config, %Otel.API.Metrics.Instrument{
+         scope: scope,
+         name: name
+       }) do
+    instrument_key = {scope, Otel.API.Metrics.Instrument.downcased_name(name)}
+
+    config.streams_tab
+    |> :ets.lookup(instrument_key)
+    |> Enum.map(fn {_key, stream} -> stream end)
   end
 end

@@ -15,9 +15,14 @@ Each async instrument is a thin facade module that delegates to `Otel.API.Metric
 
 ### Callback Model
 
-Callbacks are 1-arity functions receiving `callback_args` (any term for state passing). They return a list of `{value, attributes}` observations. On BEAM, closures naturally capture state, and `callback_args` provides an additional explicit mechanism per spec SHOULD.
+Callbacks are 1-arity functions receiving `callback_args` (any term for state passing). On BEAM, closures naturally capture state, and `callback_args` provides an additional explicit mechanism per spec SHOULD (`metrics/api.md` L467-L470).
 
-For multi-instrument callbacks, `Meter.register_callback/5` accepts a list of instruments and a callback. The callback returns `[{instrument_name, [{value, attributes}]}]` tagged tuples to distinguish which instrument each observation belongs to.
+Return shapes are spec-defined and differ between the two registration paths:
+
+- **Inline per-instrument callbacks** (`create_observable_counter/5` and siblings) return `[Otel.API.Metrics.Measurement.t()]` per `metrics/api.md` L441-L442 *"Return a list (or tuple, generator, enumerator, etc.) of individual Measurement values"*.
+- **Multi-instrument callbacks** (`Meter.register_callback/5`) return `[{Otel.API.Metrics.Instrument.t(), Otel.API.Metrics.Measurement.t()}]` — a flat list of `(Instrument, Measurement)` pairs per `metrics/api.md` L1302-L1303 and the L452-L453 MUST that *"Idiomatic APIs for multiple-instrument Callbacks MUST distinguish the instrument associated with each observed Measurement value"*.
+
+The SDK normalises both shapes internally: single-shape observations are wrapped with the one registered instrument so the post-callback pipeline sees `[{Instrument, Measurement}]` uniformly (`apps/otel_sdk/lib/otel/sdk/metrics/meter.ex` `invoke_callback_and_normalize/1`).
 
 ### Callback Execution
 
