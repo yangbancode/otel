@@ -45,7 +45,7 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
 
     test "passes callback_args for state", %{meter: meter} do
       callback = fn pid ->
-        [Otel.API.Metrics.Measurement.new(Process.info(pid, :reductions) |> elem(1))]
+        [%Otel.API.Metrics.Measurement{value: Process.info(pid, :reductions) |> elem(1)}]
       end
 
       assert %Otel.API.Metrics.Instrument{
