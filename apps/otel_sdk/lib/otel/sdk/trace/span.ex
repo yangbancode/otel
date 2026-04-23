@@ -24,8 +24,8 @@ defmodule Otel.SDK.Trace.Span do
           parent_span_is_remote: boolean() | nil,
           name: String.t(),
           kind: Otel.API.Trace.SpanKind.t(),
-          start_time: integer(),
-          end_time: integer() | nil,
+          start_time: non_neg_integer(),
+          end_time: non_neg_integer() | nil,
           attributes: %{String.t() => primitive() | [primitive()]},
           events: [Otel.API.Trace.Event.t()],
           links: [Otel.API.Trace.Link.t()],
@@ -314,7 +314,8 @@ defmodule Otel.SDK.Trace.Span do
   then calls on_end on all processors.
   """
   @impl true
-  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: integer()) :: :ok
+  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: non_neg_integer()) ::
+          :ok
   def end_span(%Otel.API.Trace.SpanContext{span_id: span_id}, timestamp) do
     case Otel.SDK.Trace.SpanStorage.take(span_id) do
       nil ->

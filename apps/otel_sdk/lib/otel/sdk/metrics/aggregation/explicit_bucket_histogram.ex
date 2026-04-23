@@ -94,7 +94,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
           entries :: [tuple()],
           boundaries :: [number()],
           num_buckets :: pos_integer(),
-          now :: integer()
+          now :: non_neg_integer()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   defp collect_cumulative(entries, boundaries, num_buckets, now) do
     Enum.map(entries, fn {attributes, counters_ref, min, max, sum, count, start_time} ->
@@ -124,7 +124,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
           reader_id :: reference() | nil,
           boundaries :: [number()],
           num_buckets :: pos_integer(),
-          now :: integer()
+          now :: non_neg_integer()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   defp collect_delta(
          metrics_tab,
@@ -166,7 +166,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
           bucket_counts :: [non_neg_integer()],
           count :: non_neg_integer(),
           sum :: number(),
-          now :: integer()
+          now :: non_neg_integer()
         ) :: :ok
   defp reset_histogram(metrics_tab, key, counters_ref, bucket_counts, count, sum, now) do
     Enum.each(Enum.with_index(bucket_counts, 1), fn {cnt, idx} ->

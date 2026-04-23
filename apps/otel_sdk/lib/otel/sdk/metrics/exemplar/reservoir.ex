@@ -13,7 +13,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
   @callback offer(
               state :: term(),
               value :: number(),
-              time :: integer(),
+              time :: non_neg_integer(),
               filtered_attributes :: map(),
               ctx :: Otel.API.Ctx.t()
             ) :: state :: term()
@@ -24,7 +24,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
           reservoir :: {module(), term()} | nil,
           filter :: Otel.SDK.Metrics.Exemplar.Filter.t(),
           value :: number(),
-          time :: integer(),
+          time :: non_neg_integer(),
           filtered_attributes :: map(),
           ctx :: Otel.API.Ctx.t()
         ) :: {module(), term()} | nil

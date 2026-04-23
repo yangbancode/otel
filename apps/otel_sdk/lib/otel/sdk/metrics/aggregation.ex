@@ -6,8 +6,8 @@ defmodule Otel.SDK.Metrics.Aggregation do
   @type datapoint :: %{
           attributes: map(),
           value: term(),
-          start_time: integer(),
-          time: integer()
+          start_time: non_neg_integer(),
+          time: non_neg_integer()
         }
 
   @callback aggregate(

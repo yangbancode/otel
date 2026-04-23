@@ -52,7 +52,7 @@ defmodule Otel.API.Trace.Event do
   """
   @type t :: %__MODULE__{
           name: String.t(),
-          timestamp: integer(),
+          timestamp: non_neg_integer(),
           attributes: %{String.t() => primitive() | [primitive()]}
         }
 
@@ -71,16 +71,18 @@ defmodule Otel.API.Trace.Event do
   does not require normalisation of caller-supplied values.
 
   Values are Unix epoch **nanoseconds** (OTLP
-  `time_unix_nano`). The typespec is plain `integer()` —
-  range checks are the exporter's responsibility. Callers
-  are responsible for supplying the correct unit: seconds
-  (~1.7e9) and milliseconds (~1.7e12) both look like valid
-  integers but produce nonsense wire values.
+  `time_unix_nano`, a `fixed64` unsigned proto3 field).
+  The typespec is `non_neg_integer()` enforcing the
+  unsigned invariant at the API boundary. Unit checks
+  (ns vs ms vs s) remain the caller's responsibility —
+  seconds (~1.7e9) and milliseconds (~1.7e12) both look
+  like valid non-negative integers but produce nonsense
+  wire values.
   """
   @spec new(
           name :: String.t(),
           attributes :: %{String.t() => primitive() | [primitive()]},
-          timestamp :: integer()
+          timestamp :: non_neg_integer()
         ) :: t()
   def new(name, attributes \\ %{}, timestamp \\ System.system_time(:nanosecond)) do
     %__MODULE__{

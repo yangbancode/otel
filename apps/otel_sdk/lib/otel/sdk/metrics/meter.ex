@@ -447,7 +447,7 @@ defmodule Otel.SDK.Metrics.Meter do
           stream :: Otel.SDK.Metrics.Stream.t(),
           agg_key :: term(),
           value :: number(),
-          time :: integer(),
+          time :: non_neg_integer(),
           filtered_attrs :: map(),
           ctx :: Otel.API.Ctx.t()
         ) :: :ok
