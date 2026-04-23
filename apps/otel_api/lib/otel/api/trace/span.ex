@@ -80,7 +80,7 @@ defmodule Otel.API.Trace.Span do
           kind: Otel.API.Trace.SpanKind.t(),
           attributes: %{String.t() => primitive() | [primitive()]},
           links: [Otel.API.Trace.Link.t()],
-          start_time: integer(),
+          start_time: non_neg_integer(),
           is_root: boolean()
         ]
 
@@ -254,11 +254,13 @@ defmodule Otel.API.Trace.Span do
   This is the responsibility of the user."*
 
   Values are Unix epoch **nanoseconds** (OTLP
-  `time_unix_nano`). The typespec is plain `integer()`.
+  `time_unix_nano`, a `fixed64` unsigned proto3 field).
+  The typespec is `non_neg_integer()` enforcing the
+  unsigned invariant at the API boundary.
   """
   @spec end_span(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          timestamp :: integer()
+          timestamp :: non_neg_integer()
         ) :: :ok
   def end_span(
         %Otel.API.Trace.SpanContext{} = span_ctx,
@@ -401,7 +403,7 @@ defmodule Otel.API.Trace.Span do
   """
   @callback end_span(
               span_ctx :: Otel.API.Trace.SpanContext.t(),
-              timestamp :: integer()
+              timestamp :: non_neg_integer()
             ) :: :ok
 
   @doc """

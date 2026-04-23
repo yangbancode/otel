@@ -163,7 +163,7 @@ defmodule Otel.API.Trace.Span.Noop do
   @impl true
   @spec end_span(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          timestamp :: integer()
+          timestamp :: non_neg_integer()
         ) :: :ok
   def end_span(_span_ctx, _timestamp) do
     :ok

@@ -80,8 +80,8 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
   end
 
   @spec collect_cumulative(
-          entries :: [{map(), integer(), float(), integer()}],
-          now :: integer()
+          entries :: [{map(), integer(), float(), non_neg_integer()}],
+          now :: non_neg_integer()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   defp collect_cumulative(entries, now) do
     Enum.map(entries, fn {attributes, int_value, float_value, start_time} ->
@@ -96,11 +96,11 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
 
   @spec collect_delta(
           metrics_tab :: :ets.table(),
-          entries :: [{map(), integer(), float(), integer()}],
+          entries :: [{map(), integer(), float(), non_neg_integer()}],
           stream_name :: String.t(),
           scope :: Otel.API.InstrumentationScope.t(),
           reader_id :: reference() | nil,
-          now :: integer()
+          now :: non_neg_integer()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   defp collect_delta(metrics_tab, entries, stream_name, scope, reader_id, now) do
     entries
@@ -123,7 +123,7 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
           key :: term(),
           int_value :: integer(),
           float_value :: float(),
-          now :: integer()
+          now :: non_neg_integer()
         ) :: :ok
   defp reset_sum(metrics_tab, key, int_value, float_value, now) do
     :ets.update_counter(metrics_tab, key, [{@int_pos, -int_value}])

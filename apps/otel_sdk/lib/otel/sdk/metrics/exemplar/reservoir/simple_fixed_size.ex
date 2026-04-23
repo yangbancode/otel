@@ -31,7 +31,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize do
   @spec offer(
           state :: state(),
           value :: number(),
-          time :: integer(),
+          time :: non_neg_integer(),
           filtered_attributes :: map(),
           ctx :: Otel.API.Ctx.t()
         ) :: state()

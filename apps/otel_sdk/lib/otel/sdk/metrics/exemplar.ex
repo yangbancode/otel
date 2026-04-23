@@ -8,7 +8,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
 
   @type t :: %__MODULE__{
           value: number(),
-          time: integer(),
+          time: non_neg_integer(),
           filtered_attributes: map(),
           span_id: binary() | nil,
           trace_id: binary() | nil
@@ -22,7 +22,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
 
   @spec new(
           value :: number(),
-          time :: integer(),
+          time :: non_neg_integer(),
           filtered_attributes :: map(),
           ctx :: Otel.API.Ctx.t()
         ) :: t()
