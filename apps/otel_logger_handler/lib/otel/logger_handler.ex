@@ -22,11 +22,24 @@ defmodule Otel.LoggerHandler do
 
   ## Configuration
 
+  All handler-specific options live under the handler config's
+  `:config` key (`:logger.handler_config()` L116-L122). They are
+  optional; keys may be omitted individually.
+
   | Key | Default | Description |
   |---|---|---|
-  | `scope_name` | `"otel_logger_handler"` | InstrumentationScope name |
-  | `scope_version` | `""` | InstrumentationScope version |
-  | `otel_logger` | `nil` | Pre-built OTel Logger; if set, skips `LoggerProvider.get_logger` |
+  | `scope_name` | `"otel_logger_handler"` | `Otel.API.InstrumentationScope.name` |
+  | `scope_version` | `""` | `Otel.API.InstrumentationScope.version` |
+  | `scope_schema_url` | `""` | `Otel.API.InstrumentationScope.schema_url` (OTel spec v1.13.0+) |
+  | `scope_attributes` | `%{}` | `Otel.API.InstrumentationScope.attributes` (OTEP 0201). Follows OTel attribute rules: primitives or homogeneous arrays only |
+  | `otel_logger` | `nil` | Pre-built OTel Logger; if set, skips `LoggerProvider.get_logger` and the `scope_*` keys above are ignored |
+
+  The four `scope_*` keys are used to build an
+  `%Otel.API.InstrumentationScope{}` that is then passed to
+  `Otel.API.Logs.LoggerProvider.get_logger/1` during
+  `adding_handler/1`. The resolved Logger is cached back into
+  the config under `:otel_logger`, so `log/2` does not re-resolve
+  per event.
 
   Batching and export are handled by the SDK's processor
   pipeline, not by this handler. Pair with `BatchProcessor`
@@ -135,7 +148,9 @@ defmodule Otel.LoggerHandler do
         nil ->
           instrumentation_scope = %Otel.API.InstrumentationScope{
             name: Map.get(otel_config, :scope_name, "otel_logger_handler"),
-            version: Map.get(otel_config, :scope_version, "")
+            version: Map.get(otel_config, :scope_version, ""),
+            schema_url: Map.get(otel_config, :scope_schema_url, ""),
+            attributes: Map.get(otel_config, :scope_attributes, %{})
           }
 
           Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
