@@ -23,7 +23,7 @@ defmodule Otel.API.Logs do
   | Type | Role |
   |---|---|
   | `t:severity_number/0` | **Application** (data model) — OTel SeverityNumber value domain |
-  | `t:severity_level/0` | **Application** (data model) — `:logger.level/0` re-export for bridge inputs |
+  | `t:severity_level/0` | **Application** (data model) — severity level string (`:logger.level/0` stringified) |
 
   ## References
 
@@ -45,18 +45,39 @@ defmodule Otel.API.Logs do
   @type severity_number :: 0..24
 
   @typedoc """
-  An Elixir / Erlang `:logger` severity level atom — the
-  8 RFC 5424 Syslog severities as lowercased atoms
-  (`:emergency`, `:alert`, `:critical`, `:error`,
-  `:warning`, `:notice`, `:info`, `:debug`).
+  A severity level as a **string** — the
+  `Atom.to_string/1` form of an Elixir / Erlang
+  `:logger.level/0` atom.
 
-  Re-exports `:logger.level/0` directly; does **not**
-  include `:all` / `:none`, which `:logger` reserves for
-  filter/threshold configuration and never appear on a
-  log event.
+  Valid values: `"emergency"`, `"alert"`, `"critical"`,
+  `"error"`, `"warning"`, `"notice"`, `"info"`, `"debug"`.
 
-  Consumed by `:logger`-based bridges as the input type of
-  their source → `severity_number/0` conversion.
+  String (not atom) because the Logs API carries severity
+  on the "text" surface as a string —
+  `log_record.severity_text` is `String.t()` per
+  `logs/data-model.md` L238-L244. Bridges receiving
+  `:logger.level/0` atoms call `Atom.to_string/1` at the
+  boundary to produce values of this type.
+
+  Elixir typespecs cannot express a literal-string union,
+  so the type is declared as `String.t()` — the valid-value
+  list here is documentation, not Dialyzer-enforced. (For
+  Dialyzer-enforced level values stay on `:logger.level/0`
+  atoms upstream of stringification.)
+
+  ### Why `:logger.level/0` — not RFC 5424 keywords
+
+  RFC 5424 §6.2.1 defines the 8 Syslog severities using
+  keywords like `Emergency`, `Alert`, `Informational`,
+  `Debug`. Erlang `:logger` chose **short atom forms** for
+  its `level/0` type (`:info`, not `:informational`), and
+  `Atom.to_string/1` preserves that short form. The string
+  `"info"` here is Erlang's `:info` stringified — **not**
+  the RFC 5424 keyword `"Informational"` lowercased.
+
+  Does **not** include `"all"` / `"none"`; those are
+  `:logger`'s filter/threshold configuration values (not in
+  `:logger.level/0`) and never appear on a log event.
   """
-  @type severity_level :: :logger.level()
+  @type severity_level :: String.t()
 end
