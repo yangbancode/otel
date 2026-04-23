@@ -87,7 +87,7 @@ defmodule Otel.API.Logs.Logger do
           optional(:timestamp) => integer(),
           optional(:observed_timestamp) => integer(),
           optional(:severity_number) => Otel.API.Logs.severity_number(),
-          optional(:severity_text) => String.t(),
+          optional(:severity_text) => Otel.API.Logs.severity_level(),
           optional(:body) => primitive_any(),
           optional(:attributes) => %{String.t() => primitive() | [primitive()]},
           optional(:event_name) => String.t(),
