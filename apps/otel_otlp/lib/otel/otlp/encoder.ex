@@ -1,4 +1,4 @@
-defmodule Otel.Exporter.OTLP.Encoder do
+defmodule Otel.OTLP.Encoder do
   @moduledoc false
 
   @doc """

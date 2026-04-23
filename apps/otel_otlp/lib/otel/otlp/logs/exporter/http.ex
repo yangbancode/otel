@@ -1,11 +1,11 @@
-defmodule Otel.Exporter.OTLP.Metrics do
+defmodule Otel.OTLP.Logs.Exporter.HTTP do
   @moduledoc """
-  OTLP HTTP Exporter for metrics.
+  OTLP HTTP Exporter for logs.
 
-  Exports metrics as binary protobuf over HTTP POST to an OTLP endpoint.
-  Implements the MetricExporter behaviour.
+  Exports log records as binary protobuf over HTTP POST to an OTLP endpoint.
+  Implements the LogRecordExporter behaviour.
 
-  Default endpoint: http://localhost:4318/v1/metrics
+  Default endpoint: http://localhost:4318/v1/logs
 
   ## Environment Variables
 
@@ -13,10 +13,10 @@ defmodule Otel.Exporter.OTLP.Metrics do
 
   | Signal-specific | General | Default |
   |---|---|---|
-  | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` |
-  | `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | `OTEL_EXPORTER_OTLP_HEADERS` | none |
-  | `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | `OTEL_EXPORTER_OTLP_COMPRESSION` | none |
-  | `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` | `OTEL_EXPORTER_OTLP_TIMEOUT` | 10000 ms |
+  | `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` |
+  | `OTEL_EXPORTER_OTLP_LOGS_HEADERS` | `OTEL_EXPORTER_OTLP_HEADERS` | none |
+  | `OTEL_EXPORTER_OTLP_LOGS_COMPRESSION` | `OTEL_EXPORTER_OTLP_COMPRESSION` | none |
+  | `OTEL_EXPORTER_OTLP_LOGS_TIMEOUT` | `OTEL_EXPORTER_OTLP_TIMEOUT` | 10000 ms |
 
   ## SSL/TLS
 
@@ -26,15 +26,15 @@ defmodule Otel.Exporter.OTLP.Metrics do
   Custom SSL options can be provided via the `:ssl_options` config key.
   """
 
-  @behaviour Otel.SDK.Metrics.MetricExporter
+  @behaviour Otel.SDK.Logs.LogRecordExporter
 
   @default_endpoint "http://localhost:4318"
-  @metrics_path "/v1/metrics"
+  @logs_path "/v1/logs"
   @default_timeout 10_000
   @user_agent "OTel-OTLP-Exporter-Elixir/0.1.0"
 
   @impl true
-  @spec init(config :: term()) :: {:ok, Otel.SDK.Metrics.MetricExporter.state()} | :ignore
+  @spec init(config :: term()) :: {:ok, Otel.SDK.Logs.LogRecordExporter.state()} | :ignore
   def init(config) do
     :inets.start()
 
@@ -56,13 +56,13 @@ defmodule Otel.Exporter.OTLP.Metrics do
 
   @impl true
   @spec export(
-          metrics :: [Otel.SDK.Metrics.MetricReader.metric()],
-          state :: Otel.SDK.Metrics.MetricExporter.state()
+          log_records :: [map()],
+          state :: Otel.SDK.Logs.LogRecordExporter.state()
         ) :: :ok
   def export([], _state), do: :ok
 
-  def export(metrics, state) do
-    body = Otel.Exporter.OTLP.Encoder.encode_metrics(metrics)
+  def export(log_records, state) do
+    body = Otel.OTLP.Encoder.encode_logs(log_records)
     body = maybe_compress(body, state.compression)
 
     headers = request_headers(state.headers, state.compression)
@@ -77,36 +77,33 @@ defmodule Otel.Exporter.OTLP.Metrics do
   end
 
   @impl true
-  @spec force_flush(state :: Otel.SDK.Metrics.MetricExporter.state()) :: :ok
+  @spec force_flush(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok
   def force_flush(_state), do: :ok
 
   @impl true
-  @spec shutdown(state :: Otel.SDK.Metrics.MetricExporter.state()) :: :ok
+  @spec shutdown(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok
   def shutdown(_state), do: :ok
 
-  # --- Env var resolution (signal-specific > general > code config > default) ---
+  # --- Env var resolution ---
 
   @spec resolve_endpoint(config :: map()) :: String.t()
   defp resolve_endpoint(config) do
-    case resolve_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "OTEL_EXPORTER_OTLP_ENDPOINT") do
+    case resolve_env("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "OTEL_EXPORTER_OTLP_ENDPOINT") do
       {value, :signal} ->
         value
 
       {value, :general} ->
-        String.trim_trailing(value, "/") <> @metrics_path
+        String.trim_trailing(value, "/") <> @logs_path
 
       nil ->
-        String.trim_trailing(Map.get(config, :endpoint, @default_endpoint), "/") <> @metrics_path
+        String.trim_trailing(Map.get(config, :endpoint, @default_endpoint), "/") <> @logs_path
     end
   end
 
   @spec resolve_headers(config :: map()) :: [{charlist(), charlist()}]
   defp resolve_headers(config) do
     user_headers =
-      case resolve_env_value(
-             "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
-             "OTEL_EXPORTER_OTLP_HEADERS"
-           ) do
+      case resolve_env_value("OTEL_EXPORTER_OTLP_LOGS_HEADERS", "OTEL_EXPORTER_OTLP_HEADERS") do
         nil ->
           config
           |> Map.get(:headers, %{})
@@ -122,7 +119,7 @@ defmodule Otel.Exporter.OTLP.Metrics do
   @spec resolve_compression(config :: map()) :: :gzip | :none
   defp resolve_compression(config) do
     case resolve_env_value(
-           "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION",
+           "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION",
            "OTEL_EXPORTER_OTLP_COMPRESSION"
          ) do
       "gzip" -> :gzip
@@ -133,7 +130,7 @@ defmodule Otel.Exporter.OTLP.Metrics do
 
   @spec resolve_timeout(config :: map()) :: pos_integer()
   defp resolve_timeout(config) do
-    case resolve_env_value("OTEL_EXPORTER_OTLP_METRICS_TIMEOUT", "OTEL_EXPORTER_OTLP_TIMEOUT") do
+    case resolve_env_value("OTEL_EXPORTER_OTLP_LOGS_TIMEOUT", "OTEL_EXPORTER_OTLP_TIMEOUT") do
       nil ->
         Map.get(config, :timeout, @default_timeout)
 

@@ -1,4 +1,4 @@
-defmodule Otel.Exporter.OTLP.EncoderTest do
+defmodule Otel.OTLP.EncoderTest do
   use ExUnit.Case, async: true
 
   @span %Otel.SDK.Trace.Span{
@@ -35,13 +35,13 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
   describe "encode_traces/2" do
     test "produces valid protobuf binary" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
       assert is_binary(binary)
       assert byte_size(binary) > 0
     end
 
     test "binary can be decoded back" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -50,7 +50,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes resource attributes" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -62,7 +62,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes span fields correctly" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -80,7 +80,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes instrumentation scope" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -91,7 +91,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes events" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -103,7 +103,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes status ok" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -118,7 +118,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
         | status: %Otel.API.Trace.Status{code: :error, description: "something failed"}
       }
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([error_span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([error_span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -130,7 +130,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes unset status as no status" do
       unset_status_span = %{@span | status: %Otel.API.Trace.Status{code: :unset}}
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([unset_status_span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([unset_status_span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -149,7 +149,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
           ]
       }
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span_with_link], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span_with_link], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -174,7 +174,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
             }
         }
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -194,7 +194,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       raw = <<0xFF, 0x00, 0xDE, 0xAD, 0xBE, 0xEF>>
       span = %{@span | attributes: %{"payload" => {:bytes, raw}}}
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -209,7 +209,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       utf8 = "hello 안녕"
       span = %{@span | attributes: %{"greeting" => utf8}}
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -227,7 +227,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       span = %{@span | attributes: %{"raw" => invalid_utf8}}
 
       assert_raise Protobuf.EncodeError, ~r/invalid UTF-8/, fn ->
-        Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+        Otel.OTLP.Encoder.encode_traces([span], @resource)
       end
     end
 
@@ -235,7 +235,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       invalid_utf8 = <<0xFF, 0xFE>>
       span = %{@span | attributes: %{"raw" => {:bytes, invalid_utf8}}}
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -248,7 +248,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "handles unknown attribute type via inspect" do
       span = %{@span | attributes: %{"tuple" => {1, 2}}}
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -264,7 +264,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       span_a = %{@span | instrumentation_scope: scope_a}
       span_b = %{@span | instrumentation_scope: scope_b}
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span_a, span_b], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span_a, span_b], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -282,7 +282,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
             {:consumer, :SPAN_KIND_CONSUMER}
           ] do
         span = %{@span | kind: kind}
-        binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+        binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
         decoded =
           Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -294,7 +294,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes parent span id" do
       child_span = %{@span | parent_span_id: 0xDEADBEEF}
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([child_span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([child_span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -305,7 +305,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes parent_span_id 0 as empty" do
       span = %{@span | parent_span_id: 0}
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -316,7 +316,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes unknown span kind as unspecified" do
       span = %{@span | kind: :unknown}
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -327,7 +327,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes nil scope" do
       span = %{@span | instrumentation_scope: nil}
-      binary = Otel.Exporter.OTLP.Encoder.encode_traces([span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
 
       decoded =
         Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
@@ -406,13 +406,13 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     }
 
     test "produces valid protobuf binary for counter" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@counter_metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([@counter_metric])
       assert is_binary(binary)
       assert byte_size(binary) > 0
     end
 
     test "counter decoded as Sum" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@counter_metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([@counter_metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -431,7 +431,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "gauge decoded as Gauge" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@gauge_metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([@gauge_metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -443,7 +443,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "histogram decoded as Histogram" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@histogram_metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([@histogram_metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -462,7 +462,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "delta temporality encoded correctly" do
       metric = %{@counter_metric | temporality: :delta}
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -474,7 +474,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "updown_counter encoded as non-monotonic Sum" do
       metric = %{@counter_metric | kind: :updown_counter, is_monotonic: false}
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -486,7 +486,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "observable_counter encoded as Sum" do
       metric = %{@counter_metric | kind: :observable_counter}
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -497,7 +497,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "observable_updown_counter encoded as non-monotonic Sum" do
       metric = %{@counter_metric | kind: :observable_updown_counter, is_monotonic: false}
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -509,7 +509,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "observable_gauge encoded as Gauge" do
       metric = %{@gauge_metric | kind: :observable_gauge}
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -525,7 +525,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       }
 
       metric = %{@counter_metric | scope: scope}
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -535,7 +535,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes resource and scope" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([@counter_metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([@counter_metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -554,7 +554,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       metric_a = %{@counter_metric | scope: scope_a}
       metric_b = %{@counter_metric | scope: scope_b, name: "other"}
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric_a, metric_b])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric_a, metric_b])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -579,7 +579,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
           [exemplar]
         )
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -611,7 +611,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
           [exemplar]
         )
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -633,7 +633,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
           3.14
         )
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_metrics([metric])
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
 
       decoded =
         Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
@@ -663,13 +663,13 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     }
 
     test "produces valid protobuf binary" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+      binary = Otel.OTLP.Encoder.encode_logs([@log_record])
       assert is_binary(binary)
       assert byte_size(binary) > 0
     end
 
     test "log record fields decoded correctly" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+      binary = Otel.OTLP.Encoder.encode_logs([@log_record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -686,7 +686,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     test "log body with {:bytes, _} tag encodes as bytes_value" do
       raw = <<0xCA, 0xFE, 0xBA, 0xBE>>
       record = %{@log_record | body: {:bytes, raw}}
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -705,7 +705,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       }
 
       record = %{@log_record | body: body}
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -720,7 +720,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "encodes resource and scope" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+      binary = Otel.OTLP.Encoder.encode_logs([@log_record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -742,7 +742,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
           trace_flags: 1
       }
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -754,7 +754,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
     end
 
     test "omits trace context when zero" do
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([@log_record])
+      binary = Otel.OTLP.Encoder.encode_logs([@log_record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -766,7 +766,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes nil body as absent" do
       record = %{@log_record | body: nil}
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -777,7 +777,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes map body as string via inspect" do
       record = %{@log_record | body: %{nested: "value"}}
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -788,7 +788,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes severity number unspecified for nil" do
       record = %{@log_record | severity_number: nil}
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -799,7 +799,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes event_name" do
       record = %{@log_record | event_name: "http.request"}
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -814,7 +814,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
       record_a = %{@log_record | scope: scope_a}
       record_b = %{@log_record | scope: scope_b, body: "other"}
 
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record_a, record_b])
+      binary = Otel.OTLP.Encoder.encode_logs([record_a, record_b])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)
@@ -825,7 +825,7 @@ defmodule Otel.Exporter.OTLP.EncoderTest do
 
     test "encodes dropped_attributes_count" do
       record = %{@log_record | dropped_attributes_count: 5}
-      binary = Otel.Exporter.OTLP.Encoder.encode_logs([record])
+      binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =
         Opentelemetry.Proto.Collector.Logs.V1.ExportLogsServiceRequest.decode(binary)

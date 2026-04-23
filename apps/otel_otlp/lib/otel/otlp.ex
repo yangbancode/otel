@@ -1,4 +1,4 @@
-defmodule Otel.Exporter.OTLP do
+defmodule Otel.OTLP do
   @moduledoc """
   OTLP exporter for OpenTelemetry.
 
