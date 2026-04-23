@@ -23,7 +23,7 @@ defmodule Otel.API.Logs do
   | Type | Role |
   |---|---|
   | `t:severity_number/0` | **Application** (data model) — OTel SeverityNumber value domain |
-  | `t:severity_level/0` | **Application** (data model) — severity level string (`:logger.level/0` stringified) |
+  | `t:severity_level/0` | **Application** (data model) — severity level string per spec L240-L241 (source-native, not forced to any vocabulary) |
 
   ## References
 
@@ -45,39 +45,64 @@ defmodule Otel.API.Logs do
   @type severity_number :: 0..24
 
   @typedoc """
-  A severity level as a **string** — the
-  `Atom.to_string/1` form of an Elixir / Erlang
-  `:logger.level/0` atom.
+  A severity level string — the source's native text
+  representation per `logs/data-model.md` §Field:
+  `SeverityText` L238-L244 *"the original string
+  representation of the severity as it is known at the
+  source"*.
 
-  Valid values: `"emergency"`, `"alert"`, `"critical"`,
-  `"error"`, `"warning"`, `"notice"`, `"info"`, `"debug"`.
+  ### Not forced to any specific vocabulary
 
-  String (not atom) because the Logs API carries severity
-  on the "text" surface as a string —
-  `log_record.severity_text` is `String.t()` per
-  `logs/data-model.md` L238-L244. Bridges receiving
-  `:logger.level/0` atoms call `Atom.to_string/1` at the
-  boundary to produce values of this type.
+  This type does **not** constrain callers to RFC 5424
+  keywords, Erlang `:logger.level/0` stringified forms, or
+  any other single convention. Per spec L240-L241 the
+  value is whatever the source natively uses. Examples
+  across common log sources:
 
-  Elixir typespecs cannot express a literal-string union,
-  so the type is declared as `String.t()` — the valid-value
-  list here is documentation, not Dialyzer-enforced. (For
-  Dialyzer-enforced level values stay on `:logger.level/0`
-  atoms upstream of stringification.)
+  | Source | Native text examples |
+  |---|---|
+  | Erlang / Elixir `:logger` | `"emergency"`, `"alert"`, `"critical"`, `"error"`, `"warning"`, `"notice"`, `"info"`, `"debug"` (lowercase short atoms) |
+  | RFC 5424 Syslog keywords | `"Emergency"`, `"Alert"`, `"Critical"`, `"Error"`, `"Warning"`, `"Notice"`, `"Informational"`, `"Debug"` (capitalized full forms) |
+  | Log4j | `"TRACE"`, `"DEBUG"`, `"INFO"`, `"WARN"`, `"ERROR"`, `"FATAL"` (uppercase short forms) |
+  | Python `logging` | `"DEBUG"`, `"INFO"`, `"WARNING"`, `"ERROR"`, `"CRITICAL"` |
+  | Custom / proprietary | whatever the source defines |
 
-  ### Why `:logger.level/0` — not RFC 5424 keywords
+  Note that the same underlying severity can surface as
+  different strings — `:logger`'s `"info"` and RFC 5424's
+  `"Informational"` are both valid representations of
+  SeverityNumber 9. Our `Otel.Logger.Handler` uses the
+  `:logger` lowercase form because that's **its** source's
+  native representation; it is **not** a project-wide
+  convention.
 
-  RFC 5424 §6.2.1 defines the 8 Syslog severities using
-  keywords like `Emergency`, `Alert`, `Informational`,
-  `Debug`. Erlang `:logger` chose **short atom forms** for
-  its `level/0` type (`:info`, not `:informational`), and
-  `Atom.to_string/1` preserves that short form. The string
-  `"info"` here is Erlang's `:info` stringified — **not**
-  the RFC 5424 keyword `"Informational"` lowercased.
+  Consumers of `log_record.severity_text` **MUST NOT**
+  assume a particular vocabulary — treat it as opaque text
+  from the source. If a uniform representation is needed
+  (for display, filtering, etc.), derive it from
+  `severity_number` using the §Displaying Severity table
+  (`logs/data-model.md` L334-L363) — the OTel short names
+  (`FATAL`, `ERROR3`, `INFO`, …) exist for exactly that
+  purpose and are independent of whatever text the source
+  happened to use.
 
-  Does **not** include `"all"` / `"none"`; those are
-  `:logger`'s filter/threshold configuration values (not in
-  `:logger.level/0`) and never appear on a log event.
+  ### Why declared as `String.t()`
+
+  Elixir / Erlang typespecs cannot express a literal-string
+  union — the compiler rejects `"info" | "debug"` as
+  *"unexpected expression in typespec"*. Binary content is
+  not representable as a literal type the way atoms or
+  integers are. So the declared type is the broadest
+  possible (`String.t()`), and the vocabulary examples
+  above are documentation rather than Dialyzer-enforced
+  constraints. Bridges that emit a specific subset (as
+  `Otel.Logger.Handler` does) document their own values in
+  their module docs.
+
+  `"all"` / `"none"` never appear on log events —
+  `:logger` reserves those for filter/threshold
+  configuration and they're not in `:logger.level/0` —
+  but again this type does not enforce that because other
+  sources may have their own reserved words.
   """
   @type severity_level :: String.t()
 end
