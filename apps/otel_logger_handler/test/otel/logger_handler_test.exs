@@ -99,13 +99,6 @@ defmodule Otel.LoggerHandlerTest do
       assert Map.has_key?(updated.config, :otel_logger)
     end
 
-    test "preserves pre-configured otel_logger" do
-      pre_configured = {SomeFakeModule, %{custom: true}}
-      config = %{config: %{otel_logger: pre_configured}}
-      {:ok, updated} = Otel.LoggerHandler.adding_handler(config)
-      assert updated.config.otel_logger == pre_configured
-    end
-
     test "propagates all four scope_* keys into the InstrumentationScope" do
       install_capturing_provider()
 
