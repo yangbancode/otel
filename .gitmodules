@@ -19,3 +19,6 @@
 [submodule "references/w3c-baggage"]
 	path = references/w3c-baggage
 	url = https://github.com/w3c/baggage
+[submodule "references/erlang-otp"]
+	path = references/erlang-otp
+	url = https://github.com/erlang/otp.git
