@@ -9,7 +9,7 @@ defmodule Otel.API.Logs.LoggerTest do
     end
 
     test "accepts log record with all fields" do
-      log_record = %{
+      log_record = %Otel.API.Logs.LogRecord{
         timestamp: System.system_time(:nanosecond),
         observed_timestamp: System.system_time(:nanosecond),
         severity_number: 9,
@@ -24,7 +24,7 @@ defmodule Otel.API.Logs.LoggerTest do
 
     test "accepts log record with partial fields" do
       assert :ok ==
-               Otel.API.Logs.Logger.emit(@noop_logger, %{
+               Otel.API.Logs.Logger.emit(@noop_logger, %Otel.API.Logs.LogRecord{
                  severity_number: 17,
                  body: "Error occurred"
                })
@@ -36,7 +36,7 @@ defmodule Otel.API.Logs.LoggerTest do
       ctx = Otel.API.Ctx.current()
 
       assert :ok ==
-               Otel.API.Logs.Logger.emit(@noop_logger, ctx, %{
+               Otel.API.Logs.Logger.emit(@noop_logger, ctx, %Otel.API.Logs.LogRecord{
                  body: "with context"
                })
     end

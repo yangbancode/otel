@@ -13,9 +13,9 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     trace_id: 0,
     span_id: 0,
     trace_flags: 0,
-    timestamp: nil,
+    timestamp: 0,
     observed_timestamp: 1_000_000,
-    event_name: nil,
+    event_name: "",
     dropped_attributes_count: 0
   }
 
@@ -61,7 +61,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     end
 
     test "shows severity number when no text" do
-      record = %{@record | severity_text: nil, severity_number: 5}
+      record = %{@record | severity_text: "", severity_number: 5}
 
       output =
         capture_io(fn ->
@@ -72,7 +72,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     end
 
     test "shows UNSPECIFIED when no severity" do
-      record = %{@record | severity_text: nil, severity_number: nil}
+      record = %{@record | severity_text: "", severity_number: 0}
 
       output =
         capture_io(fn ->

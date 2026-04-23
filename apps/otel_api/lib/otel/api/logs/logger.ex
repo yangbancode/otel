@@ -48,53 +48,6 @@ defmodule Otel.API.Logs.Logger do
   @type t :: {module(), term()}
 
   @typedoc """
-  Parameters accepted by `emit/3` and the `emit/3` callback,
-  mirroring §Emit a LogRecord (`logs/api.md` L111-L131).
-
-  All fields are optional — omit the key to signal "missing"
-  per spec's field-level guidance (e.g. Timestamp
-  `data-model.md` L185-L187 *"This field is optional, it may
-  be missing"*). Spec does **not** treat `null` as a
-  distinct third state; `optional(:key) => value()` is the
-  spec-aligned representation of "either present with a
-  proper value or absent".
-
-  - `:timestamp` — Unix epoch **nanoseconds** (OTLP
-    `time_unix_nano`); see `data-model.md#field-timestamp`
-    (L180-L187)
-  - `:observed_timestamp` — Unix epoch **nanoseconds**
-    (OTLP `time_unix_nano`); see
-    `data-model.md#field-observedtimestamp` (L189-L204)
-  - `:severity_number` — `0..24` per
-    `data-model.md#field-severitynumber` (L260-L271); note
-    that `0` is spec's "unspecified" sentinel — do **not**
-    use a separate absent/null value to represent it
-  - `:severity_text` — `data-model.md#field-severitytext`
-  - `:body` — `primitive_any/0` per OTLP `AnyValue`, which
-    explicitly allows language-idiomatic `null` values
-    (`common.md` L49-L50) — this is the one field where
-    `nil` is spec-permitted
-  - `:attributes` — `data-model.md#field-attributes`
-  - `:event_name` — `data-model.md#field-eventname`
-  - `:exception` — MAY accept per `logs/api.md` L131
-
-  The Context parameter is handled separately — passed as
-  the second argument to `emit/3` rather than embedded in
-  the log record map (spec L119-L121: the Context SHOULD be
-  optional, with current Context substituted when absent).
-  """
-  @type log_record :: %{
-          optional(:timestamp) => non_neg_integer(),
-          optional(:observed_timestamp) => non_neg_integer(),
-          optional(:severity_number) => Otel.API.Logs.severity_number(),
-          optional(:severity_text) => Otel.API.Logs.severity_level(),
-          optional(:body) => primitive_any(),
-          optional(:attributes) => %{String.t() => primitive() | [primitive()]},
-          optional(:event_name) => String.t(),
-          optional(:exception) => Exception.t()
-        }
-
-  @typedoc """
   One option accepted by `enabled?/2`, per §Enabled
   (`logs/api.md` L137-L142):
 
@@ -130,11 +83,12 @@ defmodule Otel.API.Logs.Logger do
 
   Injects `Otel.API.Ctx.current/0` as the context and
   delegates to the Logger's `emit/3` callback. `log_record`
-  defaults to the empty map so all fields are truly optional
-  at the call site.
+  defaults to `%Otel.API.Logs.LogRecord{}` — an empty
+  record with proto3 zero-value defaults for every field
+  — so all fields are truly optional at the call site.
   """
-  @spec emit(logger :: t(), log_record :: log_record()) :: :ok
-  def emit({module, _} = logger, log_record \\ %{}) do
+  @spec emit(logger :: t(), log_record :: Otel.API.Logs.LogRecord.t()) :: :ok
+  def emit({module, _} = logger, log_record \\ %Otel.API.Logs.LogRecord{}) do
     ctx = Otel.API.Ctx.current()
     module.emit(logger, ctx, log_record)
   end
@@ -147,7 +101,8 @@ defmodule Otel.API.Logs.Logger do
   without context injection. Use when the caller wants a
   specific `ctx` instead of the process-local current one.
   """
-  @spec emit(logger :: t(), ctx :: Otel.API.Ctx.t(), log_record :: log_record()) :: :ok
+  @spec emit(logger :: t(), ctx :: Otel.API.Ctx.t(), log_record :: Otel.API.Logs.LogRecord.t()) ::
+          :ok
   def emit({module, _} = logger, ctx, log_record) do
     module.emit(logger, ctx, log_record)
   end
@@ -187,7 +142,8 @@ defmodule Otel.API.Logs.Logger do
 
   Emits the given `log_record` to the processing pipeline.
   All fields of `log_record` are optional per L117-L131; the
-  caller may supply any subset including the empty map.
+  empty struct `%Otel.API.Logs.LogRecord{}` is the "all
+  fields absent" form.
 
   Per spec L119-L121 the `ctx` parameter is the Context
   associated with the LogRecord. The API-layer dispatch
@@ -198,7 +154,7 @@ defmodule Otel.API.Logs.Logger do
   @callback emit(
               logger :: t(),
               ctx :: Otel.API.Ctx.t(),
-              log_record :: log_record()
+              log_record :: Otel.API.Logs.LogRecord.t()
             ) :: :ok
 
   @doc """

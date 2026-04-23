@@ -205,8 +205,8 @@ defmodule Otel.SDK.Logs.BatchProcessorTest do
 
       logger = {Otel.SDK.Logs.Logger, config}
 
-      Otel.API.Logs.Logger.emit(logger, %{body: "log 1"})
-      Otel.API.Logs.Logger.emit(logger, %{body: "log 2"})
+      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{body: "log 1"})
+      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{body: "log 2"})
 
       assert_receive {:exported, records}, 1000
       bodies = Enum.map(records, & &1.body)

@@ -5,7 +5,7 @@ defmodule Otel.LoggerHandler do
   §How to Create a Log4J Log Appender).
 
   Converts `:logger.log_event/0` into an
-  `Otel.API.Logs.Logger.log_record/0` and emits it via
+  `Otel.API.Logs.LogRecord.t/0` and emits it via
   `Otel.API.Logs.Logger.emit/3`. When an SDK is installed,
   records flow through processors to exporters; without an
   SDK, `emit/3` routes to `Otel.API.Logs.Logger.Noop` and
@@ -95,7 +95,7 @@ defmodule Otel.LoggerHandler do
   Erlang/OTP routes crashes through `:logger` with
   `meta.crash_reason = {exception, stacktrace}`. We surface
   this on the `log_record` via the `:exception` field
-  (`Otel.API.Logs.Logger.log_record/0`), which lets
+  (`Otel.API.Logs.LogRecord.t/0`), which lets
   downstream processing populate the OTel
   `exception.*` attributes per `trace/exceptions.md`
   §Attributes L44-L55.
@@ -184,9 +184,9 @@ defmodule Otel.LoggerHandler do
   # --- Private ---
 
   @spec build_log_record(log_event :: :logger.log_event()) ::
-          Otel.API.Logs.Logger.log_record()
+          Otel.API.Logs.LogRecord.t()
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
-    base = %{
+    base = %Otel.API.Logs.LogRecord{
       timestamp: extract_timestamp(meta),
       severity_number: severity_number(level),
       severity_text: severity_text(level),
@@ -197,7 +197,7 @@ defmodule Otel.LoggerHandler do
     put_exception(base, meta)
   end
 
-  @spec extract_timestamp(meta :: map()) :: integer()
+  @spec extract_timestamp(meta :: map()) :: non_neg_integer()
   defp extract_timestamp(%{time: time}) do
     time * 1000
   end
@@ -279,11 +279,11 @@ defmodule Otel.LoggerHandler do
   # exporters can attach `exception.*` attributes per
   # `trace/exceptions.md` §Attributes L44-L55.
   @spec put_exception(
-          log_record :: Otel.API.Logs.Logger.log_record(),
+          log_record :: Otel.API.Logs.LogRecord.t(),
           meta :: map()
-        ) :: Otel.API.Logs.Logger.log_record()
+        ) :: Otel.API.Logs.LogRecord.t()
   defp put_exception(log_record, %{crash_reason: {%{__exception__: true} = exception, _stack}}) do
-    Map.put(log_record, :exception, exception)
+    %{log_record | exception: exception}
   end
 
   defp put_exception(log_record, _meta), do: log_record
