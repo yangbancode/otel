@@ -13,7 +13,7 @@ defmodule Otel.API.Logs do
   No behavioural functions live here. Source-format → OTel
   conversion (e.g. `:logger.level()` → `severity_number()`
   per Appendix B Syslog row) is each bridge's own
-  responsibility — `Otel.Logger.Handler` applies Appendix B
+  responsibility — `Otel.LoggerHandler` applies Appendix B
   internally. Other bridges can map from their own source
   severity representation into `severity_number()` the same
   way.

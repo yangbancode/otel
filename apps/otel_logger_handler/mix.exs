@@ -1,4 +1,4 @@
-defmodule Otel.Logger.Handler.MixProject do
+defmodule Otel.LoggerHandler.MixProject do
   use Mix.Project
 
   def project do
