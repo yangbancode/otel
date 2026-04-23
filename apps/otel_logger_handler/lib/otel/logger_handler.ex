@@ -314,6 +314,15 @@ defmodule Otel.LoggerHandler do
   # etc.). OTel short names (`"FATAL"`, `"ERROR3"`) are a
   # display concern derivable from `severity_number`, not
   # what `SeverityText` is for.
-  @spec severity_text(level :: :logger.level()) :: String.t()
+  #
+  # Return type is `Otel.API.Logs.severity_level()` rather
+  # than `String.t()` so the signature communicates that
+  # this function only yields the 8 valid `:logger`-level
+  # strings, not arbitrary text. `severity_level()` is a
+  # `String.t()` alias under the hood (see the Logs
+  # moduledoc — Elixir typespecs cannot express a literal
+  # string union), so Dialyzer inference is unchanged;
+  # the tighter name is for readers.
+  @spec severity_text(level :: :logger.level()) :: Otel.API.Logs.severity_level()
   defp severity_text(level), do: Atom.to_string(level)
 end

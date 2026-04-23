@@ -1,62 +1,49 @@
 defmodule Otel.API.Logs do
   @moduledoc """
   Shared types for the OTel Logs API data model
-  (`logs/data-model.md` §Severity Fields L234-L363;
-  Status: **Stable**).
+  (`logs/data-model.md` §Severity Fields L234-L363).
 
-  Holds the severity-related types that multiple Logs API
-  surfaces reference — `Otel.API.Logs.Logger.log_record`
-  carries `severity_number()`, and
-  `Otel.API.Logs.Logger.enabled_opt` takes
-  `severity_number()` as an option key.
-
-  No behavioural functions live here. Source-format → OTel
-  conversion (e.g. `:logger.level()` → `severity_number()`
-  per Appendix B Syslog row) is each bridge's own
-  responsibility — `Otel.LoggerHandler` applies Appendix B
-  internally. Other bridges can map from their own source
-  severity representation into `severity_number()` the same
-  way.
+  Referenced by `Otel.API.Logs.Logger.log_record` and
+  `enabled_opt`. No behavioural functions — source → OTel
+  conversion is each bridge's responsibility (see e.g.
+  `Otel.LoggerHandler`).
 
   ## Public API
 
   | Type | Role |
   |---|---|
   | `t:severity_number/0` | **Application** (data model) — OTel SeverityNumber value domain |
-  | `t:severity_level/0` | **Application** (data model) — `:logger.level/0` re-export for bridge inputs |
+  | `t:severity_level/0` | **Application** (data model) — source-native severity text |
 
   ## References
 
   - OTel Logs §Severity Fields: `opentelemetry-specification/specification/logs/data-model.md` L234-L363
-  - OTel Logs §SeverityNumber: `opentelemetry-specification/specification/logs/data-model.md` L246-L271
   - Erlang `:logger.level/0`: kernel `src/logger.erl` L81-L82
-  - RFC 5424 §6.2.1 (severity codes): <https://www.rfc-editor.org/rfc/rfc5424>
+  - RFC 5424 §6.2.1: <https://www.rfc-editor.org/rfc/rfc5424>
   """
 
   @typedoc """
-  An OpenTelemetry `SeverityNumber` value (`logs/data-model.md`
-  §Field: `SeverityNumber` L246-L271).
+  An OTel `SeverityNumber` value (`logs/data-model.md` §Field:
+  `SeverityNumber` L246-L271).
 
-  `0` is the spec's "unspecified" sentinel (L271); `1..24` are
-  the assigned severity values across six ranges of four short
-  names each (TRACE, DEBUG, INFO, WARN, ERROR, FATAL) — see
-  §Displaying Severity L334-L363.
+  `0` is the "unspecified" sentinel (L271); `1..24` span six
+  ranges of four short names (TRACE, DEBUG, INFO, WARN, ERROR,
+  FATAL) per §Displaying Severity L334-L363.
   """
   @type severity_number :: 0..24
 
   @typedoc """
-  An Elixir / Erlang `:logger` severity level atom — the
-  8 RFC 5424 Syslog severities as lowercased atoms
-  (`:emergency`, `:alert`, `:critical`, `:error`,
-  `:warning`, `:notice`, `:info`, `:debug`).
+  A severity level string — the source's native text per
+  `logs/data-model.md` L240-L241.
 
-  Re-exports `:logger.level/0` directly; does **not**
-  include `:all` / `:none`, which `:logger` reserves for
-  filter/threshold configuration and never appear on a
-  log event.
+  Not constrained to any vocabulary. Each source spells its
+  levels differently — `:logger` → `"info"`, RFC 5424 →
+  `"Informational"`, Log4j → `"INFO"`. For uniform rendering,
+  derive from `severity_number` via §Displaying Severity
+  L334-L363 (OTel short names like `FATAL`, `ERROR3`, `INFO`).
 
-  Consumed by `:logger`-based bridges as the input type of
-  their source → `severity_number/0` conversion.
+  Declared as `String.t()` because Elixir typespecs can't
+  express literal-string unions.
   """
-  @type severity_level :: :logger.level()
+  @type severity_level :: String.t()
 end
