@@ -6,7 +6,7 @@ defmodule Otel.API.Logs do
   Referenced by `Otel.API.Logs.Logger.log_record` and
   `enabled_opt`. No behavioural functions — source → OTel
   conversion is each bridge's responsibility (see e.g.
-  `Otel.Logger.Handler`).
+  `Otel.LoggerHandler`).
 
   ## Public API
 

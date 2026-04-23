@@ -1,4 +1,4 @@
-defmodule Otel.Logger.Handler do
+defmodule Otel.LoggerHandler do
   @moduledoc """
   Bridges Erlang's `:logger` to the OpenTelemetry Logs API
   (OTel `logs/api.md` + `logs/supplementary-guidelines.md`
@@ -13,7 +13,7 @@ defmodule Otel.Logger.Handler do
 
   ## Usage
 
-      :logger.add_handler(:otel, Otel.Logger.Handler, %{
+      :logger.add_handler(:otel, Otel.LoggerHandler, %{
         config: %{
           scope_name: "my_app",
           scope_version: "1.0.0"
