@@ -6,4 +6,4 @@ licensed under the Apache License 2.0.
   SPDX-License-Identifier: Apache-2.0
 
 Generated files:
-  apps/otel_exporter_otlp/lib/otel/exporter/otlp/proto/
+  apps/otel_otlp/lib/otel/otlp/proto/

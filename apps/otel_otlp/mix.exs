@@ -1,9 +1,9 @@
-defmodule Otel.Exporter.OTLP.MixProject do
+defmodule Otel.OTLP.MixProject do
   use Mix.Project
 
   def project do
     [
-      app: :otel_exporter_otlp,
+      app: :otel_otlp,
       version: "0.1.0",
       build_path: "../../_build",
       deps_path: "../../deps",

@@ -301,6 +301,6 @@ authoritative mapping:
 When in doubt between `**Application** (Convenience)` and
 `**SDK** (SDK helper)`, check actual callsites — if the only
 library callers are under `apps/otel_sdk/lib/`,
-`apps/otel_exporter_otlp/lib/`, or
+`apps/otel_otlp/lib/`, or
 `apps/otel_logger_handler/lib/`, it is `**SDK**`. If application
 code plausibly calls it, it is `**Application**`.

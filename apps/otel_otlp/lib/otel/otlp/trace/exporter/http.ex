@@ -1,4 +1,4 @@
-defmodule Otel.Exporter.OTLP.Traces do
+defmodule Otel.OTLP.Trace.Exporter.HTTP do
   @moduledoc """
   OTLP HTTP Exporter for traces.
 
@@ -63,7 +63,7 @@ defmodule Otel.Exporter.OTLP.Traces do
   def export([], _resource, _state), do: :ok
 
   def export(spans, resource, state) do
-    body = Otel.Exporter.OTLP.Encoder.encode_traces(spans, resource)
+    body = Otel.OTLP.Encoder.encode_traces(spans, resource)
     body = maybe_compress(body, state.compression)
 
     headers = request_headers(state.headers, state.compression)
