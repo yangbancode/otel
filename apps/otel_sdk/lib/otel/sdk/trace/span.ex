@@ -314,7 +314,8 @@ defmodule Otel.SDK.Trace.Span do
   then calls on_end on all processors.
   """
   @impl true
-  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: non_neg_integer()) :: :ok
+  @spec end_span(span_ctx :: Otel.API.Trace.SpanContext.t(), timestamp :: non_neg_integer()) ::
+          :ok
   def end_span(%Otel.API.Trace.SpanContext{span_id: span_id}, timestamp) do
     case Otel.SDK.Trace.SpanStorage.take(span_id) do
       nil ->
