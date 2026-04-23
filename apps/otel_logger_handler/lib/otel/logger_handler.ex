@@ -22,11 +22,27 @@ defmodule Otel.LoggerHandler do
 
   ## Configuration
 
+  All handler-specific options live under the handler config's
+  `:config` key (`:logger.handler_config()` L116-L122). Every
+  key is optional.
+
   | Key | Default | Description |
   |---|---|---|
-  | `scope_name` | `"otel_logger_handler"` | InstrumentationScope name |
-  | `scope_version` | `""` | InstrumentationScope version |
-  | `otel_logger` | `nil` | Pre-built OTel Logger; if set, skips `LoggerProvider.get_logger` |
+  | `scope_name` | `""` | `Otel.API.InstrumentationScope.name` — **SHOULD** be set to the calling application/library name. Spec `common/instrumentation-scope.md`: *"Instrumentation libraries SHOULD supply a meaningful name — typically the library's own module path"*. An empty name is spec-valid ("unspecified scope") but loses origin identification at the backend |
+  | `scope_version` | `""` | `Otel.API.InstrumentationScope.version` — typically `Application.spec(:my_app, :vsn)` |
+  | `scope_schema_url` | `""` | `Otel.API.InstrumentationScope.schema_url` (OTel spec v1.13.0+) |
+  | `scope_attributes` | `%{}` | `Otel.API.InstrumentationScope.attributes` (OTEP 0201). Follows OTel attribute rules: primitives or homogeneous arrays only |
+
+  `adding_handler/1` builds an `%Otel.API.InstrumentationScope{}`
+  from the four `scope_*` keys and resolves the Logger through
+  `Otel.API.Logs.LoggerProvider.get_logger/1`. The resolved
+  Logger is cached back into the config under `:otel_logger`,
+  so `log/2` does not re-resolve per event.
+
+  To use a custom Logger implementation (e.g. for testing),
+  register a custom `Otel.API.Logs.LoggerProvider` via
+  `Otel.API.Logs.LoggerProvider.set_provider/1` — `adding_handler/1`
+  will obtain the Logger through that provider.
 
   Batching and export are handled by the SDK's processor
   pipeline, not by this handler. Pair with `BatchProcessor`
@@ -128,23 +144,18 @@ defmodule Otel.LoggerHandler do
   @spec adding_handler(config :: :logger.handler_config()) ::
           {:ok, :logger.handler_config()} | {:error, term()}
   def adding_handler(config) do
-    otel_config = Map.get(config, :config, %{})
+    otel_config = Map.get(config, :config) || %{}
 
-    logger =
-      case Map.get(otel_config, :otel_logger) do
-        nil ->
-          instrumentation_scope = %Otel.API.InstrumentationScope{
-            name: Map.get(otel_config, :scope_name, "otel_logger_handler"),
-            version: Map.get(otel_config, :scope_version, "")
-          }
+    instrumentation_scope = %Otel.API.InstrumentationScope{
+      name: Map.get(otel_config, :scope_name) || "",
+      version: Map.get(otel_config, :scope_version) || "",
+      schema_url: Map.get(otel_config, :scope_schema_url) || "",
+      attributes: Map.get(otel_config, :scope_attributes) || %{}
+    }
 
-          Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
+    otel_logger = Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
 
-        existing ->
-          existing
-      end
-
-    updated_config = Map.put(config, :config, Map.put(otel_config, :otel_logger, logger))
+    updated_config = Map.put(config, :config, Map.put(otel_config, :otel_logger, otel_logger))
     {:ok, updated_config}
   end
 

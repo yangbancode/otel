@@ -25,6 +25,28 @@ defmodule Otel.LoggerHandlerTest.CapturingLogger do
   def enabled?(_logger, _opts), do: true
 end
 
+defmodule Otel.LoggerHandlerTest.CapturingProvider do
+  @moduledoc false
+  # Test-double `Otel.API.Logs.LoggerProvider` implementation.
+  #
+  # Echoes the `InstrumentationScope` it receives back to the
+  # pid stored in state, so tests can assert on the exact scope
+  # struct `adding_handler/1` built from the flat `scope_*`
+  # keys. Returns the standard Noop Logger so the handler's
+  # downstream `log/2` path stays silent.
+  #
+  # Register via
+  # `Otel.API.Logs.LoggerProvider.set_provider({__MODULE__, test_pid})`.
+
+  @behaviour Otel.API.Logs.LoggerProvider
+
+  @impl true
+  def get_logger(test_pid, %Otel.API.InstrumentationScope{} = scope) do
+    send(test_pid, {:scope_resolved, scope})
+    {Otel.API.Logs.Logger.Noop, []}
+  end
+end
+
 defmodule Otel.LoggerHandlerTest do
   use ExUnit.Case
 
@@ -49,6 +71,17 @@ defmodule Otel.LoggerHandlerTest do
     %{level: level, msg: msg, meta: meta}
   end
 
+  # Installs `CapturingProvider` as the global LoggerProvider for
+  # the duration of a test, and wires `on_exit` to clear the
+  # `:persistent_term` entry so other tests see a clean state.
+  defp install_capturing_provider do
+    Otel.API.Logs.LoggerProvider.set_provider({Otel.LoggerHandlerTest.CapturingProvider, self()})
+
+    on_exit(fn ->
+      :persistent_term.erase({Otel.API.Logs.LoggerProvider, :global})
+    end)
+  end
+
   describe "adding_handler/1" do
     test "builds a Logger via LoggerProvider when none is pre-configured" do
       config = %{config: %{scope_name: "test_lib", scope_version: "1.0.0"}}
@@ -66,11 +99,40 @@ defmodule Otel.LoggerHandlerTest do
       assert Map.has_key?(updated.config, :otel_logger)
     end
 
-    test "preserves pre-configured otel_logger" do
-      pre_configured = {SomeFakeModule, %{custom: true}}
-      config = %{config: %{otel_logger: pre_configured}}
-      {:ok, updated} = Otel.LoggerHandler.adding_handler(config)
-      assert updated.config.otel_logger == pre_configured
+    test "propagates all four scope_* keys into the InstrumentationScope" do
+      install_capturing_provider()
+
+      unique = System.unique_integer([:positive])
+
+      config = %{
+        config: %{
+          scope_name: "capture_#{unique}",
+          scope_version: "2.0.0",
+          scope_schema_url: "https://example.com/schemas/1.26.0",
+          scope_attributes: %{"deployment.environment" => "test"}
+        }
+      }
+
+      {:ok, _updated} = Otel.LoggerHandler.adding_handler(config)
+
+      assert_received {:scope_resolved, scope}
+      assert scope.name == "capture_#{unique}"
+      assert scope.version == "2.0.0"
+      assert scope.schema_url == "https://example.com/schemas/1.26.0"
+      assert scope.attributes == %{"deployment.environment" => "test"}
+    end
+
+    test "defaults scope_schema_url and scope_attributes to empty when omitted" do
+      install_capturing_provider()
+
+      unique = System.unique_integer([:positive])
+      config = %{config: %{scope_name: "defaults_#{unique}"}}
+
+      {:ok, _updated} = Otel.LoggerHandler.adding_handler(config)
+
+      assert_received {:scope_resolved, scope}
+      assert scope.schema_url == ""
+      assert scope.attributes == %{}
     end
   end
 
