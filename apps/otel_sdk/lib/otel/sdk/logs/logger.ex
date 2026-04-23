@@ -15,7 +15,7 @@ defmodule Otel.SDK.Logs.Logger do
   @spec emit(
           logger :: Otel.API.Logs.Logger.t(),
           ctx :: Otel.API.Ctx.t(),
-          log_record :: Otel.API.Logs.Logger.log_record()
+          log_record :: Otel.API.Logs.LogRecord.t()
         ) :: :ok
   def emit({_module, config}, ctx, log_record) do
     record = log_record |> apply_exception_attributes() |> build_log_record(config, ctx)
@@ -54,62 +54,55 @@ defmodule Otel.SDK.Logs.Logger do
   # --- Private ---
 
   @spec build_log_record(
-          log_record :: Otel.API.Logs.Logger.log_record(),
+          log_record :: Otel.API.Logs.LogRecord.t(),
           config :: map(),
           ctx :: Otel.API.Ctx.t()
         ) :: map()
-  defp build_log_record(log_record, config, ctx) do
+  defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)
     {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
 
-    attributes = Map.get(log_record, :attributes, %{})
-
     {limited_attrs, dropped_count} =
-      Otel.SDK.Logs.LogRecordLimits.apply(attributes, config.log_record_limits)
+      Otel.SDK.Logs.LogRecordLimits.apply(log_record.attributes, config.log_record_limits)
 
-    log_record
-    |> Map.put_new(:observed_timestamp, now)
-    |> Map.put_new(:timestamp, nil)
-    |> Map.put_new(:severity_number, nil)
-    |> Map.put_new(:severity_text, nil)
-    |> Map.put_new(:body, nil)
-    |> Map.put(:attributes, limited_attrs)
-    |> Map.put(:dropped_attributes_count, dropped_count)
-    |> Map.put_new(:event_name, nil)
-    |> Map.put(:trace_id, trace_id)
-    |> Map.put(:span_id, span_id)
-    |> Map.put(:trace_flags, trace_flags)
-    |> Map.put(:scope, config.scope)
-    |> Map.put(:resource, config.resource)
+    observed_timestamp =
+      case log_record.observed_timestamp do
+        0 -> now
+        ts -> ts
+      end
+
+    %{
+      timestamp: log_record.timestamp,
+      observed_timestamp: observed_timestamp,
+      severity_number: log_record.severity_number,
+      severity_text: log_record.severity_text,
+      body: log_record.body,
+      event_name: log_record.event_name,
+      attributes: limited_attrs,
+      dropped_attributes_count: dropped_count,
+      trace_id: trace_id,
+      span_id: span_id,
+      trace_flags: trace_flags,
+      scope: config.scope,
+      resource: config.resource
+    }
   end
 
-  @spec apply_exception_attributes(log_record :: map()) :: map()
-  defp apply_exception_attributes(%{exception: %{__exception__: true} = exception} = log_record) do
+  @spec apply_exception_attributes(log_record :: Otel.API.Logs.LogRecord.t()) ::
+          Otel.API.Logs.LogRecord.t()
+  defp apply_exception_attributes(
+         %Otel.API.Logs.LogRecord{exception: %{__exception__: true} = exception} = log_record
+       ) do
     exception_attrs = %{
       "exception.type" => exception.__struct__ |> Atom.to_string(),
       "exception.message" => Exception.message(exception)
     }
 
-    exception_attrs =
-      case Map.get(log_record, :stacktrace) do
-        nil ->
-          exception_attrs
-
-        stacktrace ->
-          Map.put(exception_attrs, "exception.stacktrace", format_stacktrace(stacktrace))
-      end
-
-    user_attrs = Map.get(log_record, :attributes, %{})
-    merged = Map.merge(exception_attrs, user_attrs)
-    Map.put(log_record, :attributes, merged)
+    merged = Map.merge(exception_attrs, log_record.attributes)
+    %{log_record | attributes: merged}
   end
 
-  defp apply_exception_attributes(log_record), do: log_record
-
-  @spec format_stacktrace(stacktrace :: list()) :: String.t()
-  defp format_stacktrace(stacktrace) do
-    Exception.format_stacktrace(stacktrace)
-  end
+  defp apply_exception_attributes(%Otel.API.Logs.LogRecord{} = log_record), do: log_record
 
   @spec extract_trace_context(ctx :: Otel.API.Ctx.t()) ::
           {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(), non_neg_integer()}

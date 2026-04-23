@@ -45,7 +45,7 @@ defmodule Otel.API.Logs.Logger.Noop do
   @spec emit(
           logger :: Otel.API.Logs.Logger.t(),
           ctx :: Otel.API.Ctx.t(),
-          log_record :: Otel.API.Logs.Logger.log_record()
+          log_record :: Otel.API.Logs.LogRecord.t()
         ) :: :ok
   def emit(_logger, _ctx, _log_record), do: :ok
 

@@ -398,25 +398,24 @@ defmodule Otel.OTLP.Encoder do
   @spec encode_log_record(record :: map()) :: Opentelemetry.Proto.Logs.V1.LogRecord.t()
   defp encode_log_record(record) do
     %Opentelemetry.Proto.Logs.V1.LogRecord{
-      time_unix_nano: record.timestamp || 0,
-      observed_time_unix_nano: record.observed_timestamp || 0,
+      time_unix_nano: record.timestamp,
+      observed_time_unix_nano: record.observed_timestamp,
       severity_number: encode_severity_number(record.severity_number),
-      severity_text: record.severity_text || "",
+      severity_text: record.severity_text,
       body: encode_log_body(record.body),
-      attributes: encode_attributes(record.attributes || %{}),
-      dropped_attributes_count: Map.get(record, :dropped_attributes_count, 0),
+      attributes: encode_attributes(record.attributes),
+      dropped_attributes_count: record.dropped_attributes_count,
       trace_id: encode_optional_id(nonzero_or_nil(record.trace_id), 16),
       span_id: encode_optional_id(nonzero_or_nil(record.span_id), 8),
-      flags: Map.get(record, :trace_flags, 0),
-      event_name: record.event_name || ""
+      flags: record.trace_flags,
+      event_name: record.event_name
     }
   end
 
-  @spec encode_severity_number(severity :: integer() | nil) ::
+  @spec encode_severity_number(severity :: non_neg_integer()) ::
           Opentelemetry.Proto.Logs.V1.SeverityNumber.t()
-  defp encode_severity_number(nil), do: :SEVERITY_NUMBER_UNSPECIFIED
+  defp encode_severity_number(0), do: :SEVERITY_NUMBER_UNSPECIFIED
   defp encode_severity_number(n) when is_integer(n) and n in 1..24, do: n
-  defp encode_severity_number(_), do: :SEVERITY_NUMBER_UNSPECIFIED
 
   @spec encode_log_body(body :: term()) :: Opentelemetry.Proto.Common.V1.AnyValue.t() | nil
   defp encode_log_body(nil), do: nil

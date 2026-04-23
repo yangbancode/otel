@@ -10,7 +10,7 @@ defmodule Otel.OTLP.Logs.Exporter.HTTPTest do
     timestamp: 1_000_000,
     observed_timestamp: 2_000_000,
     attributes: %{"key" => "value"},
-    event_name: nil,
+    event_name: "",
     scope: %Otel.API.InstrumentationScope{name: "test_lib"},
     resource: @test_resource,
     trace_id: 0,

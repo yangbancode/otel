@@ -87,7 +87,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
 
       logger = {Otel.SDK.Logs.Logger, config}
 
-      Otel.API.Logs.Logger.emit(logger, %{body: "hello"})
+      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{body: "hello"})
       assert_receive {:on_emit, record}
       assert record.body == "hello"
       assert record.scope.name == "test_lib"
@@ -198,7 +198,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
 
       logger = {Otel.SDK.Logs.Logger, config}
 
-      Otel.API.Logs.Logger.emit(logger, %{
+      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
         timestamp: 1_000_000,
         severity_number: 9,
         severity_text: "INFO",

@@ -653,7 +653,7 @@ defmodule Otel.OTLP.EncoderTest do
       timestamp: 1_000_000,
       observed_timestamp: 2_000_000,
       attributes: %{"method" => "GET"},
-      event_name: nil,
+      event_name: "",
       scope: %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"},
       resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
       trace_id: 0,
@@ -786,8 +786,8 @@ defmodule Otel.OTLP.EncoderTest do
       assert log.body != nil
     end
 
-    test "encodes severity number unspecified for nil" do
-      record = %{@log_record | severity_number: nil}
+    test "encodes severity number unspecified for 0 sentinel" do
+      record = %{@log_record | severity_number: 0}
       binary = Otel.OTLP.Encoder.encode_logs([record])
 
       decoded =

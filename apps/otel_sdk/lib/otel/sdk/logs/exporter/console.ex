@@ -50,12 +50,12 @@ defmodule Otel.SDK.Logs.Exporter.Console do
 
   @spec format_severity(record :: map()) :: String.t()
   defp format_severity(record) do
-    text = Map.get(record, :severity_text)
-    number = Map.get(record, :severity_number)
+    text = Map.get(record, :severity_text, "")
+    number = Map.get(record, :severity_number, 0)
 
     case {text, number} do
-      {nil, nil} -> "UNSPECIFIED"
-      {nil, n} -> "severity=#{n}"
+      {"", 0} -> "UNSPECIFIED"
+      {"", n} -> "severity=#{n}"
       {t, _} -> t
     end
   end

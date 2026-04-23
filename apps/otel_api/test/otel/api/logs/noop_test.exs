@@ -6,7 +6,9 @@ defmodule Otel.API.Logs.NoopTest do
   describe "Noop Logger" do
     test "emit returns :ok" do
       ctx = Otel.API.Ctx.current()
-      assert :ok == Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %{body: "test"})
+
+      assert :ok ==
+               Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %Otel.API.Logs.LogRecord{body: "test"})
     end
 
     test "enabled? returns false" do
@@ -17,7 +19,7 @@ defmodule Otel.API.Logs.NoopTest do
       ctx = Otel.API.Ctx.current()
 
       assert :ok ==
-               Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %{
+               Otel.API.Logs.Logger.Noop.emit(@noop, ctx, %Otel.API.Logs.LogRecord{
                  timestamp: 1_000_000,
                  observed_timestamp: 1_000_000,
                  severity_number: 9,

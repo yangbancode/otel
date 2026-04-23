@@ -271,10 +271,10 @@ defmodule Otel.LoggerHandlerTest do
       assert captured == exception
     end
 
-    test "omits exception field when crash_reason absent", %{logger: logger} do
+    test "leaves exception field nil when crash_reason absent", %{logger: logger} do
       Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), config_with(logger))
       assert_received {:captured_log, _, record}
-      refute Map.has_key?(record, :exception)
+      assert record.exception == nil
     end
 
     test "ignores non-exception crash_reason shapes (e.g. exit tuples)", %{logger: logger} do
@@ -284,7 +284,7 @@ defmodule Otel.LoggerHandlerTest do
       meta = %{crash_reason: {:shutdown, :some_reason}}
       Otel.LoggerHandler.log(log_event(:error, {:string, "x"}, meta), config_with(logger))
       assert_received {:captured_log, _, record}
-      refute Map.has_key?(record, :exception)
+      assert record.exception == nil
     end
   end
 

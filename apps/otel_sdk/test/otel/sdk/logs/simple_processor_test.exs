@@ -173,7 +173,11 @@ defmodule Otel.SDK.Logs.SimpleProcessorTest do
 
       logger = {Otel.SDK.Logs.Logger, config}
 
-      Otel.API.Logs.Logger.emit(logger, %{body: "e2e test", severity_number: 9})
+      Otel.API.Logs.Logger.emit(
+        logger,
+        %Otel.API.Logs.LogRecord{body: "e2e test", severity_number: 9}
+      )
+
       assert_receive {:exported, [record]}
       assert record.body == "e2e test"
       assert record.scope.name == "test_lib"
