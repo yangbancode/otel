@@ -254,7 +254,7 @@ defmodule Otel.LoggerHandler do
   | `:mfa`, `:file`, `:line`, `:domain` | Already mapped above to semconv-stable `code.*` / `log.domain` names |
   | `:time` | Consumed by `to_timestamp/1` → `timestamp` field |
   | `:report_cb` | Consumed by `to_body/2` → body render |
-  | `:crash_reason` | Consumed by `put_exception/2` → `exception` field |
+  | `:crash_reason` | Consumed by `to_exception/1` → `exception` field, and by `put_exception_stacktrace/2` → `exception.stacktrace` attribute |
   | `:gl` | Group-leader PID — process-internal, no OTel semantic |
   | `:pid` | `process.pid` type mismatch (see above) |
 
@@ -386,15 +386,14 @@ defmodule Otel.LoggerHandler do
   @spec build_log_record(log_event :: :logger.log_event()) ::
           Otel.API.Logs.LogRecord.t()
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
-    base = %Otel.API.Logs.LogRecord{
+    %Otel.API.Logs.LogRecord{
       timestamp: to_timestamp(meta),
       severity_number: to_severity_number(level),
       severity_text: to_severity_text(level),
       body: to_body(msg, meta),
-      attributes: to_attributes(meta)
+      attributes: to_attributes(meta),
+      exception: to_exception(meta)
     }
-
-    put_exception(base, meta)
   end
 
   # `:time` is guaranteed on `meta` by `:logger`'s
@@ -589,8 +588,8 @@ defmodule Otel.LoggerHandler do
   # clause ensures those produce no attribute rather than a
   # misleading one.
   @spec put_exception_stacktrace(attrs :: map(), meta :: map()) :: map()
-  defp put_exception_stacktrace(attrs, %{crash_reason: {exc, stacktrace}})
-       when is_exception(exc) do
+  defp put_exception_stacktrace(attrs, %{crash_reason: {exception, stacktrace}})
+       when is_exception(exception) do
     Map.put(attrs, "exception.stacktrace", Exception.format_stacktrace(stacktrace))
   end
 
@@ -634,21 +633,26 @@ defmodule Otel.LoggerHandler do
   defp to_attribute_value(value) when is_list(value), do: Enum.map(value, &to_primitive/1)
   defp to_attribute_value(value), do: to_primitive(value)
 
-  # `meta.crash_reason = {exception, stacktrace}` is OTP's
-  # standard way of surfacing process crashes to the log
-  # handler. When present, we route it into the
-  # `log_record.exception` field so downstream processors /
-  # exporters can attach `exception.*` attributes per
-  # `trace/exceptions.md` §Attributes L44-L55.
-  @spec put_exception(
-          log_record :: Otel.API.Logs.LogRecord.t(),
-          meta :: map()
-        ) :: Otel.API.Logs.LogRecord.t()
-  defp put_exception(log_record, %{crash_reason: {%{__exception__: true} = exception, _stack}}) do
-    %{log_record | exception: exception}
+  # Exception struct from `meta.crash_reason = {exception,
+  # stacktrace}` — OTP's standard crash-report shape. Returns
+  # the exception (Exception.t()) for the `log_record.exception`
+  # sidecar field; SDK converts that to `exception.type` and
+  # `exception.message` attributes per `trace/exceptions.md`
+  # §Attributes L44-L55. Stacktrace is handled separately by
+  # `put_exception_stacktrace/2` (it doesn't fit the
+  # `log_record.exception` sidecar because Elixir exception
+  # structs don't carry stacktrace; see `## Exception events`).
+  #
+  # Non-exception `crash_reason` shapes (`{:exit, _}`,
+  # `{:shutdown, _}`) return `nil` via the fallback clause —
+  # `log_record.exception` defaults to `nil` so no-op vs
+  # explicit-nil is equivalent.
+  @spec to_exception(meta :: map()) :: Exception.t() | nil
+  defp to_exception(%{crash_reason: {exception, _stack}}) when is_exception(exception) do
+    exception
   end
 
-  defp put_exception(log_record, _meta), do: log_record
+  defp to_exception(_meta), do: nil
 
   # Severity mapping per `logs/data-model.md` §Mapping of
   # `SeverityNumber` L273-L296 + Appendix B Syslog row
