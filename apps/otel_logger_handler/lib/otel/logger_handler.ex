@@ -109,7 +109,12 @@ defmodule Otel.LoggerHandler do
   | `{:report, map}` | `primitive_any()`-normalised map (keys stringified, values normalised recursively) |
   | `{:report, keyword_list}` | keyword list converted to map, then normalised as above |
   | `{format, args}` (`:io_lib.format/2` shape) | formatted string |
-  | anything else | normalised through the same `primitive_any()` pipeline (maps stay maps, primitives stay primitives, others coerced to strings) |
+
+  These three shapes are the full `:logger.msg/0` contract
+  (OTP `logger.erl` L76-L80) — any other shape is a caller
+  contract violation and raises `FunctionClauseError`,
+  handled by `:logger`'s internal `try/catch` via
+  self-healing handler removal.
 
   Values inside a report that don't fit OTel's `AnyValue` —
   atoms, structs, tuples, references, pids, functions — are
@@ -345,17 +350,6 @@ defmodule Otel.LoggerHandler do
 
   defp to_body({format, args}, _meta) when is_list(format) do
     :io_lib.format(format, args) |> IO.chardata_to_string()
-  end
-
-  # Defensive clause — OTP `:logger` normalises every message
-  # into one of the three shapes above (`logger.erl` L1159-L1177),
-  # so this only fires when a caller (typically a test) invokes
-  # `log/2` directly with a hand-rolled event. `to_primitive_any/1`
-  # handles raw terms consistently with the `:report` paths above
-  # — an untagged map like `%{user_id: 42}` is preserved as a
-  # normalised map rather than stringified.
-  defp to_body(other, _meta) do
-    to_primitive_any(other)
   end
 
   # Normalise any Elixir term to `primitive_any()` — OTel's
