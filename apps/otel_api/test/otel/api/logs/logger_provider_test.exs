@@ -28,7 +28,7 @@ defmodule Otel.API.Logs.LoggerProviderTest do
       end
     end
 
-    test "delegates to registered provider and caches result" do
+    test "delegates to the registered provider" do
       Otel.API.Logs.LoggerProvider.set_provider({FakeLoggerProvider, :installed})
 
       scope = %Otel.API.InstrumentationScope{name: "installed_lib"}
@@ -39,7 +39,7 @@ defmodule Otel.API.Logs.LoggerProviderTest do
       assert module == FakeLoggerProvider
     end
 
-    test "different scopes produce distinct loggers (no cache collision)" do
+    test "different scopes produce distinct loggers" do
       Otel.API.Logs.LoggerProvider.set_provider({FakeLoggerProvider, :installed})
 
       scope1 = %Otel.API.InstrumentationScope{name: "my_lib", version: "1.0.0"}
@@ -47,6 +47,29 @@ defmodule Otel.API.Logs.LoggerProviderTest do
 
       assert {_, %{scope: ^scope1}} = Otel.API.Logs.LoggerProvider.get_logger(scope1)
       assert {_, %{scope: ^scope2}} = Otel.API.Logs.LoggerProvider.get_logger(scope2)
+    end
+
+    # Regression test for the bootstrap race where a pre-SDK
+    # `get_logger/1` would cache Noop in `:persistent_term`, and
+    # that cached Noop would survive SDK installation — silently
+    # dropping every subsequent log even though a real provider
+    # was registered.
+    test "later-installed provider takes effect immediately (no stale Noop)" do
+      scope = %Otel.API.InstrumentationScope{name: "bootstrap_race"}
+
+      # Step 1: Resolve BEFORE any provider — should be Noop.
+      assert {Otel.API.Logs.Logger.Noop, []} ==
+               Otel.API.Logs.LoggerProvider.get_logger(scope)
+
+      # Step 2: Install provider AFTER the first resolve.
+      Otel.API.Logs.LoggerProvider.set_provider({FakeLoggerProvider, :installed})
+
+      # Step 3: Second resolve MUST hit the new provider, not a
+      # stale Noop from step 1's resolution.
+      {module, %{state: :installed, scope: ^scope}} =
+        Otel.API.Logs.LoggerProvider.get_logger(scope)
+
+      assert module == FakeLoggerProvider
     end
   end
 
@@ -63,7 +86,11 @@ defmodule Otel.API.Logs.LoggerProviderTest do
       assert module == Otel.API.Logs.Logger.Noop
     end
 
-    test "returns same logger for equal scopes" do
+    # Spec `logs/api.md` L94-L97: "two Loggers created with the
+    # same parameters MUST be identical". Satisfied via structural
+    # equality (not reference identity) since the Noop case always
+    # returns `{Noop, []}`.
+    test "returns structurally equal loggers for repeated equal scopes" do
       logger1 =
         Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{name: "my_lib"})
 
@@ -71,20 +98,6 @@ defmodule Otel.API.Logs.LoggerProviderTest do
         Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{name: "my_lib"})
 
       assert logger1 == logger2
-    end
-
-    test "caches logger in persistent_term" do
-      logger1 =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
-          name: "cached_lib"
-        })
-
-      logger2 =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
-          name: "cached_lib"
-        })
-
-      assert logger1 === logger2
     end
   end
 end

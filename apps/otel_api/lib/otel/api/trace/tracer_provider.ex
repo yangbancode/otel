@@ -4,24 +4,44 @@ defmodule Otel.API.Trace.TracerProvider do
   (OTel `trace/api.md` §TracerProvider, L88-L157).
 
   Holds the process-wide pointer to the installed
-  TracerProvider implementation and caches the `Tracer`
-  instances it returns. When no SDK is installed, all
-  operations resolve to the no-op tracer
+  TracerProvider implementation. When no SDK is installed,
+  all operations resolve to the no-op tracer
   (`Otel.API.Trace.Tracer.Noop`, matching the
   `{otel_tracer_noop, []}` fallback in
   `opentelemetry-erlang`).
 
+  ## No API-level Tracer cache
+
+  `get_tracer/1` does **not** cache the Tracer it returns.
+  Every call delegates to the registered provider's
+  `get_tracer/2` callback (or returns Noop if none). This
+  avoids a bootstrap race: if an early `get_tracer/1` is
+  made before the SDK registers, a cached Noop would
+  survive provider installation and silently drop every
+  subsequent span.
+
+  The spec's *"identical for identical parameters"*
+  requirement (`trace/api.md` L136-L140) is still satisfied
+  because SDK implementations return structurally-equal
+  Tracer tuples for equal scopes, and the Noop case is
+  trivially `{Noop, []}` on every call.
+
+  This is an **intentional divergence** from
+  `opentelemetry-erlang` — its `opentelemetry.erl` caches
+  tracers in `persistent_term` keyed by scope components.
+  Our implementation trades that micro-optimisation for
+  bootstrap-safety correctness. SDK implementations that
+  care about Tracer-instance reuse should cache internally
+  on their own `get_tracer/2` path.
+
   ## Storage
 
-  Both the global provider pointer and the scope-keyed tracer
-  cache live in `:persistent_term`. The tracer-cache pattern
-  mirrors `opentelemetry-erlang` (`opentelemetry.erl` caches
-  tracers in `persistent_term` keyed by scope components). The
-  global-provider pointer itself **diverges** — erlang uses a
-  registered gen_server name reached via `gen_server:call/2`
-  (`otel_tracer_provider.erl`), while we read a
-  `persistent_term` slot directly to avoid the round-trip on
-  the hot path.
+  The global provider pointer lives in `:persistent_term`.
+  This **diverges** from erlang — its
+  `otel_tracer_provider.erl` uses a registered gen_server
+  reached via `gen_server:call/2`, while we read a
+  `persistent_term` slot directly to avoid the round-trip
+  on the hot path.
 
   All functions are safe for concurrent use (spec L842).
 
@@ -44,7 +64,6 @@ defmodule Otel.API.Trace.TracerProvider do
   @default_tracer {Otel.API.Trace.Tracer.Noop, []}
 
   @global_key {__MODULE__, :global}
-  @tracer_key_prefix {__MODULE__, :tracer}
 
   @typedoc """
   A `{dispatcher_module, state}` pair.
@@ -65,28 +84,18 @@ defmodule Otel.API.Trace.TracerProvider do
   **Application** (OTel API MUST) — "Get a Tracer" (`trace/api.md`
   L107-L157).
 
-  Returns a Tracer for the given instrumentation scope. On
-  cache miss delegates to the registered provider's
-  `get_tracer/2` callback, or returns the noop tracer when no
-  provider is installed (spec L120-121: invalid or unresolved
-  scope MUST still yield a working Tracer rather than crash).
-  Subsequent calls with an equal scope return the cached
-  tracer.
+  Returns a Tracer for the given instrumentation scope. Each
+  call delegates to the registered provider's `get_tracer/2`
+  callback, or returns the noop tracer when no provider is
+  installed (spec L120-121: invalid or unresolved scope
+  MUST still yield a working Tracer rather than crash) —
+  no API-level cache, see the module's *"No API-level
+  Tracer cache"* section.
   """
   @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Trace.Tracer.t()
   def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    key = {@tracer_key_prefix, instrumentation_scope}
-
-    case :persistent_term.get(key, nil) do
-      nil ->
-        tracer = fetch_or_default(instrumentation_scope)
-        :persistent_term.put(key, tracer)
-        tracer
-
-      tracer ->
-        tracer
-    end
+    fetch_or_default(instrumentation_scope)
   end
 
   # --- SDK callbacks ---

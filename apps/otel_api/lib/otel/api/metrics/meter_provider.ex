@@ -5,33 +5,48 @@ defmodule Otel.API.Metrics.MeterProvider do
   L106-L155).
 
   Holds the process-wide pointer to the installed
-  MeterProvider implementation and caches the `Meter`
-  instances it returns. When no SDK is installed, all
-  operations resolve to the no-op meter
+  MeterProvider implementation. When no SDK is installed,
+  all operations resolve to the no-op meter
   (`Otel.API.Metrics.Meter.Noop`).
+
+  ## No API-level Meter cache
+
+  `get_meter/1` does **not** cache the Meter it returns.
+  Every call delegates to the registered provider's
+  `get_meter/2` callback (or returns Noop if none). This
+  avoids a bootstrap race: if an early `get_meter/1` is
+  made before the SDK registers, a cached Noop would
+  survive provider installation and silently drop every
+  subsequent measurement.
+
+  The spec's *"identical for identical parameters"*
+  requirement (`metrics/api.md` L153-L155) is still
+  satisfied because SDK implementations return
+  structurally-equal Meter tuples for equal scopes, and
+  the Noop case is trivially `{Noop, []}` on every call.
+
+  Performance: the API is a straight `fetch_or_default`
+  call per invocation. SDK implementations that care about
+  Meter-instance reuse should cache internally on their
+  own `get_meter/2` path.
 
   ## Storage
 
-  Both the global provider pointer and the scope-keyed meter
-  cache live in `:persistent_term`. The dispatch pattern
-  (`{dispatcher_module, state}` tuple + `get_meter/2`
-  callback) is shared across Trace, Metrics, and Logs.
+  The global provider pointer lives in `:persistent_term`.
+  The dispatch pattern (`{dispatcher_module, state}` tuple
+  + `get_meter/2` callback) is shared across Trace,
+  Metrics, and Logs.
 
-  `opentelemetry-erlang` diverges in three places:
+  `opentelemetry-erlang` diverges in two places:
 
   1. **Dispatch mechanism** — erlang's
      `otel_meter_provider.erl` calls `gen_server:call/2`
      directly on every `get_meter/1` invocation, wrapping
      it in `catch exit:{noproc, _} -> {otel_meter_noop,
      []}`. We read a `persistent_term` slot (for the
-     provider) and a second `persistent_term` key (for
-     each scope-keyed Meter) directly — the hot path never
-     hits a process round-trip.
-  2. **Caching** — erlang has no API-layer cache; each
-     `get_meter/1` invokes the SDK gen_server. We cache per
-     scope, so repeated lookups with equal scope structs
-     return the same Meter handle without re-dispatch.
-  3. **Surface** — erlang exposes `resource/0,1` and
+     provider) directly — the hot path never hits a
+     process round-trip for provider lookup.
+  2. **Surface** — erlang exposes `resource/0,1` and
      `force_flush/0,1` on the MeterProvider module. Those
      are SDK-level concerns in our design; the API surface
      is trimmed to spec-required operations.
@@ -58,7 +73,6 @@ defmodule Otel.API.Metrics.MeterProvider do
   @default_meter {Otel.API.Metrics.Meter.Noop, []}
 
   @global_key {__MODULE__, :global}
-  @meter_key_prefix {__MODULE__, :meter}
 
   @typedoc """
   A `{dispatcher_module, state}` pair.
@@ -79,16 +93,16 @@ defmodule Otel.API.Metrics.MeterProvider do
   **Application** (OTel API MUST) — "Get a Meter"
   (`metrics/api.md` L120-L155).
 
-  Returns a Meter for the given instrumentation scope. On
-  cache miss delegates to the registered provider's
-  `get_meter/2` callback, or returns the noop meter when no
-  provider is installed. Subsequent calls with an equal
-  scope return the cached meter.
+  Returns a Meter for the given instrumentation scope. Each
+  call delegates to the registered provider's `get_meter/2`
+  callback, or returns the noop meter when no provider is
+  installed — no API-level cache, see the module's *"No
+  API-level Meter cache"* section.
 
   The full `InstrumentationScope` struct (name, version,
-  schema_url, attributes — spec L124-L151) is the cache
-  key, so "identical" and "distinct" meters (L153-L155) are
-  distinguished automatically by map equality.
+  schema_url, attributes — spec L124-L151) is passed to the
+  provider. Spec's "identical for identical parameters"
+  (L153-L155) is satisfied by SDK-side structural equality.
 
   Without arguments, uses a default empty scope.
   """
@@ -97,17 +111,7 @@ defmodule Otel.API.Metrics.MeterProvider do
   def get_meter(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
 
   def get_meter(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    key = {@meter_key_prefix, instrumentation_scope}
-
-    case :persistent_term.get(key, nil) do
-      nil ->
-        meter = fetch_or_default(instrumentation_scope)
-        :persistent_term.put(key, meter)
-        meter
-
-      meter ->
-        meter
-    end
+    fetch_or_default(instrumentation_scope)
   end
 
   # --- SDK callbacks ---
