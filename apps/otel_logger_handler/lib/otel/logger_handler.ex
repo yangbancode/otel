@@ -648,7 +648,10 @@ defmodule Otel.LoggerHandler do
   # `log_record.exception` defaults to `nil` so no-op vs
   # explicit-nil is equivalent.
   @spec to_exception(meta :: map()) :: Exception.t() | nil
-  defp to_exception(%{crash_reason: {exc, _stack}}) when is_exception(exc), do: exc
+  defp to_exception(%{crash_reason: {exception, _stack}}) when is_exception(exception) do
+    exception
+  end
+
   defp to_exception(_meta), do: nil
 
   # Severity mapping per `logs/data-model.md` §Mapping of
