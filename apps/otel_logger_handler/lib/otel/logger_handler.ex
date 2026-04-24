@@ -106,14 +106,21 @@ defmodule Otel.LoggerHandler do
   | `msg` shape | Body |
   |---|---|
   | `{:string, chardata}` | `IO.chardata_to_string/1` |
-  | `{:report, map}` | string-keyed map (recursive — keys at every nesting level are strings to satisfy `primitive_any()`) |
-  | `{:report, keyword_list}` | string-keyed map derived from the keyword list (recursive) |
+  | `{:report, map}` | `primitive_any()`-normalised map (keys stringified, values normalised recursively) |
+  | `{:report, keyword_list}` | keyword list converted to map, then normalised as above |
   | `{format, args}` (`:io_lib.format/2` shape) | formatted string |
   | anything else | `inspect/1` fallback |
 
-  Nested structs (e.g. `%Date{}`, `%DateTime{}`) pass through
-  unchanged — flattening them to `%{"__struct__" => Module,
-  ...}` would leak Elixir internals into Body.
+  Values inside a report that don't fit OTel's `AnyValue` —
+  non-boolean atoms (`:ok`), structs (`%Date{}`), arbitrary
+  tuples, references, pids, functions — are rendered via
+  `inspect/1` to a human-readable string. This keeps Body
+  strictly within `primitive_any()` at every depth without
+  leaking Elixir internals (a `%Date{}` would otherwise flatten
+  to `%{"__struct__" => Date, ...}`) and matches Elixir's own
+  `Logger` default formatter. Primitive values (`String.t()`,
+  `integer()`, `float()`, `boolean()`, `nil`, and the
+  `{:bytes, binary()}` tag) pass through unchanged.
 
   ## Exception events
 
@@ -231,18 +238,19 @@ defmodule Otel.LoggerHandler do
   # Body extraction — `logs/data-model.md` L399-L400 requires
   # preserving `AnyValue` structure for structured logs.
   # `{:report, term}` is Elixir's structured-log shape; we
-  # preserve it as a map rather than collapsing to a string.
+  # preserve it as a map via `to_any_value/1` rather than
+  # collapsing to a string.
   @spec to_body(msg :: term()) :: primitive_any()
   defp to_body({:string, string}) do
     IO.chardata_to_string(string)
   end
 
   defp to_body({:report, report}) when is_map(report) do
-    stringify_keys(report)
+    to_any_value(report)
   end
 
   defp to_body({:report, report}) when is_list(report) do
-    report |> Enum.into(%{}) |> stringify_keys()
+    report |> Enum.into(%{}) |> to_any_value()
   end
 
   defp to_body({format, args}) when is_list(format) do
@@ -253,33 +261,46 @@ defmodule Otel.LoggerHandler do
     inspect(other)
   end
 
-  # Recursively stringifies map keys so Body satisfies
-  # `primitive_any()` at every nesting level
-  # (`apps/otel_api/lib/otel/api/common/types.ex` L183-L184 —
-  # `%{String.t() => primitive_any()}` is recursive). Matches
-  # OTel's `common/README.md` §AnyValue L39-L54 where
-  # `map<string, AnyValue>` can nest and the string-key
-  # constraint propagates down. Top-level-only stringification
-  # would leave a nested `{:report, %{user: %{id: 42}}}` as
-  # `%{"user" => %{id: 42}}` — OTLP's encoder masks this by
-  # re-stringifying on export, but in-process consumers
-  # (custom exporters, test assertions) would see a mixed-key
-  # map.
+  # Normalise any Elixir term to `primitive_any()` — OTel's
+  # `AnyValue` (`common/README.md` §AnyValue L39-L54), mirrored
+  # in our project-local `primitive_any()` type
+  # (`apps/otel_api/lib/otel/api/common/types.ex` L183-L184):
   #
-  # Structs pass through via `is_struct/1` so a `%Date{}`-valued
-  # field stays a struct instead of being flattened to
-  # `%{"__struct__" => Date, ...}`. Lists recurse so maps
-  # nested under an array value are also normalised.
-  @spec stringify_keys(value :: term()) :: term()
-  defp stringify_keys(value) when is_map(value) and not is_struct(value) do
-    Map.new(value, fn {k, v} -> {to_string(k), stringify_keys(v)} end)
+  #     primitive_any() ::
+  #       primitive() | [primitive_any()] | %{String.t() => primitive_any()}
+  #
+  # `primitive()` = `String.t() | {:bytes, binary()} | boolean()
+  # | integer() | float() | nil`. Anything outside that union
+  # (arbitrary atoms like `:ok`, structs like `%Date{}`, tuples
+  # other than the `:bytes` tag, references, pids, functions)
+  # has no `AnyValue` representation, so we render it via
+  # `inspect/1` — matches Elixir's own `Logger` default
+  # formatter and preserves a human-readable form without
+  # leaking `__struct__`-style internals.
+  #
+  # Maps recurse with `to_string(k)` on keys so the
+  # `map<string, AnyValue>` contract holds at every depth.
+  # Lists recurse element-wise so nested composites are
+  # normalised too. Struct-valued fields hit the catch-all
+  # `inspect/1` clause rather than being flattened to
+  # `%{"__struct__" => Date, ...}`.
+  @spec to_any_value(value :: term()) :: primitive_any()
+  defp to_any_value(nil), do: nil
+  defp to_any_value(value) when is_boolean(value), do: value
+  defp to_any_value(value) when is_binary(value), do: value
+  defp to_any_value(value) when is_integer(value), do: value
+  defp to_any_value(value) when is_float(value), do: value
+  defp to_any_value({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_any_value(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), to_any_value(v)} end)
   end
 
-  defp stringify_keys(value) when is_list(value) do
-    Enum.map(value, &stringify_keys/1)
+  defp to_any_value(value) when is_list(value) do
+    Enum.map(value, &to_any_value/1)
   end
 
-  defp stringify_keys(value), do: value
+  defp to_any_value(value), do: inspect(value)
 
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do

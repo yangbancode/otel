@@ -255,15 +255,68 @@ defmodule Otel.LoggerHandlerTest do
       assert body == %{"events" => [%{"type" => "click"}, %{"type" => "scroll"}]}
     end
 
-    # Structs must survive Body extraction unchanged —
-    # flattening them via `Map.new` would produce
-    # `%{"__struct__" => Module, ...}` and leak Elixir
-    # internals into the LogRecord.
-    test "{:report, map with struct value} preserves struct" do
+    # OTel `AnyValue` has no struct variant; preserving a
+    # struct as-is would violate `primitive_any()`, and
+    # flattening via `Map.new` would leak `__struct__`. We
+    # render via `inspect/1` — human-readable, AnyValue-clean.
+    test "{:report, map with struct value} inspects struct to string" do
       msg = {:report, %{at: ~D[2024-01-01]}}
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: body}}
-      assert body == %{"at" => ~D[2024-01-01]}
+      assert body == %{"at" => "~D[2024-01-01]"}
+    end
+
+    # Non-boolean atoms (`:ok`, `:error`, module names) aren't
+    # in `primitive_any()` — only `true` / `false` / `nil` are.
+    test "{:report, map with atom value} inspects atom to string" do
+      msg = {:report, %{status: :ok}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"status" => ":ok"}
+    end
+
+    # Booleans, `nil`, integers, and floats are `primitive()`
+    # per `common.types` — pass through unchanged.
+    test "{:report, map with primitive values} preserves them unchanged" do
+      msg =
+        {:report,
+         %{
+           active: true,
+           deleted: false,
+           removed_at: nil,
+           count: 42,
+           ratio: 0.75
+         }}
+
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+
+      assert body == %{
+               "active" => true,
+               "deleted" => false,
+               "removed_at" => nil,
+               "count" => 42,
+               "ratio" => 0.75
+             }
+    end
+
+    test "{:report, map with tuple value} inspects tuple to string" do
+      msg = {:report, %{point: {1, 2}}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"point" => "{1, 2}"}
+    end
+
+    # The `{:bytes, binary()}` tag is a primitive — it
+    # disambiguates raw bytes from UTF-8 strings for the
+    # OTLP encoder (common.types L42-L57) and must pass
+    # through unchanged.
+    test "{:report, map with {:bytes, binary()} value} preserves byte tag" do
+      payload = {:bytes, <<0xCA, 0xFE>>}
+      msg = {:report, %{data: payload}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"data" => payload}
     end
 
     test "{format, args} → :io_lib.format output" do
