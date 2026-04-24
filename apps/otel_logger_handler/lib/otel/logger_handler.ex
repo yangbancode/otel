@@ -443,29 +443,17 @@ defmodule Otel.LoggerHandler do
   #     primitive_any() ::
   #       primitive() | [primitive_any()] | %{String.t() => primitive_any()}
   #
-  # `primitive()` = `String.t() | {:bytes, binary()} | boolean()
-  # | integer() | float() | nil`. Anything outside that union
-  # (arbitrary atoms like `:ok`, structs like `%Date{}`, tuples
-  # other than the `:bytes` tag, references, pids, functions)
-  # has no `AnyValue` representation, so we render it via
-  # `inspect/1` — matches Elixir's own `Logger` default
-  # formatter and preserves a human-readable form without
-  # leaking `__struct__`-style internals.
+  # Composite handling (maps, lists) lives here; scalar
+  # coercion is delegated to `to_primitive/1` so the body and
+  # attribute paths share a single leaf-coercion policy.
   #
   # Maps recurse with `to_string(k)` on keys so the
   # `map<string, AnyValue>` contract holds at every depth.
   # Lists recurse element-wise so nested composites are
-  # normalised too. Struct-valued fields hit the catch-all
-  # `inspect/1` clause rather than being flattened to
-  # `%{"__struct__" => Date, ...}`.
+  # normalised too. Everything else (primitives, atoms,
+  # structs, tuples outside `:bytes`, refs, pids, functions)
+  # delegates to `to_primitive/1`.
   @spec to_primitive_any(value :: term()) :: primitive_any()
-  defp to_primitive_any(nil), do: nil
-  defp to_primitive_any(value) when is_boolean(value), do: value
-  defp to_primitive_any(value) when is_binary(value), do: value
-  defp to_primitive_any(value) when is_integer(value), do: value
-  defp to_primitive_any(value) when is_float(value), do: value
-  defp to_primitive_any({:bytes, bin} = value) when is_binary(bin), do: value
-
   defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
     Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
   end
@@ -474,17 +462,40 @@ defmodule Otel.LoggerHandler do
     Enum.map(value, &to_primitive_any/1)
   end
 
-  # Non-primitive, non-composite catch-all: atoms, structs,
-  # tuples, references, pids, functions. Prefer `to_string/1`
-  # when the value implements `String.Chars` — that protocol
-  # IS the user/library declaration of "this is the canonical
-  # string form" (e.g. `Date` renders as `"2024-01-01"`, `URI`
-  # as `"http://..."`, `:ok` as `"ok"`). Values without a
-  # `String.Chars` impl (tuples, pids, refs, ports, functions,
-  # `MapSet`, etc.) fall back to `inspect/1`. `String.Chars.
-  # impl_for/1` returns the impl module or `nil`, so this is a
-  # pure dispatch — no `try/rescue`.
-  defp to_primitive_any(value) do
+  defp to_primitive_any(value), do: to_primitive(value)
+
+  # Leaf coercion — any non-composite Elixir term to
+  # `primitive()` (`common/types.ex` L180-L181: `String.t() |
+  # {:bytes, binary()} | boolean() | integer() | float() |
+  # nil`). Shared between `to_primitive_any/1` (body path)
+  # and `to_attribute_value/1` (attribute path).
+  #
+  # Primitives pass through unchanged. Anything outside
+  # `primitive()` — atoms, structs, tuples other than the
+  # `:bytes` tag, references, pids, functions — has no
+  # `AnyValue` representation, so we coerce to `String.t()`:
+  # `String.Chars` impl (canonical form per the
+  # user/library) when present, `inspect/1` otherwise. The
+  # `String.Chars.impl_for/1` dispatch returns the impl
+  # module or `nil`, so this is pure dispatch — no
+  # `try/rescue`.
+  #
+  # Callsites:
+  #
+  # - `to_primitive_any/1` — body path; delegates here for
+  #   every non-map, non-list value.
+  # - `to_attribute_value/1` — attribute path; delegates
+  #   here for every non-list value, and via `Enum.map` for
+  #   list elements.
+  @spec to_primitive(value :: term()) :: primitive()
+  defp to_primitive(nil), do: nil
+  defp to_primitive(value) when is_boolean(value), do: value
+  defp to_primitive(value) when is_binary(value), do: value
+  defp to_primitive(value) when is_integer(value), do: value
+  defp to_primitive(value) when is_float(value), do: value
+  defp to_primitive({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_primitive(value) do
     case String.Chars.impl_for(value) do
       nil -> inspect(value)
       _impl -> to_string(value)
@@ -579,40 +590,11 @@ defmodule Otel.LoggerHandler do
   # (`common/README.md` §Attribute L185-L197 — values must be
   # primitive or homogeneous primitive arrays). A list
   # iterates to a homogeneous primitive array via
-  # `to_attribute_scalar/1` on each element; non-list values
-  # go through `to_attribute_scalar/1` directly.
+  # `to_primitive/1` on each element; non-list values go
+  # through `to_primitive/1` directly.
   @spec to_attribute_value(value :: term()) :: primitive() | [primitive()]
-  defp to_attribute_value(value) when is_list(value) do
-    Enum.map(value, &to_attribute_scalar/1)
-  end
-
-  defp to_attribute_value(value), do: to_attribute_scalar(value)
-
-  # Primitive coercion for a single (non-list) value —
-  # mirrors `to_primitive_any/1`'s non-composite clauses.
-  # Primitives pass through; non-primitives (atoms, structs,
-  # tuples outside `{:bytes, _}`, refs, pids, functions)
-  # coerce to string via `String.Chars` when impl'd,
-  # `inspect/1` otherwise.
-  #
-  # Deliberately duplicates the scalar clauses of
-  # `to_primitive_any/1` rather than sharing a helper — each
-  # function is small and self-contained, and the body vs.
-  # attribute paths can evolve independently.
-  @spec to_attribute_scalar(value :: term()) :: primitive()
-  defp to_attribute_scalar(nil), do: nil
-  defp to_attribute_scalar(value) when is_boolean(value), do: value
-  defp to_attribute_scalar(value) when is_binary(value), do: value
-  defp to_attribute_scalar(value) when is_integer(value), do: value
-  defp to_attribute_scalar(value) when is_float(value), do: value
-  defp to_attribute_scalar({:bytes, bin} = value) when is_binary(bin), do: value
-
-  defp to_attribute_scalar(value) do
-    case String.Chars.impl_for(value) do
-      nil -> inspect(value)
-      _impl -> to_string(value)
-    end
-  end
+  defp to_attribute_value(value) when is_list(value), do: Enum.map(value, &to_primitive/1)
+  defp to_attribute_value(value), do: to_primitive(value)
 
   # `meta.crash_reason = {exception, stacktrace}` is OTP's
   # standard way of surfacing process crashes to the log
