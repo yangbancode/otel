@@ -208,13 +208,22 @@ defmodule Otel.LoggerHandler do
     put_exception(base, meta)
   end
 
+  # `:logger` always auto-populates `meta.time` via
+  # `logger:add_default_metadata/1` (OTP `logger.erl`
+  # L1193-L1214) with `os:system_time(microsecond)`. Per
+  # happy-path policy we pattern-match on `%{time: _}` and
+  # let callers that bypass `:logger` (e.g. direct
+  # `log/2` invocation with hand-built events) crash with
+  # `FunctionClauseError` — `:logger`'s handler try/catch
+  # then removes the handler, which is the correct response
+  # to malformed input.
+  #
+  # OTP's `meta.time` is **microseconds** since Unix epoch;
+  # OTel `Timestamp` (`logs/data-model.md` L184-L187) is
+  # nanoseconds. `* 1000` converts μs → ns.
   @spec extract_timestamp(meta :: map()) :: non_neg_integer()
   defp extract_timestamp(%{time: time}) do
     time * 1000
-  end
-
-  defp extract_timestamp(_meta) do
-    System.system_time(:nanosecond)
   end
 
   # Body extraction — `logs/data-model.md` L399-L400 requires
