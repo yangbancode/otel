@@ -194,19 +194,11 @@ defmodule Otel.LoggerHandler do
     }
   end
 
-  # `:time` is guaranteed on `meta` by `:logger`'s
-  # `add_default_metadata/1` (OTP `logger.erl` L1193-L1214),
-  # which runs on every `:logger.log/2`, `Logger.info/1`,
-  # `:logger:info/N` call path. Our handler is designed to
-  # be invoked by `:logger`, and the `:time` pattern match
-  # asserts exactly that — meta without `:time` raises
-  # `FunctionClauseError`, which is `:logger`'s own contract
-  # for removing malformed handlers (self-healing).
   @spec build_log_record(log_event :: :logger.log_event()) ::
           Otel.API.Logs.LogRecord.t()
-  defp build_log_record(%{level: level, msg: msg, meta: %{time: time} = meta}) do
+  defp build_log_record(%{level: level, msg: msg, meta: meta}) do
     base = %Otel.API.Logs.LogRecord{
-      timestamp: to_timestamp(time),
+      timestamp: to_timestamp(meta),
       severity_number: to_severity_number(level),
       severity_text: to_severity_text(level),
       body: to_body(msg),
@@ -216,11 +208,19 @@ defmodule Otel.LoggerHandler do
     put_exception(base, meta)
   end
 
+  # `:time` is guaranteed on `meta` by `:logger`'s
+  # `add_default_metadata/1` (OTP `logger.erl` L1193-L1214),
+  # which runs on every `:logger.log/2`, `Logger.info/1`,
+  # `:logger:info/N` call path. The `:time` pattern match
+  # asserts that invariant — meta without `:time` raises
+  # `FunctionClauseError`, which is `:logger`'s own contract
+  # for removing malformed handlers (self-healing).
+  #
   # µs → ns scaling per OTP's `microsecond` default
   # (`logger.erl` L365-L366) and OTel `Timestamp` which is
   # nanoseconds-since-epoch (`logs/data-model.md` L184-L187).
-  @spec to_timestamp(time :: non_neg_integer()) :: non_neg_integer()
-  defp to_timestamp(time), do: time * 1000
+  @spec to_timestamp(meta :: map()) :: non_neg_integer()
+  defp to_timestamp(%{time: time}), do: time * 1000
 
   # Body extraction — `logs/data-model.md` L399-L400 requires
   # preserving `AnyValue` structure for structured logs.
