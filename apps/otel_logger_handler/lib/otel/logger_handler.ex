@@ -429,12 +429,19 @@ defmodule Otel.LoggerHandler do
 
   defp put_code_function_name(attrs, _meta), do: attrs
 
+  # `transform` is `(term() -> primitive() | [primitive()])`
+  # — the attribute-value type declared on `LogRecord.t/0`
+  # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
+  # `attributes: %{String.t() => primitive() | [primitive()]}`).
+  # Narrower than the previous `function()` — Dialyzer now
+  # infers that whatever `transform` produces fits the
+  # attribute-map value type without a widening step.
   @spec put_meta_attr(
           attrs :: map(),
           meta :: map(),
           key :: atom(),
           attr_key :: String.t(),
-          transform :: function()
+          transform :: (term() -> primitive() | [primitive()])
         ) ::
           map()
   defp put_meta_attr(attrs, meta, key, attr_key, transform) do
