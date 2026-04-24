@@ -491,11 +491,15 @@ defmodule Otel.LoggerHandlerTest do
       refute Map.has_key?(attrs, "code.lineno")
     end
 
-    test "maps domain to log.domain" do
+    # `log.domain` is a `[String.t()]` attribute so backends
+    # can filter by path segments. Earlier implementation used
+    # `inspect/1` which produced `"[:elixir, :foo]"` — a
+    # single string literal not useful for structured filtering.
+    test "maps domain to log.domain as string array" do
       meta = %{domain: [:elixir, :foo]}
       Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
-      assert attrs["log.domain"] == "[:elixir, :foo]"
+      assert attrs["log.domain"] == ["elixir", "foo"]
     end
 
     test "omits code.* keys when mfa/file/line absent" do

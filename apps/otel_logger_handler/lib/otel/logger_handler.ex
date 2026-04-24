@@ -176,7 +176,7 @@ defmodule Otel.LoggerHandler do
   | `mfa: {module, fun, arity}` | `code.function.name` | `"Module.fun/arity"` fully-qualified form |
   | `file: chardata` | `code.file.path` | |
   | `line: integer` | `code.line.number` | |
-  | `domain: [atom]` | `log.domain` | non-standard convenience |
+  | `domain: [atom]` | `log.domain` | non-standard convenience; emitted as `[String.t()]` so backends can filter by path segment |
 
   `pid` is intentionally **not** emitted — `process.pid` is
   an int-typed OS PID attribute in semantic-conventions and
@@ -414,14 +414,54 @@ defmodule Otel.LoggerHandler do
     |> put_code_function_name(meta)
     |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
     |> put_meta_attr(meta, :line, "code.line.number", & &1)
-    |> put_meta_attr(meta, :domain, "log.domain", &inspect/1)
+    |> put_meta_attr(meta, :domain, "log.domain", &domain_to_strings/1)
   end
 
+  # OTP `:logger` `domain: [atom()]` is a hierarchical label
+  # path (e.g. `[:otp, :sasl]`, `[:elixir, :phoenix]`). Emit
+  # it as `[String.t()]` — a valid attribute value per
+  # `LogRecord.attributes` (`primitive() | [primitive()]`) —
+  # so OTel backends can filter by individual segments
+  # (`log.domain[0] = "elixir"`). An earlier implementation
+  # used `inspect/1` which produced `"[:elixir, :phoenix]"`
+  # — valid as a `String.t()` but not query-friendly (backends
+  # see an Elixir-literal blob, not a path).
+  @spec domain_to_strings(domain :: [atom()]) :: [String.t()]
+  defp domain_to_strings(domain), do: Enum.map(domain, &Atom.to_string/1)
+
   # Elixir/OTP `mfa` → `code.function.name` as a
-  # fully-qualified `"Module.fun/arity"` string, per the
-  # current semantic-conventions guidance that
-  # `code.function.name` absorbs what the deprecated
-  # `code.namespace` + `code.function` pair used to carry.
+  # fully-qualified `"Module.fun/arity"` string. The stable
+  # semantic-conventions name
+  # (`semantic-conventions/model/code/registry.yaml` L8-L34)
+  # absorbs what the deprecated `code.namespace` +
+  # `code.function` pair used to carry
+  # (`registry-deprecated.yaml` L8-L55).
+  #
+  # Two deliberate format choices worth surfacing:
+  #
+  # 1. **`/arity` is included** (`"MyApp.Worker.handle/2"`).
+  #    The spec's Elixir example at `registry.yaml` L31 is
+  #    `OpenTelemetry.Ctx.new` — arity-less — but L20 notes
+  #    *"Values and format depends on each language runtime"*.
+  #    BEAM conventions (stacktrace format, OTP's own `mfa`
+  #    tuple, `Exception.format_mfa/3`) include arity; `handle/2`
+  #    and `handle/3` are genuinely distinct functions, so
+  #    omitting arity would lose information. We follow BEAM
+  #    precedent.
+  #
+  # 2. **`inspect(module)` strips the `Elixir.` prefix**.
+  #    Module atoms are stored internally as
+  #    `:"Elixir.<Name>"`; `inspect/1` drops the `Elixir.`
+  #    prefix for display (`inspect(MyApp.Worker)` →
+  #    `"MyApp.Worker"`), whereas `Atom.to_string/1` /
+  #    `to_string/1` keep it (`"Elixir.MyApp.Worker"`). For
+  #    `code.function.name` the user-readable form is what
+  #    matters to backends and stacktraces, so we use
+  #    `inspect/1`. This intentionally differs from
+  #    `to_primitive_any/1` (body-value path), where
+  #    `to_string/1` is used and the `Elixir.` prefix is
+  #    accepted — each function's use case dictates the
+  #    choice.
   @spec put_code_function_name(attrs :: map(), meta :: map()) :: map()
   defp put_code_function_name(attrs, %{mfa: {module, function, arity}}) do
     Map.put(attrs, "code.function.name", "#{inspect(module)}.#{function}/#{arity}")
@@ -429,12 +469,19 @@ defmodule Otel.LoggerHandler do
 
   defp put_code_function_name(attrs, _meta), do: attrs
 
+  # `transform` is `(term() -> primitive() | [primitive()])`
+  # — the attribute-value type declared on `LogRecord.t/0`
+  # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
+  # `attributes: %{String.t() => primitive() | [primitive()]}`).
+  # Narrower than the previous `function()` — Dialyzer now
+  # infers that whatever `transform` produces fits the
+  # attribute-map value type without a widening step.
   @spec put_meta_attr(
           attrs :: map(),
           meta :: map(),
           key :: atom(),
           attr_key :: String.t(),
-          transform :: function()
+          transform :: (term() -> primitive() | [primitive()])
         ) ::
           map()
   defp put_meta_attr(attrs, meta, key, attr_key, transform) do
