@@ -112,15 +112,20 @@ defmodule Otel.LoggerHandler do
   | anything else | `inspect/1` fallback |
 
   Values inside a report that don't fit OTel's `AnyValue` —
-  non-boolean atoms (`:ok`), structs (`%Date{}`), arbitrary
-  tuples, references, pids, functions — are rendered via
-  `inspect/1` to a human-readable string. This keeps Body
-  strictly within `primitive_any()` at every depth without
-  leaking Elixir internals (a `%Date{}` would otherwise flatten
-  to `%{"__struct__" => Date, ...}`) and matches Elixir's own
-  `Logger` default formatter. Primitive values (`String.t()`,
-  `integer()`, `float()`, `boolean()`, `nil`, and the
-  `{:bytes, binary()}` tag) pass through unchanged.
+  atoms, structs, tuples, references, pids, functions — are
+  converted to strings. Values that implement the
+  `String.Chars` protocol (atoms, `Date`/`DateTime`/`Time`,
+  `URI`, `Version`, `Regex`, user structs with
+  `defimpl String.Chars`, etc.) use `to_string/1` to honor
+  the canonical string form: `~D[2024-01-01]` → `"2024-01-01"`,
+  `:ok` → `"ok"`. Values without a `String.Chars` impl
+  (tuples, pids, refs, functions, `MapSet`) fall back to
+  `inspect/1`. Body therefore stays strictly within
+  `primitive_any()` at every depth without flattening
+  structs to `%{"__struct__" => Date, ...}`. Primitive
+  values (`String.t()`, `integer()`, `float()`, `boolean()`,
+  `nil`, and the `{:bytes, binary()}` tag) pass through
+  unchanged.
 
   ## Exception events
 
@@ -300,7 +305,22 @@ defmodule Otel.LoggerHandler do
     Enum.map(value, &to_primitive_any/1)
   end
 
-  defp to_primitive_any(value), do: inspect(value)
+  # Non-primitive, non-composite catch-all: atoms, structs,
+  # tuples, references, pids, functions. Prefer `to_string/1`
+  # when the value implements `String.Chars` — that protocol
+  # IS the user/library declaration of "this is the canonical
+  # string form" (e.g. `Date` renders as `"2024-01-01"`, `URI`
+  # as `"http://..."`, `:ok` as `"ok"`). Values without a
+  # `String.Chars` impl (tuples, pids, refs, ports, functions,
+  # `MapSet`, etc.) fall back to `inspect/1`. `String.Chars.
+  # impl_for/1` returns the impl module or `nil`, so this is a
+  # pure dispatch — no `try/rescue`.
+  defp to_primitive_any(value) do
+    case String.Chars.impl_for(value) do
+      nil -> inspect(value)
+      _impl -> to_string(value)
+    end
+  end
 
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do

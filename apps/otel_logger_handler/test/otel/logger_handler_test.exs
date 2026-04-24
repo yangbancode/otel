@@ -255,24 +255,47 @@ defmodule Otel.LoggerHandlerTest do
       assert body == %{"events" => [%{"type" => "click"}, %{"type" => "scroll"}]}
     end
 
-    # OTel `AnyValue` has no struct variant; preserving a
-    # struct as-is would violate `primitive_any()`, and
-    # flattening via `Map.new` would leak `__struct__`. We
-    # render via `inspect/1` — human-readable, AnyValue-clean.
-    test "{:report, map with struct value} inspects struct to string" do
+    # Structs with `String.Chars` impl use `to_string/1` — the
+    # protocol IS the user/library declaration of the canonical
+    # string form. `Date` renders ISO-8601, not the Elixir sigil
+    # literal.
+    test "{:report, map with struct impl'ing String.Chars} uses to_string" do
       msg = {:report, %{at: ~D[2024-01-01]}}
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: body}}
-      assert body == %{"at" => "~D[2024-01-01]"}
+      assert body == %{"at" => "2024-01-01"}
     end
 
-    # Non-boolean atoms (`:ok`, `:error`, module names) aren't
-    # in `primitive_any()` — only `true` / `false` / `nil` are.
-    test "{:report, map with atom value} inspects atom to string" do
+    # Structs without `String.Chars` impl fall back to
+    # `inspect/1` — keeps Body AnyValue-clean without
+    # flattening the struct.
+    test "{:report, map with struct lacking String.Chars} inspects struct" do
+      msg = {:report, %{set: MapSet.new([1, 2])}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"set" => "MapSet.new([1, 2])"}
+    end
+
+    # Atoms implement `String.Chars`, so `:ok` → `"ok"` (no
+    # colon prefix) — friendlier for OTel backend string
+    # matching than the Elixir-y `":ok"`.
+    test "{:report, map with atom value} uses to_string" do
       msg = {:report, %{status: :ok}}
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: body}}
-      assert body == %{"status" => ":ok"}
+      assert body == %{"status" => "ok"}
+    end
+
+    # Elixir module atoms are stored internally as
+    # `:"Elixir.<Name>"`, and `to_string/1` returns that raw
+    # form. Pinned for visibility — the `Elixir.` prefix is
+    # accepted as a known trade-off of the `String.Chars`
+    # approach.
+    test "{:report, map with module atom value} renders with Elixir prefix" do
+      msg = {:report, %{service: Enum}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"service" => "Elixir.Enum"}
     end
 
     # Booleans, `nil`, integers, and floats are `primitive()`
