@@ -127,6 +127,27 @@ defmodule Otel.LoggerHandler do
   `nil`, and the `{:bytes, binary()}` tag) pass through
   unchanged.
 
+  ### `meta.report_cb` — explicit formatter callback
+
+  When `meta.report_cb` is present on a `{:report, _}`
+  message, the callback takes precedence over structural
+  preservation — its presence is the caller's (or OTP's
+  auto-injection's) explicit declaration of the intended
+  rendering, so its return value becomes the Body as a
+  string. Matches OTP `:logger` convention and the erlang
+  reference (`otel_otlp_logs.erl` L127-L157).
+
+  Two callback arities are supported per OTP `logger.erl`
+  L84-L88:
+
+  | Arity | Signature | Handling |
+  |---|---|---|
+  | `/1` | `(report()) -> {io:format(), [term()]}` | Format tuple is fed to `:io_lib.format/2`, result coerced to `String.t()` |
+  | `/2` | `(report(), report_cb_config()) -> unicode:chardata()` | Chardata return is coerced to `String.t()` directly. Config passed is `%{depth: :unlimited, chars_limit: :unlimited, single_line: false}` — OTel backends render their own limits |
+
+  When no `report_cb` is present, the report is preserved
+  as a structured map per the table above.
+
   ## Exception events
 
   Erlang/OTP routes crashes through `:logger` with
@@ -157,6 +178,48 @@ defmodule Otel.LoggerHandler do
   does not fit an Erlang PID (`#PID<0.123.0>`). A follow-up
   decision will settle whether to emit it under a
   BEAM-specific custom key or drop it entirely.
+
+  ## Design notes
+
+  Two intentional divergences from `opentelemetry-erlang`'s
+  `otel_otlp_logs.erl` reference implementation — both trade
+  OTP's terminal-display conventions for OTel data-model
+  alignment.
+
+  ### 1. No trim / single-line post-processing on string Bodies
+
+  Erlang (`otel_otlp_logs.erl` L72-L83) trims leading and
+  trailing whitespace from formatted string Bodies and
+  replaces `\\n`-runs with `, ` to force single-line output.
+  We pass chardata through `IO.chardata_to_string/1`
+  verbatim — `{:string, _}` messages, `{format, args}`
+  messages, and `report_cb` callback results all preserve
+  their line breaks. The `report_cb/2` config we emit also
+  passes `single_line: false`.
+
+  Multi-line preservation is part of the source
+  representation. Single-line collapse is a terminal-display
+  concern handled by OTel backends (Jaeger, Tempo, Loki,
+  etc.), which render line breaks from the string value
+  themselves.
+
+  ### 2. Key stringification at the handler, not the encoder
+
+  Erlang (`otel_otlp_logs.erl` L119) defers map-key
+  stringification to `to_any_value/1` at the OTLP encoder
+  step, so in-process consumers reading the record before
+  OTLP encoding see the original atom-keyed form. We
+  normalise keys recursively inside `to_primitive_any/1` so
+  `log_record.body` arrives at every processor / exporter
+  with string keys at every depth.
+
+  `apps/otel_api/lib/otel/api/logs/log_record.ex` L73 types
+  `body: primitive_any()`, whose recursive definition
+  requires `%{String.t() => primitive_any()}` at every
+  depth. Doing the conversion at the handler honours the
+  type contract uniformly across all exporter paths (OTLP,
+  custom in-process processors, console debug exporter),
+  not just OTLP.
   """
 
   use Otel.API.Common.Types
@@ -219,7 +282,7 @@ defmodule Otel.LoggerHandler do
       timestamp: to_timestamp(meta),
       severity_number: to_severity_number(level),
       severity_text: to_severity_text(level),
-      body: to_body(msg),
+      body: to_body(msg, meta),
       attributes: to_attributes(meta)
     }
 
@@ -241,24 +304,46 @@ defmodule Otel.LoggerHandler do
   defp to_timestamp(%{time: time}), do: time * 1000
 
   # Body extraction — `logs/data-model.md` L399-L400 requires
-  # preserving `AnyValue` structure for structured logs.
-  # `{:report, term}` is Elixir's structured-log shape; we
-  # preserve it as a map via `to_primitive_any/1` rather than
-  # collapsing to a string.
-  @spec to_body(msg :: term()) :: primitive_any()
-  defp to_body({:string, string}) do
+  # preserving `AnyValue` structure for structured logs. When
+  # `meta.report_cb` is set (user-provided formatter, or OTP
+  # auto-injected for crash reports), it takes precedence: the
+  # callback's return is the explicit rendering the caller
+  # declared, so we honour it over structural preservation.
+  # Without `report_cb`, `{:report, _}` flows through
+  # `to_primitive_any/1` and arrives as a normalised map.
+  @spec to_body(msg :: term(), meta :: map()) :: primitive_any()
+
+  # `report_cb/1` (OTP `logger.erl` L84): returns `{format, args}`.
+  # Format via `:io_lib.format/2` — output is already `String.t()`,
+  # which is in `primitive_any()`, so no `to_primitive_any/1` needed.
+  defp to_body({:report, report}, %{report_cb: cb}) when is_function(cb, 1) do
+    {format, args} = cb.(report)
+    :io_lib.format(format, args) |> IO.chardata_to_string()
+  end
+
+  # `report_cb/2` (OTP `logger.erl` L85): returns `unicode:chardata()`
+  # directly, taking a config with `depth` / `chars_limit` /
+  # `single_line`. We pass `:unlimited` / `false` — OTP's defaults
+  # optimise for terminal display; OTel backends render their own
+  # limits (see `## Design notes`).
+  defp to_body({:report, report}, %{report_cb: cb}) when is_function(cb, 2) do
+    config = %{depth: :unlimited, chars_limit: :unlimited, single_line: false}
+    cb.(report, config) |> IO.chardata_to_string()
+  end
+
+  defp to_body({:string, string}, _meta) do
     IO.chardata_to_string(string)
   end
 
-  defp to_body({:report, report}) when is_map(report) do
+  defp to_body({:report, report}, _meta) when is_map(report) do
     to_primitive_any(report)
   end
 
-  defp to_body({:report, report}) when is_list(report) do
+  defp to_body({:report, report}, _meta) when is_list(report) do
     report |> Enum.into(%{}) |> to_primitive_any()
   end
 
-  defp to_body({format, args}) when is_list(format) do
+  defp to_body({format, args}, _meta) when is_list(format) do
     :io_lib.format(format, args) |> IO.chardata_to_string()
   end
 
@@ -269,7 +354,7 @@ defmodule Otel.LoggerHandler do
   # handles raw terms consistently with the `:report` paths above
   # — an untagged map like `%{user_id: 42}` is preserved as a
   # normalised map rather than stringified.
-  defp to_body(other) do
+  defp to_body(other, _meta) do
     to_primitive_any(other)
   end
 

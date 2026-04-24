@@ -234,6 +234,56 @@ defmodule Otel.LoggerHandlerTest do
       assert body == %{"user_id" => 42, "action" => "login"}
     end
 
+    # `report_cb/1` per OTP `logger.erl` L84 — the caller's
+    # explicit rendering declaration. Callback returns
+    # `{io:format(), [term()]}`; we format via
+    # `:io_lib.format/2`. Supersedes structure preservation
+    # because the presence of a callback is an explicit
+    # choice to flatten.
+    test "{:report, map} with meta.report_cb/1 uses callback's format tuple" do
+      report = %{user_id: 42, action: "login"}
+      cb = fn r -> {~c"user=~p action=~s", [r.user_id, r.action]} end
+      meta = %{report_cb: cb}
+
+      Otel.LoggerHandler.log(log_event(:info, {:report, report}, meta), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == "user=42 action=login"
+    end
+
+    # `report_cb/2` per OTP `logger.erl` L85 — callback
+    # receives a `report_cb_config()` and returns chardata
+    # directly. We pass `depth: :unlimited`,
+    # `chars_limit: :unlimited`, `single_line: false` — OTel
+    # backends render their own limits (see `## Design notes`).
+    test "{:report, map} with meta.report_cb/2 uses callback chardata" do
+      report = %{user_id: 42}
+      cb = fn r, _config -> ["user=", Integer.to_string(r.user_id)] end
+      meta = %{report_cb: cb}
+
+      Otel.LoggerHandler.log(log_event(:info, {:report, report}, meta), handler_config())
+      assert_received {:captured_log, _, %{body: "user=42"}}
+    end
+
+    # Pins the config shape passed to arity-2 callbacks —
+    # OTel wants multi-line preserved and no truncation, so
+    # `single_line: false` and `:unlimited` on both depth /
+    # chars_limit.
+    test "{:report, map} with meta.report_cb/2 receives unlimited, multi-line config" do
+      test_pid = self()
+
+      cb = fn _report, config ->
+        send(test_pid, {:config_received, config})
+        ""
+      end
+
+      meta = %{report_cb: cb}
+
+      Otel.LoggerHandler.log(log_event(:info, {:report, %{}}, meta), handler_config())
+
+      assert_received {:config_received,
+                       %{depth: :unlimited, chars_limit: :unlimited, single_line: false}}
+    end
+
     # Regression: `LogRecord.body` is typed `primitive_any()`
     # which recursively requires `%{String.t() => ...}` at
     # every nesting level. Prior to recursive stringification,
