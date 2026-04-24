@@ -588,8 +588,8 @@ defmodule Otel.LoggerHandler do
   # clause ensures those produce no attribute rather than a
   # misleading one.
   @spec put_exception_stacktrace(attrs :: map(), meta :: map()) :: map()
-  defp put_exception_stacktrace(attrs, %{crash_reason: {exc, stacktrace}})
-       when is_exception(exc) do
+  defp put_exception_stacktrace(attrs, %{crash_reason: {exception, stacktrace}})
+       when is_exception(exception) do
     Map.put(attrs, "exception.stacktrace", Exception.format_stacktrace(stacktrace))
   end
 
