@@ -77,8 +77,17 @@ defmodule Otel.LoggerHandlerTest do
     %{config: Map.merge(%{scope_name: "test_lib"}, extra)}
   end
 
+  # Mirrors `:logger`'s `add_default_metadata/1` (OTP
+  # `logger.erl` L1193-L1214), which injects `:time` on every
+  # real log call. The handler's `build_log_record/1` pattern
+  # match on `%{time: time}` asserts that invariant — tests
+  # that don't care about timestamp can still pass `meta: %{}`
+  # without crashing, and tests that DO care (microsecond →
+  # nanosecond conversion) can still set `:time` explicitly
+  # because `Map.put_new/3` is a no-op when the key is present.
   defp log_event(level, msg, meta) do
-    %{level: level, msg: msg, meta: meta}
+    meta_with_time = Map.put_new(meta, :time, System.system_time(:microsecond))
+    %{level: level, msg: msg, meta: meta_with_time}
   end
 
   describe "adding_handler/1" do
@@ -246,14 +255,6 @@ defmodule Otel.LoggerHandlerTest do
       )
 
       assert_received {:captured_log, _, %{timestamp: 1_234_000}}
-    end
-
-    test "falls back to current time when meta.time absent" do
-      before = System.system_time(:nanosecond)
-      Otel.LoggerHandler.log(log_event(:info, {:string, "t"}, %{}), handler_config())
-      assert_received {:captured_log, _, %{timestamp: ts}}
-      assert ts >= before
-      assert ts <= System.system_time(:nanosecond)
     end
   end
 

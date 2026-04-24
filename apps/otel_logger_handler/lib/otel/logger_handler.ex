@@ -198,47 +198,52 @@ defmodule Otel.LoggerHandler do
           Otel.API.Logs.LogRecord.t()
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
     base = %Otel.API.Logs.LogRecord{
-      timestamp: extract_timestamp(meta),
-      severity_number: extract_severity_number(level),
-      severity_text: extract_severity_text(level),
-      body: extract_body(msg),
-      attributes: extract_attributes(meta)
+      timestamp: to_timestamp(meta),
+      severity_number: to_severity_number(level),
+      severity_text: to_severity_text(level),
+      body: to_body(msg),
+      attributes: to_attributes(meta)
     }
 
     put_exception(base, meta)
   end
 
-  @spec extract_timestamp(meta :: map()) :: non_neg_integer()
-  defp extract_timestamp(%{time: time}) do
-    time * 1000
-  end
-
-  defp extract_timestamp(_meta) do
-    System.system_time(:nanosecond)
-  end
+  # `:time` is guaranteed on `meta` by `:logger`'s
+  # `add_default_metadata/1` (OTP `logger.erl` L1193-L1214),
+  # which runs on every `:logger.log/2`, `Logger.info/1`,
+  # `:logger:info/N` call path. The `:time` pattern match
+  # asserts that invariant — meta without `:time` raises
+  # `FunctionClauseError`, which is `:logger`'s own contract
+  # for removing malformed handlers (self-healing).
+  #
+  # µs → ns scaling per OTP's `microsecond` default
+  # (`logger.erl` L365-L366) and OTel `Timestamp` which is
+  # nanoseconds-since-epoch (`logs/data-model.md` L184-L187).
+  @spec to_timestamp(meta :: map()) :: non_neg_integer()
+  defp to_timestamp(%{time: time}), do: time * 1000
 
   # Body extraction — `logs/data-model.md` L399-L400 requires
   # preserving `AnyValue` structure for structured logs.
   # `{:report, term}` is Elixir's structured-log shape; we
   # preserve it as a map rather than collapsing to a string.
-  @spec extract_body(msg :: term()) :: term()
-  defp extract_body({:string, string}) do
+  @spec to_body(msg :: term()) :: term()
+  defp to_body({:string, string}) do
     IO.chardata_to_string(string)
   end
 
-  defp extract_body({:report, report}) when is_map(report) do
+  defp to_body({:report, report}) when is_map(report) do
     stringify_keys(report)
   end
 
-  defp extract_body({:report, report}) when is_list(report) do
+  defp to_body({:report, report}) when is_list(report) do
     report |> Enum.into(%{}) |> stringify_keys()
   end
 
-  defp extract_body({format, args}) when is_list(format) do
+  defp to_body({format, args}) when is_list(format) do
     :io_lib.format(format, args) |> IO.chardata_to_string()
   end
 
-  defp extract_body(other) do
+  defp to_body(other) do
     inspect(other)
   end
 
@@ -247,8 +252,8 @@ defmodule Otel.LoggerHandler do
     Map.new(map, fn {k, v} -> {to_string(k), v} end)
   end
 
-  @spec extract_attributes(meta :: map()) :: map()
-  defp extract_attributes(meta) do
+  @spec to_attributes(meta :: map()) :: map()
+  defp to_attributes(meta) do
     %{}
     |> put_code_function_name(meta)
     |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
@@ -306,16 +311,16 @@ defmodule Otel.LoggerHandler do
   # source for the numeric values here. Kept private
   # because only this handler consumes it — other bridges
   # define their own mapping from their source format.
-  @spec extract_severity_number(level :: :logger.level()) ::
+  @spec to_severity_number(level :: :logger.level()) ::
           Otel.API.Logs.severity_number()
-  defp extract_severity_number(:emergency), do: 21
-  defp extract_severity_number(:alert), do: 19
-  defp extract_severity_number(:critical), do: 18
-  defp extract_severity_number(:error), do: 17
-  defp extract_severity_number(:warning), do: 13
-  defp extract_severity_number(:notice), do: 10
-  defp extract_severity_number(:info), do: 9
-  defp extract_severity_number(:debug), do: 5
+  defp to_severity_number(:emergency), do: 21
+  defp to_severity_number(:alert), do: 19
+  defp to_severity_number(:critical), do: 18
+  defp to_severity_number(:error), do: 17
+  defp to_severity_number(:warning), do: 13
+  defp to_severity_number(:notice), do: 10
+  defp to_severity_number(:info), do: 9
+  defp to_severity_number(:debug), do: 5
 
   # `SeverityText` per `logs/data-model.md` L240-L241 — the
   # *"original string representation of the severity as it
@@ -323,17 +328,17 @@ defmodule Otel.LoggerHandler do
   # representation is the level atom; `Atom.to_string/1`
   # preserves it faithfully (`:emergency → "emergency"`,
   # etc.). OTel short names (`"FATAL"`, `"ERROR3"`) are a
-  # display concern derivable from `severity_number`, not
-  # what `SeverityText` is for.
+  # display concern derivable from `severity_number` per
+  # §Displaying Severity L334-L363, not what `SeverityText`
+  # is for.
   #
   # Return type is `Otel.API.Logs.severity_level()` rather
-  # than `String.t()` so the signature communicates that
-  # this function only yields the 8 valid `:logger`-level
-  # strings, not arbitrary text. `severity_level()` is a
-  # `String.t()` alias under the hood (see the Logs
-  # moduledoc — Elixir typespecs cannot express a literal
-  # string union), so Dialyzer inference is unchanged;
-  # the tighter name is for readers.
-  @spec extract_severity_text(level :: :logger.level()) :: Otel.API.Logs.severity_level()
-  defp extract_severity_text(level), do: Atom.to_string(level)
+  # than `String.t()` to document that the output is one of
+  # the 8 valid `:logger`-level strings, not arbitrary text.
+  # `severity_level()` is a `String.t()` alias under the
+  # hood (Elixir typespecs cannot express a literal string
+  # union), so Dialyzer inference is unchanged — the tighter
+  # name is for readers.
+  @spec to_severity_text(level :: :logger.level()) :: Otel.API.Logs.severity_level()
+  defp to_severity_text(level), do: Atom.to_string(level)
 end
