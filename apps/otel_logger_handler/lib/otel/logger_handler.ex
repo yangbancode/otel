@@ -176,7 +176,7 @@ defmodule Otel.LoggerHandler do
   | `mfa: {module, fun, arity}` | `code.function.name` | `"Module.fun/arity"` fully-qualified form |
   | `file: chardata` | `code.file.path` | |
   | `line: integer` | `code.line.number` | |
-  | `domain: [atom]` | `log.domain` | non-standard convenience |
+  | `domain: [atom]` | `log.domain` | non-standard convenience; emitted as `[String.t()]` so backends can filter by path segment |
 
   `pid` is intentionally **not** emitted — `process.pid` is
   an int-typed OS PID attribute in semantic-conventions and
@@ -414,8 +414,20 @@ defmodule Otel.LoggerHandler do
     |> put_code_function_name(meta)
     |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
     |> put_meta_attr(meta, :line, "code.line.number", & &1)
-    |> put_meta_attr(meta, :domain, "log.domain", &inspect/1)
+    |> put_meta_attr(meta, :domain, "log.domain", &domain_to_strings/1)
   end
+
+  # OTP `:logger` `domain: [atom()]` is a hierarchical label
+  # path (e.g. `[:otp, :sasl]`, `[:elixir, :phoenix]`). Emit
+  # it as `[String.t()]` — a valid attribute value per
+  # `LogRecord.attributes` (`primitive() | [primitive()]`) —
+  # so OTel backends can filter by individual segments
+  # (`log.domain[0] = "elixir"`). An earlier implementation
+  # used `inspect/1` which produced `"[:elixir, :phoenix]"`
+  # — valid as a `String.t()` but not query-friendly (backends
+  # see an Elixir-literal blob, not a path).
+  @spec domain_to_strings(domain :: [atom()]) :: [String.t()]
+  defp domain_to_strings(domain), do: Enum.map(domain, &Atom.to_string/1)
 
   # Elixir/OTP `mfa` → `code.function.name` as a
   # fully-qualified `"Module.fun/arity"` string, per the
