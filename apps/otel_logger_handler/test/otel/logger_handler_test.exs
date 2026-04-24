@@ -234,15 +234,140 @@ defmodule Otel.LoggerHandlerTest do
       assert body == %{"user_id" => 42, "action" => "login"}
     end
 
+    # Regression: `LogRecord.body` is typed `primitive_any()`
+    # which recursively requires `%{String.t() => ...}` at
+    # every nesting level. Prior to recursive stringification,
+    # a nested `{:report, %{user: %{id: 42}}}` produced
+    # `%{"user" => %{id: 42}}` — OTLP's encoder masked this
+    # by re-stringifying on export, but in-process consumers
+    # saw mixed-key maps.
+    test "{:report, nested map} stringifies keys at every depth" do
+      msg = {:report, %{user: %{id: 42, name: "alice"}}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"user" => %{"id" => 42, "name" => "alice"}}
+    end
+
+    test "{:report, map with list-of-maps} stringifies keys in all nested maps" do
+      msg = {:report, %{events: [%{type: "click"}, %{type: "scroll"}]}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"events" => [%{"type" => "click"}, %{"type" => "scroll"}]}
+    end
+
+    # Structs with `String.Chars` impl use `to_string/1` — the
+    # protocol IS the user/library declaration of the canonical
+    # string form. `Date` renders ISO-8601, not the Elixir sigil
+    # literal.
+    test "{:report, map with struct impl'ing String.Chars} uses to_string" do
+      msg = {:report, %{at: ~D[2024-01-01]}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"at" => "2024-01-01"}
+    end
+
+    # Structs without `String.Chars` impl fall back to
+    # `inspect/1` — keeps Body AnyValue-clean without
+    # flattening the struct.
+    test "{:report, map with struct lacking String.Chars} inspects struct" do
+      msg = {:report, %{set: MapSet.new([1, 2])}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"set" => "MapSet.new([1, 2])"}
+    end
+
+    # Atoms implement `String.Chars`, so `:ok` → `"ok"` (no
+    # colon prefix) — friendlier for OTel backend string
+    # matching than the Elixir-y `":ok"`.
+    test "{:report, map with atom value} uses to_string" do
+      msg = {:report, %{status: :ok}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"status" => "ok"}
+    end
+
+    # Elixir module atoms are stored internally as
+    # `:"Elixir.<Name>"`, and `to_string/1` returns that raw
+    # form. Pinned for visibility — the `Elixir.` prefix is
+    # accepted as a known trade-off of the `String.Chars`
+    # approach.
+    test "{:report, map with module atom value} renders with Elixir prefix" do
+      msg = {:report, %{service: Enum}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"service" => "Elixir.Enum"}
+    end
+
+    # Booleans, `nil`, integers, and floats are `primitive()`
+    # per `common.types` — pass through unchanged.
+    test "{:report, map with primitive values} preserves them unchanged" do
+      msg =
+        {:report,
+         %{
+           active: true,
+           deleted: false,
+           removed_at: nil,
+           count: 42,
+           ratio: 0.75
+         }}
+
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+
+      assert body == %{
+               "active" => true,
+               "deleted" => false,
+               "removed_at" => nil,
+               "count" => 42,
+               "ratio" => 0.75
+             }
+    end
+
+    test "{:report, map with tuple value} inspects tuple to string" do
+      msg = {:report, %{point: {1, 2}}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"point" => "{1, 2}"}
+    end
+
+    # The `{:bytes, binary()}` tag is a primitive — it
+    # disambiguates raw bytes from UTF-8 strings for the
+    # OTLP encoder (common.types L42-L57) and must pass
+    # through unchanged.
+    test "{:report, map with {:bytes, binary()} value} preserves byte tag" do
+      payload = {:bytes, <<0xCA, 0xFE>>}
+      msg = {:report, %{data: payload}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"data" => payload}
+    end
+
     test "{format, args} → :io_lib.format output" do
       msg = {~c"hello ~s", [~c"world"]}
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: "hello world"}}
     end
 
-    test "unknown shape falls back to inspect/1" do
+    # Defensive path — msg that doesn't match any `:logger`
+    # protocol shape (not `{:string, _}`, `{:report, _}`, or
+    # `{format, args}`). Only fires when a caller invokes
+    # `log/2` directly with a hand-rolled event. Goes through
+    # `to_primitive_any/1` for consistency with the `:report`
+    # paths above.
+    test "unknown-shape atom normalises via to_primitive_any/1" do
       Otel.LoggerHandler.log(log_event(:info, :unexpected_atom, %{}), handler_config())
-      assert_received {:captured_log, _, %{body: ":unexpected_atom"}}
+      assert_received {:captured_log, _, %{body: "unexpected_atom"}}
+    end
+
+    # Regression for the Q2 review fix: previously this path
+    # ran `inspect/1` and produced the string `"%{user_id: 42}"`.
+    # Now untagged structured data is preserved as a map, which
+    # is how a caller bypassing OTP's `{:report, _}` wrapping
+    # would reasonably expect their data to arrive.
+    test "unknown-shape untagged map preserved as string-keyed map" do
+      Otel.LoggerHandler.log(log_event(:info, %{user_id: 42}, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"user_id" => 42}
     end
   end
 

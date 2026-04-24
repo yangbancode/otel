@@ -106,10 +106,26 @@ defmodule Otel.LoggerHandler do
   | `msg` shape | Body |
   |---|---|
   | `{:string, chardata}` | `IO.chardata_to_string/1` |
-  | `{:report, map}` | map with string keys |
-  | `{:report, keyword_list}` | map derived from the keyword list |
+  | `{:report, map}` | `primitive_any()`-normalised map (keys stringified, values normalised recursively) |
+  | `{:report, keyword_list}` | keyword list converted to map, then normalised as above |
   | `{format, args}` (`:io_lib.format/2` shape) | formatted string |
-  | anything else | `inspect/1` fallback |
+  | anything else | normalised through the same `primitive_any()` pipeline (maps stay maps, primitives stay primitives, others coerced to strings) |
+
+  Values inside a report that don't fit OTel's `AnyValue` —
+  atoms, structs, tuples, references, pids, functions — are
+  converted to strings. Values that implement the
+  `String.Chars` protocol (atoms, `Date`/`DateTime`/`Time`,
+  `URI`, `Version`, `Regex`, user structs with
+  `defimpl String.Chars`, etc.) use `to_string/1` to honor
+  the canonical string form: `~D[2024-01-01]` → `"2024-01-01"`,
+  `:ok` → `"ok"`. Values without a `String.Chars` impl
+  (tuples, pids, refs, functions, `MapSet`) fall back to
+  `inspect/1`. Body therefore stays strictly within
+  `primitive_any()` at every depth without flattening
+  structs to `%{"__struct__" => Date, ...}`. Primitive
+  values (`String.t()`, `integer()`, `float()`, `boolean()`,
+  `nil`, and the `{:bytes, binary()}` tag) pass through
+  unchanged.
 
   ## Exception events
 
@@ -142,6 +158,8 @@ defmodule Otel.LoggerHandler do
   decision will settle whether to emit it under a
   BEAM-specific custom key or drop it entirely.
   """
+
+  use Otel.API.Common.Types
 
   # --- :logger handler callbacks ---
 
@@ -225,31 +243,90 @@ defmodule Otel.LoggerHandler do
   # Body extraction — `logs/data-model.md` L399-L400 requires
   # preserving `AnyValue` structure for structured logs.
   # `{:report, term}` is Elixir's structured-log shape; we
-  # preserve it as a map rather than collapsing to a string.
-  @spec to_body(msg :: term()) :: term()
+  # preserve it as a map via `to_primitive_any/1` rather than
+  # collapsing to a string.
+  @spec to_body(msg :: term()) :: primitive_any()
   defp to_body({:string, string}) do
     IO.chardata_to_string(string)
   end
 
   defp to_body({:report, report}) when is_map(report) do
-    stringify_keys(report)
+    to_primitive_any(report)
   end
 
   defp to_body({:report, report}) when is_list(report) do
-    report |> Enum.into(%{}) |> stringify_keys()
+    report |> Enum.into(%{}) |> to_primitive_any()
   end
 
   defp to_body({format, args}) when is_list(format) do
     :io_lib.format(format, args) |> IO.chardata_to_string()
   end
 
+  # Defensive clause — OTP `:logger` normalises every message
+  # into one of the three shapes above (`logger.erl` L1159-L1177),
+  # so this only fires when a caller (typically a test) invokes
+  # `log/2` directly with a hand-rolled event. `to_primitive_any/1`
+  # handles raw terms consistently with the `:report` paths above
+  # — an untagged map like `%{user_id: 42}` is preserved as a
+  # normalised map rather than stringified.
   defp to_body(other) do
-    inspect(other)
+    to_primitive_any(other)
   end
 
-  @spec stringify_keys(map :: map()) :: %{String.t() => term()}
-  defp stringify_keys(map) do
-    Map.new(map, fn {k, v} -> {to_string(k), v} end)
+  # Normalise any Elixir term to `primitive_any()` — OTel's
+  # `AnyValue` (`common/README.md` §AnyValue L39-L54), mirrored
+  # in our project-local `primitive_any()` type
+  # (`apps/otel_api/lib/otel/api/common/types.ex` L183-L184):
+  #
+  #     primitive_any() ::
+  #       primitive() | [primitive_any()] | %{String.t() => primitive_any()}
+  #
+  # `primitive()` = `String.t() | {:bytes, binary()} | boolean()
+  # | integer() | float() | nil`. Anything outside that union
+  # (arbitrary atoms like `:ok`, structs like `%Date{}`, tuples
+  # other than the `:bytes` tag, references, pids, functions)
+  # has no `AnyValue` representation, so we render it via
+  # `inspect/1` — matches Elixir's own `Logger` default
+  # formatter and preserves a human-readable form without
+  # leaking `__struct__`-style internals.
+  #
+  # Maps recurse with `to_string(k)` on keys so the
+  # `map<string, AnyValue>` contract holds at every depth.
+  # Lists recurse element-wise so nested composites are
+  # normalised too. Struct-valued fields hit the catch-all
+  # `inspect/1` clause rather than being flattened to
+  # `%{"__struct__" => Date, ...}`.
+  @spec to_primitive_any(value :: term()) :: primitive_any()
+  defp to_primitive_any(nil), do: nil
+  defp to_primitive_any(value) when is_boolean(value), do: value
+  defp to_primitive_any(value) when is_binary(value), do: value
+  defp to_primitive_any(value) when is_integer(value), do: value
+  defp to_primitive_any(value) when is_float(value), do: value
+  defp to_primitive_any({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
+  end
+
+  defp to_primitive_any(value) when is_list(value) do
+    Enum.map(value, &to_primitive_any/1)
+  end
+
+  # Non-primitive, non-composite catch-all: atoms, structs,
+  # tuples, references, pids, functions. Prefer `to_string/1`
+  # when the value implements `String.Chars` — that protocol
+  # IS the user/library declaration of "this is the canonical
+  # string form" (e.g. `Date` renders as `"2024-01-01"`, `URI`
+  # as `"http://..."`, `:ok` as `"ok"`). Values without a
+  # `String.Chars` impl (tuples, pids, refs, ports, functions,
+  # `MapSet`, etc.) fall back to `inspect/1`. `String.Chars.
+  # impl_for/1` returns the impl module or `nil`, so this is a
+  # pure dispatch — no `try/rescue`.
+  defp to_primitive_any(value) do
+    case String.Chars.impl_for(value) do
+      nil -> inspect(value)
+      _impl -> to_string(value)
+    end
   end
 
   @spec to_attributes(meta :: map()) :: map()
