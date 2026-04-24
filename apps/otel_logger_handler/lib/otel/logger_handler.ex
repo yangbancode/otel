@@ -33,16 +33,21 @@ defmodule Otel.LoggerHandler do
   | `scope_schema_url` | `""` | `Otel.API.InstrumentationScope.schema_url` (OTel spec v1.13.0+) |
   | `scope_attributes` | `%{}` | `Otel.API.InstrumentationScope.attributes` (OTEP 0201). Follows OTel attribute rules: primitives or homogeneous arrays only |
 
-  `adding_handler/1` builds an `%Otel.API.InstrumentationScope{}`
-  from the four `scope_*` keys and resolves the Logger through
-  `Otel.API.Logs.LoggerProvider.get_logger/1`. The resolved
-  Logger is cached back into the config under `:otel_logger`,
-  so `log/2` does not re-resolve per event.
+  `log/2` builds an `%Otel.API.InstrumentationScope{}` from the
+  four `scope_*` keys on every event and resolves the Logger
+  through `Otel.API.Logs.LoggerProvider.get_logger/1`. Resolution
+  is deliberately done per-event rather than cached at
+  `adding_handler/1` time — caching the resolved Logger would
+  lock in whatever was registered when the handler was added
+  (typically Noop during kernel start-up, before any SDK
+  `LoggerProvider.set_provider/1` runs), and every subsequent
+  event would silently drop through that stale Noop even after
+  the SDK comes up.
 
   To use a custom Logger implementation (e.g. for testing),
   register a custom `Otel.API.Logs.LoggerProvider` via
-  `Otel.API.Logs.LoggerProvider.set_provider/1` — `adding_handler/1`
-  will obtain the Logger through that provider.
+  `Otel.API.Logs.LoggerProvider.set_provider/1` — `log/2` will
+  obtain the Logger through that provider on every call.
 
   Batching and export are handled by the SDK's processor
   pipeline, not by this handler. Pair with `BatchProcessor`
@@ -143,7 +148,15 @@ defmodule Otel.LoggerHandler do
   @doc false
   @spec adding_handler(config :: :logger.handler_config()) ::
           {:ok, :logger.handler_config()} | {:error, term()}
-  def adding_handler(config) do
+  def adding_handler(config), do: {:ok, config}
+
+  @doc false
+  @spec removing_handler(config :: :logger.handler_config()) :: :ok
+  def removing_handler(_config), do: :ok
+
+  @doc false
+  @spec log(log_event :: :logger.log_event(), config :: :logger.handler_config()) :: :ok
+  def log(log_event, config) do
     otel_config = Map.get(config, :config) || %{}
 
     instrumentation_scope = %Otel.API.InstrumentationScope{
@@ -153,27 +166,10 @@ defmodule Otel.LoggerHandler do
       attributes: Map.get(otel_config, :scope_attributes) || %{}
     }
 
-    otel_logger = Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
-
-    updated_config = Map.put(config, :config, Map.put(otel_config, :otel_logger, otel_logger))
-    {:ok, updated_config}
-  end
-
-  @doc false
-  @spec removing_handler(config :: :logger.handler_config()) :: :ok
-  def removing_handler(_config), do: :ok
-
-  @doc false
-  @spec log(log_event :: :logger.log_event(), config :: :logger.handler_config()) :: :ok
-  def log(log_event, config) do
-    otel_config = Map.get(config, :config, %{})
-    logger = Map.get(otel_config, :otel_logger)
-
-    if logger do
-      ctx = Otel.API.Ctx.current()
-      log_record = build_log_record(log_event)
-      Otel.API.Logs.Logger.emit(logger, ctx, log_record)
-    end
+    logger = Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
+    ctx = Otel.API.Ctx.current()
+    log_record = build_log_record(log_event)
+    Otel.API.Logs.Logger.emit(logger, ctx, log_record)
 
     :ok
   end

@@ -29,11 +29,13 @@ defmodule Otel.LoggerHandlerTest.CapturingProvider do
   @moduledoc false
   # Test-double `Otel.API.Logs.LoggerProvider` implementation.
   #
-  # Echoes the `InstrumentationScope` it receives back to the
-  # pid stored in state, so tests can assert on the exact scope
-  # struct `adding_handler/1` built from the flat `scope_*`
-  # keys. Returns the standard Noop Logger so the handler's
-  # downstream `log/2` path stays silent.
+  # On `get_logger/2`:
+  # - sends `{:scope_resolved, scope}` to `test_pid` so tests
+  #   can assert on the exact `InstrumentationScope` the handler
+  #   built from the flat `scope_*` keys;
+  # - returns `{CapturingLogger, test_pid}` so the handler's
+  #   downstream `emit/3` is captured back to the same test pid
+  #   as `{:captured_log, ctx, log_record}`.
   #
   # Register via
   # `Otel.API.Logs.LoggerProvider.set_provider({__MODULE__, test_pid})`.
@@ -43,7 +45,7 @@ defmodule Otel.LoggerHandlerTest.CapturingProvider do
   @impl true
   def get_logger(test_pid, %Otel.API.InstrumentationScope{} = scope) do
     send(test_pid, {:scope_resolved, scope})
-    {Otel.API.Logs.Logger.Noop, []}
+    {Otel.LoggerHandlerTest.CapturingLogger, test_pid}
   end
 end
 
@@ -55,84 +57,42 @@ defmodule Otel.LoggerHandlerTest do
   setup do
     :logger.remove_handler(@handler_id)
 
+    # Install the test-double provider so every `log/2`-driven
+    # `LoggerProvider.get_logger/1` round-trips through
+    # CapturingProvider and lands in CapturingLogger, which
+    # relays `:captured_log` back to this test's pid. Each
+    # ExUnit test runs in its own process, so `self()` at setup
+    # time is the test's pid.
+    Otel.API.Logs.LoggerProvider.set_provider({Otel.LoggerHandlerTest.CapturingProvider, self()})
+
     on_exit(fn ->
       :logger.remove_handler(@handler_id)
+      :persistent_term.erase({Otel.API.Logs.LoggerProvider, :global})
     end)
 
-    # Each test body runs in its own process, so self() at
-    # macro-expansion time is stale — rebuild the logger
-    # tuple with the actual test pid in a setup block.
-    {:ok, logger: {Otel.LoggerHandlerTest.CapturingLogger, self()}}
+    :ok
   end
 
-  defp config_with(logger), do: %{config: %{otel_logger: logger}}
+  defp handler_config(extra \\ %{}) do
+    %{config: Map.merge(%{scope_name: "test_lib"}, extra)}
+  end
 
   defp log_event(level, msg, meta) do
     %{level: level, msg: msg, meta: meta}
   end
 
-  # Installs `CapturingProvider` as the global LoggerProvider for
-  # the duration of a test, and wires `on_exit` to clear the
-  # `:persistent_term` entry so other tests see a clean state.
-  defp install_capturing_provider do
-    Otel.API.Logs.LoggerProvider.set_provider({Otel.LoggerHandlerTest.CapturingProvider, self()})
-
-    on_exit(fn ->
-      :persistent_term.erase({Otel.API.Logs.LoggerProvider, :global})
-    end)
-  end
-
   describe "adding_handler/1" do
-    test "builds a Logger via LoggerProvider when none is pre-configured" do
+    test "passes config through unchanged" do
       config = %{config: %{scope_name: "test_lib", scope_version: "1.0.0"}}
-
-      {:ok, updated} = Otel.LoggerHandler.adding_handler(config)
-
-      assert Map.has_key?(updated.config, :otel_logger)
-      {module, _state} = updated.config.otel_logger
-      # No SDK installed, so LoggerProvider hands back the Noop.
-      assert module == Otel.API.Logs.Logger.Noop
+      assert {:ok, ^config} = Otel.LoggerHandler.adding_handler(config)
     end
 
-    test "uses default scope name when not provided" do
-      {:ok, updated} = Otel.LoggerHandler.adding_handler(%{config: %{}})
-      assert Map.has_key?(updated.config, :otel_logger)
+    test "accepts empty :config key" do
+      assert {:ok, _} = Otel.LoggerHandler.adding_handler(%{config: %{}})
     end
 
-    test "propagates all four scope_* keys into the InstrumentationScope" do
-      install_capturing_provider()
-
-      unique = System.unique_integer([:positive])
-
-      config = %{
-        config: %{
-          scope_name: "capture_#{unique}",
-          scope_version: "2.0.0",
-          scope_schema_url: "https://example.com/schemas/1.26.0",
-          scope_attributes: %{"deployment.environment" => "test"}
-        }
-      }
-
-      {:ok, _updated} = Otel.LoggerHandler.adding_handler(config)
-
-      assert_received {:scope_resolved, scope}
-      assert scope.name == "capture_#{unique}"
-      assert scope.version == "2.0.0"
-      assert scope.schema_url == "https://example.com/schemas/1.26.0"
-      assert scope.attributes == %{"deployment.environment" => "test"}
-    end
-
-    test "defaults scope_schema_url and scope_attributes to empty when omitted" do
-      install_capturing_provider()
-
-      unique = System.unique_integer([:positive])
-      config = %{config: %{scope_name: "defaults_#{unique}"}}
-
-      {:ok, _updated} = Otel.LoggerHandler.adding_handler(config)
-
-      assert_received {:scope_resolved, scope}
-      assert scope.schema_url == ""
-      assert scope.attributes == %{}
+    test "accepts config with no :config key at all" do
+      assert {:ok, _} = Otel.LoggerHandler.adding_handler(%{})
     end
   end
 
@@ -142,17 +102,52 @@ defmodule Otel.LoggerHandlerTest do
     end
   end
 
-  describe "log/2 dispatch" do
-    test "no-op when config has no otel_logger" do
-      event = log_event(:info, {:string, "hi"}, %{time: 1_000_000})
-      assert :ok == Otel.LoggerHandler.log(event, %{config: %{}})
-      refute_received {:captured_log, _, _}
+  describe "log/2 — Logger resolution" do
+    test "resolves Logger via LoggerProvider on every event" do
+      Otel.LoggerHandler.log(
+        log_event(:info, {:string, "hi"}, %{time: 1_000_000}),
+        handler_config()
+      )
+
+      assert_received {:scope_resolved, %Otel.API.InstrumentationScope{name: "test_lib"}}
+      assert_received {:captured_log, _ctx, _record}
     end
 
-    test "emits through the configured logger", %{logger: logger} do
-      event = log_event(:info, {:string, "hi"}, %{time: 1_000_000})
-      Otel.LoggerHandler.log(event, config_with(logger))
-      assert_received {:captured_log, _ctx, _record}
+    test "propagates all four scope_* keys into the InstrumentationScope" do
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), %{
+        config: %{
+          scope_name: "my_app",
+          scope_version: "2.0.0",
+          scope_schema_url: "https://example.com/schemas/1.26.0",
+          scope_attributes: %{"deployment.environment" => "test"}
+        }
+      })
+
+      assert_received {:scope_resolved, scope}
+      assert scope.name == "my_app"
+      assert scope.version == "2.0.0"
+      assert scope.schema_url == "https://example.com/schemas/1.26.0"
+      assert scope.attributes == %{"deployment.environment" => "test"}
+    end
+
+    test "defaults empty scope_* keys when config is empty" do
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), %{config: %{}})
+
+      assert_received {:scope_resolved, scope}
+      assert scope.name == ""
+      assert scope.version == ""
+      assert scope.schema_url == ""
+      assert scope.attributes == %{}
+    end
+
+    test "defaults empty scope_* keys when config has no :config map" do
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), %{})
+
+      assert_received {:scope_resolved, scope}
+      assert scope.name == ""
+      assert scope.version == ""
+      assert scope.schema_url == ""
+      assert scope.attributes == %{}
     end
   end
 
@@ -163,43 +158,43 @@ defmodule Otel.LoggerHandlerTest do
   # string) per L240-L241 *"original string representation
   # of the severity as it is known at the source"*.
   describe "severity mapping" do
-    test ~s|:emergency → 21 / "emergency"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:emergency, {:string, "e"}, %{}), config_with(logger))
+    test ~s|:emergency → 21 / "emergency"| do
+      Otel.LoggerHandler.log(log_event(:emergency, {:string, "e"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 21, severity_text: "emergency"}}
     end
 
-    test ~s|:alert → 19 / "alert"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:alert, {:string, "a"}, %{}), config_with(logger))
+    test ~s|:alert → 19 / "alert"| do
+      Otel.LoggerHandler.log(log_event(:alert, {:string, "a"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 19, severity_text: "alert"}}
     end
 
-    test ~s|:critical → 18 / "critical"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:critical, {:string, "c"}, %{}), config_with(logger))
+    test ~s|:critical → 18 / "critical"| do
+      Otel.LoggerHandler.log(log_event(:critical, {:string, "c"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 18, severity_text: "critical"}}
     end
 
-    test ~s|:error → 17 / "error"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:error, {:string, "err"}, %{}), config_with(logger))
+    test ~s|:error → 17 / "error"| do
+      Otel.LoggerHandler.log(log_event(:error, {:string, "err"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 17, severity_text: "error"}}
     end
 
-    test ~s|:warning → 13 / "warning"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:warning, {:string, "w"}, %{}), config_with(logger))
+    test ~s|:warning → 13 / "warning"| do
+      Otel.LoggerHandler.log(log_event(:warning, {:string, "w"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 13, severity_text: "warning"}}
     end
 
-    test ~s|:notice → 10 / "notice"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:notice, {:string, "n"}, %{}), config_with(logger))
+    test ~s|:notice → 10 / "notice"| do
+      Otel.LoggerHandler.log(log_event(:notice, {:string, "n"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 10, severity_text: "notice"}}
     end
 
-    test ~s|:info → 9 / "info"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:info, {:string, "i"}, %{}), config_with(logger))
+    test ~s|:info → 9 / "info"| do
+      Otel.LoggerHandler.log(log_event(:info, {:string, "i"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 9, severity_text: "info"}}
     end
 
-    test ~s|:debug → 5 / "debug"|, %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:debug, {:string, "d"}, %{}), config_with(logger))
+    test ~s|:debug → 5 / "debug"| do
+      Otel.LoggerHandler.log(log_event(:debug, {:string, "d"}, %{}), handler_config())
       assert_received {:captured_log, _, %{severity_number: 5, severity_text: "debug"}}
     end
   end
@@ -210,52 +205,52 @@ defmodule Otel.LoggerHandlerTest do
   # are Elixir's structured-log conveyors; the handler must
   # keep the structure instead of `inspect/1`ing it.
   describe "body extraction" do
-    test "{:string, chardata} → string", %{logger: logger} do
+    test "{:string, chardata} → string" do
       msg = {:string, ["hello ", ~c"world"]}
-      Otel.LoggerHandler.log(log_event(:info, msg, %{}), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: "hello world"}}
     end
 
-    test "{:report, map} preserves structure as string-keyed map", %{logger: logger} do
+    test "{:report, map} preserves structure as string-keyed map" do
       msg = {:report, %{user_id: 42, action: "login"}}
-      Otel.LoggerHandler.log(log_event(:info, msg, %{}), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: body}}
       assert body == %{"user_id" => 42, "action" => "login"}
     end
 
-    test "{:report, keyword_list} converts to string-keyed map", %{logger: logger} do
+    test "{:report, keyword_list} converts to string-keyed map" do
       msg = {:report, user_id: 42, action: "login"}
-      Otel.LoggerHandler.log(log_event(:info, msg, %{}), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: body}}
       assert body == %{"user_id" => 42, "action" => "login"}
     end
 
-    test "{format, args} → :io_lib.format output", %{logger: logger} do
+    test "{format, args} → :io_lib.format output" do
       msg = {~c"hello ~s", [~c"world"]}
-      Otel.LoggerHandler.log(log_event(:info, msg, %{}), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: "hello world"}}
     end
 
-    test "unknown shape falls back to inspect/1", %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:info, :unexpected_atom, %{}), config_with(logger))
+    test "unknown shape falls back to inspect/1" do
+      Otel.LoggerHandler.log(log_event(:info, :unexpected_atom, %{}), handler_config())
       assert_received {:captured_log, _, %{body: ":unexpected_atom"}}
     end
   end
 
   describe "timestamp extraction" do
-    test "uses meta.time (µs) scaled to ns", %{logger: logger} do
+    test "uses meta.time (µs) scaled to ns" do
       # meta.time is Erlang `system_time(microsecond)`.
       Otel.LoggerHandler.log(
         log_event(:info, {:string, "t"}, %{time: 1_234}),
-        config_with(logger)
+        handler_config()
       )
 
       assert_received {:captured_log, _, %{timestamp: 1_234_000}}
     end
 
-    test "falls back to current time when meta.time absent", %{logger: logger} do
+    test "falls back to current time when meta.time absent" do
       before = System.system_time(:nanosecond)
-      Otel.LoggerHandler.log(log_event(:info, {:string, "t"}, %{}), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, {:string, "t"}, %{}), handler_config())
       assert_received {:captured_log, _, %{timestamp: ts}}
       assert ts >= before
       assert ts <= System.system_time(:nanosecond)
@@ -268,52 +263,52 @@ defmodule Otel.LoggerHandlerTest do
   # `code.function` / `code.filepath` / `code.lineno` keys
   # are intentionally **not** emitted.
   describe "attribute extraction" do
-    test "maps mfa to code.function.name as fully-qualified name", %{logger: logger} do
+    test "maps mfa to code.function.name as fully-qualified name" do
       meta = %{mfa: {MyModule, :my_func, 2}}
-      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
       assert attrs["code.function.name"] == "MyModule.my_func/2"
       refute Map.has_key?(attrs, "code.namespace")
       refute Map.has_key?(attrs, "code.function")
     end
 
-    test "maps file to code.file.path (chardata → string)", %{logger: logger} do
+    test "maps file to code.file.path (chardata → string)" do
       meta = %{file: ~c"lib/foo.ex"}
-      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
       assert attrs["code.file.path"] == "lib/foo.ex"
       refute Map.has_key?(attrs, "code.filepath")
     end
 
-    test "maps line to code.line.number", %{logger: logger} do
+    test "maps line to code.line.number" do
       meta = %{line: 42}
-      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
       assert attrs["code.line.number"] == 42
       refute Map.has_key?(attrs, "code.lineno")
     end
 
-    test "maps domain to log.domain", %{logger: logger} do
+    test "maps domain to log.domain" do
       meta = %{domain: [:elixir, :foo]}
-      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
       assert attrs["log.domain"] == "[:elixir, :foo]"
     end
 
-    test "omits code.* keys when mfa/file/line absent", %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), config_with(logger))
+    test "omits code.* keys when mfa/file/line absent" do
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
       refute Map.has_key?(attrs, "code.function.name")
       refute Map.has_key?(attrs, "code.file.path")
       refute Map.has_key?(attrs, "code.line.number")
     end
 
-    test "does not emit process.pid even when pid is in meta", %{logger: logger} do
+    test "does not emit process.pid even when pid is in meta" do
       # `process.pid` in semconv is an int-typed OS PID;
       # Erlang PIDs don't fit, so we drop rather than
       # mis-represent.
       meta = %{pid: self()}
-      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
       refute Map.has_key?(attrs, "process.pid")
     end
@@ -323,28 +318,28 @@ defmodule Otel.LoggerHandlerTest do
   # routed through `:logger` with `meta.crash_reason = {exc,
   # stack}` should surface as OTel exception events.
   describe "crash_reason extraction" do
-    test "populates log_record.exception from meta.crash_reason", %{logger: logger} do
+    test "populates log_record.exception from meta.crash_reason" do
       exception = %RuntimeError{message: "boom"}
       stacktrace = [{__MODULE__, :test, 0, []}]
       meta = %{crash_reason: {exception, stacktrace}}
 
-      Otel.LoggerHandler.log(log_event(:error, {:string, "crash"}, meta), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:error, {:string, "crash"}, meta), handler_config())
       assert_received {:captured_log, _, %{exception: captured}}
       assert captured == exception
     end
 
-    test "leaves exception field nil when crash_reason absent", %{logger: logger} do
-      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), config_with(logger))
+    test "leaves exception field nil when crash_reason absent" do
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), handler_config())
       assert_received {:captured_log, _, record}
       assert record.exception == nil
     end
 
-    test "ignores non-exception crash_reason shapes (e.g. exit tuples)", %{logger: logger} do
+    test "ignores non-exception crash_reason shapes (e.g. exit tuples)" do
       # OTP can also set `crash_reason` to `{:exit, term}`
       # for non-exception exits; those don't fit
       # `Exception.t()` so we drop rather than mis-populate.
       meta = %{crash_reason: {:shutdown, :some_reason}}
-      Otel.LoggerHandler.log(log_event(:error, {:string, "x"}, meta), config_with(logger))
+      Otel.LoggerHandler.log(log_event(:error, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, record}
       assert record.exception == nil
     end
