@@ -184,6 +184,36 @@ defmodule Otel.LoggerHandler do
   decision will settle whether to emit it under a
   BEAM-specific custom key or drop it entirely.
 
+  ### Format choices
+
+  `code.function.name` renders as
+  `"\#{inspect(module)}.\#{function}/\#{arity}"` — two
+  choices worth surfacing:
+
+  1. **Arity is included.** The spec's Elixir example at
+     `semantic-conventions/model/code/registry.yaml` L31 is
+     `OpenTelemetry.Ctx.new` (arity-less), but L20 notes
+     *"Values and format depends on each language runtime"*.
+     BEAM conventions (stacktrace format, OTP's `mfa` tuple,
+     `Exception.format_mfa/3`) include arity, and `handle/2`
+     vs `handle/3` are genuinely distinct functions — omitting
+     arity would lose information.
+
+  2. **`inspect(module)` strips the `Elixir.` prefix.** Module
+     atoms are stored internally as `:"Elixir.<Name>"`;
+     `inspect/1` drops the prefix (`inspect(MyApp.Worker)` →
+     `"MyApp.Worker"`), while `Atom.to_string/1` / `to_string/1`
+     keep it (`"Elixir.MyApp.Worker"`). For `code.function.name`
+     the user-readable form matters to backends and stacktraces.
+     This intentionally differs from `to_primitive_any/1`
+     (body-value path), which uses `to_string/1` and accepts
+     the prefix — each function's use case dictates the choice.
+
+  `log.domain` is `[String.t()]` (homogeneous array) so
+  backends can filter by individual path segments
+  (`log.domain[0] = "elixir"`). A stringified literal like
+  `"[:elixir, :phoenix]"` wouldn't support segment queries.
+
   ### User metadata pass-through
 
   `:logger` accepts arbitrary user-provided metadata via
@@ -485,64 +515,16 @@ defmodule Otel.LoggerHandler do
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do
     %{}
-    |> put_code_function_name(meta)
+    |> put_meta_attr(meta, :mfa, "code.function.name", fn {module, function, arity} ->
+      "#{inspect(module)}.#{function}/#{arity}"
+    end)
     |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
     |> put_meta_attr(meta, :line, "code.line.number", & &1)
-    |> put_meta_attr(meta, :domain, "log.domain", &domain_to_strings/1)
+    |> put_meta_attr(meta, :domain, "log.domain", fn domain ->
+      Enum.map(domain, &Atom.to_string/1)
+    end)
     |> put_user_meta(meta)
   end
-
-  # OTP `:logger` `domain: [atom()]` is a hierarchical label
-  # path (e.g. `[:otp, :sasl]`, `[:elixir, :phoenix]`). Emit
-  # it as `[String.t()]` — a valid attribute value per
-  # `LogRecord.attributes` (`primitive() | [primitive()]`) —
-  # so OTel backends can filter by individual segments
-  # (`log.domain[0] = "elixir"`). An earlier implementation
-  # used `inspect/1` which produced `"[:elixir, :phoenix]"`
-  # — valid as a `String.t()` but not query-friendly (backends
-  # see an Elixir-literal blob, not a path).
-  @spec domain_to_strings(domain :: [atom()]) :: [String.t()]
-  defp domain_to_strings(domain), do: Enum.map(domain, &Atom.to_string/1)
-
-  # Elixir/OTP `mfa` → `code.function.name` as a
-  # fully-qualified `"Module.fun/arity"` string. The stable
-  # semantic-conventions name
-  # (`semantic-conventions/model/code/registry.yaml` L8-L34)
-  # absorbs what the deprecated `code.namespace` +
-  # `code.function` pair used to carry
-  # (`registry-deprecated.yaml` L8-L55).
-  #
-  # Two deliberate format choices worth surfacing:
-  #
-  # 1. **`/arity` is included** (`"MyApp.Worker.handle/2"`).
-  #    The spec's Elixir example at `registry.yaml` L31 is
-  #    `OpenTelemetry.Ctx.new` — arity-less — but L20 notes
-  #    *"Values and format depends on each language runtime"*.
-  #    BEAM conventions (stacktrace format, OTP's own `mfa`
-  #    tuple, `Exception.format_mfa/3`) include arity; `handle/2`
-  #    and `handle/3` are genuinely distinct functions, so
-  #    omitting arity would lose information. We follow BEAM
-  #    precedent.
-  #
-  # 2. **`inspect(module)` strips the `Elixir.` prefix**.
-  #    Module atoms are stored internally as
-  #    `:"Elixir.<Name>"`; `inspect/1` drops the `Elixir.`
-  #    prefix for display (`inspect(MyApp.Worker)` →
-  #    `"MyApp.Worker"`), whereas `Atom.to_string/1` /
-  #    `to_string/1` keep it (`"Elixir.MyApp.Worker"`). For
-  #    `code.function.name` the user-readable form is what
-  #    matters to backends and stacktraces, so we use
-  #    `inspect/1`. This intentionally differs from
-  #    `to_primitive_any/1` (body-value path), where
-  #    `to_string/1` is used and the `Elixir.` prefix is
-  #    accepted — each function's use case dictates the
-  #    choice.
-  @spec put_code_function_name(attrs :: map(), meta :: map()) :: map()
-  defp put_code_function_name(attrs, %{mfa: {module, function, arity}}) do
-    Map.put(attrs, "code.function.name", "#{inspect(module)}.#{function}/#{arity}")
-  end
-
-  defp put_code_function_name(attrs, _meta), do: attrs
 
   # `transform` is `(term() -> primitive() | [primitive()])`
   # — the attribute-value type declared on `LogRecord.t/0`
