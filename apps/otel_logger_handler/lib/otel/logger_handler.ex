@@ -238,7 +238,7 @@ defmodule Otel.LoggerHandler do
   # Body extraction — `logs/data-model.md` L399-L400 requires
   # preserving `AnyValue` structure for structured logs.
   # `{:report, term}` is Elixir's structured-log shape; we
-  # preserve it as a map via `to_any_value/1` rather than
+  # preserve it as a map via `to_primitive_any/1` rather than
   # collapsing to a string.
   @spec to_body(msg :: term()) :: primitive_any()
   defp to_body({:string, string}) do
@@ -246,11 +246,11 @@ defmodule Otel.LoggerHandler do
   end
 
   defp to_body({:report, report}) when is_map(report) do
-    to_any_value(report)
+    to_primitive_any(report)
   end
 
   defp to_body({:report, report}) when is_list(report) do
-    report |> Enum.into(%{}) |> to_any_value()
+    report |> Enum.into(%{}) |> to_primitive_any()
   end
 
   defp to_body({format, args}) when is_list(format) do
@@ -284,23 +284,23 @@ defmodule Otel.LoggerHandler do
   # normalised too. Struct-valued fields hit the catch-all
   # `inspect/1` clause rather than being flattened to
   # `%{"__struct__" => Date, ...}`.
-  @spec to_any_value(value :: term()) :: primitive_any()
-  defp to_any_value(nil), do: nil
-  defp to_any_value(value) when is_boolean(value), do: value
-  defp to_any_value(value) when is_binary(value), do: value
-  defp to_any_value(value) when is_integer(value), do: value
-  defp to_any_value(value) when is_float(value), do: value
-  defp to_any_value({:bytes, bin} = value) when is_binary(bin), do: value
+  @spec to_primitive_any(value :: term()) :: primitive_any()
+  defp to_primitive_any(nil), do: nil
+  defp to_primitive_any(value) when is_boolean(value), do: value
+  defp to_primitive_any(value) when is_binary(value), do: value
+  defp to_primitive_any(value) when is_integer(value), do: value
+  defp to_primitive_any(value) when is_float(value), do: value
+  defp to_primitive_any({:bytes, bin} = value) when is_binary(bin), do: value
 
-  defp to_any_value(value) when is_map(value) and not is_struct(value) do
-    Map.new(value, fn {k, v} -> {to_string(k), to_any_value(v)} end)
+  defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
   end
 
-  defp to_any_value(value) when is_list(value) do
-    Enum.map(value, &to_any_value/1)
+  defp to_primitive_any(value) when is_list(value) do
+    Enum.map(value, &to_primitive_any/1)
   end
 
-  defp to_any_value(value), do: inspect(value)
+  defp to_primitive_any(value), do: inspect(value)
 
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do
