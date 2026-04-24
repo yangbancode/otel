@@ -184,6 +184,59 @@ defmodule Otel.LoggerHandler do
   decision will settle whether to emit it under a
   BEAM-specific custom key or drop it entirely.
 
+  ### User metadata pass-through
+
+  `:logger` accepts arbitrary user-provided metadata via
+  `Logger.metadata/1` or per-call meta args. Every key not
+  in the reserved list below flows through as a custom
+  attribute — the key is `Atom.to_string(meta_key)` and the
+  value is coerced to `primitive() | [primitive()]`:
+
+      Logger.metadata(request_id: "req-abc", user_id: 42)
+      Logger.info("processed")
+      # attributes: %{"request_id" => "req-abc", "user_id" => 42, ...}
+
+  Reserved keys (not emitted as custom attributes, for three
+  distinct reasons):
+
+  | Key | Reason |
+  |---|---|
+  | `:mfa`, `:file`, `:line`, `:domain` | Already mapped above to semconv-stable `code.*` / `log.domain` names |
+  | `:time` | Consumed by `to_timestamp/1` → `timestamp` field |
+  | `:report_cb` | Consumed by `to_body/2` → body render |
+  | `:crash_reason` | Consumed by `put_exception/2` → `exception` field |
+  | `:gl` | Group-leader PID — process-internal, no OTel semantic |
+  | `:pid` | `process.pid` type mismatch (see above) |
+
+  Value coercion is **flat** (unlike `to_primitive_any/1`
+  which recurses through nested maps for body) —
+  `common/README.md` §Attribute L185-L197 forbids map-valued
+  attributes. Primitives (`String.t()`, `integer()`,
+  `float()`, `boolean()`, `nil`, `{:bytes, binary()}`) pass
+  through. Non-primitives (atoms, structs, tuples, PIDs,
+  refs, functions) coerce to string via `String.Chars` when
+  implemented, `inspect/1` otherwise. Lists become
+  homogeneous primitive arrays via element-wise coercion.
+  Nested maps — which have no valid attribute
+  representation — fall through to `inspect/1`.
+
+  ### Divergence from `opentelemetry-erlang`
+
+  Erlang's attribute extraction happens in the OTLP exporter
+  (`otel_otlp_logs.erl` L84) as `maps:without([gl, time,
+  report_cb], Metadata)` — a blacklist with raw atom keys
+  (`mfa`, `file`, `line`, `domain`) that are **not**
+  semconv-stable names. We instead:
+
+  1. Map `:mfa` / `:file` / `:line` / `:domain` to their
+     stable semconv names (`code.function.name`, etc.).
+  2. Run extraction at the handler so every exporter (OTLP,
+     custom, in-process debug) sees the canonical attribute
+     shape without re-work.
+  3. Blacklist a broader set (`:gl`, `:time`, `:report_cb`,
+     `:crash_reason`, `:pid`) reflecting OTel semantic
+     concerns rather than just display.
+
   ## Design notes
 
   Two intentional divergences from `opentelemetry-erlang`'s
@@ -408,6 +461,27 @@ defmodule Otel.LoggerHandler do
     end
   end
 
+  # `:logger` meta keys NOT emitted as custom attributes
+  # — either mapped to semconv-stable names by the clauses
+  # above, consumed elsewhere in the `build_log_record/1`
+  # pipeline, or dropped for spec-conformance reasons.
+  # Everything else in meta flows through `put_user_meta/2`
+  # as a custom attribute.
+  @reserved_meta_keys [
+    # Mapped to semconv `code.*` / `log.domain` above
+    :mfa,
+    :file,
+    :line,
+    :domain,
+    # Consumed elsewhere in the build_log_record pipeline
+    :time,
+    :report_cb,
+    :crash_reason,
+    # Dropped for spec-conformance
+    :gl,
+    :pid
+  ]
+
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do
     %{}
@@ -415,6 +489,7 @@ defmodule Otel.LoggerHandler do
     |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
     |> put_meta_attr(meta, :line, "code.line.number", & &1)
     |> put_meta_attr(meta, :domain, "log.domain", &domain_to_strings/1)
+    |> put_user_meta(meta)
   end
 
   # OTP `:logger` `domain: [atom()]` is a hierarchical label
@@ -488,6 +563,71 @@ defmodule Otel.LoggerHandler do
     case Map.get(meta, key) do
       nil -> attrs
       value -> Map.put(attrs, attr_key, transform.(value))
+    end
+  end
+
+  # Forwards user-provided `:logger` meta entries
+  # (`Logger.metadata/1` or per-call `meta` arg) as custom
+  # attributes. Keys in `@reserved_meta_keys` are excluded —
+  # either mapped elsewhere in the pipeline or dropped by
+  # design (see moduledoc `## Attribute mapping`).
+  #
+  # Attribute key is `Atom.to_string(meta_key)`. Attribute
+  # value is normalised via `to_attribute_value/1`. `nil`
+  # user-meta values are preserved (user's explicit choice);
+  # this differs from `put_meta_attr/5`'s nil-skip policy
+  # which is appropriate for semconv-mapped keys where
+  # "missing" and "nil" aren't practically distinguishable.
+  @spec put_user_meta(attrs :: map(), meta :: map()) :: map()
+  defp put_user_meta(attrs, meta) do
+    meta
+    |> Map.drop(@reserved_meta_keys)
+    |> Enum.reduce(attrs, fn {key, value}, acc ->
+      Map.put(acc, Atom.to_string(key), to_attribute_value(value))
+    end)
+  end
+
+  # Coerces any Elixir term to `primitive() | [primitive()]`
+  # — the attribute-value type from `LogRecord.t/0`
+  # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74).
+  #
+  # Similar to `to_primitive_any/1` (body path) but FLATTER:
+  # OTel attributes don't permit nested maps
+  # (`common/README.md` §Attribute L185-L197 — values must be
+  # primitive or homogeneous primitive arrays). A list
+  # iterates to a homogeneous primitive array via
+  # `to_attribute_scalar/1` on each element; non-list values
+  # go through `to_attribute_scalar/1` directly.
+  @spec to_attribute_value(value :: term()) :: primitive() | [primitive()]
+  defp to_attribute_value(value) when is_list(value) do
+    Enum.map(value, &to_attribute_scalar/1)
+  end
+
+  defp to_attribute_value(value), do: to_attribute_scalar(value)
+
+  # Primitive coercion for a single (non-list) value —
+  # mirrors `to_primitive_any/1`'s non-composite clauses.
+  # Primitives pass through; non-primitives (atoms, structs,
+  # tuples outside `{:bytes, _}`, refs, pids, functions)
+  # coerce to string via `String.Chars` when impl'd,
+  # `inspect/1` otherwise.
+  #
+  # Deliberately duplicates the scalar clauses of
+  # `to_primitive_any/1` rather than sharing a helper — each
+  # function is small and self-contained, and the body vs.
+  # attribute paths can evolve independently.
+  @spec to_attribute_scalar(value :: term()) :: primitive()
+  defp to_attribute_scalar(nil), do: nil
+  defp to_attribute_scalar(value) when is_boolean(value), do: value
+  defp to_attribute_scalar(value) when is_binary(value), do: value
+  defp to_attribute_scalar(value) when is_integer(value), do: value
+  defp to_attribute_scalar(value) when is_float(value), do: value
+  defp to_attribute_scalar({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_attribute_scalar(value) do
+    case String.Chars.impl_for(value) do
+      nil -> inspect(value)
+      _impl -> to_string(value)
     end
   end
 
