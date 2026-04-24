@@ -495,8 +495,8 @@ defmodule Otel.LoggerHandler do
   # — either mapped to semconv-stable names by the clauses
   # above, consumed elsewhere in the `build_log_record/1`
   # pipeline, or dropped for spec-conformance reasons.
-  # Everything else in meta flows through `put_user_meta/2`
-  # as a custom attribute.
+  # Everything else in meta flows through `put_meta/2` as a
+  # custom attribute.
   @reserved_meta_keys [
     # Mapped to semconv `code.*` / `log.domain` above
     :mfa,
@@ -515,25 +515,26 @@ defmodule Otel.LoggerHandler do
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do
     %{}
-    |> put_meta_attr(meta, :mfa, "code.function.name", fn {module, function, arity} ->
+    |> put_meta(meta, :mfa, "code.function.name", fn {module, function, arity} ->
       "#{inspect(module)}.#{function}/#{arity}"
     end)
-    |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
-    |> put_meta_attr(meta, :line, "code.line.number", & &1)
-    |> put_meta_attr(meta, :domain, "log.domain", fn domain ->
+    |> put_meta(meta, :file, "code.file.path", &IO.chardata_to_string/1)
+    |> put_meta(meta, :line, "code.line.number", & &1)
+    |> put_meta(meta, :domain, "log.domain", fn domain ->
       Enum.map(domain, &Atom.to_string/1)
     end)
-    |> put_user_meta(meta)
+    |> put_meta(meta)
   end
 
+  # Stage 1 — semconv-mapped: given a specific meta key, put
+  # a `transform`-coerced value under the OTel-defined attr
+  # key. Skips silently when the meta key is absent (or nil).
+  #
   # `transform` is `(term() -> primitive() | [primitive()])`
   # — the attribute-value type declared on `LogRecord.t/0`
   # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
   # `attributes: %{String.t() => primitive() | [primitive()]}`).
-  # Narrower than the previous `function()` — Dialyzer now
-  # infers that whatever `transform` produces fits the
-  # attribute-map value type without a widening step.
-  @spec put_meta_attr(
+  @spec put_meta(
           attrs :: map(),
           meta :: map(),
           key :: atom(),
@@ -541,27 +542,27 @@ defmodule Otel.LoggerHandler do
           transform :: (term() -> primitive() | [primitive()])
         ) ::
           map()
-  defp put_meta_attr(attrs, meta, key, attr_key, transform) do
+  defp put_meta(attrs, meta, key, attr_key, transform) do
     case Map.get(meta, key) do
       nil -> attrs
       value -> Map.put(attrs, attr_key, transform.(value))
     end
   end
 
-  # Forwards user-provided `:logger` meta entries
-  # (`Logger.metadata/1` or per-call `meta` arg) as custom
-  # attributes. Keys in `@reserved_meta_keys` are excluded —
-  # either mapped elsewhere in the pipeline or dropped by
-  # design (see moduledoc `## Attribute mapping`).
+  # Stage 2 — catch-all: forward user-provided `:logger` meta
+  # entries (`Logger.metadata/1` or per-call `meta` arg) as
+  # custom attributes. Keys in `@reserved_meta_keys` are
+  # excluded — either mapped by the `/5` clause in Stage 1 or
+  # dropped by design (see moduledoc `## Attribute mapping`).
   #
   # Attribute key is `Atom.to_string(meta_key)`. Attribute
   # value is normalised via `to_attribute_value/1`. `nil`
   # user-meta values are preserved (user's explicit choice);
-  # this differs from `put_meta_attr/5`'s nil-skip policy
-  # which is appropriate for semconv-mapped keys where
-  # "missing" and "nil" aren't practically distinguishable.
-  @spec put_user_meta(attrs :: map(), meta :: map()) :: map()
-  defp put_user_meta(attrs, meta) do
+  # differs from `put_meta/5`'s nil-skip policy which is
+  # appropriate for semconv-mapped keys where "missing" and
+  # "nil" aren't practically distinguishable.
+  @spec put_meta(attrs :: map(), meta :: map()) :: map()
+  defp put_meta(attrs, meta) do
     meta
     |> Map.drop(@reserved_meta_keys)
     |> Enum.reduce(attrs, fn {key, value}, acc ->
