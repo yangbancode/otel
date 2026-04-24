@@ -156,12 +156,31 @@ defmodule Otel.LoggerHandler do
   ## Exception events
 
   Erlang/OTP routes crashes through `:logger` with
-  `meta.crash_reason = {exception, stacktrace}`. We surface
-  this on the `log_record` via the `:exception` field
-  (`Otel.API.Logs.LogRecord.t/0`), which lets
-  downstream processing populate the OTel
-  `exception.*` attributes per `trace/exceptions.md`
-  §Attributes L44-L55.
+  `meta.crash_reason = {exception, stacktrace}`. The two
+  halves of the tuple land in two OTel-aligned destinations:
+
+  - **`exception` struct** → `log_record.exception` field
+    (`Otel.API.Logs.LogRecord.t/0`). API-layer MAY-accepted
+    sidecar per `api.md` L131. SDK converts this to the
+    stable `exception.type` and `exception.message`
+    attributes (reading `.__struct__` and calling
+    `Exception.message/1`).
+  - **`stacktrace`** → `log_record.attributes` under
+    `"exception.stacktrace"` (stable semconv attribute per
+    `semantic-conventions/model/exceptions/registry.yaml`
+    L27-L38). Handler emits it directly because Elixir
+    exception structs don't carry stacktrace (it's a
+    separate value in the language's exception model), so
+    the SDK's struct-based extraction can't reach it. The
+    handler formats via `Exception.format_stacktrace/1` —
+    the idiomatic BEAM representation that matches spec's
+    *"natural representation for the language runtime"*.
+
+  Non-exception `:crash_reason` shapes (`{:exit, reason}`,
+  `{:shutdown, term}`, etc.) are ignored — neither sidecar
+  nor attribute is populated, since they don't fit the
+  `Exception.t()` type or the `exception.*` attribute
+  semantics.
 
   ## Attribute mapping
 
@@ -177,6 +196,7 @@ defmodule Otel.LoggerHandler do
   | `file: chardata` | `code.file.path` | |
   | `line: integer` | `code.line.number` | |
   | `domain: [atom]` | `log.domain` | non-standard convenience; emitted as `[String.t()]` so backends can filter by path segment |
+  | `crash_reason: {exc, stack}` (exception shape) | `exception.stacktrace` | formatted via `Exception.format_stacktrace/1`; non-exception `crash_reason` shapes (`{:exit, _}`, `{:shutdown, _}`) produce no attribute. See `## Exception events` |
 
   `pid` is intentionally **not** emitted — `process.pid` is
   an int-typed OS PID attribute in semantic-conventions and
@@ -534,17 +554,36 @@ defmodule Otel.LoggerHandler do
     |> put_meta(meta, :domain, "log.domain", fn domain ->
       Enum.map(domain, &Atom.to_string/1)
     end)
+    |> put_meta(meta, :crash_reason, "exception.stacktrace", fn
+      {exc, stacktrace} when is_exception(exc) -> Exception.format_stacktrace(stacktrace)
+      _ -> nil
+    end)
     |> put_meta(meta)
   end
 
   # Stage 1 — semconv-mapped: given a specific meta key, put
   # a `transform`-coerced value under the OTel-defined attr
-  # key. Skips silently when the meta key is absent (or nil).
+  # key. Skips silently in two cases:
+  #
+  # 1. `meta[key]` is absent (or `nil`) — same as Map.get/2
+  #    returning nil.
+  # 2. `transform.(value)` returns `nil` — transform signals
+  #    "no valid attribute representation for this shape".
+  #
+  # Case (2) matters for meta keys whose value shape varies
+  # (e.g., `:crash_reason` can be `{exception, stacktrace}`,
+  # `{:exit, reason}`, `{:shutdown, reason}` — only the first
+  # maps to `exception.stacktrace`, others should produce no
+  # attribute rather than an attribute with a `nil` value).
   #
   # `transform` is `(term() -> primitive() | [primitive()])`
   # — the attribute-value type declared on `LogRecord.t/0`
   # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
   # `attributes: %{String.t() => primitive() | [primitive()]}`).
+  # `nil` is a valid member of `primitive()`, so returning `nil`
+  # doubles as the skip signal here rather than producing a
+  # `nil`-valued semconv attribute (which has no natural
+  # meaning — the attribute is either produced or absent).
   @spec put_meta(
           attrs :: map(),
           meta :: map(),
@@ -555,8 +594,14 @@ defmodule Otel.LoggerHandler do
           map()
   defp put_meta(attrs, meta, key, attr_key, transform) do
     case Map.get(meta, key) do
-      nil -> attrs
-      value -> Map.put(attrs, attr_key, transform.(value))
+      nil ->
+        attrs
+
+      value ->
+        case transform.(value) do
+          nil -> attrs
+          transformed -> Map.put(attrs, attr_key, transformed)
+        end
     end
   end
 
