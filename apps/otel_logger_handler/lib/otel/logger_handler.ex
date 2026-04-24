@@ -147,6 +147,8 @@ defmodule Otel.LoggerHandler do
   BEAM-specific custom key or drop it entirely.
   """
 
+  use Otel.API.Common.Types
+
   # --- :logger handler callbacks ---
 
   @doc false
@@ -230,7 +232,7 @@ defmodule Otel.LoggerHandler do
   # preserving `AnyValue` structure for structured logs.
   # `{:report, term}` is Elixir's structured-log shape; we
   # preserve it as a map rather than collapsing to a string.
-  @spec to_body(msg :: term()) :: term()
+  @spec to_body(msg :: term()) :: primitive_any()
   defp to_body({:string, string}) do
     IO.chardata_to_string(string)
   end
