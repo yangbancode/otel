@@ -24,10 +24,11 @@ defmodule Otel.API.Logs.LoggerProvider do
   Logger tuples for equal scopes, and the Noop case is
   trivially `{Noop, []}` on every call.
 
-  Performance: the API is a straight `fetch_or_default`
-  call per invocation. SDK implementations that care about
-  Logger-instance reuse should cache internally on their
-  own `get_logger/2` path.
+  Performance: the API dispatches directly to the
+  provider's `get_logger/2` on every call (or returns Noop
+  when no provider is registered). SDK implementations that
+  care about Logger-instance reuse should cache internally
+  on their own `get_logger/2` path.
 
   ## Storage
 
@@ -101,19 +102,25 @@ defmodule Otel.API.Logs.LoggerProvider do
   def get_logger(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
 
   def get_logger(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    fetch_or_default(instrumentation_scope)
+    case get_provider() do
+      nil ->
+        @default_logger
+
+      {module, state} ->
+        module.get_logger(state, instrumentation_scope)
+    end
   end
 
   # --- SDK callbacks ---
 
   @doc """
   **SDK** (OTel API MUST) — Dispatch callback invoked by
-  `get_logger/1` on cache miss.
+  `get_logger/1`.
 
   Implementations receive the opaque `state` they registered
   via `set_provider/1` along with the requested instrumentation
-  scope, and return the Logger to cache. The `get_logger/2`
-  shape is the API↔SDK dispatch contract for §"Get a Logger"
+  scope, and return a Logger. The `get_logger/2` shape is the
+  API↔SDK dispatch contract for §"Get a Logger"
   (`logs/api.md` L66-L97).
   """
   @callback get_logger(
@@ -157,17 +164,5 @@ defmodule Otel.API.Logs.LoggerProvider do
   def set_provider({_module, _state} = provider) do
     :persistent_term.put(@global_key, provider)
     :ok
-  end
-
-  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
-          Otel.API.Logs.Logger.t()
-  defp fetch_or_default(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    case get_provider() do
-      nil ->
-        @default_logger
-
-      {module, state} ->
-        module.get_logger(state, instrumentation_scope)
-    end
   end
 end

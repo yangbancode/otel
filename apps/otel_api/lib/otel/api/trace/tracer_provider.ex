@@ -95,19 +95,25 @@ defmodule Otel.API.Trace.TracerProvider do
   @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Trace.Tracer.t()
   def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    fetch_or_default(instrumentation_scope)
+    case get_provider() do
+      nil ->
+        @default_tracer
+
+      {module, state} ->
+        module.get_tracer(state, instrumentation_scope)
+    end
   end
 
   # --- SDK callbacks ---
 
   @doc """
   **SDK** (OTel API MUST) — Dispatch callback invoked by
-  `get_tracer/1` on cache miss.
+  `get_tracer/1`.
 
   Implementations receive the opaque `state` they registered
   via `set_provider/1` along with the requested instrumentation
-  scope, and return the Tracer to cache. The `get_tracer/2`
-  shape is the API↔SDK dispatch contract for §"Get a Tracer"
+  scope, and return a Tracer. The `get_tracer/2` shape is the
+  API↔SDK dispatch contract for §"Get a Tracer"
   (`trace/api.md` L107-L157).
   """
   @callback get_tracer(
@@ -148,17 +154,5 @@ defmodule Otel.API.Trace.TracerProvider do
   def set_provider({_module, _state} = provider) do
     :persistent_term.put(@global_key, provider)
     :ok
-  end
-
-  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
-          Otel.API.Trace.Tracer.t()
-  defp fetch_or_default(instrumentation_scope) do
-    case get_provider() do
-      nil ->
-        @default_tracer
-
-      {module, state} ->
-        module.get_tracer(state, instrumentation_scope)
-    end
   end
 end

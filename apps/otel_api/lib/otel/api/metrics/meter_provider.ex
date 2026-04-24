@@ -25,10 +25,11 @@ defmodule Otel.API.Metrics.MeterProvider do
   structurally-equal Meter tuples for equal scopes, and
   the Noop case is trivially `{Noop, []}` on every call.
 
-  Performance: the API is a straight `fetch_or_default`
-  call per invocation. SDK implementations that care about
-  Meter-instance reuse should cache internally on their
-  own `get_meter/2` path.
+  Performance: the API dispatches directly to the
+  provider's `get_meter/2` on every call (or returns Noop
+  when no provider is registered). SDK implementations that
+  care about Meter-instance reuse should cache internally
+  on their own `get_meter/2` path.
 
   ## Storage
 
@@ -111,18 +112,24 @@ defmodule Otel.API.Metrics.MeterProvider do
   def get_meter(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
 
   def get_meter(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    fetch_or_default(instrumentation_scope)
+    case get_provider() do
+      nil ->
+        @default_meter
+
+      {module, state} ->
+        module.get_meter(state, instrumentation_scope)
+    end
   end
 
   # --- SDK callbacks ---
 
   @doc """
   **SDK** (OTel API MUST) — Dispatch callback invoked by
-  `get_meter/1` on cache miss.
+  `get_meter/1`.
 
   Implementations receive the opaque `state` they registered
   via `set_provider/1` along with the requested
-  instrumentation scope, and return the Meter to cache. The
+  instrumentation scope, and return a Meter. The
   `get_meter/2` shape is the API↔SDK dispatch contract for
   §"Get a Meter" (`metrics/api.md` L120-L155).
   """
@@ -167,17 +174,5 @@ defmodule Otel.API.Metrics.MeterProvider do
   def set_provider({_module, _state} = provider) do
     :persistent_term.put(@global_key, provider)
     :ok
-  end
-
-  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
-          Otel.API.Metrics.Meter.t()
-  defp fetch_or_default(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    case get_provider() do
-      nil ->
-        @default_meter
-
-      {module, state} ->
-        module.get_meter(state, instrumentation_scope)
-    end
   end
 end
