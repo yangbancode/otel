@@ -475,6 +475,20 @@ defmodule Otel.LoggerHandlerTest do
       refute Map.has_key?(attrs, "code.function")
     end
 
+    # Regression for PR #255 — `put_code_function_name/2`'s
+    # fallback clause silently handles malformed `:mfa` (not
+    # a `{module, atom, arity}` 3-tuple). The prior
+    # `put_meta/5 + lambda` structure crashed via
+    # `FunctionClauseError` on the same input. Pinning the
+    # current silent-skip so a future "malformed should crash"
+    # restoration is an explicit change, not a silent one.
+    test "malformed mfa (not a 3-tuple) silently skips code.function.name" do
+      meta = %{mfa: :not_a_tuple}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      refute Map.has_key?(attrs, "code.function.name")
+    end
+
     test "maps file to code.file.path (chardata → string)" do
       meta = %{file: ~c"lib/foo.ex"}
       Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
