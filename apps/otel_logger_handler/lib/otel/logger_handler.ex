@@ -194,27 +194,34 @@ defmodule Otel.LoggerHandler do
     }
   end
 
+  # `:time` is guaranteed on `meta` by `:logger`'s
+  # `add_default_metadata/1` (OTP `logger.erl` L1193-L1214),
+  # which runs on every `:logger.log/2`, `Logger.info/1`,
+  # `:logger:info/N` call path — our handler is designed to
+  # be invoked by `:logger`, and the `:time` pattern match
+  # asserts exactly that. µs → ns scaling per OTP's
+  # `microsecond` default (`logger.erl` L365-L366) and OTel
+  # `Timestamp` which is nanoseconds-since-epoch
+  # (`logs/data-model.md` L184-L187).
+  #
+  # `severity_text` is inlined as `Atom.to_string(level)` per
+  # `logs/data-model.md` L240-L241 *"original string
+  # representation of the severity as it is known at the
+  # source"* — for `:logger` the source representation is the
+  # level atom. See this module's `## Severity mapping` for
+  # the SeverityText / SeverityNumber / OTel short-name split.
   @spec build_log_record(log_event :: :logger.log_event()) ::
           Otel.API.Logs.LogRecord.t()
-  defp build_log_record(%{level: level, msg: msg, meta: meta}) do
+  defp build_log_record(%{level: level, msg: msg, meta: %{time: time} = meta}) do
     base = %Otel.API.Logs.LogRecord{
-      timestamp: extract_timestamp(meta),
+      timestamp: time * 1000,
       severity_number: extract_severity_number(level),
-      severity_text: extract_severity_text(level),
+      severity_text: Atom.to_string(level),
       body: extract_body(msg),
       attributes: extract_attributes(meta)
     }
 
     put_exception(base, meta)
-  end
-
-  @spec extract_timestamp(meta :: map()) :: non_neg_integer()
-  defp extract_timestamp(%{time: time}) do
-    time * 1000
-  end
-
-  defp extract_timestamp(_meta) do
-    System.system_time(:nanosecond)
   end
 
   # Body extraction — `logs/data-model.md` L399-L400 requires
@@ -316,24 +323,4 @@ defmodule Otel.LoggerHandler do
   defp extract_severity_number(:notice), do: 10
   defp extract_severity_number(:info), do: 9
   defp extract_severity_number(:debug), do: 5
-
-  # `SeverityText` per `logs/data-model.md` L240-L241 — the
-  # *"original string representation of the severity as it
-  # is known at the source"*. For `:logger` the source
-  # representation is the level atom; `Atom.to_string/1`
-  # preserves it faithfully (`:emergency → "emergency"`,
-  # etc.). OTel short names (`"FATAL"`, `"ERROR3"`) are a
-  # display concern derivable from `severity_number`, not
-  # what `SeverityText` is for.
-  #
-  # Return type is `Otel.API.Logs.severity_level()` rather
-  # than `String.t()` so the signature communicates that
-  # this function only yields the 8 valid `:logger`-level
-  # strings, not arbitrary text. `severity_level()` is a
-  # `String.t()` alias under the hood (see the Logs
-  # moduledoc — Elixir typespecs cannot express a literal
-  # string union), so Dialyzer inference is unchanged;
-  # the tighter name is for readers.
-  @spec extract_severity_text(level :: :logger.level()) :: Otel.API.Logs.severity_level()
-  defp extract_severity_text(level), do: Atom.to_string(level)
 end
