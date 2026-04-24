@@ -199,8 +199,8 @@ defmodule Otel.LoggerHandler do
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
     base = %Otel.API.Logs.LogRecord{
       timestamp: extract_timestamp(meta),
-      severity_number: severity_number(level),
-      severity_text: severity_text(level),
+      severity_number: extract_severity_number(level),
+      severity_text: extract_severity_text(level),
       body: extract_body(msg),
       attributes: extract_attributes(meta)
     }
@@ -306,16 +306,16 @@ defmodule Otel.LoggerHandler do
   # source for the numeric values here. Kept private
   # because only this handler consumes it — other bridges
   # define their own mapping from their source format.
-  @spec severity_number(level :: :logger.level()) ::
+  @spec extract_severity_number(level :: :logger.level()) ::
           Otel.API.Logs.severity_number()
-  defp severity_number(:emergency), do: 21
-  defp severity_number(:alert), do: 19
-  defp severity_number(:critical), do: 18
-  defp severity_number(:error), do: 17
-  defp severity_number(:warning), do: 13
-  defp severity_number(:notice), do: 10
-  defp severity_number(:info), do: 9
-  defp severity_number(:debug), do: 5
+  defp extract_severity_number(:emergency), do: 21
+  defp extract_severity_number(:alert), do: 19
+  defp extract_severity_number(:critical), do: 18
+  defp extract_severity_number(:error), do: 17
+  defp extract_severity_number(:warning), do: 13
+  defp extract_severity_number(:notice), do: 10
+  defp extract_severity_number(:info), do: 9
+  defp extract_severity_number(:debug), do: 5
 
   # `SeverityText` per `logs/data-model.md` L240-L241 — the
   # *"original string representation of the severity as it
@@ -334,6 +334,6 @@ defmodule Otel.LoggerHandler do
   # moduledoc — Elixir typespecs cannot express a literal
   # string union), so Dialyzer inference is unchanged;
   # the tighter name is for readers.
-  @spec severity_text(level :: :logger.level()) :: Otel.API.Logs.severity_level()
-  defp severity_text(level), do: Atom.to_string(level)
+  @spec extract_severity_text(level :: :logger.level()) :: Otel.API.Logs.severity_level()
+  defp extract_severity_text(level), do: Atom.to_string(level)
 end
