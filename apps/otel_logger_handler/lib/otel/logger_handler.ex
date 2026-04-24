@@ -153,35 +153,6 @@ defmodule Otel.LoggerHandler do
   When no `report_cb` is present, the report is preserved
   as a structured map per the table above.
 
-  ## Exception events
-
-  Erlang/OTP routes crashes through `:logger` with
-  `meta.crash_reason = {exception, stacktrace}`. The two
-  halves of the tuple land in two OTel-aligned destinations:
-
-  - **`exception` struct** → `log_record.exception` field
-    (`Otel.API.Logs.LogRecord.t/0`). API-layer MAY-accepted
-    sidecar per `api.md` L131. SDK converts this to the
-    stable `exception.type` and `exception.message`
-    attributes (reading `.__struct__` and calling
-    `Exception.message/1`).
-  - **`stacktrace`** → `log_record.attributes` under
-    `"exception.stacktrace"` (stable semconv attribute per
-    `semantic-conventions/model/exceptions/registry.yaml`
-    L27-L38). Handler emits it directly because Elixir
-    exception structs don't carry stacktrace (it's a
-    separate value in the language's exception model), so
-    the SDK's struct-based extraction can't reach it. The
-    handler formats via `Exception.format_stacktrace/1` —
-    the idiomatic BEAM representation that matches spec's
-    *"natural representation for the language runtime"*.
-
-  Non-exception `:crash_reason` shapes (`{:exit, reason}`,
-  `{:shutdown, term}`, etc.) are ignored — neither sidecar
-  nor attribute is populated, since they don't fit the
-  `Exception.t()` type or the `exception.*` attribute
-  semantics.
-
   ## Attribute mapping
 
   `meta` fields map to OTel attribute keys per the
@@ -259,18 +230,60 @@ defmodule Otel.LoggerHandler do
   | `:pid` | `process.pid` type mismatch (see above) |
 
   Value coercion is **flat** (unlike `to_primitive_any/1`
-  which recurses through nested maps for body) —
-  `common/README.md` §Attribute L185-L197 forbids map-valued
-  attributes. Primitives (`String.t()`, `integer()`,
-  `float()`, `boolean()`, `nil`, `{:bytes, binary()}`) pass
-  through. Non-primitives (atoms, structs, tuples, PIDs,
-  refs, functions) coerce to string via `String.Chars` when
-  implemented, `inspect/1` otherwise. Lists become
-  homogeneous primitive arrays via element-wise coercion.
-  Nested maps — which have no valid attribute
-  representation — fall through to `inspect/1`.
+  which recurses through nested maps for body) — our
+  `LogRecord.attributes` type is
+  `%{String.t() => primitive() | [primitive()]}`
+  (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74), a
+  narrower subset of what OTel's AnyValue (`common/README.md`
+  §Attribute L185-L197) permits. Primitives (`String.t()`,
+  `integer()`, `float()`, `boolean()`, `nil`,
+  `{:bytes, binary()}`) pass through. Non-primitives (atoms,
+  structs, tuples, PIDs, refs, functions) coerce to string
+  via `String.Chars` when implemented, `inspect/1` otherwise.
+  Lists become homogeneous primitive arrays via element-wise
+  coercion. Nested maps — which have no valid attribute
+  representation under our type — fall through to
+  `inspect/1`.
 
-  ### Divergence from `opentelemetry-erlang`
+  ## Exception events
+
+  Erlang/OTP routes crashes through `:logger` with
+  `meta.crash_reason = {exception, stacktrace}`. The two
+  halves of the tuple land in two OTel-aligned destinations:
+
+  - **`exception` struct** → `log_record.exception` field
+    (`Otel.API.Logs.LogRecord.t/0`). API-layer MAY-accepted
+    sidecar per `api.md` L131. SDK converts this to the
+    stable `exception.type` and `exception.message`
+    attributes (reading `.__struct__` and calling
+    `Exception.message/1`).
+  - **`stacktrace`** → `log_record.attributes` under
+    `"exception.stacktrace"` (stable semconv attribute per
+    `semantic-conventions/model/exceptions/registry.yaml`
+    L27-L38). Handler emits it directly because Elixir
+    exception structs don't carry stacktrace (it's a
+    separate value in the language's exception model), so
+    the SDK's struct-based extraction can't reach it. The
+    handler formats via `Exception.format_stacktrace/1` —
+    the idiomatic BEAM representation that matches spec's
+    *"natural representation for the language runtime"*.
+
+  Non-exception `:crash_reason` shapes (`{:exit, reason}`,
+  `{:shutdown, term}`, etc.) are ignored — neither sidecar
+  nor attribute is populated, since they don't fit the
+  `Exception.t()` type or the `exception.*` attribute
+  semantics.
+
+  ## Design notes
+
+  Three intentional divergences from `opentelemetry-erlang`'s
+  `otel_otlp_logs.erl` reference implementation. All three
+  trade OTP-flavoured conventions (raw-atom attribute keys,
+  terminal-display post-processing, exporter-stage
+  normalisation) for OTel data-model alignment at the
+  handler boundary.
+
+  ### 1. Attribute extraction — semconv names, handler-level, broader blacklist
 
   Erlang's attribute extraction happens in the OTLP exporter
   (`otel_otlp_logs.erl` L84) as `maps:without([gl, time,
@@ -287,14 +300,7 @@ defmodule Otel.LoggerHandler do
      `:crash_reason`, `:pid`) reflecting OTel semantic
      concerns rather than just display.
 
-  ## Design notes
-
-  Two intentional divergences from `opentelemetry-erlang`'s
-  `otel_otlp_logs.erl` reference implementation — both trade
-  OTP's terminal-display conventions for OTel data-model
-  alignment.
-
-  ### 1. No trim / single-line post-processing on string Bodies
+  ### 2. No trim / single-line post-processing on string Bodies
 
   Erlang (`otel_otlp_logs.erl` L72-L83) trims leading and
   trailing whitespace from formatted string Bodies and
@@ -311,7 +317,7 @@ defmodule Otel.LoggerHandler do
   etc.), which render line breaks from the string value
   themselves.
 
-  ### 2. Key stringification at the handler, not the encoder
+  ### 3. Key stringification at the handler, not the encoder
 
   Erlang (`otel_otlp_logs.erl` L119) defers map-key
   stringification to `to_any_value/1` at the OTLP encoder
@@ -406,7 +412,8 @@ defmodule Otel.LoggerHandler do
   #
   # µs → ns scaling per OTP's `microsecond` default
   # (`logger.erl` L365-L366) and OTel `Timestamp` which is
-  # nanoseconds-since-epoch (`logs/data-model.md` L184-L187).
+  # *"uint64 nanoseconds since Unix epoch"*
+  # (`logs/data-model.md` L182; description at L184-L187).
   @spec to_timestamp(meta :: map()) :: non_neg_integer()
   defp to_timestamp(%{time: time}), do: time * 1000
 
@@ -623,11 +630,11 @@ defmodule Otel.LoggerHandler do
   # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74).
   #
   # Similar to `to_primitive_any/1` (body path) but FLATTER:
-  # OTel attributes don't permit nested maps
-  # (`common/README.md` §Attribute L185-L197 — values must be
-  # primitive or homogeneous primitive arrays). A list
-  # iterates to a homogeneous primitive array via
-  # `to_primitive/1` on each element; non-list values go
+  # our attribute-value type narrows what OTel's `AnyValue`
+  # (`common/README.md` §Attribute L185-L197) permits — only
+  # primitive or homogeneous primitive arrays, no nested
+  # maps. A list iterates to a homogeneous primitive array
+  # via `to_primitive/1` on each element; non-list values go
   # through `to_primitive/1` directly.
   @spec to_attribute_value(value :: term()) :: primitive() | [primitive()]
   defp to_attribute_value(value) when is_list(value), do: Enum.map(value, &to_primitive/1)
