@@ -522,22 +522,22 @@ defmodule Otel.LoggerHandler do
     end
   end
 
-  # `:logger` meta keys NOT emitted as custom attributes
-  # — either mapped to semconv-stable names by the clauses
-  # above, consumed elsewhere in the `build_log_record/1`
-  # pipeline, or dropped for spec-conformance reasons.
-  # Everything else in meta flows through `put_meta/2` as a
-  # custom attribute.
+  # `:logger` meta keys NOT emitted as custom attributes by
+  # `put_user_meta/2` — either handled by a specialised
+  # `put_*` helper below (which maps them to a stable semconv
+  # attribute name), consumed elsewhere in the
+  # `build_log_record/1` pipeline, or dropped for
+  # spec-conformance reasons.
   @reserved_meta_keys [
-    # Mapped to semconv `code.*` / `log.domain` above
+    # Mapped by specialised put_* helpers below
     :mfa,
     :file,
     :line,
     :domain,
+    :crash_reason,
     # Consumed elsewhere in the build_log_record pipeline
     :time,
     :report_cb,
-    :crash_reason,
     # Dropped for spec-conformance
     :gl,
     :pid
@@ -546,79 +546,72 @@ defmodule Otel.LoggerHandler do
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do
     %{}
-    |> put_meta(meta, :mfa, "code.function.name", fn {module, function, arity} ->
-      "#{inspect(module)}.#{function}/#{arity}"
-    end)
-    |> put_meta(meta, :file, "code.file.path", &IO.chardata_to_string/1)
-    |> put_meta(meta, :line, "code.line.number", & &1)
-    |> put_meta(meta, :domain, "log.domain", fn domain ->
-      Enum.map(domain, &Atom.to_string/1)
-    end)
-    |> put_meta(meta, :crash_reason, "exception.stacktrace", fn
-      {exc, stacktrace} when is_exception(exc) -> Exception.format_stacktrace(stacktrace)
-      _ -> nil
-    end)
-    |> put_meta(meta)
+    |> put_code_function_name(meta)
+    |> put_code_file_path(meta)
+    |> put_code_line_number(meta)
+    |> put_log_domain(meta)
+    |> put_exception_stacktrace(meta)
+    |> put_user_meta(meta)
   end
 
-  # Stage 1 — semconv-mapped: given a specific meta key, put
-  # a `transform`-coerced value under the OTel-defined attr
-  # key. Skips silently in two cases:
-  #
-  # 1. `meta[key]` is absent (or `nil`) — same as Map.get/2
-  #    returning nil.
-  # 2. `transform.(value)` returns `nil` — transform signals
-  #    "no valid attribute representation for this shape".
-  #
-  # Case (2) matters for meta keys whose value shape varies
-  # (e.g., `:crash_reason` can be `{exception, stacktrace}`,
-  # `{:exit, reason}`, `{:shutdown, reason}` — only the first
-  # maps to `exception.stacktrace`, others should produce no
-  # attribute rather than an attribute with a `nil` value).
-  #
-  # `transform` is `(term() -> primitive() | [primitive()])`
-  # — the attribute-value type declared on `LogRecord.t/0`
-  # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
-  # `attributes: %{String.t() => primitive() | [primitive()]}`).
-  # `nil` is a valid member of `primitive()`, so returning `nil`
-  # doubles as the skip signal here rather than producing a
-  # `nil`-valued semconv attribute (which has no natural
-  # meaning — the attribute is either produced or absent).
-  @spec put_meta(
-          attrs :: map(),
-          meta :: map(),
-          key :: atom(),
-          attr_key :: String.t(),
-          transform :: (term() -> primitive() | [primitive()])
-        ) ::
-          map()
-  defp put_meta(attrs, meta, key, attr_key, transform) do
-    case Map.get(meta, key) do
-      nil ->
-        attrs
-
-      value ->
-        case transform.(value) do
-          nil -> attrs
-          transformed -> Map.put(attrs, attr_key, transformed)
-        end
-    end
+  @spec put_code_function_name(attrs :: map(), meta :: map()) :: map()
+  defp put_code_function_name(attrs, %{mfa: {module, function, arity}}) do
+    Map.put(attrs, "code.function.name", "#{inspect(module)}.#{function}/#{arity}")
   end
 
-  # Stage 2 — catch-all: forward user-provided `:logger` meta
-  # entries (`Logger.metadata/1` or per-call `meta` arg) as
-  # custom attributes. Keys in `@reserved_meta_keys` are
-  # excluded — either mapped by the `/5` clause in Stage 1 or
-  # dropped by design (see moduledoc `## Attribute mapping`).
+  defp put_code_function_name(attrs, _meta), do: attrs
+
+  @spec put_code_file_path(attrs :: map(), meta :: map()) :: map()
+  defp put_code_file_path(attrs, %{file: file}) do
+    Map.put(attrs, "code.file.path", IO.chardata_to_string(file))
+  end
+
+  defp put_code_file_path(attrs, _meta), do: attrs
+
+  @spec put_code_line_number(attrs :: map(), meta :: map()) :: map()
+  defp put_code_line_number(attrs, %{line: line}) do
+    Map.put(attrs, "code.line.number", line)
+  end
+
+  defp put_code_line_number(attrs, _meta), do: attrs
+
+  @spec put_log_domain(attrs :: map(), meta :: map()) :: map()
+  defp put_log_domain(attrs, %{domain: domain}) do
+    Map.put(attrs, "log.domain", Enum.map(domain, &Atom.to_string/1))
+  end
+
+  defp put_log_domain(attrs, _meta), do: attrs
+
+  # Only the `{exception, stacktrace}` shape of `:crash_reason`
+  # yields a valid `exception.stacktrace` attribute. OTP can
+  # also set `:crash_reason` to `{:exit, term}` or
+  # `{:shutdown, term}` for non-exception exits — the fallback
+  # clause ensures those produce no attribute rather than a
+  # misleading one.
+  @spec put_exception_stacktrace(attrs :: map(), meta :: map()) :: map()
+  defp put_exception_stacktrace(attrs, %{crash_reason: {exc, stacktrace}})
+       when is_exception(exc) do
+    Map.put(attrs, "exception.stacktrace", Exception.format_stacktrace(stacktrace))
+  end
+
+  defp put_exception_stacktrace(attrs, _meta), do: attrs
+
+  # Forwards user-provided `:logger` meta entries
+  # (`Logger.metadata/1` or per-call `meta` arg) as custom
+  # attributes. Keys in `@reserved_meta_keys` are excluded —
+  # either handled by the specialised `put_*` helpers above
+  # or dropped by design (see moduledoc `## Attribute mapping`).
   #
   # Attribute key is `Atom.to_string(meta_key)`. Attribute
   # value is normalised via `to_attribute_value/1`. `nil`
-  # user-meta values are preserved (user's explicit choice);
-  # differs from `put_meta/5`'s nil-skip policy which is
-  # appropriate for semconv-mapped keys where "missing" and
-  # "nil" aren't practically distinguishable.
-  @spec put_meta(attrs :: map(), meta :: map()) :: map()
-  defp put_meta(attrs, meta) do
+  # user-meta values are preserved — user's explicit choice,
+  # not conflated with "key absent". Specialised helpers
+  # above use pattern matching with a fallback clause for
+  # absent/malformed values, which is appropriate for
+  # semconv-mapped keys where "missing" and "nil-valued"
+  # aren't practically distinguishable.
+  @spec put_user_meta(attrs :: map(), meta :: map()) :: map()
+  defp put_user_meta(attrs, meta) do
     meta
     |> Map.drop(@reserved_meta_keys)
     |> Enum.reduce(attrs, fn {key, value}, acc ->
