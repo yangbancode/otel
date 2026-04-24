@@ -28,7 +28,7 @@ defmodule Otel.API.Metrics.MeterProviderTest do
       end
     end
 
-    test "delegates to registered provider and caches result" do
+    test "delegates to the registered provider" do
       Otel.API.Metrics.MeterProvider.set_provider({FakeMeterProvider, :installed})
 
       scope = %Otel.API.InstrumentationScope{name: "installed_lib"}
@@ -39,7 +39,7 @@ defmodule Otel.API.Metrics.MeterProviderTest do
       assert module == FakeMeterProvider
     end
 
-    test "different scopes produce distinct meters (no cache collision)" do
+    test "different scopes produce distinct meters" do
       Otel.API.Metrics.MeterProvider.set_provider({FakeMeterProvider, :installed})
 
       scope_a = %Otel.API.InstrumentationScope{name: "lib", attributes: %{"env" => "prod"}}
@@ -47,6 +47,29 @@ defmodule Otel.API.Metrics.MeterProviderTest do
 
       assert {_, %{scope: ^scope_a}} = Otel.API.Metrics.MeterProvider.get_meter(scope_a)
       assert {_, %{scope: ^scope_b}} = Otel.API.Metrics.MeterProvider.get_meter(scope_b)
+    end
+
+    # Regression test for the bootstrap race where a pre-SDK
+    # `get_meter/1` would cache Noop in `:persistent_term`, and
+    # that cached Noop would survive SDK installation — silently
+    # dropping every subsequent measurement even though a real
+    # provider was registered.
+    test "later-installed provider takes effect immediately (no stale Noop)" do
+      scope = %Otel.API.InstrumentationScope{name: "bootstrap_race"}
+
+      # Step 1: Resolve BEFORE any provider — should be Noop.
+      assert {Otel.API.Metrics.Meter.Noop, []} ==
+               Otel.API.Metrics.MeterProvider.get_meter(scope)
+
+      # Step 2: Install provider AFTER the first resolve.
+      Otel.API.Metrics.MeterProvider.set_provider({FakeMeterProvider, :installed})
+
+      # Step 3: Second resolve MUST hit the new provider, not a
+      # stale Noop from step 1's resolution.
+      {module, %{state: :installed, scope: ^scope}} =
+        Otel.API.Metrics.MeterProvider.get_meter(scope)
+
+      assert module == FakeMeterProvider
     end
   end
 
@@ -63,7 +86,11 @@ defmodule Otel.API.Metrics.MeterProviderTest do
       assert module == Otel.API.Metrics.Meter.Noop
     end
 
-    test "returns same meter for equal scopes" do
+    # Spec `metrics/api.md` L153-L155: "two Meters created with
+    # the same parameters MUST be identical". Satisfied via
+    # structural equality (not reference identity) since the
+    # Noop case always returns `{Noop, []}`.
+    test "returns structurally equal meters for repeated equal scopes" do
       meter1 =
         Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "my_lib"})
 
@@ -71,20 +98,6 @@ defmodule Otel.API.Metrics.MeterProviderTest do
         Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "my_lib"})
 
       assert meter1 == meter2
-    end
-
-    test "caches meter in persistent_term" do
-      meter1 =
-        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{
-          name: "cached_lib"
-        })
-
-      meter2 =
-        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{
-          name: "cached_lib"
-        })
-
-      assert meter1 === meter2
     end
   end
 end

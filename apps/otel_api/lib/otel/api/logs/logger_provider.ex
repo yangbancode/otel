@@ -4,17 +4,38 @@ defmodule Otel.API.Logs.LoggerProvider do
   (OTel `logs/api.md` §LoggerProvider, L54-L97).
 
   Holds the process-wide pointer to the installed
-  LoggerProvider implementation and caches the `Logger`
-  instances it returns. When no SDK is installed, all
-  operations resolve to the no-op logger
+  LoggerProvider implementation. When no SDK is installed,
+  all operations resolve to the no-op logger
   (`Otel.API.Logs.Logger.Noop`).
+
+  ## No API-level Logger cache
+
+  `get_logger/1` does **not** cache the Logger it returns.
+  Every call delegates to the registered provider's
+  `get_logger/2` callback (or returns Noop if none). This
+  avoids a bootstrap race: if an early `get_logger/1` is
+  made before the SDK registers, a cached Noop would
+  survive provider installation and silently drop every
+  subsequent log.
+
+  The spec's *"identical for identical parameters"*
+  requirement (`logs/api.md` L94-L97) is still satisfied
+  because SDK implementations return structurally-equal
+  Logger tuples for equal scopes, and the Noop case is
+  trivially `{Noop, []}` on every call.
+
+  Performance: the API dispatches directly to the
+  provider's `get_logger/2` on every call (or returns Noop
+  when no provider is registered). SDK implementations that
+  care about Logger-instance reuse should cache internally
+  on their own `get_logger/2` path.
 
   ## Storage
 
-  Both the global provider pointer and the scope-keyed logger
-  cache live in `:persistent_term`. The dispatch pattern
-  (`{dispatcher_module, state}` tuple + `get_logger/2`
-  callback) is shared across Trace, Metrics, and Logs.
+  The global provider pointer lives in `:persistent_term`.
+  The dispatch pattern (`{dispatcher_module, state}` tuple +
+  `get_logger/2` callback) is shared across Trace, Metrics,
+  and Logs.
 
   Unlike `Otel.API.Trace.TracerProvider`,
   `opentelemetry-erlang` has **no** `otel_logger_provider.erl`
@@ -43,7 +64,6 @@ defmodule Otel.API.Logs.LoggerProvider do
   @default_logger {Otel.API.Logs.Logger.Noop, []}
 
   @global_key {__MODULE__, :global}
-  @logger_key_prefix {__MODULE__, :logger}
 
   @typedoc """
   A `{dispatcher_module, state}` pair.
@@ -64,16 +84,16 @@ defmodule Otel.API.Logs.LoggerProvider do
   **Application** (OTel API MUST) — "Get a Logger"
   (`logs/api.md` L66-L97).
 
-  Returns a Logger for the given instrumentation scope. On
-  cache miss delegates to the registered provider's
-  `get_logger/2` callback, or returns the noop logger when no
-  provider is installed. Subsequent calls with an equal scope
-  return the cached logger.
+  Returns a Logger for the given instrumentation scope. Each
+  call delegates to the registered provider's `get_logger/2`
+  callback, or returns the noop logger when no provider is
+  installed — no API-level cache, see the module's *"No
+  API-level Logger cache"* section.
 
   The full `InstrumentationScope` struct (name, version,
-  schema_url, attributes — spec L73-L93) is the cache key, so
-  "identical" and "distinct" loggers (L95-L97) are
-  distinguished automatically by map equality.
+  schema_url, attributes — spec L73-L93) is passed to the
+  provider. Spec's "identical for identical parameters"
+  (L95-L97) is satisfied by SDK-side structural equality.
 
   Without arguments, uses a default empty scope.
   """
@@ -82,16 +102,12 @@ defmodule Otel.API.Logs.LoggerProvider do
   def get_logger(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
 
   def get_logger(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    key = {@logger_key_prefix, instrumentation_scope}
-
-    case :persistent_term.get(key, nil) do
+    case get_provider() do
       nil ->
-        logger = fetch_or_default(instrumentation_scope)
-        :persistent_term.put(key, logger)
-        logger
+        @default_logger
 
-      logger ->
-        logger
+      {module, state} ->
+        module.get_logger(state, instrumentation_scope)
     end
   end
 
@@ -99,12 +115,12 @@ defmodule Otel.API.Logs.LoggerProvider do
 
   @doc """
   **SDK** (OTel API MUST) — Dispatch callback invoked by
-  `get_logger/1` on cache miss.
+  `get_logger/1`.
 
   Implementations receive the opaque `state` they registered
   via `set_provider/1` along with the requested instrumentation
-  scope, and return the Logger to cache. The `get_logger/2`
-  shape is the API↔SDK dispatch contract for §"Get a Logger"
+  scope, and return a Logger. The `get_logger/2` shape is the
+  API↔SDK dispatch contract for §"Get a Logger"
   (`logs/api.md` L66-L97).
   """
   @callback get_logger(
@@ -148,17 +164,5 @@ defmodule Otel.API.Logs.LoggerProvider do
   def set_provider({_module, _state} = provider) do
     :persistent_term.put(@global_key, provider)
     :ok
-  end
-
-  @spec fetch_or_default(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
-          Otel.API.Logs.Logger.t()
-  defp fetch_or_default(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    case get_provider() do
-      nil ->
-        @default_logger
-
-      {module, state} ->
-        module.get_logger(state, instrumentation_scope)
-    end
   end
 end
