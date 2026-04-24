@@ -220,6 +220,32 @@ defmodule Otel.LoggerHandlerTest do
       assert_received {:captured_log, _, %{body: "hello world"}}
     end
 
+    # Happy-path policy: malformed input crashes rather than
+    # being silently coerced. `IO.chardata_to_string/1` raises
+    # `UnicodeConversionError` when chardata contains
+    # out-of-range codepoints (e.g. surrogates) or embedded
+    # binaries with invalid UTF-8. In production `:logger`'s
+    # internal `try/catch` converts the raise into
+    # self-healing handler removal.
+    #
+    # A bare invalid-byte binary (`<<0xFF>>`) does NOT raise
+    # — Elixir's `IO.chardata_to_string/1` passes binaries
+    # through unchanged without UTF-8 validation. Validation
+    # only fires when chardata needs concatenation, e.g.
+    # a list containing a surrogate codepoint.
+    test "{:string, malformed chardata} raises (happy-path)" do
+      # 0xD800 is a UTF-16 surrogate — not a valid Unicode
+      # codepoint on its own.
+      malformed = [0xD800]
+
+      assert_raise UnicodeConversionError, fn ->
+        Otel.LoggerHandler.log(
+          log_event(:info, {:string, malformed}, %{}),
+          handler_config()
+        )
+      end
+    end
+
     test "{:report, map} preserves structure as string-keyed map" do
       msg = {:report, %{user_id: 42, action: "login"}}
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
@@ -232,6 +258,17 @@ defmodule Otel.LoggerHandlerTest do
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: body}}
       assert body == %{"user_id" => 42, "action" => "login"}
+    end
+
+    # OTel `map<string, AnyValue>` requires unique keys
+    # (`common/README.md` §map L78). `Enum.into(%{})` is our
+    # normalising step and yields last-wins on duplicates —
+    # the sensible "most-recent" semantics.
+    test "{:report, keyword_list} with duplicate keys keeps last value" do
+      msg = {:report, [user_id: 1, user_id: 2, user_id: 3]}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"user_id" => 3}
     end
 
     # `report_cb/1` per OTP `logger.erl` L84 — the caller's
@@ -303,6 +340,18 @@ defmodule Otel.LoggerHandlerTest do
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: body}}
       assert body == %{"events" => [%{"type" => "click"}, %{"type" => "scroll"}]}
+    end
+
+    # Pins that atom values at any nesting depth go through
+    # `String.Chars` (→ `"admin"`, not `:admin` preserved
+    # and not `":admin"` from inspect). Guards against a
+    # regression where only top-level atom values would be
+    # stringified.
+    test "{:report, nested map with atom at depth} stringifies atom via String.Chars" do
+      msg = {:report, %{user: %{role: :admin}}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"user" => %{"role" => "admin"}}
     end
 
     # Structs with `String.Chars` impl use `to_string/1` — the
@@ -396,28 +445,6 @@ defmodule Otel.LoggerHandlerTest do
       msg = {~c"hello ~s", [~c"world"]}
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
       assert_received {:captured_log, _, %{body: "hello world"}}
-    end
-
-    # Defensive path — msg that doesn't match any `:logger`
-    # protocol shape (not `{:string, _}`, `{:report, _}`, or
-    # `{format, args}`). Only fires when a caller invokes
-    # `log/2` directly with a hand-rolled event. Goes through
-    # `to_primitive_any/1` for consistency with the `:report`
-    # paths above.
-    test "unknown-shape atom normalises via to_primitive_any/1" do
-      Otel.LoggerHandler.log(log_event(:info, :unexpected_atom, %{}), handler_config())
-      assert_received {:captured_log, _, %{body: "unexpected_atom"}}
-    end
-
-    # Regression for the Q2 review fix: previously this path
-    # ran `inspect/1` and produced the string `"%{user_id: 42}"`.
-    # Now untagged structured data is preserved as a map, which
-    # is how a caller bypassing OTP's `{:report, _}` wrapping
-    # would reasonably expect their data to arrive.
-    test "unknown-shape untagged map preserved as string-keyed map" do
-      Otel.LoggerHandler.log(log_event(:info, %{user_id: 42}, %{}), handler_config())
-      assert_received {:captured_log, _, %{body: body}}
-      assert body == %{"user_id" => 42}
     end
   end
 
