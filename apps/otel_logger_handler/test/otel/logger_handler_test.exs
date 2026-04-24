@@ -676,20 +676,43 @@ defmodule Otel.LoggerHandlerTest do
       assert captured == exception
     end
 
+    # `exception.stacktrace` is a stable semconv attribute
+    # (`semantic-conventions/model/exceptions/registry.yaml` L27-L38).
+    # Handler emits it directly from `meta.crash_reason` because
+    # Elixir exception structs don't carry stacktrace — so the
+    # SDK's struct-based `exception.*` extraction can't reach it.
+    test "emits exception.stacktrace attribute from crash_reason" do
+      exception = %RuntimeError{message: "boom"}
+      stacktrace = [{__MODULE__, :test, 0, [file: ~c"test.ex", line: 42]}]
+      meta = %{crash_reason: {exception, stacktrace}}
+
+      Otel.LoggerHandler.log(log_event(:error, {:string, "crash"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert attrs["exception.stacktrace"] == Exception.format_stacktrace(stacktrace)
+    end
+
     test "leaves exception field nil when crash_reason absent" do
       Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), handler_config())
       assert_received {:captured_log, _, record}
       assert record.exception == nil
     end
 
+    test "omits exception.stacktrace attribute when crash_reason absent" do
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, %{}), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      refute Map.has_key?(attrs, "exception.stacktrace")
+    end
+
     test "ignores non-exception crash_reason shapes (e.g. exit tuples)" do
-      # OTP can also set `crash_reason` to `{:exit, term}`
-      # for non-exception exits; those don't fit
-      # `Exception.t()` so we drop rather than mis-populate.
+      # OTP can also set `crash_reason` to `{:exit, term}` or
+      # `{:shutdown, term}` for non-exception exits; those don't
+      # fit `Exception.t()`, so neither the `exception` sidecar
+      # nor the `exception.stacktrace` attribute is populated.
       meta = %{crash_reason: {:shutdown, :some_reason}}
       Otel.LoggerHandler.log(log_event(:error, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, record}
       assert record.exception == nil
+      refute Map.has_key?(record.attributes, "exception.stacktrace")
     end
   end
 
