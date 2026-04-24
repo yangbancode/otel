@@ -157,20 +157,11 @@ defmodule Otel.LoggerHandler do
   @doc false
   @spec log(log_event :: :logger.log_event(), config :: :logger.handler_config()) :: :ok
   def log(log_event, config) do
-    otel_config = Map.get(config, :config) || %{}
-
-    instrumentation_scope = %Otel.API.InstrumentationScope{
-      name: Map.get(otel_config, :scope_name) || "",
-      version: Map.get(otel_config, :scope_version) || "",
-      schema_url: Map.get(otel_config, :scope_schema_url) || "",
-      attributes: Map.get(otel_config, :scope_attributes) || %{}
-    }
-
-    logger = Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
     ctx = Otel.API.Ctx.current()
+    instrumentation_scope = build_instrumentation_scope(config)
+    logger = Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
     log_record = build_log_record(log_event)
     Otel.API.Logs.Logger.emit(logger, ctx, log_record)
-
     :ok
   end
 
@@ -189,6 +180,19 @@ defmodule Otel.LoggerHandler do
   def filter_config(config), do: config
 
   # --- Private ---
+
+  @spec build_instrumentation_scope(config :: :logger.handler_config()) ::
+          Otel.API.InstrumentationScope.t()
+  defp build_instrumentation_scope(config) do
+    otel_config = Map.get(config, :config) || %{}
+
+    %Otel.API.InstrumentationScope{
+      name: Map.get(otel_config, :scope_name) || "",
+      version: Map.get(otel_config, :scope_version) || "",
+      schema_url: Map.get(otel_config, :scope_schema_url) || "",
+      attributes: Map.get(otel_config, :scope_attributes) || %{}
+    }
+  end
 
   @spec build_log_record(log_event :: :logger.log_event()) ::
           Otel.API.Logs.LogRecord.t()
