@@ -106,10 +106,14 @@ defmodule Otel.LoggerHandler do
   | `msg` shape | Body |
   |---|---|
   | `{:string, chardata}` | `IO.chardata_to_string/1` |
-  | `{:report, map}` | map with string keys |
-  | `{:report, keyword_list}` | map derived from the keyword list |
+  | `{:report, map}` | string-keyed map (recursive — keys at every nesting level are strings to satisfy `primitive_any()`) |
+  | `{:report, keyword_list}` | string-keyed map derived from the keyword list (recursive) |
   | `{format, args}` (`:io_lib.format/2` shape) | formatted string |
   | anything else | `inspect/1` fallback |
+
+  Nested structs (e.g. `%Date{}`, `%DateTime{}`) pass through
+  unchanged — flattening them to `%{"__struct__" => Module,
+  ...}` would leak Elixir internals into Body.
 
   ## Exception events
 
@@ -247,10 +251,33 @@ defmodule Otel.LoggerHandler do
     inspect(other)
   end
 
-  @spec stringify_keys(map :: map()) :: %{String.t() => term()}
-  defp stringify_keys(map) do
-    Map.new(map, fn {k, v} -> {to_string(k), v} end)
+  # Recursively stringifies map keys so Body satisfies
+  # `primitive_any()` at every nesting level
+  # (`apps/otel_api/lib/otel/api/common/types.ex` L183-L184 —
+  # `%{String.t() => primitive_any()}` is recursive). Matches
+  # OTel's `common/README.md` §AnyValue L39-L54 where
+  # `map<string, AnyValue>` can nest and the string-key
+  # constraint propagates down. Top-level-only stringification
+  # would leave a nested `{:report, %{user: %{id: 42}}}` as
+  # `%{"user" => %{id: 42}}` — OTLP's encoder masks this by
+  # re-stringifying on export, but in-process consumers
+  # (custom exporters, test assertions) would see a mixed-key
+  # map.
+  #
+  # Structs pass through via `is_struct/1` so a `%Date{}`-valued
+  # field stays a struct instead of being flattened to
+  # `%{"__struct__" => Date, ...}`. Lists recurse so maps
+  # nested under an array value are also normalised.
+  @spec stringify_keys(value :: term()) :: term()
+  defp stringify_keys(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), stringify_keys(v)} end)
   end
+
+  defp stringify_keys(value) when is_list(value) do
+    Enum.map(value, &stringify_keys/1)
+  end
+
+  defp stringify_keys(value), do: value
 
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do

@@ -234,6 +234,38 @@ defmodule Otel.LoggerHandlerTest do
       assert body == %{"user_id" => 42, "action" => "login"}
     end
 
+    # Regression: `LogRecord.body` is typed `primitive_any()`
+    # which recursively requires `%{String.t() => ...}` at
+    # every nesting level. Prior to recursive stringification,
+    # a nested `{:report, %{user: %{id: 42}}}` produced
+    # `%{"user" => %{id: 42}}` — OTLP's encoder masked this
+    # by re-stringifying on export, but in-process consumers
+    # saw mixed-key maps.
+    test "{:report, nested map} stringifies keys at every depth" do
+      msg = {:report, %{user: %{id: 42, name: "alice"}}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"user" => %{"id" => 42, "name" => "alice"}}
+    end
+
+    test "{:report, map with list-of-maps} stringifies keys in all nested maps" do
+      msg = {:report, %{events: [%{type: "click"}, %{type: "scroll"}]}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"events" => [%{"type" => "click"}, %{"type" => "scroll"}]}
+    end
+
+    # Structs must survive Body extraction unchanged —
+    # flattening them via `Map.new` would produce
+    # `%{"__struct__" => Module, ...}` and leak Elixir
+    # internals into the LogRecord.
+    test "{:report, map with struct value} preserves struct" do
+      msg = {:report, %{at: ~D[2024-01-01]}}
+      Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
+      assert_received {:captured_log, _, %{body: body}}
+      assert body == %{"at" => ~D[2024-01-01]}
+    end
+
     test "{format, args} → :io_lib.format output" do
       msg = {~c"hello ~s", [~c"world"]}
       Otel.LoggerHandler.log(log_event(:info, msg, %{}), handler_config())
