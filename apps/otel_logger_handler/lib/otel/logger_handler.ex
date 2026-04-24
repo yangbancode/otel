@@ -184,6 +184,89 @@ defmodule Otel.LoggerHandler do
   decision will settle whether to emit it under a
   BEAM-specific custom key or drop it entirely.
 
+  ### Format choices
+
+  `code.function.name` renders as
+  `"\#{inspect(module)}.\#{function}/\#{arity}"` — two
+  choices worth surfacing:
+
+  1. **Arity is included.** The spec's Elixir example at
+     `semantic-conventions/model/code/registry.yaml` L31 is
+     `OpenTelemetry.Ctx.new` (arity-less), but L20 notes
+     *"Values and format depends on each language runtime"*.
+     BEAM conventions (stacktrace format, OTP's `mfa` tuple,
+     `Exception.format_mfa/3`) include arity, and `handle/2`
+     vs `handle/3` are genuinely distinct functions — omitting
+     arity would lose information.
+
+  2. **`inspect(module)` strips the `Elixir.` prefix.** Module
+     atoms are stored internally as `:"Elixir.<Name>"`;
+     `inspect/1` drops the prefix (`inspect(MyApp.Worker)` →
+     `"MyApp.Worker"`), while `Atom.to_string/1` / `to_string/1`
+     keep it (`"Elixir.MyApp.Worker"`). For `code.function.name`
+     the user-readable form matters to backends and stacktraces.
+     This intentionally differs from `to_primitive_any/1`
+     (body-value path), which uses `to_string/1` and accepts
+     the prefix — each function's use case dictates the choice.
+
+  `log.domain` is `[String.t()]` (homogeneous array) so
+  backends can filter by individual path segments
+  (`log.domain[0] = "elixir"`). A stringified literal like
+  `"[:elixir, :phoenix]"` wouldn't support segment queries.
+
+  ### User metadata pass-through
+
+  `:logger` accepts arbitrary user-provided metadata via
+  `Logger.metadata/1` or per-call meta args. Every key not
+  in the reserved list below flows through as a custom
+  attribute — the key is `Atom.to_string(meta_key)` and the
+  value is coerced to `primitive() | [primitive()]`:
+
+      Logger.metadata(request_id: "req-abc", user_id: 42)
+      Logger.info("processed")
+      # attributes: %{"request_id" => "req-abc", "user_id" => 42, ...}
+
+  Reserved keys (not emitted as custom attributes, for three
+  distinct reasons):
+
+  | Key | Reason |
+  |---|---|
+  | `:mfa`, `:file`, `:line`, `:domain` | Already mapped above to semconv-stable `code.*` / `log.domain` names |
+  | `:time` | Consumed by `to_timestamp/1` → `timestamp` field |
+  | `:report_cb` | Consumed by `to_body/2` → body render |
+  | `:crash_reason` | Consumed by `put_exception/2` → `exception` field |
+  | `:gl` | Group-leader PID — process-internal, no OTel semantic |
+  | `:pid` | `process.pid` type mismatch (see above) |
+
+  Value coercion is **flat** (unlike `to_primitive_any/1`
+  which recurses through nested maps for body) —
+  `common/README.md` §Attribute L185-L197 forbids map-valued
+  attributes. Primitives (`String.t()`, `integer()`,
+  `float()`, `boolean()`, `nil`, `{:bytes, binary()}`) pass
+  through. Non-primitives (atoms, structs, tuples, PIDs,
+  refs, functions) coerce to string via `String.Chars` when
+  implemented, `inspect/1` otherwise. Lists become
+  homogeneous primitive arrays via element-wise coercion.
+  Nested maps — which have no valid attribute
+  representation — fall through to `inspect/1`.
+
+  ### Divergence from `opentelemetry-erlang`
+
+  Erlang's attribute extraction happens in the OTLP exporter
+  (`otel_otlp_logs.erl` L84) as `maps:without([gl, time,
+  report_cb], Metadata)` — a blacklist with raw atom keys
+  (`mfa`, `file`, `line`, `domain`) that are **not**
+  semconv-stable names. We instead:
+
+  1. Map `:mfa` / `:file` / `:line` / `:domain` to their
+     stable semconv names (`code.function.name`, etc.).
+  2. Run extraction at the handler so every exporter (OTLP,
+     custom, in-process debug) sees the canonical attribute
+     shape without re-work.
+  3. Blacklist a broader set (`:gl`, `:time`, `:report_cb`,
+     `:crash_reason`, `:pid`) reflecting OTel semantic
+     concerns rather than just display.
+
   ## Design notes
 
   Two intentional divergences from `opentelemetry-erlang`'s
@@ -360,29 +443,17 @@ defmodule Otel.LoggerHandler do
   #     primitive_any() ::
   #       primitive() | [primitive_any()] | %{String.t() => primitive_any()}
   #
-  # `primitive()` = `String.t() | {:bytes, binary()} | boolean()
-  # | integer() | float() | nil`. Anything outside that union
-  # (arbitrary atoms like `:ok`, structs like `%Date{}`, tuples
-  # other than the `:bytes` tag, references, pids, functions)
-  # has no `AnyValue` representation, so we render it via
-  # `inspect/1` — matches Elixir's own `Logger` default
-  # formatter and preserves a human-readable form without
-  # leaking `__struct__`-style internals.
+  # Composite handling (maps, lists) lives here; scalar
+  # coercion is delegated to `to_primitive/1` so the body and
+  # attribute paths share a single leaf-coercion policy.
   #
   # Maps recurse with `to_string(k)` on keys so the
   # `map<string, AnyValue>` contract holds at every depth.
   # Lists recurse element-wise so nested composites are
-  # normalised too. Struct-valued fields hit the catch-all
-  # `inspect/1` clause rather than being flattened to
-  # `%{"__struct__" => Date, ...}`.
+  # normalised too. Everything else (primitives, atoms,
+  # structs, tuples outside `:bytes`, refs, pids, functions)
+  # delegates to `to_primitive/1`.
   @spec to_primitive_any(value :: term()) :: primitive_any()
-  defp to_primitive_any(nil), do: nil
-  defp to_primitive_any(value) when is_boolean(value), do: value
-  defp to_primitive_any(value) when is_binary(value), do: value
-  defp to_primitive_any(value) when is_integer(value), do: value
-  defp to_primitive_any(value) when is_float(value), do: value
-  defp to_primitive_any({:bytes, bin} = value) when is_binary(bin), do: value
-
   defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
     Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
   end
@@ -391,92 +462,90 @@ defmodule Otel.LoggerHandler do
     Enum.map(value, &to_primitive_any/1)
   end
 
-  # Non-primitive, non-composite catch-all: atoms, structs,
-  # tuples, references, pids, functions. Prefer `to_string/1`
-  # when the value implements `String.Chars` — that protocol
-  # IS the user/library declaration of "this is the canonical
-  # string form" (e.g. `Date` renders as `"2024-01-01"`, `URI`
-  # as `"http://..."`, `:ok` as `"ok"`). Values without a
-  # `String.Chars` impl (tuples, pids, refs, ports, functions,
-  # `MapSet`, etc.) fall back to `inspect/1`. `String.Chars.
-  # impl_for/1` returns the impl module or `nil`, so this is a
-  # pure dispatch — no `try/rescue`.
-  defp to_primitive_any(value) do
+  defp to_primitive_any(value), do: to_primitive(value)
+
+  # Leaf coercion — any non-composite Elixir term to
+  # `primitive()` (`common/types.ex` L180-L181: `String.t() |
+  # {:bytes, binary()} | boolean() | integer() | float() |
+  # nil`). Shared between `to_primitive_any/1` (body path)
+  # and `to_attribute_value/1` (attribute path).
+  #
+  # Primitives pass through unchanged. Anything outside
+  # `primitive()` — atoms, structs, tuples other than the
+  # `:bytes` tag, references, pids, functions — has no
+  # `AnyValue` representation, so we coerce to `String.t()`:
+  # `String.Chars` impl (canonical form per the
+  # user/library) when present, `inspect/1` otherwise. The
+  # `String.Chars.impl_for/1` dispatch returns the impl
+  # module or `nil`, so this is pure dispatch — no
+  # `try/rescue`.
+  #
+  # Callsites:
+  #
+  # - `to_primitive_any/1` — body path; delegates here for
+  #   every non-map, non-list value.
+  # - `to_attribute_value/1` — attribute path; delegates
+  #   here for every non-list value, and via `Enum.map` for
+  #   list elements.
+  @spec to_primitive(value :: term()) :: primitive()
+  defp to_primitive(nil), do: nil
+  defp to_primitive(value) when is_boolean(value), do: value
+  defp to_primitive(value) when is_binary(value), do: value
+  defp to_primitive(value) when is_integer(value), do: value
+  defp to_primitive(value) when is_float(value), do: value
+  defp to_primitive({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_primitive(value) do
     case String.Chars.impl_for(value) do
       nil -> inspect(value)
       _impl -> to_string(value)
     end
   end
 
+  # `:logger` meta keys NOT emitted as custom attributes
+  # — either mapped to semconv-stable names by the clauses
+  # above, consumed elsewhere in the `build_log_record/1`
+  # pipeline, or dropped for spec-conformance reasons.
+  # Everything else in meta flows through `put_meta/2` as a
+  # custom attribute.
+  @reserved_meta_keys [
+    # Mapped to semconv `code.*` / `log.domain` above
+    :mfa,
+    :file,
+    :line,
+    :domain,
+    # Consumed elsewhere in the build_log_record pipeline
+    :time,
+    :report_cb,
+    :crash_reason,
+    # Dropped for spec-conformance
+    :gl,
+    :pid
+  ]
+
   @spec to_attributes(meta :: map()) :: map()
   defp to_attributes(meta) do
     %{}
-    |> put_code_function_name(meta)
-    |> put_meta_attr(meta, :file, "code.file.path", &IO.chardata_to_string/1)
-    |> put_meta_attr(meta, :line, "code.line.number", & &1)
-    |> put_meta_attr(meta, :domain, "log.domain", &domain_to_strings/1)
+    |> put_meta(meta, :mfa, "code.function.name", fn {module, function, arity} ->
+      "#{inspect(module)}.#{function}/#{arity}"
+    end)
+    |> put_meta(meta, :file, "code.file.path", &IO.chardata_to_string/1)
+    |> put_meta(meta, :line, "code.line.number", & &1)
+    |> put_meta(meta, :domain, "log.domain", fn domain ->
+      Enum.map(domain, &Atom.to_string/1)
+    end)
+    |> put_meta(meta)
   end
 
-  # OTP `:logger` `domain: [atom()]` is a hierarchical label
-  # path (e.g. `[:otp, :sasl]`, `[:elixir, :phoenix]`). Emit
-  # it as `[String.t()]` — a valid attribute value per
-  # `LogRecord.attributes` (`primitive() | [primitive()]`) —
-  # so OTel backends can filter by individual segments
-  # (`log.domain[0] = "elixir"`). An earlier implementation
-  # used `inspect/1` which produced `"[:elixir, :phoenix]"`
-  # — valid as a `String.t()` but not query-friendly (backends
-  # see an Elixir-literal blob, not a path).
-  @spec domain_to_strings(domain :: [atom()]) :: [String.t()]
-  defp domain_to_strings(domain), do: Enum.map(domain, &Atom.to_string/1)
-
-  # Elixir/OTP `mfa` → `code.function.name` as a
-  # fully-qualified `"Module.fun/arity"` string. The stable
-  # semantic-conventions name
-  # (`semantic-conventions/model/code/registry.yaml` L8-L34)
-  # absorbs what the deprecated `code.namespace` +
-  # `code.function` pair used to carry
-  # (`registry-deprecated.yaml` L8-L55).
+  # Stage 1 — semconv-mapped: given a specific meta key, put
+  # a `transform`-coerced value under the OTel-defined attr
+  # key. Skips silently when the meta key is absent (or nil).
   #
-  # Two deliberate format choices worth surfacing:
-  #
-  # 1. **`/arity` is included** (`"MyApp.Worker.handle/2"`).
-  #    The spec's Elixir example at `registry.yaml` L31 is
-  #    `OpenTelemetry.Ctx.new` — arity-less — but L20 notes
-  #    *"Values and format depends on each language runtime"*.
-  #    BEAM conventions (stacktrace format, OTP's own `mfa`
-  #    tuple, `Exception.format_mfa/3`) include arity; `handle/2`
-  #    and `handle/3` are genuinely distinct functions, so
-  #    omitting arity would lose information. We follow BEAM
-  #    precedent.
-  #
-  # 2. **`inspect(module)` strips the `Elixir.` prefix**.
-  #    Module atoms are stored internally as
-  #    `:"Elixir.<Name>"`; `inspect/1` drops the `Elixir.`
-  #    prefix for display (`inspect(MyApp.Worker)` →
-  #    `"MyApp.Worker"`), whereas `Atom.to_string/1` /
-  #    `to_string/1` keep it (`"Elixir.MyApp.Worker"`). For
-  #    `code.function.name` the user-readable form is what
-  #    matters to backends and stacktraces, so we use
-  #    `inspect/1`. This intentionally differs from
-  #    `to_primitive_any/1` (body-value path), where
-  #    `to_string/1` is used and the `Elixir.` prefix is
-  #    accepted — each function's use case dictates the
-  #    choice.
-  @spec put_code_function_name(attrs :: map(), meta :: map()) :: map()
-  defp put_code_function_name(attrs, %{mfa: {module, function, arity}}) do
-    Map.put(attrs, "code.function.name", "#{inspect(module)}.#{function}/#{arity}")
-  end
-
-  defp put_code_function_name(attrs, _meta), do: attrs
-
   # `transform` is `(term() -> primitive() | [primitive()])`
   # — the attribute-value type declared on `LogRecord.t/0`
   # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
   # `attributes: %{String.t() => primitive() | [primitive()]}`).
-  # Narrower than the previous `function()` — Dialyzer now
-  # infers that whatever `transform` produces fits the
-  # attribute-map value type without a widening step.
-  @spec put_meta_attr(
+  @spec put_meta(
           attrs :: map(),
           meta :: map(),
           key :: atom(),
@@ -484,12 +553,48 @@ defmodule Otel.LoggerHandler do
           transform :: (term() -> primitive() | [primitive()])
         ) ::
           map()
-  defp put_meta_attr(attrs, meta, key, attr_key, transform) do
+  defp put_meta(attrs, meta, key, attr_key, transform) do
     case Map.get(meta, key) do
       nil -> attrs
       value -> Map.put(attrs, attr_key, transform.(value))
     end
   end
+
+  # Stage 2 — catch-all: forward user-provided `:logger` meta
+  # entries (`Logger.metadata/1` or per-call `meta` arg) as
+  # custom attributes. Keys in `@reserved_meta_keys` are
+  # excluded — either mapped by the `/5` clause in Stage 1 or
+  # dropped by design (see moduledoc `## Attribute mapping`).
+  #
+  # Attribute key is `Atom.to_string(meta_key)`. Attribute
+  # value is normalised via `to_attribute_value/1`. `nil`
+  # user-meta values are preserved (user's explicit choice);
+  # differs from `put_meta/5`'s nil-skip policy which is
+  # appropriate for semconv-mapped keys where "missing" and
+  # "nil" aren't practically distinguishable.
+  @spec put_meta(attrs :: map(), meta :: map()) :: map()
+  defp put_meta(attrs, meta) do
+    meta
+    |> Map.drop(@reserved_meta_keys)
+    |> Enum.reduce(attrs, fn {key, value}, acc ->
+      Map.put(acc, Atom.to_string(key), to_attribute_value(value))
+    end)
+  end
+
+  # Coerces any Elixir term to `primitive() | [primitive()]`
+  # — the attribute-value type from `LogRecord.t/0`
+  # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74).
+  #
+  # Similar to `to_primitive_any/1` (body path) but FLATTER:
+  # OTel attributes don't permit nested maps
+  # (`common/README.md` §Attribute L185-L197 — values must be
+  # primitive or homogeneous primitive arrays). A list
+  # iterates to a homogeneous primitive array via
+  # `to_primitive/1` on each element; non-list values go
+  # through `to_primitive/1` directly.
+  @spec to_attribute_value(value :: term()) :: primitive() | [primitive()]
+  defp to_attribute_value(value) when is_list(value), do: Enum.map(value, &to_primitive/1)
+  defp to_attribute_value(value), do: to_primitive(value)
 
   # `meta.crash_reason = {exception, stacktrace}` is OTP's
   # standard way of surfacing process crashes to the log

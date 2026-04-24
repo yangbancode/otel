@@ -521,6 +521,147 @@ defmodule Otel.LoggerHandlerTest do
     end
   end
 
+  # `Logger.metadata/1` and per-call meta args put arbitrary
+  # keys on `:logger`'s meta map. Every non-reserved key flows
+  # through as a custom attribute — `Atom.to_string(key)` maps
+  # to a `primitive() | [primitive()]`-coerced value. The
+  # reserved list covers semconv-mapped, pipeline-consumed,
+  # and spec-mismatched keys (see moduledoc).
+  describe "user metadata pass-through" do
+    test "primitive-valued user meta flows through as attributes" do
+      meta = %{
+        request_id: "req-abc-123",
+        user_id: 42,
+        ratio: 0.75,
+        active: true,
+        deleted_at: nil
+      }
+
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+
+      assert attrs["request_id"] == "req-abc-123"
+      assert attrs["user_id"] == 42
+      assert attrs["ratio"] == 0.75
+      assert attrs["active"] == true
+      # Nil is in primitive() — user's explicit choice preserved,
+      # not conflated with "missing"
+      assert Map.has_key?(attrs, "deleted_at")
+      assert attrs["deleted_at"] == nil
+    end
+
+    test "{:bytes, binary()} tag preserved as primitive (not stringified)" do
+      payload = {:bytes, <<0xCA, 0xFE>>}
+      meta = %{data: payload}
+
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+
+      assert attrs["data"] == payload
+    end
+
+    test "atom user meta value coerces via String.Chars (colon-less)" do
+      meta = %{status: :ok}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert attrs["status"] == "ok"
+    end
+
+    test "struct with String.Chars uses to_string (ISO-formatted for Date)" do
+      meta = %{at: ~D[2024-01-01]}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert attrs["at"] == "2024-01-01"
+    end
+
+    test "struct without String.Chars falls back to inspect" do
+      meta = %{set: MapSet.new([1, 2])}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert attrs["set"] == "MapSet.new([1, 2])"
+    end
+
+    test "tuple user meta coerces via inspect" do
+      meta = %{point: {1, 2}}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert attrs["point"] == "{1, 2}"
+    end
+
+    test "nested map user meta coerces via inspect (attributes forbid maps)" do
+      # `common/README.md` §Attribute L185-L197: attribute
+      # values are primitive or homogeneous primitive arrays,
+      # NOT maps. A map-valued user meta is outside contract;
+      # inspect/1 preserves debuggability.
+      meta = %{detail: %{a: 1, b: 2}}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      # Map inspect order isn't guaranteed across BEAM versions,
+      # but inspect output is a string either way.
+      assert is_binary(attrs["detail"])
+      assert attrs["detail"] =~ "a: 1"
+      assert attrs["detail"] =~ "b: 2"
+    end
+
+    test "list of primitives flows as homogeneous array attribute" do
+      meta = %{tags: ["alpha", "beta", "gamma"]}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert attrs["tags"] == ["alpha", "beta", "gamma"]
+    end
+
+    test "list of atoms coerces each element via String.Chars" do
+      meta = %{roles: [:admin, :editor]}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert attrs["roles"] == ["admin", "editor"]
+    end
+
+    test "reserved OTP keys are never emitted as custom attributes" do
+      # :time is auto-injected by the log_event/3 test helper
+      # (mirroring OTP's add_default_metadata). Asserting its
+      # absence here also guards the :time → timestamp-field
+      # boundary.
+      meta = %{
+        gl: self(),
+        report_cb: fn _ -> "" end,
+        crash_reason: {%RuntimeError{message: "boom"}, []}
+      }
+
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+
+      refute Map.has_key?(attrs, "gl")
+      refute Map.has_key?(attrs, "time")
+      refute Map.has_key?(attrs, "report_cb")
+      refute Map.has_key?(attrs, "crash_reason")
+    end
+
+    test "user meta coexists with semconv-mapped attributes" do
+      meta = %{
+        mfa: {MyMod, :fun, 1},
+        file: ~c"lib/my_mod.ex",
+        line: 42,
+        request_id: "abc"
+      }
+
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+
+      # Semconv-mapped keys use their stable names
+      assert attrs["code.function.name"] == "MyMod.fun/1"
+      assert attrs["code.file.path"] == "lib/my_mod.ex"
+      assert attrs["code.line.number"] == 42
+      # Raw atom keys from semconv-mapped keys must NOT
+      # appear alongside the semconv-mapped attrs
+      refute Map.has_key?(attrs, "mfa")
+      refute Map.has_key?(attrs, "file")
+      refute Map.has_key?(attrs, "line")
+      # Custom user key passes through
+      assert attrs["request_id"] == "abc"
+    end
+  end
+
   # Per `trace/exceptions.md` §Attributes L44-L55 — crashes
   # routed through `:logger` with `meta.crash_reason = {exc,
   # stack}` should surface as OTel exception events.
