@@ -430,10 +430,38 @@ defmodule Otel.LoggerHandler do
   defp domain_to_strings(domain), do: Enum.map(domain, &Atom.to_string/1)
 
   # Elixir/OTP `mfa` → `code.function.name` as a
-  # fully-qualified `"Module.fun/arity"` string, per the
-  # current semantic-conventions guidance that
-  # `code.function.name` absorbs what the deprecated
-  # `code.namespace` + `code.function` pair used to carry.
+  # fully-qualified `"Module.fun/arity"` string. The stable
+  # semantic-conventions name
+  # (`semantic-conventions/model/code/registry.yaml` L8-L34)
+  # absorbs what the deprecated `code.namespace` +
+  # `code.function` pair used to carry
+  # (`registry-deprecated.yaml` L8-L55).
+  #
+  # Two deliberate format choices worth surfacing:
+  #
+  # 1. **`/arity` is included** (`"MyApp.Worker.handle/2"`).
+  #    The spec's Elixir example at `registry.yaml` L31 is
+  #    `OpenTelemetry.Ctx.new` — arity-less — but L20 notes
+  #    *"Values and format depends on each language runtime"*.
+  #    BEAM conventions (stacktrace format, OTP's own `mfa`
+  #    tuple, `Exception.format_mfa/3`) include arity; `handle/2`
+  #    and `handle/3` are genuinely distinct functions, so
+  #    omitting arity would lose information. We follow BEAM
+  #    precedent.
+  #
+  # 2. **`inspect(module)` strips the `Elixir.` prefix**.
+  #    Module atoms are stored internally as
+  #    `:"Elixir.<Name>"`; `inspect/1` drops the `Elixir.`
+  #    prefix for display (`inspect(MyApp.Worker)` →
+  #    `"MyApp.Worker"`), whereas `Atom.to_string/1` /
+  #    `to_string/1` keep it (`"Elixir.MyApp.Worker"`). For
+  #    `code.function.name` the user-readable form is what
+  #    matters to backends and stacktraces, so we use
+  #    `inspect/1`. This intentionally differs from
+  #    `to_primitive_any/1` (body-value path), where
+  #    `to_string/1` is used and the `Elixir.` prefix is
+  #    accepted — each function's use case dictates the
+  #    choice.
   @spec put_code_function_name(attrs :: map(), meta :: map()) :: map()
   defp put_code_function_name(attrs, %{mfa: {module, function, arity}}) do
     Map.put(attrs, "code.function.name", "#{inspect(module)}.#{function}/#{arity}")
