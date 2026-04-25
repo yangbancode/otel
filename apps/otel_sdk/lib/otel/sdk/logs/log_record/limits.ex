@@ -1,13 +1,14 @@
 defmodule Otel.SDK.Logs.LogRecord.Limits do
   @moduledoc """
-  Configurable limits for `LogRecord` attribute collections
-  (`logs/sdk.md` §LogRecord Limits L321-348).
+  Configurable limits for `Otel.API.Logs.LogRecord` attribute
+  collections (`logs/sdk.md` §LogRecord Limits L321-348).
 
-  Prevents unbounded growth of LogRecord attributes by enforcing
-  the common attribute rules from `common/README.md` §Attribute
-  Limits (L249-299). Excess attributes are silently discarded;
-  string and byte values exceeding the length limit are
-  truncated.
+  Holds the two limit values and exposes a single `apply/2`
+  entry point that returns a new `LogRecord` with both
+  limits enforced. Composition ordering, dropped-count
+  tracking, and the spec-required discard message
+  (`logs/sdk.md` L345-348) are the orchestrator's
+  responsibility — see `Otel.SDK.Logs.Logger.build_log_record/3`.
 
   ## Configurable parameters
 
@@ -16,10 +17,23 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   | `attribute_count_limit` | `128` | `common/README.md` L305 — *"Maximum allowed attribute count per record"* |
   | `attribute_value_length_limit` | `:infinity` | `common/README.md` L306 — *"Maximum allowed attribute value length (applies to string values and byte arrays)"* |
 
-  Both fields accept any `t:non_neg_integer/0` (per env-var
-  table in `sdk-environment-variables.md` L181-204 *"Valid
-  values are non-negative"*) — `0` is a valid setting that
-  drops every attribute or truncates every value to empty.
+  Both fields accept any `t:non_neg_integer/0` (per the
+  spec value-range definition in `sdk-environment-variables.md`
+  L181-204 *"Valid values are non-negative"*) — `0` is a
+  valid setting that drops every attribute or truncates every
+  value to empty.
+
+  > #### TODO — env / config wiring deferred {: .info}
+  >
+  > Spec env vars `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` and
+  > `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` are not
+  > read in this module. Env / Application config handling
+  > was stripped from the SDK during the per-module review
+  > phase and will be reintroduced in the finalization pass
+  > as a distributed scheme (each module owns its keys with
+  > a thin shared helper). Until then, the only configuration
+  > paths are the struct defaults and explicit programmatic
+  > overrides via `Otel.SDK.Logs.LoggerProvider.start_link/1`.
 
   ## Truncation rules
 
@@ -47,17 +61,6 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   uses `primitive_any()` for that recursion; attribute values
   here are intentionally a flatter subset.
 
-  ## Discard message
-
-  Per `logs/sdk.md` L345-348, when an attribute is discarded
-  the SDK SHOULD log a message and MUST emit it at most once
-  per LogRecord. The MUST is satisfied structurally — `apply/2`
-  is invoked exactly once per LogRecord by
-  `Otel.SDK.Logs.Logger`
-  (`apps/otel_sdk/lib/otel/sdk/logs/logger.ex` L65-L66) — and
-  the trigger is broadened per `common/README.md` L284-286 to
-  cover both discard and truncation.
-
   ## References
 
   - OTel Logs SDK §LogRecord Limits: `opentelemetry-specification/specification/logs/sdk.md` L321-348
@@ -66,8 +69,6 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   - Mapping to non-OTLP §Dropped Attributes Count: `opentelemetry-specification/specification/common/mapping-to-non-otlp.md` L73-79
   - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L181-204
   """
-
-  require Logger
 
   @type t :: %__MODULE__{
           attribute_count_limit: non_neg_integer(),
@@ -78,90 +79,53 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
             attribute_value_length_limit: :infinity
 
   @doc """
-  Applies attribute limits to a map of attributes.
+  Applies all attribute limits to a `LogRecord`.
 
-  Truncates string values exceeding the length limit and silently
-  discards attributes beyond the count limit.
+  Truncation precedes count-drop so `dropped_attributes_count`
+  (computed by the caller as a `map_size` delta) reflects only
+  count-limit drops. Pattern-matches the record's `attributes`
+  field so the private pipeline operates on a pure map and the
+  struct is rewrapped only once.
   """
-  @spec apply(attributes :: map(), limits :: t()) :: {map(), non_neg_integer()}
-  def apply(attributes, %__MODULE__{} = limits) do
-    {truncated, truncated?} = truncate_values(attributes, limits.attribute_value_length_limit)
-    count = map_size(truncated)
-
-    {limited, dropped} =
-      if count > limits.attribute_count_limit do
-        kept =
-          truncated
-          |> Enum.take(limits.attribute_count_limit)
-          |> Map.new()
-
-        {kept, count - limits.attribute_count_limit}
-      else
-        {truncated, 0}
-      end
-
-    log_limits_applied(dropped, truncated?)
-
-    {limited, dropped}
+  @spec apply(log_record :: Otel.API.Logs.LogRecord.t(), limits :: t()) ::
+          Otel.API.Logs.LogRecord.t()
+  def apply(
+        %Otel.API.Logs.LogRecord{attributes: attributes} = log_record,
+        %__MODULE__{
+          attribute_value_length_limit: value_length_limit,
+          attribute_count_limit: count_limit
+        }
+      ) do
+    %{log_record | attributes: attributes |> truncate(value_length_limit) |> drop(count_limit)}
   end
 
-  @spec truncate_values(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
-          {map(), boolean()}
-  defp truncate_values(attributes, :infinity), do: {attributes, false}
+  @spec truncate(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
+          map()
+  defp truncate(attributes, :infinity), do: attributes
 
-  defp truncate_values(attributes, limit) do
-    Enum.reduce(attributes, {%{}, false}, fn {key, value}, {acc, any?} ->
-      {new_value, truncated?} = truncate_value(value, limit)
-      {Map.put(acc, key, new_value), any? or truncated?}
-    end)
+  defp truncate(attributes, limit) do
+    Map.new(attributes, fn {key, value} -> {key, do_truncate(value, limit)} end)
   end
 
-  @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: {term(), boolean()}
-  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) do
-    if byte_size(bin) > limit do
-      {{:bytes, binary_part(bin, 0, limit)}, true}
-    else
-      {{:bytes, bin}, false}
-    end
+  @spec drop(attributes :: map(), limit :: non_neg_integer()) :: map()
+  defp drop(attributes, limit) when map_size(attributes) <= limit, do: attributes
+
+  defp drop(attributes, limit) do
+    attributes |> Enum.take(limit) |> Map.new()
   end
 
-  defp truncate_value(value, limit) when is_binary(value) do
-    if String.length(value) > limit do
-      {String.slice(value, 0, limit), true}
-    else
-      {value, false}
-    end
+  @spec do_truncate(value :: term(), limit :: non_neg_integer()) :: term()
+  defp do_truncate({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
+    {:bytes, binary_part(bin, 0, limit)}
   end
 
-  defp truncate_value(value, limit) when is_list(value) do
-    Enum.map_reduce(value, false, fn elem, any? ->
-      {new_elem, truncated?} = truncate_value(elem, limit)
-      {new_elem, any? or truncated?}
-    end)
+  defp do_truncate(value, limit) when is_binary(value) do
+    if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
-  defp truncate_value(value, _limit), do: {value, false}
-
-  # Spec `logs/sdk.md` L345-348: SHOULD emit a message when
-  # attributes are discarded; the message MUST be printed at
-  # most once per LogRecord. Once-per-LogRecord is satisfied
-  # structurally — `apply/2` is invoked exactly once per
-  # LogRecord by `Otel.SDK.Logs.Logger`. Common spec
-  # `common/README.md` L284-286 broadens this to "truncated
-  # or discarded", so we emit on either condition.
-  @spec log_limits_applied(dropped :: non_neg_integer(), truncated? :: boolean()) :: :ok
-  defp log_limits_applied(0, false), do: :ok
-
-  defp log_limits_applied(dropped, truncated?) do
-    parts =
-      [
-        dropped > 0 && "dropped #{dropped} attribute(s)",
-        truncated? && "truncated value(s) exceeding length limit"
-      ]
-      |> Enum.filter(& &1)
-      |> Enum.join(", ")
-
-    Logger.warning("LogRecord limits applied: #{parts}")
-    :ok
+  defp do_truncate(value, limit) when is_list(value) do
+    Enum.map(value, &do_truncate(&1, limit))
   end
+
+  defp do_truncate(value, _limit), do: value
 end

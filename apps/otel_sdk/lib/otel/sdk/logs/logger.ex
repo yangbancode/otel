@@ -7,7 +7,40 @@ defmodule Otel.SDK.Logs.Logger do
   observed_timestamp when not provided.
 
   All functions are safe for concurrent use.
+
+  ## LogRecord limits
+
+  `build_log_record/3` composes the two
+  `Otel.SDK.Logs.LogRecord.Limits` helpers in order —
+  `truncate_attributes/2` first (so dropped count is taken
+  on the post-truncation map), then `drop_attributes/2`.
+  The `dropped_attributes_count` field on the record is the
+  size delta across the drop step, satisfying
+  `mapping-to-non-otlp.md` L73-79 (*"OpenTelemetry dropped
+  attributes count MUST be reported as a key-value pair ...
+  `otel.dropped_attributes_count`"*).
+
+  Per `logs/sdk.md` L345-348, a single `Logger.warning/1` is
+  emitted per LogRecord whenever either limit took effect.
+  The MUST *"at most once per LogRecord"* is satisfied
+  structurally — `build_log_record/3` runs once per
+  `emit/3` call.
+
+  ### Self-reference
+
+  The warning re-enters the OTel pipeline whenever
+  `Otel.LoggerHandler` is installed. The re-entered record
+  carries a single short-string attribute payload, well
+  below the default limits, so it produces no additional
+  warning — the recursion is bounded at depth 1. Matches
+  `opentelemetry-erlang`: `otel_log_handler.erl` L233 emits
+  `?LOG_WARNING(...)` on exporter failure, and
+  `otel_exporter.erl` / `otel_configuration.erl` use
+  `?LOG_WARNING` / `?LOG_INFO` throughout — none filter
+  their own warnings out of the OTel bridge.
   """
+
+  require Logger
 
   @behaviour Otel.API.Logs.Logger
 
@@ -62,8 +95,11 @@ defmodule Otel.SDK.Logs.Logger do
     now = System.system_time(:nanosecond)
     {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
 
-    {limited_attrs, dropped_count} =
-      Otel.SDK.Logs.LogRecord.Limits.apply(log_record.attributes, config.log_record_limits)
+    limited_record =
+      Otel.SDK.Logs.LogRecord.Limits.apply(log_record, config.log_record_limits)
+
+    dropped_count = map_size(log_record.attributes) - map_size(limited_record.attributes)
+    log_limits_applied(dropped_count, log_record.attributes != limited_record.attributes)
 
     observed_timestamp =
       case log_record.observed_timestamp do
@@ -78,7 +114,7 @@ defmodule Otel.SDK.Logs.Logger do
       severity_text: log_record.severity_text,
       body: log_record.body,
       event_name: log_record.event_name,
-      attributes: limited_attrs,
+      attributes: limited_record.attributes,
       dropped_attributes_count: dropped_count,
       trace_id: trace_id,
       span_id: span_id,
@@ -86,6 +122,24 @@ defmodule Otel.SDK.Logs.Logger do
       scope: config.scope,
       resource: config.resource
     }
+  end
+
+  # When both a count drop and a value truncation occur in
+  # the same record, the message reports only the drop —
+  # apply/2's black-box signature does not let the caller
+  # distinguish the two effects independently. The
+  # truncate-only branch fires only when no drop happened.
+  @spec log_limits_applied(dropped :: non_neg_integer(), changed? :: boolean()) :: :ok
+  defp log_limits_applied(0, false), do: :ok
+
+  defp log_limits_applied(dropped, _changed?) when dropped > 0 do
+    Logger.warning("LogRecord limits applied: dropped #{dropped} attribute(s)")
+    :ok
+  end
+
+  defp log_limits_applied(_dropped, true) do
+    Logger.warning("LogRecord limits applied: truncated value(s) exceeding length limit")
+    :ok
   end
 
   @spec apply_exception_attributes(log_record :: Otel.API.Logs.LogRecord.t()) ::

@@ -1,255 +1,182 @@
 defmodule Otel.SDK.Logs.LogRecord.LimitsTest do
   use ExUnit.Case, async: true
 
-  import ExUnit.CaptureLog
-
-  @default_limits %Otel.SDK.Logs.LogRecord.Limits{}
-
   describe "defaults" do
     test "attribute_count_limit is 128" do
-      assert @default_limits.attribute_count_limit == 128
+      assert %Otel.SDK.Logs.LogRecord.Limits{}.attribute_count_limit == 128
     end
 
     test "attribute_value_length_limit is :infinity" do
-      assert @default_limits.attribute_value_length_limit == :infinity
+      assert %Otel.SDK.Logs.LogRecord.Limits{}.attribute_value_length_limit == :infinity
     end
   end
 
-  describe "apply/2 attribute count" do
-    test "passes through when within limit" do
-      attrs = %{a: 1, b: 2, c: 3}
-      {result, dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, @default_limits)
-      assert result == attrs
-      assert dropped == 0
+  describe "apply/2 — pass-through" do
+    test "returns the record unchanged when both limits are satisfied" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{a: 1, b: "short", c: true}}
+      limits = %Otel.SDK.Logs.LogRecord.Limits{}
+      assert Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits) == log_record
     end
 
-    test "discards excess attributes" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 2}
-      attrs = %{a: 1, b: 2, c: 3, d: 4}
+    test "preserves non-attribute fields when limits trigger" do
+      log_record = %Otel.API.Logs.LogRecord{
+        timestamp: 12_345,
+        severity_number: 9,
+        severity_text: "info",
+        body: "hello",
+        attributes: %{a: 1, b: 2, c: 3},
+        event_name: "ev"
+      }
 
-      capture_log(fn ->
-        {result, dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert map_size(result) == 2
-        assert dropped == 2
-      end)
-    end
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 1}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
 
-    test "returns 0 dropped when exactly at limit" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 3}
-      attrs = %{a: 1, b: 2, c: 3}
-      {result, dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-      assert map_size(result) == 3
-      assert dropped == 0
+      assert result.timestamp == log_record.timestamp
+      assert result.severity_number == log_record.severity_number
+      assert result.severity_text == log_record.severity_text
+      assert result.body == log_record.body
+      assert result.event_name == log_record.event_name
+      assert map_size(result.attributes) == 1
     end
 
     test "empty attributes returns empty" do
-      {result, dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(%{}, @default_limits)
-      assert result == %{}
-      assert dropped == 0
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{}}
+      limits = %Otel.SDK.Logs.LogRecord.Limits{}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes == %{}
     end
   end
 
-  describe "apply/2 value truncation" do
-    test "no truncation with :infinity limit" do
-      attrs = %{key: String.duplicate("a", 1000)}
-      {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, @default_limits)
-      assert String.length(result.key) == 1000
-    end
-
+  describe "apply/2 — value length limit" do
     test "truncates string values exceeding limit" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: "abcdefgh"}}
       limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 5}
-      attrs = %{key: "abcdefgh"}
-
-      capture_log(fn ->
-        {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result.key == "abcde"
-      end)
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == "abcde"
     end
 
     test "does not truncate strings within limit" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: "short"}}
       limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 10}
-      attrs = %{key: "short"}
-      {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-      assert result.key == "short"
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == "short"
     end
 
-    test "truncates strings in lists" do
+    test "truncates strings inside lists element-wise" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: ["abcdef", "xy", "123456"]}}
       limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 3}
-      attrs = %{key: ["abcdef", "xy", "123456"]}
-
-      capture_log(fn ->
-        {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result.key == ["abc", "xy", "123"]
-      end)
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == ["abc", "xy", "123"]
     end
 
-    test "does not truncate non-string values" do
+    test "passes non-string values through unchanged" do
+      log_record = %Otel.API.Logs.LogRecord{
+        attributes: %{int: 12_345, float: 3.14, bool: true, nil_val: nil}
+      }
+
       limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 1}
-      attrs = %{int: 12_345, float: 3.14, bool: true}
-      {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-      assert result.int == 12_345
-      assert result.float == 3.14
-      assert result.bool == true
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes == log_record.attributes
     end
 
     test "truncates {:bytes, _} by byte size" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 3}
-      attrs = %{key: {:bytes, <<255, 254, 253, 252, 251>>}}
+      log_record = %Otel.API.Logs.LogRecord{
+        attributes: %{key: {:bytes, <<255, 254, 253, 252, 251>>}}
+      }
 
-      capture_log(fn ->
-        {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result.key == {:bytes, <<255, 254, 253>>}
-      end)
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 3}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == {:bytes, <<255, 254, 253>>}
     end
 
     test "does not truncate {:bytes, _} within limit" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: {:bytes, <<1, 2, 3>>}}}
       limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 10}
-      attrs = %{key: {:bytes, <<1, 2, 3>>}}
-      {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-      assert result.key == {:bytes, <<1, 2, 3>>}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == {:bytes, <<1, 2, 3>>}
     end
 
     test "truncates {:bytes, _} inside lists" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 2}
-      attrs = %{key: [{:bytes, <<1, 2, 3, 4>>}, {:bytes, <<9, 8>>}]}
+      log_record = %Otel.API.Logs.LogRecord{
+        attributes: %{key: [{:bytes, <<1, 2, 3, 4>>}, {:bytes, <<9, 8>>}]}
+      }
 
-      capture_log(fn ->
-        {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result.key == [{:bytes, <<1, 2>>}, {:bytes, <<9, 8>>}]
-      end)
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 2}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == [{:bytes, <<1, 2>>}, {:bytes, <<9, 8>>}]
     end
 
     test "byte truncation uses bytes, not characters" do
       # "한" is 3 bytes in UTF-8 but 1 character; tagged as :bytes,
       # the limit applies to bytes (truncates mid-codepoint).
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: {:bytes, "한"}}}
       limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 2}
-      attrs = %{key: {:bytes, "한"}}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == {:bytes, binary_part("한", 0, 2)}
+    end
 
-      capture_log(fn ->
-        {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result.key == {:bytes, binary_part("한", 0, 2)}
-      end)
+    test ":infinity skips truncation" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: String.duplicate("a", 1000)}}
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: :infinity}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes == log_record.attributes
+    end
+
+    test "value length limit 0 truncates strings to empty" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: "non-empty"}}
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 0}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == ""
+    end
+
+    test "value length limit 0 truncates bytes to empty" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{key: {:bytes, <<1, 2, 3>>}}}
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 0}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes.key == {:bytes, <<>>}
     end
   end
 
-  describe "apply/2 zero limits" do
-    test "attribute_count_limit: 0 drops all attributes" do
+  describe "apply/2 — count limit" do
+    test "drops excess attributes" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{a: 1, b: 2, c: 3, d: 4}}
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 2}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert map_size(result.attributes) == 2
+    end
+
+    test "passes through when exactly at count limit" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{a: 1, b: 2, c: 3}}
+      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 3}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes == log_record.attributes
+    end
+
+    test "count limit 0 drops all attributes" do
+      log_record = %Otel.API.Logs.LogRecord{attributes: %{a: 1, b: 2}}
       limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 0}
-      attrs = %{a: 1, b: 2}
-
-      capture_log(fn ->
-        {result, dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result == %{}
-        assert dropped == 2
-      end)
-    end
-
-    test "attribute_value_length_limit: 0 truncates strings to empty" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 0}
-      attrs = %{key: "non-empty"}
-
-      capture_log(fn ->
-        {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result.key == ""
-      end)
-    end
-
-    test "attribute_value_length_limit: 0 truncates bytes to empty" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 0}
-      attrs = %{key: {:bytes, <<1, 2, 3>>}}
-
-      capture_log(fn ->
-        {result, _dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert result.key == {:bytes, <<>>}
-      end)
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert result.attributes == %{}
     end
   end
 
-  describe "apply/2 both limits" do
-    test "applies both count and value limits" do
+  describe "apply/2 — both limits" do
+    test "applies value length limit before count limit" do
+      log_record = %Otel.API.Logs.LogRecord{
+        attributes: %{a: "abcdef", b: "xyz", c: "123456"}
+      }
+
       limits = %Otel.SDK.Logs.LogRecord.Limits{
         attribute_count_limit: 2,
         attribute_value_length_limit: 3
       }
 
-      attrs = %{a: "abcdef", b: "xyz", c: "123456"}
+      result = Otel.SDK.Logs.LogRecord.Limits.apply(log_record, limits)
+      assert map_size(result.attributes) == 2
 
-      capture_log(fn ->
-        {result, dropped} = Otel.SDK.Logs.LogRecord.Limits.apply(attrs, limits)
-        assert map_size(result) == 2
-        assert dropped == 1
-
-        Enum.each(result, fn {_key, value} ->
-          assert String.length(value) <= 3
-        end)
+      Enum.each(result.attributes, fn {_key, value} ->
+        assert String.length(value) <= 3
       end)
-    end
-  end
-
-  describe "apply/2 discard message" do
-    test "logs warning when attributes are dropped" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 1}
-
-      log =
-        capture_log(fn ->
-          Otel.SDK.Logs.LogRecord.Limits.apply(%{a: 1, b: 2, c: 3}, limits)
-        end)
-
-      assert log =~ "LogRecord limits applied"
-      assert log =~ "dropped 2 attribute"
-    end
-
-    test "logs warning when values are truncated" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 3}
-
-      log =
-        capture_log(fn ->
-          Otel.SDK.Logs.LogRecord.Limits.apply(%{key: "abcdefg"}, limits)
-        end)
-
-      assert log =~ "LogRecord limits applied"
-      assert log =~ "truncated"
-    end
-
-    test "logs warning when bytes are truncated" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 2}
-
-      log =
-        capture_log(fn ->
-          Otel.SDK.Logs.LogRecord.Limits.apply(%{key: {:bytes, <<1, 2, 3, 4>>}}, limits)
-        end)
-
-      assert log =~ "truncated"
-    end
-
-    test "logs single combined message when both dropped and truncated" do
-      limits = %Otel.SDK.Logs.LogRecord.Limits{
-        attribute_count_limit: 1,
-        attribute_value_length_limit: 3
-      }
-
-      log =
-        capture_log(fn ->
-          Otel.SDK.Logs.LogRecord.Limits.apply(%{a: "abcdef", b: "ghijkl"}, limits)
-        end)
-
-      message_lines =
-        log
-        |> String.split("\n")
-        |> Enum.filter(&String.contains?(&1, "LogRecord limits applied"))
-
-      assert length(message_lines) == 1
-      assert log =~ "dropped 1 attribute"
-      assert log =~ "truncated"
-    end
-
-    test "does not log when within limits" do
-      log =
-        capture_log(fn ->
-          Otel.SDK.Logs.LogRecord.Limits.apply(%{a: 1, b: "short"}, @default_limits)
-        end)
-
-      refute log =~ "LogRecord limits applied"
     end
   end
 end

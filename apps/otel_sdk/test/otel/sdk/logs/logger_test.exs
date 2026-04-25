@@ -1,6 +1,8 @@
 defmodule Otel.SDK.Logs.LoggerTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
+
   defmodule CollectorProcessor do
     @moduledoc false
     def on_emit(record, config) do
@@ -10,6 +12,26 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
     def shutdown(_config), do: :ok
     def force_flush(_config), do: :ok
+  end
+
+  defp start_logger_with_limits(limit_overrides) do
+    Application.stop(:otel_sdk)
+    Application.ensure_all_started(:otel_sdk)
+
+    limits = struct(Otel.SDK.Logs.LogRecord.Limits, limit_overrides)
+
+    {:ok, pid} =
+      Otel.SDK.Logs.LoggerProvider.start_link(
+        config: %{
+          processors: [{CollectorProcessor, %{test_pid: self()}}],
+          log_record_limits: limits
+        }
+      )
+
+    {_mod, config} =
+      Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
+    {Otel.SDK.Logs.Logger, config}
   end
 
   setup do
@@ -246,6 +268,82 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
       assert_receive {:log_record, record}
       assert record.dropped_attributes_count == 0
+    end
+
+    test "warns when attributes are dropped", %{logger: _default_logger} do
+      logger = start_logger_with_limits(%{attribute_count_limit: 1})
+      ctx = Otel.API.Ctx.current()
+
+      log =
+        capture_log(fn ->
+          Otel.SDK.Logs.Logger.emit(
+            logger,
+            ctx,
+            %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => 2, "c" => 3}}
+          )
+        end)
+
+      assert log =~ "LogRecord limits applied"
+      assert log =~ "dropped 2 attribute"
+    end
+
+    test "warns when values are truncated", %{logger: _default_logger} do
+      logger = start_logger_with_limits(%{attribute_value_length_limit: 3})
+      ctx = Otel.API.Ctx.current()
+
+      log =
+        capture_log(fn ->
+          Otel.SDK.Logs.Logger.emit(
+            logger,
+            ctx,
+            %Otel.API.Logs.LogRecord{attributes: %{"key" => "abcdefg"}}
+          )
+        end)
+
+      assert log =~ "LogRecord limits applied"
+      assert log =~ "truncated"
+    end
+
+    test "drop takes precedence in single message when both effects occur", %{
+      logger: _default_logger
+    } do
+      logger =
+        start_logger_with_limits(%{attribute_count_limit: 1, attribute_value_length_limit: 3})
+
+      ctx = Otel.API.Ctx.current()
+
+      log =
+        capture_log(fn ->
+          Otel.SDK.Logs.Logger.emit(
+            logger,
+            ctx,
+            %Otel.API.Logs.LogRecord{attributes: %{"a" => "abcdef", "b" => "ghijkl"}}
+          )
+        end)
+
+      message_lines =
+        log
+        |> String.split("\n")
+        |> Enum.filter(&String.contains?(&1, "LogRecord limits applied"))
+
+      assert length(message_lines) == 1
+      assert log =~ "dropped 1 attribute"
+      refute log =~ "truncated"
+    end
+
+    test "does not warn when within limits", %{logger: logger} do
+      ctx = Otel.API.Ctx.current()
+
+      log =
+        capture_log(fn ->
+          Otel.SDK.Logs.Logger.emit(
+            logger,
+            ctx,
+            %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => "short"}}
+          )
+        end)
+
+      refute log =~ "LogRecord limits applied"
     end
   end
 
