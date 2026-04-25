@@ -63,28 +63,6 @@ defmodule Otel.SDK.Resource do
     })
   end
 
-  @doc """
-  Creates a Resource from OTEL_RESOURCE_ATTRIBUTES and OTEL_SERVICE_NAME
-  environment variables.
-
-  Format: `key1=value1,key2=value2` (values are percent-encoded).
-  OTEL_SERVICE_NAME overrides service.name if set.
-  """
-  @spec from_env() :: t()
-  def from_env do
-    attrs = parse_resource_attributes(System.get_env("OTEL_RESOURCE_ATTRIBUTES"))
-    service_name = System.get_env("OTEL_SERVICE_NAME")
-
-    attrs =
-      if service_name != nil and service_name != "" do
-        Map.put(attrs, "service.name", String.trim(service_name))
-      else
-        attrs
-      end
-
-    create(attrs)
-  end
-
   # --- Private ---
 
   @spec merge_schema_url(old :: String.t(), updating :: String.t()) :: String.t()
@@ -92,28 +70,6 @@ defmodule Otel.SDK.Resource do
   defp merge_schema_url(old, ""), do: old
   defp merge_schema_url(same, same), do: same
   defp merge_schema_url(_old, _updating), do: ""
-
-  @spec parse_resource_attributes(value :: String.t() | nil) :: map()
-  defp parse_resource_attributes(nil), do: %{}
-  defp parse_resource_attributes(""), do: %{}
-
-  defp parse_resource_attributes(value) do
-    value
-    |> String.split(",")
-    |> Enum.reduce(%{}, fn pair, acc ->
-      case String.split(String.trim(pair), "=", parts: 2) do
-        [key, val] when key != "" ->
-          Map.put(
-            acc,
-            Otel.API.Baggage.Percent.decode(String.trim(key)),
-            Otel.API.Baggage.Percent.decode(String.trim(val))
-          )
-
-        _ ->
-          acc
-      end
-    end)
-  end
 
   @spec sdk_version() :: String.t()
   defp sdk_version do

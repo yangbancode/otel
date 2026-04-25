@@ -176,5 +176,4 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
       assert :ok = Otel.SDK.Trace.BatchProcessor.shutdown(proc_config)
     end
   end
-
 end
