@@ -35,6 +35,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   Returns whether the processor is interested in log records
   matching the given parameters (spec L418-L455).
 
+  Spec L420 — *"Enabled is an operation that a LogRecordProcessor
+  **MAY** implement"*. Marked optional via `@optional_callbacks`
+  below; the SDK Logger guards each delegation with
+  `function_exported?/3` so processors that omit `enabled?/3`
+  pass through transparently.
+
   Modifications to parameters inside `enabled?/3` MUST NOT be
   propagated to the caller (spec L439-L440).
 
@@ -50,6 +56,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
               scope :: Otel.API.InstrumentationScope.t(),
               config :: config()
             ) :: boolean()
+
+  @optional_callbacks enabled?: 3
 
   @doc """
   Shuts down the processor (spec L457-L474). MUST include the

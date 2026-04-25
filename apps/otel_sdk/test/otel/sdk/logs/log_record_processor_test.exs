@@ -65,6 +65,24 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     def force_flush(_config), do: :ok
   end
 
+  defmodule MinimalProcessor do
+    @moduledoc false
+    # Intentionally omits enabled?/3 — it is an
+    # @optional_callbacks per spec L420 (MAY implement). Used to
+    # verify the SDK Logger's function_exported?/3 guard treats
+    # an unimplemented enabled? as indeterminate → enabled.
+    @behaviour Otel.SDK.Logs.LogRecordProcessor
+
+    @impl true
+    def on_emit(_log_record, _ctx, _config), do: :ok
+
+    @impl true
+    def shutdown(_config), do: :ok
+
+    @impl true
+    def force_flush(_config), do: :ok
+  end
+
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
@@ -178,6 +196,21 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
 
       logger = {Otel.SDK.Logs.Logger, config}
       refute Otel.SDK.Logs.Logger.enabled?(logger, [])
+    end
+
+    test "treats processor without enabled?/3 as indeterminate → enabled" do
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(
+          config: %{
+            processors: [{MinimalProcessor, %{}}]
+          }
+        )
+
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
+      logger = {Otel.SDK.Logs.Logger, config}
+      assert Otel.SDK.Logs.Logger.enabled?(logger, [])
     end
   end
 
