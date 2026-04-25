@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
+defmodule Otel.SDK.Trace.SpanExporter.ConsoleTest do
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureIO
@@ -16,7 +16,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
 
   describe "init/1" do
     test "returns {:ok, config}" do
-      assert {:ok, %{}} = Otel.SDK.Trace.Exporter.Console.init(%{})
+      assert {:ok, %{}} = Otel.SDK.Trace.SpanExporter.Console.init(%{})
     end
   end
 
@@ -24,7 +24,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     test "prints spans to stdout" do
       output =
         capture_io(fn ->
-          assert :ok = Otel.SDK.Trace.Exporter.Console.export([@span], %{}, %{})
+          assert :ok = Otel.SDK.Trace.SpanExporter.Console.export([@span], %{}, %{})
         end)
 
       assert output =~ "test_span"
@@ -35,7 +35,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     test "includes trace_id as 32-char hex" do
       output =
         capture_io(fn ->
-          Otel.SDK.Trace.Exporter.Console.export([@span], %{}, %{})
+          Otel.SDK.Trace.SpanExporter.Console.export([@span], %{}, %{})
         end)
 
       assert output =~ "trace_id=ff000000000000000000000000000001"
@@ -44,7 +44,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     test "includes span_id as 16-char hex" do
       output =
         capture_io(fn ->
-          Otel.SDK.Trace.Exporter.Console.export([@span], %{}, %{})
+          Otel.SDK.Trace.SpanExporter.Console.export([@span], %{}, %{})
         end)
 
       assert output =~ "span_id=ff00000000000001"
@@ -53,7 +53,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     test "shows parent=none for root span" do
       output =
         capture_io(fn ->
-          Otel.SDK.Trace.Exporter.Console.export([@span], %{}, %{})
+          Otel.SDK.Trace.SpanExporter.Console.export([@span], %{}, %{})
         end)
 
       assert output =~ "parent=none"
@@ -64,7 +64,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
 
       output =
         capture_io(fn ->
-          Otel.SDK.Trace.Exporter.Console.export([child], %{}, %{})
+          Otel.SDK.Trace.SpanExporter.Console.export([child], %{}, %{})
         end)
 
       assert output =~ "parent=aa00000000000001"
@@ -73,7 +73,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
     test "includes attributes" do
       output =
         capture_io(fn ->
-          Otel.SDK.Trace.Exporter.Console.export([@span], %{}, %{})
+          Otel.SDK.Trace.SpanExporter.Console.export([@span], %{}, %{})
         end)
 
       assert output =~ "key"
@@ -85,7 +85,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
 
       output =
         capture_io(fn ->
-          Otel.SDK.Trace.Exporter.Console.export([@span, span2], %{}, %{})
+          Otel.SDK.Trace.SpanExporter.Console.export([@span, span2], %{}, %{})
         end)
 
       assert output =~ "test_span"
@@ -95,7 +95,7 @@ defmodule Otel.SDK.Trace.Exporter.ConsoleTest do
 
   describe "shutdown/1" do
     test "returns :ok" do
-      assert :ok = Otel.SDK.Trace.Exporter.Console.shutdown(%{})
+      assert :ok = Otel.SDK.Trace.SpanExporter.Console.shutdown(%{})
     end
   end
 end

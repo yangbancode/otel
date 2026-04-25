@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Trace.BatchProcessorTest.TestExporter do
+defmodule Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter do
   @behaviour Otel.SDK.Trace.SpanExporter
 
   @spec init(config :: term()) :: {:ok, Otel.SDK.Trace.SpanExporter.state()} | :ignore
@@ -24,7 +24,7 @@ defmodule Otel.SDK.Trace.BatchProcessorTest.TestExporter do
   end
 end
 
-defmodule Otel.SDK.Trace.BatchProcessorTest do
+defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
   use ExUnit.Case
 
   @sampled_span %Otel.SDK.Trace.Span{
@@ -49,21 +49,21 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
 
     config =
       %{
-        exporter: {Otel.SDK.Trace.BatchProcessorTest.TestExporter, %{test_pid: self()}},
+        exporter: {Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter, %{test_pid: self()}},
         name: name,
         scheduled_delay_ms: Keyword.get(overrides, :scheduled_delay_ms, 100_000),
         max_queue_size: Keyword.get(overrides, :max_queue_size, 2048),
         max_export_batch_size: Keyword.get(overrides, :max_export_batch_size, 512)
       }
 
-    {:ok, _pid} = Otel.SDK.Trace.BatchProcessor.start_link(config)
+    {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
     %{reg_name: name}
   end
 
   describe "on_start/3" do
     test "returns span unchanged" do
       config = start_processor()
-      span = Otel.SDK.Trace.BatchProcessor.on_start(%{}, @sampled_span, config)
+      span = Otel.SDK.Trace.SpanProcessor.Batch.on_start(%{}, @sampled_span, config)
       assert span == @sampled_span
     end
   end
@@ -71,13 +71,13 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
   describe "on_end/2" do
     test "queues sampled spans" do
       config = start_processor()
-      assert :ok = Otel.SDK.Trace.BatchProcessor.on_end(@sampled_span, config)
+      assert :ok = Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, config)
       refute_receive {:exported, _, _}, 50
     end
 
     test "drops unsampled spans" do
       config = start_processor()
-      assert :dropped = Otel.SDK.Trace.BatchProcessor.on_end(@unsampled_span, config)
+      assert :dropped = Otel.SDK.Trace.SpanProcessor.Batch.on_end(@unsampled_span, config)
     end
 
     test "exports when batch size reached" do
@@ -85,7 +85,7 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
 
       for i <- 1..3 do
         span = %{@sampled_span | span_id: i, name: "span_#{i}"}
-        Otel.SDK.Trace.BatchProcessor.on_end(span, config)
+        Otel.SDK.Trace.SpanProcessor.Batch.on_end(span, config)
       end
 
       assert_receive {:exported, 3, _names}, 1000
@@ -96,11 +96,11 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
 
       for i <- 1..5 do
         span = %{@sampled_span | span_id: i, name: "span_#{i}"}
-        Otel.SDK.Trace.BatchProcessor.on_end(span, config)
+        Otel.SDK.Trace.SpanProcessor.Batch.on_end(span, config)
       end
 
       # Force flush to see what was queued
-      Otel.SDK.Trace.BatchProcessor.force_flush(config)
+      Otel.SDK.Trace.SpanProcessor.Batch.force_flush(config)
       assert_receive {:exported, count, _names}, 1000
       assert count <= 2
     end
@@ -110,7 +110,7 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
     test "exports on scheduled delay" do
       config = start_processor(scheduled_delay_ms: 50)
 
-      Otel.SDK.Trace.BatchProcessor.on_end(@sampled_span, config)
+      Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, config)
 
       assert_receive {:exported, 1, ["sampled"]}, 500
     end
@@ -122,16 +122,16 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
 
       for i <- 1..5 do
         span = %{@sampled_span | span_id: i, name: "span_#{i}"}
-        Otel.SDK.Trace.BatchProcessor.on_end(span, config)
+        Otel.SDK.Trace.SpanProcessor.Batch.on_end(span, config)
       end
 
-      assert :ok = Otel.SDK.Trace.BatchProcessor.force_flush(config)
+      assert :ok = Otel.SDK.Trace.SpanProcessor.Batch.force_flush(config)
       assert_receive {:exported, 5, _names}
     end
 
     test "no-op when queue is empty" do
       config = start_processor()
-      assert :ok = Otel.SDK.Trace.BatchProcessor.force_flush(config)
+      assert :ok = Otel.SDK.Trace.SpanProcessor.Batch.force_flush(config)
       refute_receive {:exported, _, _}, 50
     end
   end
@@ -140,8 +140,8 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
     test "exports remaining spans and shuts down exporter" do
       config = start_processor()
 
-      Otel.SDK.Trace.BatchProcessor.on_end(@sampled_span, config)
-      assert :ok = Otel.SDK.Trace.BatchProcessor.shutdown(config)
+      Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, config)
+      assert :ok = Otel.SDK.Trace.SpanProcessor.Batch.shutdown(config)
 
       assert_receive {:exported, 1, ["sampled"]}
       assert_receive :exporter_shutdown
@@ -168,12 +168,12 @@ defmodule Otel.SDK.Trace.BatchProcessorTest do
         scheduled_delay_ms: 100_000
       }
 
-      {:ok, _pid} = Otel.SDK.Trace.BatchProcessor.start_link(config)
+      {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
       proc_config = %{reg_name: name}
 
-      Otel.SDK.Trace.BatchProcessor.on_end(@sampled_span, proc_config)
-      assert :ok = Otel.SDK.Trace.BatchProcessor.force_flush(proc_config)
-      assert :ok = Otel.SDK.Trace.BatchProcessor.shutdown(proc_config)
+      Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, proc_config)
+      assert :ok = Otel.SDK.Trace.SpanProcessor.Batch.force_flush(proc_config)
+      assert :ok = Otel.SDK.Trace.SpanProcessor.Batch.shutdown(proc_config)
     end
   end
 end

@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Trace.BatchProcessor do
+defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   @moduledoc """
   BatchSpanProcessor that accumulates spans and exports in batches.
 
