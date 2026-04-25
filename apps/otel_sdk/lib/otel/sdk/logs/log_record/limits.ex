@@ -96,12 +96,7 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
           attribute_count_limit: count_limit
         }
       ) do
-    new_attributes =
-      attributes
-      |> truncate(value_length_limit)
-      |> drop(count_limit)
-
-    %{log_record | attributes: new_attributes}
+    %{log_record | attributes: attributes |> truncate(value_length_limit) |> drop(count_limit)}
   end
 
   @spec truncate(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
