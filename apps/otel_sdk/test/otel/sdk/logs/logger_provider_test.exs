@@ -124,7 +124,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
   describe "with processors" do
     defmodule TestProcessor do
       @moduledoc false
-      def on_emit(record, config) do
+      def on_emit(record, _ctx, config) do
         send(config.test_pid, {:on_emit, record})
         :ok
       end
@@ -139,7 +139,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       defmodule ShutdownProcessor do
         @moduledoc false
-        def on_emit(_record, _config), do: :ok
+        def on_emit(_record, _ctx, _config), do: :ok
 
         def shutdown(config) do
           send(config.test_pid, :processor_shutdown)
@@ -166,7 +166,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       defmodule FlushProcessor do
         @moduledoc false
-        def on_emit(_record, _config), do: :ok
+        def on_emit(_record, _ctx, _config), do: :ok
         def shutdown(_config), do: :ok
 
         def force_flush(config) do

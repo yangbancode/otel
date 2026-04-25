@@ -28,3 +28,5 @@ otel_*.tar
 # Skill eval workspaces — temporary benchmarking artifacts, not checked in.
 /.claude/skills/*-workspace/
 
+# Scheduled task lock — created by Claude Code's /loop and scheduled tasks.
+/.claude/scheduled_tasks.lock

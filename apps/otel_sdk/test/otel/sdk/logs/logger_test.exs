@@ -5,7 +5,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
   defmodule CollectorProcessor do
     @moduledoc false
-    def on_emit(record, config) do
+    def on_emit(record, _ctx, config) do
       send(config.test_pid, {:log_record, record})
       :ok
     end

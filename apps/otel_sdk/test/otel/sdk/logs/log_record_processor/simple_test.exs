@@ -82,7 +82,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       config = %{reg_name: :simple_emit_test}
       log_record = %{body: "hello", severity_number: 9}
 
-      Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(log_record, config)
+      Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(log_record, %{}, config)
       assert_receive {:exported, [^log_record]}
     end
 
@@ -94,13 +94,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
         })
 
       config = %{reg_name: :simple_noop_test}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(%{body: "test"}, config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(%{body: "test"}, %{}, config)
     end
   end
 
   describe "enabled?/2" do
     test "returns true" do
-      assert Otel.SDK.Logs.LogRecordProcessor.Simple.enabled?([], %{})
+      assert Otel.SDK.Logs.LogRecordProcessor.Simple.enabled?([], %{}, %{})
     end
   end
 
@@ -140,7 +140,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
 
       config = %{reg_name: :simple_emit_after_shutdown}
       Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(%{body: "late"}, config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(%{body: "late"}, %{}, config)
       refute_receive {:exported, _}
     end
   end
