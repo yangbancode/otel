@@ -99,11 +99,17 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   """
   @spec apply(log_record :: Otel.API.Logs.LogRecord.t(), limits :: t()) ::
           Otel.API.Logs.LogRecord.t()
-  def apply(%Otel.API.Logs.LogRecord{attributes: attributes} = log_record, %__MODULE__{} = limits) do
+  def apply(
+        %Otel.API.Logs.LogRecord{attributes: attributes} = log_record,
+        %__MODULE__{
+          attribute_value_length_limit: value_length_limit,
+          attribute_count_limit: count_limit
+        }
+      ) do
     new_attributes =
       attributes
-      |> apply_value_length_limit(limits.attribute_value_length_limit)
-      |> apply_count_limit(limits.attribute_count_limit)
+      |> apply_value_length_limit(value_length_limit)
+      |> apply_count_limit(count_limit)
 
     %{log_record | attributes: new_attributes}
   end
