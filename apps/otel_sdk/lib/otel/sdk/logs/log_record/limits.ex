@@ -1,15 +1,14 @@
 defmodule Otel.SDK.Logs.LogRecord.Limits do
   @moduledoc """
-  Configurable limits for `LogRecord` attribute collections
-  (`logs/sdk.md` §LogRecord Limits L321-348).
+  Configurable limits for `Otel.API.Logs.LogRecord` attribute
+  collections (`logs/sdk.md` §LogRecord Limits L321-348).
 
-  Holds the two limit values and exposes two pure-transform
-  helpers — `truncate_attributes/2` and `drop_attributes/2`
-  — that each enforce one limit independently. Composition
-  ordering, dropped-count tracking, and the spec-required
-  discard message (`logs/sdk.md` L345-348) are the
-  orchestrator's responsibility — see
-  `Otel.SDK.Logs.Logger.build_log_record/3`.
+  Holds the two limit values and exposes a single `apply/2`
+  entry point that returns a new `LogRecord` with both
+  limits enforced. Composition ordering, dropped-count
+  tracking, and the spec-required discard message
+  (`logs/sdk.md` L345-348) are the orchestrator's
+  responsibility — see `Otel.SDK.Logs.Logger.build_log_record/3`.
 
   ## Configurable parameters
 
@@ -62,6 +61,16 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   uses `primitive_any()` for that recursion; attribute values
   here are intentionally a flatter subset.
 
+  ## Naming convention
+
+  Private functions follow an `apply_<field-name>` rule —
+  each `apply_*_limit/2` enforces one specific limit field on
+  the struct (`attribute_` prefix dropped, since the
+  surrounding namespace already implies attribute scope). The
+  per-element helper `truncate_value/2` is a recursive utility
+  used by `apply_value_length_limit/2`; it does not enforce a
+  limit on its own and so falls outside the `apply_*` family.
+
   ## References
 
   - OTel Logs SDK §LogRecord Limits: `opentelemetry-specification/specification/logs/sdk.md` L321-348
@@ -70,19 +79,6 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   - Mapping to non-OTLP §Dropped Attributes Count: `opentelemetry-specification/specification/common/mapping-to-non-otlp.md` L73-79
   - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L181-204
   """
-
-  use Otel.API.Common.Types
-
-  @typedoc """
-  Attribute map shape accepted by the helpers.
-
-  Mirrors `Otel.API.Logs.LogRecord.attributes`
-  (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74) — the
-  public `LogRecord.attributes` field type. Both keys and
-  values are constrained to the OTel attribute contract
-  (`common/README.md` §Attribute L185-L197).
-  """
-  @type attributes :: %{String.t() => primitive() | [primitive()]}
 
   @type t :: %__MODULE__{
           attribute_count_limit: non_neg_integer(),
@@ -93,49 +89,61 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
             attribute_value_length_limit: :infinity
 
   @doc """
-  Truncates each attribute value by the given length limit.
+  Applies all attribute limits to a `LogRecord`.
 
-  Strings are sliced by character (grapheme) count;
-  `{:bytes, _}` values by byte count; lists recurse element-wise.
-  All other primitives pass through unchanged. `:infinity`
-  returns the input map as-is.
+  Truncation precedes count-drop so `dropped_attributes_count`
+  (computed by the caller as a `map_size` delta) reflects only
+  count-limit drops.
   """
-  @spec truncate_attributes(attributes :: attributes(), limit :: non_neg_integer() | :infinity) ::
-          attributes()
-  def truncate_attributes(attributes, :infinity), do: attributes
-
-  def truncate_attributes(attributes, limit) do
-    Map.new(attributes, fn {key, value} -> {key, truncate_attribute(value, limit)} end)
+  @spec apply(log_record :: Otel.API.Logs.LogRecord.t(), limits :: t()) ::
+          Otel.API.Logs.LogRecord.t()
+  def apply(%Otel.API.Logs.LogRecord{} = log_record, %__MODULE__{} = limits) do
+    log_record
+    |> apply_value_length_limit(limits.attribute_value_length_limit)
+    |> apply_count_limit(limits.attribute_count_limit)
   end
 
-  @doc """
-  Drops attributes beyond the given count limit.
-
-  Returns the input map unchanged when its size is within the
-  limit; otherwise returns the first `limit` entries (map
-  iteration order — spec is silent on which to keep when over
-  the limit).
-  """
-  @spec drop_attributes(attributes :: attributes(), limit :: non_neg_integer()) :: attributes()
-  def drop_attributes(attributes, limit) when map_size(attributes) <= limit, do: attributes
-
-  def drop_attributes(attributes, limit) do
-    attributes |> Enum.take(limit) |> Map.new()
+  @spec apply_value_length_limit(
+          log_record :: Otel.API.Logs.LogRecord.t(),
+          limit :: non_neg_integer() | :infinity
+        ) :: Otel.API.Logs.LogRecord.t()
+  defp apply_value_length_limit(%Otel.API.Logs.LogRecord{} = log_record, :infinity) do
+    log_record
   end
 
-  @spec truncate_attribute(value :: primitive() | [primitive()], limit :: non_neg_integer()) ::
-          primitive() | [primitive()]
-  defp truncate_attribute({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
+  defp apply_value_length_limit(%Otel.API.Logs.LogRecord{} = log_record, limit) do
+    truncated =
+      Map.new(log_record.attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
+
+    %{log_record | attributes: truncated}
+  end
+
+  @spec apply_count_limit(
+          log_record :: Otel.API.Logs.LogRecord.t(),
+          limit :: non_neg_integer()
+        ) :: Otel.API.Logs.LogRecord.t()
+  defp apply_count_limit(%Otel.API.Logs.LogRecord{attributes: attrs} = log_record, limit)
+       when map_size(attrs) <= limit do
+    log_record
+  end
+
+  defp apply_count_limit(%Otel.API.Logs.LogRecord{} = log_record, limit) do
+    capped = log_record.attributes |> Enum.take(limit) |> Map.new()
+    %{log_record | attributes: capped}
+  end
+
+  @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: term()
+  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
     {:bytes, binary_part(bin, 0, limit)}
   end
 
-  defp truncate_attribute(value, limit) when is_binary(value) do
+  defp truncate_value(value, limit) when is_binary(value) do
     if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
-  defp truncate_attribute(value, limit) when is_list(value) do
-    Enum.map(value, &truncate_attribute(&1, limit))
+  defp truncate_value(value, limit) when is_list(value) do
+    Enum.map(value, &truncate_value(&1, limit))
   end
 
-  defp truncate_attribute(value, _limit), do: value
+  defp truncate_value(value, _limit), do: value
 end

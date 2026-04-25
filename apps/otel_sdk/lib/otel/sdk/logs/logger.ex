@@ -95,22 +95,11 @@ defmodule Otel.SDK.Logs.Logger do
     now = System.system_time(:nanosecond)
     {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
 
-    limits = config.log_record_limits
+    limited_record =
+      Otel.SDK.Logs.LogRecord.Limits.apply(log_record, config.log_record_limits)
 
-    truncated_attrs =
-      Otel.SDK.Logs.LogRecord.Limits.truncate_attributes(
-        log_record.attributes,
-        limits.attribute_value_length_limit
-      )
-
-    limited_attrs =
-      Otel.SDK.Logs.LogRecord.Limits.drop_attributes(
-        truncated_attrs,
-        limits.attribute_count_limit
-      )
-
-    dropped_count = map_size(truncated_attrs) - map_size(limited_attrs)
-    log_limits_applied(dropped_count, truncated_attrs != log_record.attributes)
+    dropped_count = map_size(log_record.attributes) - map_size(limited_record.attributes)
+    log_limits_applied(dropped_count, log_record.attributes != limited_record.attributes)
 
     observed_timestamp =
       case log_record.observed_timestamp do
@@ -125,7 +114,7 @@ defmodule Otel.SDK.Logs.Logger do
       severity_text: log_record.severity_text,
       body: log_record.body,
       event_name: log_record.event_name,
-      attributes: limited_attrs,
+      attributes: limited_record.attributes,
       dropped_attributes_count: dropped_count,
       trace_id: trace_id,
       span_id: span_id,
@@ -135,19 +124,21 @@ defmodule Otel.SDK.Logs.Logger do
     }
   end
 
-  @spec log_limits_applied(dropped :: non_neg_integer(), truncated? :: boolean()) :: :ok
+  # When both a count drop and a value truncation occur in
+  # the same record, the message reports only the drop —
+  # apply/2's black-box signature does not let the caller
+  # distinguish the two effects independently. The
+  # truncate-only branch fires only when no drop happened.
+  @spec log_limits_applied(dropped :: non_neg_integer(), changed? :: boolean()) :: :ok
   defp log_limits_applied(0, false), do: :ok
 
-  defp log_limits_applied(dropped, truncated?) do
-    parts =
-      [
-        dropped > 0 && "dropped #{dropped} attribute(s)",
-        truncated? && "truncated value(s) exceeding length limit"
-      ]
-      |> Enum.filter(& &1)
-      |> Enum.join(", ")
+  defp log_limits_applied(dropped, _changed?) when dropped > 0 do
+    Logger.warning("LogRecord limits applied: dropped #{dropped} attribute(s)")
+    :ok
+  end
 
-    Logger.warning("LogRecord limits applied: #{parts}")
+  defp log_limits_applied(_dropped, true) do
+    Logger.warning("LogRecord limits applied: truncated value(s) exceeding length limit")
     :ok
   end
 

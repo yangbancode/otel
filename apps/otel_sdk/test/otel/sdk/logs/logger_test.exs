@@ -304,7 +304,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
       assert log =~ "truncated"
     end
 
-    test "logs single combined message when both dropped and truncated", %{
+    test "drop takes precedence in single message when both effects occur", %{
       logger: _default_logger
     } do
       logger =
@@ -328,7 +328,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
       assert length(message_lines) == 1
       assert log =~ "dropped 1 attribute"
-      assert log =~ "truncated"
+      refute log =~ "truncated"
     end
 
     test "does not warn when within limits", %{logger: logger} do
