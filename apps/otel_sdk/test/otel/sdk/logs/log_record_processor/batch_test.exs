@@ -154,7 +154,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
 
       config = %{reg_name: :batch_double_shutdown}
       :ok = Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
-      assert {:error, :already_shut_down} == Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
+
+      assert {:error, :already_shut_down} ==
+               Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
     end
   end
 

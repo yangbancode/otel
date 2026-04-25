@@ -126,7 +126,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
 
       config = %{reg_name: :simple_double_shutdown}
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
-      assert {:error, :already_shut_down} == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
+
+      assert {:error, :already_shut_down} ==
+               Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
     end
 
     test "emit after shutdown is no-op" do
