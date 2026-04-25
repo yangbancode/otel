@@ -128,15 +128,17 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   Truncates string values exceeding the length limit and silently
   discards attributes beyond the count limit.
   """
-  @spec apply(attributes :: attributes(), limits :: t()) ::
-          {attributes(), non_neg_integer()}
+  @spec apply(attributes :: attributes(), limits :: t()) :: attributes()
   def apply(attributes, %__MODULE__{} = limits) do
     truncated_attributes = truncate_attributes(attributes, limits.attribute_value_length_limit)
     dropped_attributes = drop_attributes(truncated_attributes, limits.attribute_count_limit)
-    dropped_count = map_size(truncated_attributes) - map_size(dropped_attributes)
 
-    log_limits_applied(dropped_count, truncated_attributes != attributes)
-    {dropped_attributes, dropped_count}
+    log_limits_applied(
+      map_size(truncated_attributes) - map_size(dropped_attributes),
+      truncated_attributes != attributes
+    )
+
+    dropped_attributes
   end
 
   @spec truncate_attributes(attributes :: attributes(), limit :: non_neg_integer() | :infinity) ::

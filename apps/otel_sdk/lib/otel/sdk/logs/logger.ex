@@ -62,8 +62,10 @@ defmodule Otel.SDK.Logs.Logger do
     now = System.system_time(:nanosecond)
     {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
 
-    {limited_attrs, dropped_count} =
+    limited_attrs =
       Otel.SDK.Logs.LogRecord.Limits.apply(log_record.attributes, config.log_record_limits)
+
+    dropped_count = map_size(log_record.attributes) - map_size(limited_attrs)
 
     observed_timestamp =
       case log_record.observed_timestamp do
