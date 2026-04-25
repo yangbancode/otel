@@ -56,7 +56,10 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   `Otel.SDK.Logs.Logger`
   (`apps/otel_sdk/lib/otel/sdk/logs/logger.ex` L65-L66) — and
   the trigger is broadened per `common/README.md` L284-286 to
-  cover both discard and truncation.
+  cover both discard and truncation. The change-detection
+  uses a structural equality comparison (`==`) between the
+  pre- and post-truncation maps, so any value that survives
+  unchanged contributes no signal to the warning.
 
   ## References
 
@@ -85,70 +88,47 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   """
   @spec apply(attributes :: map(), limits :: t()) :: {map(), non_neg_integer()}
   def apply(attributes, %__MODULE__{} = limits) do
-    {truncated, truncated?} = truncate_values(attributes, limits.attribute_value_length_limit)
-    count = map_size(truncated)
-
-    {limited, dropped} =
-      if count > limits.attribute_count_limit do
-        kept =
-          truncated
-          |> Enum.take(limits.attribute_count_limit)
-          |> Map.new()
-
-        {kept, count - limits.attribute_count_limit}
-      else
-        {truncated, 0}
-      end
-
-    log_limits_applied(dropped, truncated?)
-
+    truncated = truncate_values(attributes, limits.attribute_value_length_limit)
+    {limited, dropped} = drop_excess(truncated, limits.attribute_count_limit)
+    log_limits_applied(dropped, truncated != attributes)
     {limited, dropped}
   end
 
-  @spec truncate_values(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
-          {map(), boolean()}
-  defp truncate_values(attributes, :infinity), do: {attributes, false}
+  @spec truncate_values(attributes :: map(), limit :: non_neg_integer() | :infinity) :: map()
+  defp truncate_values(attributes, :infinity), do: attributes
 
   defp truncate_values(attributes, limit) do
-    Enum.reduce(attributes, {%{}, false}, fn {key, value}, {acc, any?} ->
-      {new_value, truncated?} = truncate_value(value, limit)
-      {Map.put(acc, key, new_value), any? or truncated?}
-    end)
+    Map.new(attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
   end
 
-  @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: {term(), boolean()}
-  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) do
-    if byte_size(bin) > limit do
-      {{:bytes, binary_part(bin, 0, limit)}, true}
-    else
-      {{:bytes, bin}, false}
-    end
+  @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: term()
+  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
+    {:bytes, binary_part(bin, 0, limit)}
   end
 
   defp truncate_value(value, limit) when is_binary(value) do
-    if String.length(value) > limit do
-      {String.slice(value, 0, limit), true}
-    else
-      {value, false}
-    end
+    if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
   defp truncate_value(value, limit) when is_list(value) do
-    Enum.map_reduce(value, false, fn elem, any? ->
-      {new_elem, truncated?} = truncate_value(elem, limit)
-      {new_elem, any? or truncated?}
-    end)
+    Enum.map(value, &truncate_value(&1, limit))
   end
 
-  defp truncate_value(value, _limit), do: {value, false}
+  defp truncate_value(value, _limit), do: value
 
-  # Spec `logs/sdk.md` L345-348: SHOULD emit a message when
-  # attributes are discarded; the message MUST be printed at
-  # most once per LogRecord. Once-per-LogRecord is satisfied
-  # structurally — `apply/2` is invoked exactly once per
-  # LogRecord by `Otel.SDK.Logs.Logger`. Common spec
-  # `common/README.md` L284-286 broadens this to "truncated
-  # or discarded", so we emit on either condition.
+  @spec drop_excess(attributes :: map(), limit :: non_neg_integer()) ::
+          {map(), non_neg_integer()}
+  defp drop_excess(attributes, limit) do
+    count = map_size(attributes)
+
+    if count > limit do
+      kept = attributes |> Enum.take(limit) |> Map.new()
+      {kept, count - limit}
+    else
+      {attributes, 0}
+    end
+  end
+
   @spec log_limits_applied(dropped :: non_neg_integer(), truncated? :: boolean()) :: :ok
   defp log_limits_applied(0, false), do: :ok
 
