@@ -80,6 +80,60 @@ defmodule Otel.SDK.Logs.LogRecordLimitsTest do
       assert result.float == 3.14
       assert result.bool == true
     end
+
+    test "truncates {:bytes, _} by byte size" do
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 3}
+      attrs = %{key: {:bytes, <<255, 254, 253, 252, 251>>}}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(attrs, limits)
+      assert result.key == {:bytes, <<255, 254, 253>>}
+    end
+
+    test "does not truncate {:bytes, _} within limit" do
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 10}
+      attrs = %{key: {:bytes, <<1, 2, 3>>}}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(attrs, limits)
+      assert result.key == {:bytes, <<1, 2, 3>>}
+    end
+
+    test "truncates {:bytes, _} inside lists" do
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 2}
+      attrs = %{key: [{:bytes, <<1, 2, 3, 4>>}, {:bytes, <<9, 8>>}]}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(attrs, limits)
+      assert result.key == [{:bytes, <<1, 2>>}, {:bytes, <<9, 8>>}]
+    end
+
+    test "byte truncation uses bytes, not characters" do
+      # "한" is 3 bytes in UTF-8 but 1 character; tagged as :bytes,
+      # the limit applies to bytes (truncates mid-codepoint).
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 2}
+      attrs = %{key: {:bytes, "한"}}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(attrs, limits)
+      assert result.key == {:bytes, binary_part("한", 0, 2)}
+    end
+  end
+
+  describe "apply/2 zero limits" do
+    test "attribute_count_limit: 0 drops all attributes" do
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 0}
+      attrs = %{a: 1, b: 2}
+      {result, dropped} = Otel.SDK.Logs.LogRecordLimits.apply(attrs, limits)
+      assert result == %{}
+      assert dropped == 2
+    end
+
+    test "attribute_value_length_limit: 0 truncates strings to empty" do
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 0}
+      attrs = %{key: "non-empty"}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(attrs, limits)
+      assert result.key == ""
+    end
+
+    test "attribute_value_length_limit: 0 truncates bytes to empty" do
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 0}
+      attrs = %{key: {:bytes, <<1, 2, 3>>}}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(attrs, limits)
+      assert result.key == {:bytes, <<>>}
+    end
   end
 
   describe "apply/2 both limits" do

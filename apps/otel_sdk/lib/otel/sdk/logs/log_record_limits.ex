@@ -10,8 +10,8 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   """
 
   @type t :: %__MODULE__{
-          attribute_count_limit: pos_integer(),
-          attribute_value_length_limit: pos_integer() | :infinity
+          attribute_count_limit: non_neg_integer(),
+          attribute_value_length_limit: non_neg_integer() | :infinity
         }
 
   defstruct attribute_count_limit: 128,
@@ -40,7 +40,7 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
     end
   end
 
-  @spec truncate_values(attributes :: map(), limit :: pos_integer() | :infinity) :: map()
+  @spec truncate_values(attributes :: map(), limit :: non_neg_integer() | :infinity) :: map()
   defp truncate_values(attributes, :infinity), do: attributes
 
   defp truncate_values(attributes, limit) do
@@ -49,7 +49,11 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
     end)
   end
 
-  @spec truncate_value(value :: term(), limit :: pos_integer()) :: term()
+  @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: term()
+  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) do
+    if byte_size(bin) > limit, do: {:bytes, binary_part(bin, 0, limit)}, else: {:bytes, bin}
+  end
+
   defp truncate_value(value, limit) when is_binary(value) do
     if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
