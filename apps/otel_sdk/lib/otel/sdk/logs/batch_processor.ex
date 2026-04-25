@@ -55,13 +55,7 @@ defmodule Otel.SDK.Logs.BatchProcessor do
   def init(config) do
     {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
 
-    scheduled_delay =
-      get_config(
-        config,
-        :scheduled_delay_ms,
-        "OTEL_BLRP_SCHEDULE_DELAY",
-        @default_scheduled_delay_ms
-      )
+    scheduled_delay = Map.get(config, :scheduled_delay_ms, @default_scheduled_delay_ms)
 
     exporter =
       case exporter_module.init(exporter_opts) do
@@ -73,51 +67,16 @@ defmodule Otel.SDK.Logs.BatchProcessor do
       exporter: exporter,
       queue: [],
       queue_size: 0,
-      max_queue_size:
-        get_config(config, :max_queue_size, "OTEL_BLRP_MAX_QUEUE_SIZE", @default_max_queue_size),
+      max_queue_size: Map.get(config, :max_queue_size, @default_max_queue_size),
       scheduled_delay_ms: scheduled_delay,
-      export_timeout_ms:
-        get_config(
-          config,
-          :export_timeout_ms,
-          "OTEL_BLRP_EXPORT_TIMEOUT",
-          @default_export_timeout_ms
-        ),
+      export_timeout_ms: Map.get(config, :export_timeout_ms, @default_export_timeout_ms),
       max_export_batch_size:
-        get_config(
-          config,
-          :max_export_batch_size,
-          "OTEL_BLRP_MAX_EXPORT_BATCH_SIZE",
-          @default_max_export_batch_size
-        ),
+        Map.get(config, :max_export_batch_size, @default_max_export_batch_size),
       shut_down: false
     }
 
     schedule_export(scheduled_delay)
     {:ok, state}
-  end
-
-  @spec get_config(config :: map(), key :: atom(), env_name :: String.t(), default :: integer()) ::
-          integer()
-  defp get_config(config, key, env_name, default) do
-    Map.get(config, key) || parse_env_int(env_name, default)
-  end
-
-  @spec parse_env_int(env_name :: String.t(), default :: integer()) :: integer()
-  defp parse_env_int(env_name, default) do
-    case System.get_env(env_name) do
-      nil ->
-        default
-
-      "" ->
-        default
-
-      value ->
-        case Integer.parse(String.trim(value)) do
-          {n, ""} -> n
-          _ -> default
-        end
-    end
   end
 
   @impl GenServer
