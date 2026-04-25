@@ -132,12 +132,11 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
           {attributes(), non_neg_integer()}
   def apply(attributes, %__MODULE__{} = limits) do
     truncated_attributes = truncate_attributes(attributes, limits.attribute_value_length_limit)
-
-    {limited_attributes, dropped_count} =
-      drop_attributes(truncated_attributes, limits.attribute_count_limit)
+    dropped_attributes = drop_attributes(truncated_attributes, limits.attribute_count_limit)
+    dropped_count = map_size(truncated_attributes) - map_size(dropped_attributes)
 
     log_limits_applied(dropped_count, truncated_attributes != attributes)
-    {limited_attributes, dropped_count}
+    {dropped_attributes, dropped_count}
   end
 
   @spec truncate_attributes(attributes :: attributes(), limit :: non_neg_integer() | :infinity) ::
@@ -164,17 +163,11 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
 
   defp truncate_attribute(value, _limit), do: value
 
-  @spec drop_attributes(attributes :: attributes(), limit :: non_neg_integer()) ::
-          {attributes(), non_neg_integer()}
-  defp drop_attributes(attributes, limit) do
-    count = map_size(attributes)
+  @spec drop_attributes(attributes :: attributes(), limit :: non_neg_integer()) :: attributes()
+  defp drop_attributes(attributes, limit) when map_size(attributes) <= limit, do: attributes
 
-    if count > limit do
-      kept = attributes |> Enum.take(limit) |> Map.new()
-      {kept, count - limit}
-    else
-      {attributes, 0}
-    end
+  defp drop_attributes(attributes, limit) do
+    attributes |> Enum.take(limit) |> Map.new()
   end
 
   @spec log_limits_applied(dropped :: non_neg_integer(), truncated? :: boolean()) :: :ok
