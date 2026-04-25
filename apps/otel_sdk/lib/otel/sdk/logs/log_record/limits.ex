@@ -145,24 +145,24 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   defp truncate_attributes(attributes, :infinity), do: attributes
 
   defp truncate_attributes(attributes, limit) do
-    Map.new(attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
+    Map.new(attributes, fn {key, value} -> {key, truncate_attribute(value, limit)} end)
   end
 
-  @spec truncate_value(value :: primitive() | [primitive()], limit :: non_neg_integer()) ::
+  @spec truncate_attribute(value :: primitive() | [primitive()], limit :: non_neg_integer()) ::
           primitive() | [primitive()]
-  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
+  defp truncate_attribute({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
     {:bytes, binary_part(bin, 0, limit)}
   end
 
-  defp truncate_value(value, limit) when is_binary(value) do
+  defp truncate_attribute(value, limit) when is_binary(value) do
     if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
-  defp truncate_value(value, limit) when is_list(value) do
-    Enum.map(value, &truncate_value(&1, limit))
+  defp truncate_attribute(value, limit) when is_list(value) do
+    Enum.map(value, &truncate_attribute(&1, limit))
   end
 
-  defp truncate_value(value, _limit), do: value
+  defp truncate_attribute(value, _limit), do: value
 
   @spec drop_attributes(attributes :: attributes(), limit :: non_neg_integer()) ::
           {attributes(), non_neg_integer()}
