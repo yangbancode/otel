@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Trace.Exporter.Console do
+defmodule Otel.SDK.Trace.SpanExporter.Console do
   @moduledoc """
   Console exporter for debugging and learning purposes.
 

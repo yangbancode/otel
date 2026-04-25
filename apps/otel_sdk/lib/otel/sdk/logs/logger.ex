@@ -11,7 +11,7 @@ defmodule Otel.SDK.Logs.Logger do
   ## LogRecord limits
 
   `build_log_record/3` composes the two
-  `Otel.SDK.Logs.LogRecord.Limits` helpers in order —
+  `Otel.SDK.Logs.LogRecordLimits` helpers in order —
   `truncate_attributes/2` first (so dropped count is taken
   on the post-truncation map), then `drop_attributes/2`.
   The `dropped_attributes_count` field on the record is the
@@ -96,7 +96,7 @@ defmodule Otel.SDK.Logs.Logger do
     {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
 
     limited_record =
-      Otel.SDK.Logs.LogRecord.Limits.apply(log_record, config.log_record_limits)
+      Otel.SDK.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
 
     dropped_count = map_size(log_record.attributes) - map_size(limited_record.attributes)
     log_limits_applied(dropped_count, log_record.attributes != limited_record.attributes)

@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
+defmodule Otel.SDK.Metrics.MetricExporter.ConsoleTest do
   use ExUnit.Case
 
   @scope %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"}
@@ -6,7 +6,7 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
 
   describe "init/1" do
     test "returns {:ok, config}" do
-      assert {:ok, %{}} = Otel.SDK.Metrics.Exporter.Console.init(%{})
+      assert {:ok, %{}} = Otel.SDK.Metrics.MetricExporter.Console.init(%{})
     end
   end
 
@@ -26,7 +26,7 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
 
       output =
         ExUnit.CaptureIO.capture_io(fn ->
-          assert :ok == Otel.SDK.Metrics.Exporter.Console.export([metric], %{})
+          assert :ok == Otel.SDK.Metrics.MetricExporter.Console.export([metric], %{})
         end)
 
       assert output =~ "requests"
@@ -62,7 +62,7 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
 
       output =
         ExUnit.CaptureIO.capture_io(fn ->
-          assert :ok == Otel.SDK.Metrics.Exporter.Console.export([metric], %{})
+          assert :ok == Otel.SDK.Metrics.MetricExporter.Console.export([metric], %{})
         end)
 
       assert output =~ "latency"
@@ -87,7 +87,7 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
 
       output =
         ExUnit.CaptureIO.capture_io(fn ->
-          Otel.SDK.Metrics.Exporter.Console.export([metric], %{})
+          Otel.SDK.Metrics.MetricExporter.Console.export([metric], %{})
         end)
 
       assert output =~ "\"host\" => \"a\""
@@ -97,13 +97,13 @@ defmodule Otel.SDK.Metrics.Exporter.ConsoleTest do
 
   describe "force_flush/1" do
     test "returns :ok" do
-      assert :ok == Otel.SDK.Metrics.Exporter.Console.force_flush(%{})
+      assert :ok == Otel.SDK.Metrics.MetricExporter.Console.force_flush(%{})
     end
   end
 
   describe "shutdown/1" do
     test "returns :ok" do
-      assert :ok == Otel.SDK.Metrics.Exporter.Console.shutdown(%{})
+      assert :ok == Otel.SDK.Metrics.MetricExporter.Console.shutdown(%{})
     end
   end
 end

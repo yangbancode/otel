@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.Exporter.Console do
+defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   @moduledoc """
   Console exporter for log records debugging.
 

@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Trace.SimpleProcessor do
+defmodule Otel.SDK.Trace.SpanProcessor.Simple do
   @moduledoc """
   SimpleSpanProcessor that exports each span immediately on end.
 

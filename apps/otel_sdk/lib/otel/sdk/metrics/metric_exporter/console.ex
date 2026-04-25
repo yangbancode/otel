@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Metrics.Exporter.Console do
+defmodule Otel.SDK.Metrics.MetricExporter.Console do
   @moduledoc """
   Console exporter for metrics debugging.
 

@@ -1,43 +1,52 @@
-defmodule Otel.SDK.Logs.BatchProcessor do
+defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   @moduledoc """
-  BatchLogRecordProcessor that accumulates log records and exports
-  in batches.
+  BatchSpanProcessor that accumulates spans and exports in batches.
 
   Exports are triggered by a timer, queue size threshold, or
-  force_flush. Uses a GenServer to serialize export calls (L534).
+  force_flush. Uses a GenServer to serialize export calls (L1089).
   """
 
   use GenServer
 
-  @behaviour Otel.SDK.Logs.LogRecordProcessor
+  @behaviour Otel.SDK.Trace.SpanProcessor
 
   @default_max_queue_size 2048
-  @default_scheduled_delay_ms 1000
+  @default_scheduled_delay_ms 5000
   @default_export_timeout_ms 30_000
   @default_max_export_batch_size 512
 
-  # --- LogRecordProcessor callbacks ---
+  # --- SpanProcessor callbacks ---
 
-  @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec on_emit(log_record :: map(), config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
-  def on_emit(log_record, %{reg_name: reg_name}) do
-    GenServer.cast(reg_name, {:add_record, log_record})
-    :ok
+  @spec on_start(
+          ctx :: Otel.API.Ctx.t(),
+          span :: Otel.SDK.Trace.Span.t(),
+          config :: Otel.SDK.Trace.SpanProcessor.config()
+        ) :: Otel.SDK.Trace.Span.t()
+  @impl Otel.SDK.Trace.SpanProcessor
+  def on_start(_ctx, span, _config), do: span
+
+  @spec on_end(
+          span :: Otel.SDK.Trace.Span.t(),
+          config :: Otel.SDK.Trace.SpanProcessor.config()
+        ) :: :ok | :dropped | {:error, term()}
+  @impl Otel.SDK.Trace.SpanProcessor
+  def on_end(span, %{reg_name: reg_name}) do
+    if Bitwise.band(span.trace_flags, 1) != 0 do
+      GenServer.cast(reg_name, {:add_span, span})
+      :ok
+    else
+      :dropped
+    end
   end
 
-  @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec enabled?(opts :: keyword(), config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
-          boolean()
-  def enabled?(_opts, _config), do: true
-
-  @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
+  @spec shutdown(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok | {:error, term()}
+  @impl Otel.SDK.Trace.SpanProcessor
   def shutdown(%{reg_name: reg_name}) do
     GenServer.call(reg_name, :shutdown)
   end
 
-  @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
+  @spec force_flush(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok | {:error, term()}
+  @impl Otel.SDK.Trace.SpanProcessor
   def force_flush(%{reg_name: reg_name}) do
     GenServer.call(reg_name, :force_flush)
   end
@@ -65,14 +74,14 @@ defmodule Otel.SDK.Logs.BatchProcessor do
 
     state = %{
       exporter: exporter,
+      resource: Map.get(config, :resource, %{}),
       queue: [],
       queue_size: 0,
       max_queue_size: Map.get(config, :max_queue_size, @default_max_queue_size),
       scheduled_delay_ms: scheduled_delay,
       export_timeout_ms: Map.get(config, :export_timeout_ms, @default_export_timeout_ms),
       max_export_batch_size:
-        Map.get(config, :max_export_batch_size, @default_max_export_batch_size),
-      shut_down: false
+        Map.get(config, :max_export_batch_size, @default_max_export_batch_size)
     }
 
     schedule_export(scheduled_delay)
@@ -81,15 +90,11 @@ defmodule Otel.SDK.Logs.BatchProcessor do
 
   @impl GenServer
   @spec handle_cast(msg :: term(), state :: map()) :: {:noreply, map()}
-  def handle_cast({:add_record, _log_record}, %{shut_down: true} = state) do
-    {:noreply, state}
-  end
-
-  def handle_cast({:add_record, log_record}, state) do
+  def handle_cast({:add_span, span}, state) do
     if state.queue_size >= state.max_queue_size do
       {:noreply, state}
     else
-      new_state = %{state | queue: [log_record | state.queue], queue_size: state.queue_size + 1}
+      new_state = %{state | queue: [span | state.queue], queue_size: state.queue_size + 1}
 
       if new_state.queue_size >= state.max_export_batch_size do
         {:noreply, do_export(new_state)}
@@ -102,16 +107,8 @@ defmodule Otel.SDK.Logs.BatchProcessor do
   @impl GenServer
   @spec handle_call(msg :: term(), from :: GenServer.from(), state :: map()) ::
           {:reply, term(), map()}
-  def handle_call(:force_flush, _from, %{shut_down: true} = state) do
-    {:reply, {:error, :shut_down}, state}
-  end
-
   def handle_call(:force_flush, _from, state) do
     {:reply, :ok, do_export(state)}
-  end
-
-  def handle_call(:shutdown, _from, %{shut_down: true} = state) do
-    {:reply, {:error, :already_shut_down}, state}
   end
 
   def handle_call(:shutdown, _from, state) do
@@ -122,15 +119,11 @@ defmodule Otel.SDK.Logs.BatchProcessor do
       nil -> :ok
     end
 
-    {:reply, :ok, %{new_state | exporter: nil, shut_down: true}}
+    {:reply, :ok, %{new_state | exporter: nil}}
   end
 
   @impl GenServer
   @spec handle_info(msg :: term(), state :: map()) :: {:noreply, map()}
-  def handle_info(:export_timer, %{shut_down: true} = state) do
-    {:noreply, state}
-  end
-
   def handle_info(:export_timer, state) do
     new_state = do_export(state)
     schedule_export(state.scheduled_delay_ms)
@@ -147,7 +140,7 @@ defmodule Otel.SDK.Logs.BatchProcessor do
   defp do_export(state) do
     {batch, remaining} = Enum.split(state.queue, state.max_export_batch_size)
     {exporter_module, exporter_state} = state.exporter
-    exporter_module.export(Enum.reverse(batch), exporter_state)
+    exporter_module.export(Enum.reverse(batch), state.resource, exporter_state)
     new_state = %{state | queue: remaining, queue_size: length(remaining)}
     do_export(new_state)
   end
