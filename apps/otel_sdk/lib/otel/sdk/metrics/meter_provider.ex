@@ -227,7 +227,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @spec default_config() :: map()
   defp default_config do
     %{
-      resource: Otel.SDK.Configuration.default_config().resource,
+      resource: Otel.SDK.Resource.default(),
       views: [],
       readers: [],
       exemplar_filter: :trace_based

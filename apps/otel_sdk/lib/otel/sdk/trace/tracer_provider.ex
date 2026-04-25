@@ -92,12 +92,24 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @impl true
   def init(user_config) do
     config =
-      Otel.SDK.Configuration.default_config()
+      default_config()
       |> Map.merge(user_config)
       |> Map.put(:shut_down, false)
 
     Otel.API.Trace.TracerProvider.set_provider({__MODULE__, self_ref()})
     {:ok, config}
+  end
+
+  @spec default_config() :: map()
+  defp default_config do
+    %{
+      sampler:
+        {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}},
+      processors: [],
+      id_generator: Otel.SDK.Trace.IdGenerator.Default,
+      resource: Otel.SDK.Resource.default(),
+      span_limits: %Otel.SDK.Trace.SpanLimits{}
+    }
   end
 
   @spec self_ref() :: atom() | pid()

@@ -1,17 +1,5 @@
 defmodule Otel.SDK.ResourceTest do
-  use ExUnit.Case
-
-  setup do
-    System.delete_env("OTEL_RESOURCE_ATTRIBUTES")
-    System.delete_env("OTEL_SERVICE_NAME")
-
-    on_exit(fn ->
-      System.delete_env("OTEL_RESOURCE_ATTRIBUTES")
-      System.delete_env("OTEL_SERVICE_NAME")
-    end)
-
-    :ok
-  end
+  use ExUnit.Case, async: true
 
   describe "create/2" do
     test "creates from map" do
@@ -75,62 +63,6 @@ defmodule Otel.SDK.ResourceTest do
       assert is_binary(resource.attributes["telemetry.sdk.version"])
       assert resource.attributes["telemetry.sdk.version"] != ""
       assert resource.attributes["service.name"] == "unknown_service"
-    end
-  end
-
-  describe "from_env/0" do
-    test "parses OTEL_RESOURCE_ATTRIBUTES" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "key1=value1,key2=value2")
-      resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["key1"] == "value1"
-      assert resource.attributes["key2"] == "value2"
-    end
-
-    test "handles percent-encoded values" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "key=hello%20world")
-      resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["key"] == "hello world"
-    end
-
-    test "OTEL_SERVICE_NAME overrides service.name" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "service.name=from_attrs")
-      System.put_env("OTEL_SERVICE_NAME", "from_env")
-      resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["service.name"] == "from_env"
-    end
-
-    test "returns empty resource when no env vars set" do
-      resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes == %{}
-    end
-
-    test "skips invalid pairs" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "valid=yes,=invalid,also=ok")
-      resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes["valid"] == "yes"
-      assert resource.attributes["also"] == "ok"
-      assert map_size(resource.attributes) == 2
-    end
-
-    test "handles empty OTEL_RESOURCE_ATTRIBUTES" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "")
-      resource = Otel.SDK.Resource.from_env()
-      assert resource.attributes == %{}
-    end
-
-    test "handles empty OTEL_SERVICE_NAME" do
-      System.put_env("OTEL_SERVICE_NAME", "")
-      resource = Otel.SDK.Resource.from_env()
-      refute Map.has_key?(resource.attributes, "service.name")
-    end
-  end
-
-  describe "integration with Configuration" do
-    test "default config includes SDK resource with env override" do
-      System.put_env("OTEL_SERVICE_NAME", "my-service")
-      config = Otel.SDK.Configuration.merge(%{})
-      assert config.resource.attributes["service.name"] == "my-service"
-      assert config.resource.attributes["telemetry.sdk.name"] == "otel"
     end
   end
 end
