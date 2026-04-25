@@ -72,6 +72,18 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
 
   require Logger
 
+  use Otel.API.Common.Types
+
+  @typedoc """
+  Attribute map shape accepted by `apply/2`.
+
+  Mirrors `Otel.API.Logs.LogRecord.attributes` (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74)
+  — the public `LogRecord.attributes` field type. Both keys
+  and values are constrained to the OTel attribute contract
+  (`common/README.md` §Attribute L185-L197).
+  """
+  @type attributes :: %{String.t() => primitive() | [primitive()]}
+
   @type t :: %__MODULE__{
           attribute_count_limit: non_neg_integer(),
           attribute_value_length_limit: non_neg_integer() | :infinity
@@ -86,7 +98,8 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   Truncates string values exceeding the length limit and silently
   discards attributes beyond the count limit.
   """
-  @spec apply(attributes :: map(), limits :: t()) :: {map(), non_neg_integer()}
+  @spec apply(attributes :: attributes(), limits :: t()) ::
+          {attributes(), non_neg_integer()}
   def apply(attributes, %__MODULE__{} = limits) do
     truncated = truncate_values(attributes, limits.attribute_value_length_limit)
     {limited, dropped} = drop_excess(truncated, limits.attribute_count_limit)
@@ -94,14 +107,16 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
     {limited, dropped}
   end
 
-  @spec truncate_values(attributes :: map(), limit :: non_neg_integer() | :infinity) :: map()
+  @spec truncate_values(attributes :: attributes(), limit :: non_neg_integer() | :infinity) ::
+          attributes()
   defp truncate_values(attributes, :infinity), do: attributes
 
   defp truncate_values(attributes, limit) do
     Map.new(attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
   end
 
-  @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: term()
+  @spec truncate_value(value :: primitive() | [primitive()], limit :: non_neg_integer()) ::
+          primitive() | [primitive()]
   defp truncate_value({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
     {:bytes, binary_part(bin, 0, limit)}
   end
@@ -116,8 +131,8 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
 
   defp truncate_value(value, _limit), do: value
 
-  @spec drop_excess(attributes :: map(), limit :: non_neg_integer()) ::
-          {map(), non_neg_integer()}
+  @spec drop_excess(attributes :: attributes(), limit :: non_neg_integer()) ::
+          {attributes(), non_neg_integer()}
   defp drop_excess(attributes, limit) do
     count = map_size(attributes)
 
