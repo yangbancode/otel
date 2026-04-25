@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.BatchProcessor do
+defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   @moduledoc """
   BatchLogRecordProcessor that accumulates log records and exports
   in batches.

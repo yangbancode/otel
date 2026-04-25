@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.SimpleProcessor do
+defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @moduledoc """
   SimpleLogRecordProcessor that exports each log record immediately.
 

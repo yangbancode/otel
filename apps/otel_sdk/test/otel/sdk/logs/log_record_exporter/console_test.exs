@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
+defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
   use ExUnit.Case, async: true
 
   import ExUnit.CaptureIO
@@ -21,7 +21,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
 
   describe "init/1" do
     test "returns {:ok, config}" do
-      assert {:ok, %{}} = Otel.SDK.Logs.Exporter.Console.init(%{})
+      assert {:ok, %{}} = Otel.SDK.Logs.LogRecordExporter.Console.init(%{})
     end
   end
 
@@ -29,7 +29,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     test "outputs log record to stdout" do
       output =
         capture_io(fn ->
-          Otel.SDK.Logs.Exporter.Console.export([@record], %{})
+          Otel.SDK.Logs.LogRecordExporter.Console.export([@record], %{})
         end)
 
       assert output =~ "[otel]"
@@ -44,7 +44,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
 
       output =
         capture_io(fn ->
-          Otel.SDK.Logs.Exporter.Console.export([@record, record2], %{})
+          Otel.SDK.Logs.LogRecordExporter.Console.export([@record, record2], %{})
         end)
 
       assert output =~ "Hello, world!"
@@ -54,7 +54,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     test "returns :ok" do
       output =
         capture_io(fn ->
-          assert :ok == Otel.SDK.Logs.Exporter.Console.export([@record], %{})
+          assert :ok == Otel.SDK.Logs.LogRecordExporter.Console.export([@record], %{})
         end)
 
       assert output != ""
@@ -65,7 +65,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
 
       output =
         capture_io(fn ->
-          Otel.SDK.Logs.Exporter.Console.export([record], %{})
+          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
         end)
 
       assert output =~ "severity=5"
@@ -76,7 +76,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
 
       output =
         capture_io(fn ->
-          Otel.SDK.Logs.Exporter.Console.export([record], %{})
+          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
         end)
 
       assert output =~ "UNSPECIFIED"
@@ -91,7 +91,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
 
       output =
         capture_io(fn ->
-          Otel.SDK.Logs.Exporter.Console.export([record], %{})
+          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
         end)
 
       assert output =~ "trace="
@@ -101,7 +101,7 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
     test "omits trace context when zero" do
       output =
         capture_io(fn ->
-          Otel.SDK.Logs.Exporter.Console.export([@record], %{})
+          Otel.SDK.Logs.LogRecordExporter.Console.export([@record], %{})
         end)
 
       refute output =~ "trace="
@@ -110,13 +110,13 @@ defmodule Otel.SDK.Logs.Exporter.ConsoleTest do
 
   describe "force_flush/1" do
     test "returns :ok" do
-      assert :ok == Otel.SDK.Logs.Exporter.Console.force_flush(%{})
+      assert :ok == Otel.SDK.Logs.LogRecordExporter.Console.force_flush(%{})
     end
   end
 
   describe "shutdown/1" do
     test "returns :ok" do
-      assert :ok == Otel.SDK.Logs.Exporter.Console.shutdown(%{})
+      assert :ok == Otel.SDK.Logs.LogRecordExporter.Console.shutdown(%{})
     end
   end
 end
