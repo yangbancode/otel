@@ -61,16 +61,6 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   uses `primitive_any()` for that recursion; attribute values
   here are intentionally a flatter subset.
 
-  ## Naming convention
-
-  Private functions follow an `apply_<field-name>` rule —
-  each `apply_*_limit/2` enforces one specific limit field on
-  the struct (`attribute_` prefix dropped, since the
-  surrounding namespace already implies attribute scope). The
-  per-element helper `truncate_value/2` is a recursive utility
-  used by `apply_value_length_limit/2`; it does not enforce a
-  limit on its own and so falls outside the `apply_*` family.
-
   ## References
 
   - OTel Logs SDK §LogRecord Limits: `opentelemetry-specification/specification/logs/sdk.md` L321-348
@@ -108,24 +98,24 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
       ) do
     new_attributes =
       attributes
-      |> apply_value_length_limit(value_length_limit)
-      |> apply_count_limit(count_limit)
+      |> truncate_attributes(value_length_limit)
+      |> drop_attributes(count_limit)
 
     %{log_record | attributes: new_attributes}
   end
 
-  @spec apply_value_length_limit(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
+  @spec truncate_attributes(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
           map()
-  defp apply_value_length_limit(attributes, :infinity), do: attributes
+  defp truncate_attributes(attributes, :infinity), do: attributes
 
-  defp apply_value_length_limit(attributes, limit) do
+  defp truncate_attributes(attributes, limit) do
     Map.new(attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
   end
 
-  @spec apply_count_limit(attributes :: map(), limit :: non_neg_integer()) :: map()
-  defp apply_count_limit(attributes, limit) when map_size(attributes) <= limit, do: attributes
+  @spec drop_attributes(attributes :: map(), limit :: non_neg_integer()) :: map()
+  defp drop_attributes(attributes, limit) when map_size(attributes) <= limit, do: attributes
 
-  defp apply_count_limit(attributes, limit) do
+  defp drop_attributes(attributes, limit) do
     attributes |> Enum.take(limit) |> Map.new()
   end
 
