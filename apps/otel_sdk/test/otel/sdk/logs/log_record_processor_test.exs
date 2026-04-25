@@ -6,13 +6,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     @behaviour Otel.SDK.Logs.LogRecordProcessor
 
     @impl true
-    def on_emit(log_record, config) do
+    def on_emit(log_record, _ctx, config) do
       send(config.test_pid, {:on_emit, log_record})
       :ok
     end
 
     @impl true
-    def enabled?(_opts, _config), do: true
+    def enabled?(_opts, _scope, _config), do: true
 
     @impl true
     def shutdown(config) do
@@ -32,10 +32,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     @behaviour Otel.SDK.Logs.LogRecordProcessor
 
     @impl true
-    def on_emit(_log_record, _config), do: :ok
+    def on_emit(_log_record, _ctx, _config), do: :ok
 
     @impl true
-    def enabled?(_opts, _config), do: false
+    def enabled?(_opts, _scope, _config), do: false
 
     @impl true
     def shutdown(_config), do: :ok
@@ -49,14 +49,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     @behaviour Otel.SDK.Logs.LogRecordProcessor
 
     @impl true
-    def on_emit(log_record, config) do
+    def on_emit(log_record, _ctx, config) do
       mutated = Map.put(log_record, :severity_text, "MUTATED")
       send(config.test_pid, {:mutated, mutated})
       :ok
     end
 
     @impl true
-    def enabled?(_opts, _config), do: true
+    def enabled?(_opts, _scope, _config), do: true
 
     @impl true
     def shutdown(_config), do: :ok

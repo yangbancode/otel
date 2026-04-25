@@ -55,7 +55,7 @@ defmodule Otel.SDK.Logs.Logger do
     processors = get_processors(config)
 
     Enum.each(processors, fn {processor, processor_config} ->
-      processor.on_emit(record, processor_config)
+      processor.on_emit(record, ctx, processor_config)
     end)
   end
 
@@ -73,8 +73,8 @@ defmodule Otel.SDK.Logs.Logger do
 
       _ ->
         not Enum.all?(processors, fn {processor, processor_config} ->
-          function_exported?(processor, :enabled?, 2) and
-            not processor.enabled?(opts, processor_config)
+          function_exported?(processor, :enabled?, 3) and
+            not processor.enabled?(opts, config.scope, processor_config)
         end)
     end
   end

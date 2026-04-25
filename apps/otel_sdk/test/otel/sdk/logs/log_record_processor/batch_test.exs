@@ -54,7 +54,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
         })
 
       config = %{reg_name: :batch_no_immediate}
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "hello"}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "hello"}, %{}, config)
       refute_receive {:exported, _}, 100
     end
 
@@ -68,9 +68,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
         })
 
       config = %{reg_name: :batch_size_test}
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "1"}, config)
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "2"}, config)
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "3"}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "1"}, %{}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "2"}, %{}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "3"}, %{}, config)
 
       assert_receive {:exported, records}, 1000
       assert length(records) == 3
@@ -88,9 +88,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
         })
 
       config = %{reg_name: :batch_queue_full}
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "1"}, config)
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "2"}, config)
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "3"}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "1"}, %{}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "2"}, %{}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "3"}, %{}, config)
 
       Otel.SDK.Logs.LogRecordProcessor.Batch.force_flush(config)
       assert_receive {:exported, records}
@@ -108,7 +108,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
         })
 
       config = %{reg_name: :batch_flush_test}
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "pending"}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "pending"}, %{}, config)
       :ok = Otel.SDK.Logs.LogRecordProcessor.Batch.force_flush(config)
       assert_receive {:exported, [%{body: "pending"}]}
     end
@@ -137,7 +137,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
         })
 
       config = %{reg_name: :batch_shutdown_test}
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "final"}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "final"}, %{}, config)
       :ok = Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
 
       assert_receive {:exported, [%{body: "final"}]}
@@ -170,14 +170,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
         })
 
       config = %{reg_name: :batch_timer_test}
-      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "timed"}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(%{body: "timed"}, %{}, config)
       assert_receive {:exported, [%{body: "timed"}]}, 500
     end
   end
 
   describe "enabled?/2" do
     test "returns true" do
-      assert Otel.SDK.Logs.LogRecordProcessor.Batch.enabled?([], %{})
+      assert Otel.SDK.Logs.LogRecordProcessor.Batch.enabled?([], %{}, %{})
     end
   end
 

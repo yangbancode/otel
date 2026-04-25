@@ -13,15 +13,22 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   # --- LogRecordProcessor callbacks ---
 
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec on_emit(log_record :: map(), config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
-  def on_emit(log_record, %{reg_name: reg_name}) do
+  @spec on_emit(
+          log_record :: map(),
+          ctx :: Otel.API.Ctx.t(),
+          config :: Otel.SDK.Logs.LogRecordProcessor.config()
+        ) :: :ok
+  def on_emit(log_record, _ctx, %{reg_name: reg_name}) do
     GenServer.call(reg_name, {:export, log_record})
   end
 
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec enabled?(opts :: keyword(), config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
-          boolean()
-  def enabled?(_opts, _config), do: true
+  @spec enabled?(
+          opts :: keyword(),
+          scope :: Otel.API.InstrumentationScope.t(),
+          config :: Otel.SDK.Logs.LogRecordProcessor.config()
+        ) :: boolean()
+  def enabled?(_opts, _scope, _config), do: true
 
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
