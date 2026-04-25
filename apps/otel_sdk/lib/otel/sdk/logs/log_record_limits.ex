@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.LogRecord.Limits do
+defmodule Otel.SDK.Logs.LogRecordLimits do
   @moduledoc """
   Configurable limits for `Otel.API.Logs.LogRecord` attribute
   collections (`logs/sdk.md` §LogRecord Limits L321-348).
