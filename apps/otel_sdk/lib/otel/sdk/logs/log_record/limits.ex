@@ -98,39 +98,39 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
       ) do
     new_attributes =
       attributes
-      |> truncate_attributes(value_length_limit)
-      |> drop_attributes(count_limit)
+      |> truncate(value_length_limit)
+      |> drop(count_limit)
 
     %{log_record | attributes: new_attributes}
   end
 
-  @spec truncate_attributes(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
+  @spec truncate(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
           map()
-  defp truncate_attributes(attributes, :infinity), do: attributes
+  defp truncate(attributes, :infinity), do: attributes
 
-  defp truncate_attributes(attributes, limit) do
-    Map.new(attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
+  defp truncate(attributes, limit) do
+    Map.new(attributes, fn {key, value} -> {key, do_truncate(value, limit)} end)
   end
 
-  @spec drop_attributes(attributes :: map(), limit :: non_neg_integer()) :: map()
-  defp drop_attributes(attributes, limit) when map_size(attributes) <= limit, do: attributes
+  @spec drop(attributes :: map(), limit :: non_neg_integer()) :: map()
+  defp drop(attributes, limit) when map_size(attributes) <= limit, do: attributes
 
-  defp drop_attributes(attributes, limit) do
+  defp drop(attributes, limit) do
     attributes |> Enum.take(limit) |> Map.new()
   end
 
-  @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: term()
-  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
+  @spec do_truncate(value :: term(), limit :: non_neg_integer()) :: term()
+  defp do_truncate({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
     {:bytes, binary_part(bin, 0, limit)}
   end
 
-  defp truncate_value(value, limit) when is_binary(value) do
+  defp do_truncate(value, limit) when is_binary(value) do
     if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
-  defp truncate_value(value, limit) when is_list(value) do
-    Enum.map(value, &truncate_value(&1, limit))
+  defp do_truncate(value, limit) when is_list(value) do
+    Enum.map(value, &do_truncate(&1, limit))
   end
 
-  defp truncate_value(value, _limit), do: value
+  defp do_truncate(value, _limit), do: value
 end
