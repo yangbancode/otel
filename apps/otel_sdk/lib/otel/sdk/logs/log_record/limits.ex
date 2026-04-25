@@ -131,20 +131,20 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   @spec apply(attributes :: attributes(), limits :: t()) ::
           {attributes(), non_neg_integer()}
   def apply(attributes, %__MODULE__{} = limits) do
-    truncated_attributes = truncate_values(attributes, limits.attribute_value_length_limit)
+    truncated_attributes = truncate_attributes(attributes, limits.attribute_value_length_limit)
 
     {limited_attributes, dropped_count} =
-      drop_excess(truncated_attributes, limits.attribute_count_limit)
+      drop_attributes(truncated_attributes, limits.attribute_count_limit)
 
     log_limits_applied(dropped_count, truncated_attributes != attributes)
     {limited_attributes, dropped_count}
   end
 
-  @spec truncate_values(attributes :: attributes(), limit :: non_neg_integer() | :infinity) ::
+  @spec truncate_attributes(attributes :: attributes(), limit :: non_neg_integer() | :infinity) ::
           attributes()
-  defp truncate_values(attributes, :infinity), do: attributes
+  defp truncate_attributes(attributes, :infinity), do: attributes
 
-  defp truncate_values(attributes, limit) do
+  defp truncate_attributes(attributes, limit) do
     Map.new(attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
   end
 
@@ -164,9 +164,9 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
 
   defp truncate_value(value, _limit), do: value
 
-  @spec drop_excess(attributes :: attributes(), limit :: non_neg_integer()) ::
+  @spec drop_attributes(attributes :: attributes(), limit :: non_neg_integer()) ::
           {attributes(), non_neg_integer()}
-  defp drop_excess(attributes, limit) do
+  defp drop_attributes(attributes, limit) do
     count = map_size(attributes)
 
     if count > limit do
