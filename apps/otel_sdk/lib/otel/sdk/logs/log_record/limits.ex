@@ -93,43 +93,34 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
 
   Truncation precedes count-drop so `dropped_attributes_count`
   (computed by the caller as a `map_size` delta) reflects only
-  count-limit drops.
+  count-limit drops. Pattern-matches the record's `attributes`
+  field so the private pipeline operates on a pure map and the
+  struct is rewrapped only once.
   """
   @spec apply(log_record :: Otel.API.Logs.LogRecord.t(), limits :: t()) ::
           Otel.API.Logs.LogRecord.t()
-  def apply(%Otel.API.Logs.LogRecord{} = log_record, %__MODULE__{} = limits) do
-    log_record
-    |> apply_value_length_limit(limits.attribute_value_length_limit)
-    |> apply_count_limit(limits.attribute_count_limit)
+  def apply(%Otel.API.Logs.LogRecord{attributes: attributes} = log_record, %__MODULE__{} = limits) do
+    new_attributes =
+      attributes
+      |> apply_value_length_limit(limits.attribute_value_length_limit)
+      |> apply_count_limit(limits.attribute_count_limit)
+
+    %{log_record | attributes: new_attributes}
   end
 
-  @spec apply_value_length_limit(
-          log_record :: Otel.API.Logs.LogRecord.t(),
-          limit :: non_neg_integer() | :infinity
-        ) :: Otel.API.Logs.LogRecord.t()
-  defp apply_value_length_limit(%Otel.API.Logs.LogRecord{} = log_record, :infinity) do
-    log_record
+  @spec apply_value_length_limit(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
+          map()
+  defp apply_value_length_limit(attributes, :infinity), do: attributes
+
+  defp apply_value_length_limit(attributes, limit) do
+    Map.new(attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
   end
 
-  defp apply_value_length_limit(%Otel.API.Logs.LogRecord{} = log_record, limit) do
-    truncated =
-      Map.new(log_record.attributes, fn {key, value} -> {key, truncate_value(value, limit)} end)
+  @spec apply_count_limit(attributes :: map(), limit :: non_neg_integer()) :: map()
+  defp apply_count_limit(attributes, limit) when map_size(attributes) <= limit, do: attributes
 
-    %{log_record | attributes: truncated}
-  end
-
-  @spec apply_count_limit(
-          log_record :: Otel.API.Logs.LogRecord.t(),
-          limit :: non_neg_integer()
-        ) :: Otel.API.Logs.LogRecord.t()
-  defp apply_count_limit(%Otel.API.Logs.LogRecord{attributes: attrs} = log_record, limit)
-       when map_size(attrs) <= limit do
-    log_record
-  end
-
-  defp apply_count_limit(%Otel.API.Logs.LogRecord{} = log_record, limit) do
-    capped = log_record.attributes |> Enum.take(limit) |> Map.new()
-    %{log_record | attributes: capped}
+  defp apply_count_limit(attributes, limit) do
+    attributes |> Enum.take(limit) |> Map.new()
   end
 
   @spec truncate_value(value :: term(), limit :: non_neg_integer()) :: term()
