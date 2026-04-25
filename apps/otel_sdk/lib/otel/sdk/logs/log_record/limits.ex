@@ -16,10 +16,23 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   | `attribute_count_limit` | `128` | `common/README.md` L305 — *"Maximum allowed attribute count per record"* |
   | `attribute_value_length_limit` | `:infinity` | `common/README.md` L306 — *"Maximum allowed attribute value length (applies to string values and byte arrays)"* |
 
-  Both fields accept any `t:non_neg_integer/0` (per env-var
-  table in `sdk-environment-variables.md` L181-204 *"Valid
-  values are non-negative"*) — `0` is a valid setting that
-  drops every attribute or truncates every value to empty.
+  Both fields accept any `t:non_neg_integer/0` (per the
+  spec value-range definition in `sdk-environment-variables.md`
+  L181-204 *"Valid values are non-negative"*) — `0` is a
+  valid setting that drops every attribute or truncates every
+  value to empty.
+
+  > #### TODO — env / config wiring deferred {: .info}
+  >
+  > Spec env vars `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` and
+  > `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` are not
+  > read in this module. Env / Application config handling
+  > was stripped from the SDK during the per-module review
+  > phase and will be reintroduced in the finalization pass
+  > as a distributed scheme (each module owns its keys with
+  > a thin shared helper). Until then, the only configuration
+  > paths are the struct defaults and explicit programmatic
+  > overrides via `Otel.SDK.Logs.LoggerProvider.start_link/1`.
 
   ## Truncation rules
 
@@ -60,6 +73,23 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   uses a structural equality comparison (`==`) between the
   pre- and post-truncation maps, so any value that survives
   unchanged contributes no signal to the warning.
+
+  ### Self-reference
+
+  The warning is emitted via `Logger.warning/1`, which means
+  the SDK's own LogRecord-limit warning re-enters the OTel
+  pipeline whenever `Otel.LoggerHandler` is installed. The
+  re-entered record carries a single short-string attribute
+  payload, well below the default limits, so it produces no
+  additional warning — the recursion is bounded at depth 1.
+
+  This matches `opentelemetry-erlang`'s pattern:
+  `otel_log_handler.erl` L233 emits `?LOG_WARNING(...)` on
+  exporter failure, and `otel_exporter.erl` /
+  `otel_configuration.erl` use `?LOG_WARNING` / `?LOG_INFO`
+  throughout — none set a domain or filter to skip the OTel
+  bridge, so SDK self-warnings are part of the user
+  telemetry stream by design.
 
   ## References
 
