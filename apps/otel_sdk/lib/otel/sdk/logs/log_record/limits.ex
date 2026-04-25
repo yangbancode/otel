@@ -131,10 +131,10 @@ defmodule Otel.SDK.Logs.LogRecord.Limits do
   @spec apply(attributes :: attributes(), limits :: t()) ::
           {attributes(), non_neg_integer()}
   def apply(attributes, %__MODULE__{} = limits) do
-    truncated = truncate_values(attributes, limits.attribute_value_length_limit)
-    {limited, dropped} = drop_excess(truncated, limits.attribute_count_limit)
-    log_limits_applied(dropped, truncated != attributes)
-    {limited, dropped}
+    truncated_attributes = truncate_values(attributes, limits.attribute_value_length_limit)
+    {limited, dropped_count} = drop_excess(truncated_attributes, limits.attribute_count_limit)
+    log_limits_applied(dropped_count, truncated_attributes != attributes)
+    {limited, dropped_count}
   end
 
   @spec truncate_values(attributes :: attributes(), limit :: non_neg_integer() | :infinity) ::
