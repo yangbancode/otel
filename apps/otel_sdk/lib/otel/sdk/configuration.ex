@@ -214,7 +214,7 @@ defmodule Otel.SDK.Configuration do
       )
 
     if map_size(limits) > 0 do
-      Map.put(config, :log_record_limits, struct(Otel.SDK.Logs.LogRecordLimits, limits))
+      Map.put(config, :log_record_limits, struct(Otel.SDK.Logs.LogRecord.Limits, limits))
     else
       config
     end

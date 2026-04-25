@@ -186,7 +186,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
         Otel.SDK.Logs.LoggerProvider.start_link(
           config: %{
             processors: [{CollectorProcessor, %{test_pid: self()}}],
-            log_record_limits: %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 5}
+            log_record_limits: %Otel.SDK.Logs.LogRecord.Limits{attribute_value_length_limit: 5}
           }
         )
 
@@ -215,7 +215,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
         Otel.SDK.Logs.LoggerProvider.start_link(
           config: %{
             processors: [{CollectorProcessor, %{test_pid: self()}}],
-            log_record_limits: %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 2}
+            log_record_limits: %Otel.SDK.Logs.LogRecord.Limits{attribute_count_limit: 2}
           }
         )
 

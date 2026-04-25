@@ -166,7 +166,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     %{
       resource: Otel.SDK.Configuration.default_config().resource,
       processors: [],
-      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{}
+      log_record_limits: %Otel.SDK.Logs.LogRecord.Limits{}
     }
   end
 
