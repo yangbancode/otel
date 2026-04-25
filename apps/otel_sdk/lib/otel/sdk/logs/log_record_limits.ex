@@ -1,12 +1,70 @@
 defmodule Otel.SDK.Logs.LogRecordLimits do
   @moduledoc """
-  Configurable limits for LogRecord data.
+  Configurable limits for `LogRecord` attribute collections
+  (`logs/sdk.md` §LogRecord Limits L321-348).
 
-  Prevents unbounded growth of log record attributes.
-  Excess attributes are silently discarded and string values
-  exceeding the length limit are truncated. A log message
-  SHOULD be emitted at most once per LogRecord when items
-  are discarded.
+  Prevents unbounded growth of LogRecord attributes by enforcing
+  the common attribute rules from `common/README.md` §Attribute
+  Limits (L249-299). Excess attributes are silently discarded;
+  string and byte values exceeding the length limit are
+  truncated.
+
+  ## Configurable parameters
+
+  | Field | Default | Spec |
+  |---|---|---|
+  | `attribute_count_limit` | `128` | `common/README.md` L305 — *"Maximum allowed attribute count per record"* |
+  | `attribute_value_length_limit` | `:infinity` | `common/README.md` L306 — *"Maximum allowed attribute value length (applies to string values and byte arrays)"* |
+
+  Both fields accept any `t:non_neg_integer/0` (per env-var
+  table in `sdk-environment-variables.md` L181-204 *"Valid
+  values are non-negative"*) — `0` is a valid setting that
+  drops every attribute or truncates every value to empty.
+
+  ## Truncation rules
+
+  Values pass through type-specific truncation per
+  `common/README.md` L260-274. The cases below are the only
+  shapes the `LogRecord.attributes` value type permits
+  (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
+  `primitive() | [primitive()]`).
+
+  | Value shape | Truncation |
+  |---|---|
+  | `String.t()` | character (grapheme) count via `String.slice/3` (spec L262-263 *"counting any character in it as 1"*) |
+  | `{:bytes, binary()}` | byte count via `binary_part/3` (spec L265-267 *"counting each byte as 1"*) |
+  | `[primitive()]` | element-wise recursion (spec L268-269) |
+  | `boolean()`, `integer()`, `float()`, `nil` | passes through unchanged (spec L274 *"otherwise a value MUST NOT be truncated"*) |
+
+  The spec also defines map-valued (`common/README.md`
+  L272-273) and AnyValue-array (L270-271) recursion. Neither
+  applies here — `LogRecord.attributes`'s
+  `primitive() | [primitive()]` value type
+  (`apps/otel_api/lib/otel/api/common/types.ex` L180-L181)
+  excludes nested maps and heterogeneous AnyValue arrays. The
+  `Otel.LoggerHandler` body path
+  (`apps/otel_logger_handler/lib/otel/logger_handler.ex`)
+  uses `primitive_any()` for that recursion; attribute values
+  here are intentionally a flatter subset.
+
+  ## Discard message
+
+  Per `logs/sdk.md` L345-348, when an attribute is discarded
+  the SDK SHOULD log a message and MUST emit it at most once
+  per LogRecord. The MUST is satisfied structurally — `apply/2`
+  is invoked exactly once per LogRecord by
+  `Otel.SDK.Logs.Logger`
+  (`apps/otel_sdk/lib/otel/sdk/logs/logger.ex` L65-L66) — and
+  the trigger is broadened per `common/README.md` L284-286 to
+  cover both discard and truncation.
+
+  ## References
+
+  - OTel Logs SDK §LogRecord Limits: `opentelemetry-specification/specification/logs/sdk.md` L321-348
+  - OTel Common §Attribute Limits: `opentelemetry-specification/specification/common/README.md` L249-299
+  - OTel Common §Configurable Parameters: `opentelemetry-specification/specification/common/README.md` L303-306
+  - Mapping to non-OTLP §Dropped Attributes Count: `opentelemetry-specification/specification/common/mapping-to-non-otlp.md` L73-79
+  - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L181-204
   """
 
   require Logger
