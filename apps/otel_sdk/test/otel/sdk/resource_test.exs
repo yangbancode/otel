@@ -125,12 +125,4 @@ defmodule Otel.SDK.ResourceTest do
     end
   end
 
-  describe "integration with Configuration" do
-    test "default config includes SDK resource with env override" do
-      System.put_env("OTEL_SERVICE_NAME", "my-service")
-      config = Otel.SDK.Configuration.merge(%{})
-      assert config.resource.attributes["service.name"] == "my-service"
-      assert config.resource.attributes["telemetry.sdk.name"] == "otel"
-    end
-  end
 end

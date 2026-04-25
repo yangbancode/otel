@@ -164,7 +164,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   @spec default_config() :: map()
   defp default_config do
     %{
-      resource: Otel.SDK.Configuration.default_config().resource,
+      resource: Otel.SDK.Resource.default(),
       processors: [],
       log_record_limits: %Otel.SDK.Logs.LogRecord.Limits{}
     }
