@@ -14,9 +14,27 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   emit through the GenServer's `handle_call/3`, which is
   inherently serial per-process.
 
-  Spec L526 — the only configurable parameter is `exporter`;
-  this implementation also accepts an optional `:name` for
-  registering the GenServer.
+  Spec L526 — the only configurable parameter is `exporter`.
+
+  ## Singleton registration
+
+  The GenServer registers itself as `__MODULE__`, so only one
+  Simple processor can run per BEAM node. Behaviour callbacks
+  (`on_emit/3`, `shutdown/1`, `force_flush/1`) reach the
+  process via that fixed atom and ignore the `config`
+  argument from the `LogRecordProcessor` interface.
+
+  This trades multi-instance flexibility (which has no real
+  production use case for this synchronous processor — for
+  multiple destinations, register multiple processor *modules*
+  like one Simple + one Batch) for a simpler API: the user's
+  processor list entry needs no `:reg_name` key, and there is
+  no risk of `:name` typos diverging start_link from the
+  callback config.
+
+  Tests use `ExUnit.Callbacks.start_supervised!/2` so the
+  per-test supervisor handles synchronous teardown of the
+  registered name between tests.
 
   ## Synchronous emit trade-off
 
@@ -59,8 +77,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
           ctx :: Otel.API.Ctx.t(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: :ok
-  def on_emit(log_record, _ctx, %{reg_name: reg_name}) do
-    GenServer.call(reg_name, {:export, log_record})
+  def on_emit(log_record, _ctx, _config) do
+    GenServer.call(__MODULE__, {:export, log_record})
   end
 
   @doc """
@@ -85,8 +103,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
-  def shutdown(%{reg_name: reg_name}) do
-    GenServer.call(reg_name, :shutdown)
+  def shutdown(_config) do
+    GenServer.call(__MODULE__, :shutdown)
   end
 
   @doc """
@@ -100,26 +118,24 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
           :ok | {:error, term()}
-  def force_flush(%{reg_name: reg_name}) do
-    GenServer.call(reg_name, :force_flush)
+  def force_flush(_config) do
+    GenServer.call(__MODULE__, :force_flush)
   end
 
   # --- GenServer lifecycle ---
 
   @spec start_link(config :: map()) :: GenServer.on_start()
   def start_link(config) do
-    name = Map.get(config, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, config, name: name)
+    GenServer.start_link(__MODULE__, config, name: __MODULE__)
   end
 
   @impl GenServer
   @spec init(config :: map()) :: {:ok, map()}
   def init(config) do
-    name = Map.get(config, :name, __MODULE__)
     {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
     exporter = init_exporter(exporter_module, exporter_opts)
 
-    {:ok, %{exporter: exporter, name: name, shut_down: false}}
+    {:ok, %{exporter: exporter, shut_down: false}}
   end
 
   @impl GenServer
