@@ -187,6 +187,13 @@ defmodule Otel.API.Trace.Span do
   adding links at span creation (via `Tracer.start_span/4`
   opts) is preferred — samplers may not consider links added
   later.
+
+  Per spec L820-L823 SHOULD — *"Implementations SHOULD record
+  links containing `SpanContext` with empty `TraceId` or
+  `SpanId` (all zeros) as long as either the attribute set or
+  `TraceState` is non-empty."* SDKs implementing the
+  `add_link/2` callback are responsible for honouring this
+  recording rule (the API facade is a pure dispatcher).
   """
   @spec add_link(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
@@ -213,8 +220,15 @@ defmodule Otel.API.Trace.Span do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           status :: Otel.API.Trace.Status.t()
         ) :: :ok
-  def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{} = status) do
-    get_module().set_status(span_ctx, status)
+  def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{
+        code: code,
+        description: description
+      }) do
+    # Re-route through `Status.new/2` so the spec L599-L600 MUST
+    # ("Description MUST be IGNORED for StatusCode Ok & Unset
+    # values") holds even when the caller bypassed `Status.new/2`
+    # by constructing the struct directly with `%Status{...}`.
+    get_module().set_status(span_ctx, Otel.API.Trace.Status.new(code, description))
   end
 
   @doc """
@@ -360,6 +374,12 @@ defmodule Otel.API.Trace.Span do
   Per spec L563 adding links at span creation (via
   `Tracer.start_span/4` opts) is preferred — samplers may not
   consider links added later.
+
+  Per spec L820-L823 SHOULD the SDK implementation **SHOULD
+  record links containing a `SpanContext` with empty `TraceId`
+  or `SpanId`** when either the attribute set or the
+  `TraceState` is non-empty. Implementations should not
+  silently drop such links.
   """
   @callback add_link(
               span_ctx :: Otel.API.Trace.SpanContext.t(),
@@ -370,10 +390,17 @@ defmodule Otel.API.Trace.Span do
   **SDK** (OTel API MUST) — "SetStatus" (`trace/api.md`
   L565-L624).
 
-  Status priority per L590: `Ok > Error > Unset`. L599
-  `Description` MUST be IGNORED for `:ok`/`:unset`; L604 an
-  attempt to set `:unset` SHOULD be ignored; L619-L620 once
-  set to `:ok`, further attempts SHOULD be ignored.
+  Status priority per L590: `Ok > Error > Unset`. The SDK
+  implementation MUST honour:
+
+  - **L599** `Description` MUST be IGNORED for `:ok` / `:unset`
+    (the API facade re-routes through `Status.new/2` which
+    enforces this, but SDKs MUST NOT re-introduce a
+    description on `:ok` / `:unset` paths).
+  - **L604** SHOULD — an attempt to set `:unset` SHOULD be
+    ignored (do not overwrite an existing `:ok` or `:error`).
+  - **L619-L620** SHOULD — once the status is `:ok`, further
+    `set_status` attempts SHOULD be ignored. `:ok` is final.
   """
   @callback set_status(
               span_ctx :: Otel.API.Trace.SpanContext.t(),

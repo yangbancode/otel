@@ -19,6 +19,11 @@ defmodule Otel.API.Trace do
   (spec L385 *"MAY be offered additionally as a separate
   operation"*).
 
+  All functions are safe for concurrent use (spec
+  `trace/api.md` L843-L853 *"all methods MUST be documented
+  that implementations need to be safe for concurrent use by
+  default"*).
+
   ## Public API
 
   | Function | Role |
