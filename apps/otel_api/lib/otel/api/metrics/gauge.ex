@@ -127,7 +127,7 @@ defmodule Otel.API.Metrics.Gauge do
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         ) :: :ok
   def record(instrument, value, attributes \\ %{}) do
     Otel.API.Metrics.Meter.record(instrument, value, attributes)

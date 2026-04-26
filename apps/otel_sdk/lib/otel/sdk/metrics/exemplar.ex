@@ -11,7 +11,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
   @type t :: %__MODULE__{
           value: number(),
           time: non_neg_integer(),
-          filtered_attributes: %{String.t() => primitive() | [primitive()]},
+          filtered_attributes: %{String.t() => primitive_any()},
           span_id: Otel.API.Trace.SpanId.t() | nil,
           trace_id: Otel.API.Trace.TraceId.t() | nil
         }
@@ -25,7 +25,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
   @spec new(
           value :: number(),
           time :: non_neg_integer(),
-          filtered_attributes :: %{String.t() => primitive() | [primitive()]},
+          filtered_attributes :: %{String.t() => primitive_any()},
           ctx :: Otel.API.Ctx.t()
         ) :: t()
   def new(value, time, filtered_attributes, ctx) do

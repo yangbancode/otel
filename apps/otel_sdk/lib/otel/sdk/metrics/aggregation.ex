@@ -19,7 +19,7 @@ defmodule Otel.SDK.Metrics.Aggregation do
           name :: String.t(),
           scope :: Otel.API.InstrumentationScope.t(),
           reader_id :: reference() | nil,
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         }
 
   @typedoc """
@@ -30,7 +30,7 @@ defmodule Otel.SDK.Metrics.Aggregation do
   @type stream_key :: {name :: String.t(), scope :: Otel.API.InstrumentationScope.t()}
 
   @type datapoint :: %{
-          attributes: %{String.t() => primitive() | [primitive()]},
+          attributes: %{String.t() => primitive_any()},
           value: term(),
           start_time: non_neg_integer(),
           time: non_neg_integer()

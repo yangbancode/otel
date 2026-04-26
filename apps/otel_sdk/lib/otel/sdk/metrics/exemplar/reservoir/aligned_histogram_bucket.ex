@@ -30,7 +30,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
           state :: state(),
           value :: number(),
           time :: non_neg_integer(),
-          filtered_attributes :: %{String.t() => primitive() | [primitive()]},
+          filtered_attributes :: %{String.t() => primitive_any()},
           ctx :: Otel.API.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do

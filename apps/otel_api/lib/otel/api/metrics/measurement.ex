@@ -58,14 +58,14 @@ defmodule Otel.API.Metrics.Measurement do
   - `value` — the numeric data point. `t:number/0` covers
     both integer and float variants the OTel metric
     instruments accept.
-  - `attributes` — an `%{String.t() => primitive() | [primitive()]}`
+  - `attributes` — an `%{String.t() => primitive_any()}`
     map associated with the measurement. Values follow OTel
     attribute rules (primitives and homogeneous arrays; no
     maps, no heterogeneous arrays).
   """
   @type t :: %__MODULE__{
           value: number(),
-          attributes: %{String.t() => primitive() | [primitive()]}
+          attributes: %{String.t() => primitive_any()}
         }
 
   defstruct value: 0, attributes: %{}

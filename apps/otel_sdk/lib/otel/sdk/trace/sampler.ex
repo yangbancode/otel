@@ -10,7 +10,7 @@ defmodule Otel.SDK.Trace.Sampler do
 
   @type sampling_decision :: :drop | :record_only | :record_and_sample
 
-  @type attributes :: %{String.t() => primitive() | [primitive()]}
+  @type attributes :: %{String.t() => primitive_any()}
 
   @type sampling_result :: {
           sampling_decision(),

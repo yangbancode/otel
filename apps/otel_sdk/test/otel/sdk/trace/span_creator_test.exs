@@ -393,6 +393,48 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       assert span.attributes["tags"] == ["hel", "wor"]
     end
 
+    test "truncates strings inside nested AnyValue maps (spec L272-273)" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 5}
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.Span.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          attributes: %{
+            "envelope" => %{
+              "name" => "abcdefghij",
+              "nested" => %{"deep" => "wxyzabcdef"}
+            }
+          }
+        )
+
+      assert span.attributes["envelope"] == %{
+               "name" => "abcde",
+               "nested" => %{"deep" => "wxyza"}
+             }
+    end
+
+    test "truncates {:bytes, _} by byte size (spec L265-267)" do
+      ctx = Otel.API.Ctx.new()
+      limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 2}
+
+      {_span_ctx, span} =
+        Otel.SDK.Trace.Span.start_span(
+          ctx,
+          "span",
+          @always_on_sampler,
+          @id_generator,
+          limits,
+          attributes: %{"data" => {:bytes, <<1, 2, 3, 4, 5>>}}
+        )
+
+      assert span.attributes["data"] == {:bytes, <<1, 2>>}
+    end
+
     test "enforces link_count_limit" do
       ctx = Otel.API.Ctx.new()
       limits = %Otel.SDK.Trace.SpanLimits{link_count_limit: 1}

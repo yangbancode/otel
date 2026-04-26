@@ -16,7 +16,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
               state :: term(),
               value :: number(),
               time :: non_neg_integer(),
-              filtered_attributes :: %{String.t() => primitive() | [primitive()]},
+              filtered_attributes :: %{String.t() => primitive_any()},
               ctx :: Otel.API.Ctx.t()
             ) :: state :: term()
 
@@ -27,7 +27,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
           filter :: Otel.SDK.Metrics.Exemplar.Filter.t(),
           value :: number(),
           time :: non_neg_integer(),
-          filtered_attributes :: %{String.t() => primitive() | [primitive()]},
+          filtered_attributes :: %{String.t() => primitive_any()},
           ctx :: Otel.API.Ctx.t()
         ) :: {module(), term()} | nil
   def offer_to(nil, _filter, _value, _time, _attrs, _ctx), do: nil
