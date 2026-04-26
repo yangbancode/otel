@@ -291,4 +291,47 @@ defmodule Otel.API.TraceTest do
       assert Otel.API.Trace.current_span() == %Otel.API.Trace.SpanContext{}
     end
   end
+
+  describe "wrap_span_context/1 (spec L720-L739 MUST)" do
+    test "returns the SpanContext as a usable Span handle" do
+      assert Otel.API.Trace.wrap_span_context(@valid_span_ctx) == @valid_span_ctx
+    end
+
+    test "wrapped SpanContext can be made the active span" do
+      token = Otel.API.Trace.make_current(Otel.API.Trace.wrap_span_context(@valid_span_ctx))
+
+      try do
+        assert Otel.API.Trace.current_span() == @valid_span_ctx
+      after
+        Otel.API.Trace.detach(token)
+      end
+    end
+  end
+
+  describe "name validation (spec L389 MUST)" do
+    @tracer {Otel.API.Trace.Tracer.Noop, []}
+
+    test "start_span/4 raises FunctionClauseError for empty name" do
+      assert_raise FunctionClauseError, fn ->
+        Otel.API.Trace.start_span(Otel.API.Ctx.current(), @tracer, "", [])
+      end
+    end
+
+    test "start_span/4 raises FunctionClauseError for nil name" do
+      assert_raise FunctionClauseError, fn ->
+        Otel.API.Trace.start_span(Otel.API.Ctx.current(), @tracer, nil, [])
+      end
+    end
+
+    test "with_span/4 raises FunctionClauseError for empty name" do
+      assert_raise FunctionClauseError, fn ->
+        Otel.API.Trace.with_span(@tracer, "", [], fn _ -> :ok end)
+      end
+    end
+
+    test "start_span/4 accepts non-empty name" do
+      assert %Otel.API.Trace.SpanContext{} =
+               Otel.API.Trace.start_span(Otel.API.Ctx.current(), @tracer, "valid", [])
+    end
+  end
 end

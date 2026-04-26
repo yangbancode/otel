@@ -61,6 +61,8 @@ defmodule Otel.API.Trace.TracerProvider do
   - Reference impl (global provider): `opentelemetry-erlang/apps/opentelemetry_api/src/otel_tracer_provider.erl`
   """
 
+  require Logger
+
   @default_tracer {Otel.API.Trace.Tracer.Noop, []}
 
   @global_key {__MODULE__, :global}
@@ -95,6 +97,8 @@ defmodule Otel.API.Trace.TracerProvider do
   @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
           Otel.API.Trace.Tracer.t()
   def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+    warn_on_invalid_scope_name(instrumentation_scope)
+
     case get_provider() do
       nil ->
         @default_tracer
@@ -103,6 +107,26 @@ defmodule Otel.API.Trace.TracerProvider do
         module.get_tracer(state, instrumentation_scope)
     end
   end
+
+  # Spec trace/api.md L125-L130 — *"In case an invalid name (null
+  # or empty string) is specified, a working Tracer implementation
+  # MUST be returned as a fallback rather than returning null or
+  # throwing an exception, its `name` property SHOULD be set to an
+  # empty string, and a message reporting that the specified value
+  # is invalid SHOULD be logged."* The MUST (working Tracer) and
+  # the original-value SHOULD are satisfied structurally — we
+  # always return a Tracer (Noop or SDK) and never rewrite the
+  # scope name. The warning SHOULD is enforced here.
+  @spec warn_on_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
+  defp warn_on_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+    Logger.warning(
+      "Otel.API.Trace.TracerProvider: invalid Tracer name (empty string) — returning a working Tracer as fallback per spec L125-L130"
+    )
+
+    :ok
+  end
+
+  defp warn_on_invalid_scope_name(_scope), do: :ok
 
   # --- SDK callbacks ---
 
