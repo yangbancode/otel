@@ -468,9 +468,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
     end
   end
 
-  describe "enabled?/2" do
+  describe "enabled?/4" do
     test "returns true" do
-      assert Otel.SDK.Logs.LogRecordProcessor.Batch.enabled?([], %{}, %{})
+      assert Otel.SDK.Logs.LogRecordProcessor.Batch.enabled?(%{}, %{}, [], %{})
     end
   end
 

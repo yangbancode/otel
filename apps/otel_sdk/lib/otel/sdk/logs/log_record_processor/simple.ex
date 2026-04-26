@@ -142,15 +142,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @doc """
   **SDK** (Simple implementation) — Always returns `true`; the
   Simple processor has no filtering policy of its own
-  (`logs/sdk.md` §LogRecordProcessor L420 *"MAY"*).
+  (`logs/sdk.md` §LogRecordProcessor L420 *"MAY implement"*).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec enabled?(
-          opts :: Otel.API.Logs.Logger.enabled_opts(),
+          ctx :: Otel.API.Ctx.t(),
           scope :: Otel.API.InstrumentationScope.t(),
+          opts :: Otel.SDK.Logs.LogRecordProcessor.enabled_opts(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: boolean()
-  def enabled?(_opts, _scope, _config), do: true
+  def enabled?(_ctx, _scope, _opts, _config), do: true
 
   @doc """
   **SDK** (Simple implementation) — Synchronously stop the

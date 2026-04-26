@@ -12,7 +12,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     end
 
     @impl true
-    def enabled?(_opts, _scope, _config), do: true
+    def enabled?(_ctx, _scope, _opts, _config), do: true
 
     @impl true
     def shutdown(config, _timeout \\ 5000) do
@@ -35,7 +35,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     def on_emit(_log_record, _ctx, _config), do: :ok
 
     @impl true
-    def enabled?(_opts, _scope, _config), do: false
+    def enabled?(_ctx, _scope, _opts, _config), do: false
 
     @impl true
     def shutdown(_config, _timeout \\ 5000), do: :ok
@@ -56,7 +56,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     end
 
     @impl true
-    def enabled?(_opts, _scope, _config), do: true
+    def enabled?(_ctx, _scope, _opts, _config), do: true
 
     @impl true
     def shutdown(_config, _timeout \\ 5000), do: :ok
