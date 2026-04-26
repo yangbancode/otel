@@ -11,6 +11,8 @@ defmodule Otel.SDK.Metrics.View do
   instrument must match all provided criteria for the View to apply.
   """
 
+  use Otel.API.Common.Types
+
   @type criteria :: %{
           optional(:name) => String.t(),
           optional(:type) => Otel.API.Metrics.Instrument.kind(),
@@ -65,8 +67,8 @@ defmodule Otel.SDK.Metrics.View do
   @spec filter_attributes(
           view :: t(),
           instrument :: Otel.API.Metrics.Instrument.t(),
-          attributes :: map()
-        ) :: map()
+          attributes :: %{String.t() => primitive() | [primitive()]}
+        ) :: %{String.t() => primitive() | [primitive()]}
   def filter_attributes(%__MODULE__{config: config}, instrument, attributes) do
     case Map.get(config, :attribute_keys) do
       {:include, keys} ->

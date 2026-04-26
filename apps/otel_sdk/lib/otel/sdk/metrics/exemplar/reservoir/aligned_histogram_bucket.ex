@@ -9,6 +9,8 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
 
   @behaviour Otel.SDK.Metrics.Exemplar.Reservoir
 
+  use Otel.API.Common.Types
+
   @type state :: %{
           boundaries: [number()],
           exemplars: %{non_neg_integer() => Otel.SDK.Metrics.Exemplar.t()}
@@ -28,7 +30,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
           state :: state(),
           value :: number(),
           time :: non_neg_integer(),
-          filtered_attributes :: map(),
+          filtered_attributes :: %{String.t() => primitive() | [primitive()]},
           ctx :: Otel.API.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
