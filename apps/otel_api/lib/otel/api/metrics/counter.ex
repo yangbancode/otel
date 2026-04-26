@@ -120,7 +120,7 @@ defmodule Otel.API.Metrics.Counter do
   @spec add(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         ) :: :ok
   def add(instrument, value, attributes \\ %{}) do
     Otel.API.Metrics.Meter.record(instrument, value, attributes)

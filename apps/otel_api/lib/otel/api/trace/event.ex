@@ -53,7 +53,7 @@ defmodule Otel.API.Trace.Event do
   @type t :: %__MODULE__{
           name: String.t(),
           timestamp: non_neg_integer(),
-          attributes: %{String.t() => primitive() | [primitive()]}
+          attributes: %{String.t() => primitive_any()}
         }
 
   defstruct name: "", timestamp: 0, attributes: %{}
@@ -81,7 +81,7 @@ defmodule Otel.API.Trace.Event do
   """
   @spec new(
           name :: String.t(),
-          attributes :: %{String.t() => primitive() | [primitive()]},
+          attributes :: %{String.t() => primitive_any()},
           timestamp :: non_neg_integer()
         ) :: t()
   def new(name, attributes \\ %{}, timestamp \\ System.system_time(:nanosecond)) do

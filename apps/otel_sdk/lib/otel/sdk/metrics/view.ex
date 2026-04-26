@@ -67,8 +67,8 @@ defmodule Otel.SDK.Metrics.View do
   @spec filter_attributes(
           view :: t(),
           instrument :: Otel.API.Metrics.Instrument.t(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
-        ) :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
+        ) :: %{String.t() => primitive_any()}
   def filter_attributes(%__MODULE__{config: config}, instrument, attributes) do
     case Map.get(config, :attribute_keys) do
       {:include, keys} ->

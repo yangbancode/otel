@@ -22,22 +22,46 @@ defmodule Otel.API.Common.Types do
 
   ## Where each is used
 
-  Attribute values (Span, Event, Link, Metric, etc.) are
-  `primitive` or a homogeneous list of `primitive`. Per spec
-  L45-L46 attribute values MUST NOT mix types within one
-  array and MUST NOT be maps, so attribute-carrying struct
-  fields spell the type as:
+  Attribute values across **every** signal (Span, Event, Link,
+  LogRecord, Metric data points, Resource, Instrumentation
+  Scope) are `primitive_any/0` — full OTLP `AnyValue`
+  including nested maps and heterogeneous arrays. Spec
+  `common/README.md` L187 (`v1.55.0`):
 
-      attributes: %{String.t() => primitive() | [primitive()]}
+  > *"The attribute value MUST be one of types defined in
+  > [AnyValue](#anyvalue)."*
+
+  And spec L198-L209 lists exactly which collections this
+  applies to:
+
+  > *"Resources, Instrumentation Scopes, Metric points, Spans,
+  > Events, Links and Log Records, contain a collection of
+  > attributes."*
+
+  So attribute-carrying struct fields spell the type as:
+
+      attributes: %{String.t() => primitive_any()}
 
   The map type is written inline at each call site rather
   than behind an alias — attribute keys are `t:String.t/0`
-  and attribute values are a narrow subset of `primitive_any`,
-  so an extra alias would hide no useful information.
+  and the value type is the existing `primitive_any/0` alias,
+  so a new dedicated alias would not earn its keep.
 
-  `LogRecord.body` is `primitive_any/0` — the OTLP `AnyValue`
-  oneof, which permits nested maps and heterogeneous arrays
-  (`common.proto` L28-L42).
+  `LogRecord.body` is also `primitive_any/0`, by direct spec
+  fiat (`logs/data-model.md` Field: Body), and naturally so
+  because Body and attribute-values share the AnyValue oneof.
+
+  ### Spec evolution context
+
+  Pre-v1.50 the spec narrowed attribute values to "primitive
+  or homogeneous primitive array". v1.50.0 (#4614) opened the
+  door, v1.52.0 (#4651) added complex types in Development,
+  and **v1.53.0 (#4794) stabilised complex `AnyValue`
+  attribute value types and related attribute limits**. Code
+  written against pre-v1.53 spec versions correctly used the
+  narrow shape; current code uses the wide shape. See
+  `.claude/skills/spec-module-review/SKILL.md` § Pattern D for
+  the detection pattern this saga produced.
 
   ## string vs bytes
 
@@ -92,7 +116,7 @@ defmodule Otel.API.Common.Types do
   The attribute-carrying maps across this project use
   `String.t()` as the key type:
 
-      attributes: %{String.t() => primitive() | [primitive()]}
+      attributes: %{String.t() => primitive_any()}
 
   Two aspects of the MUST:
 
@@ -126,13 +150,19 @@ defmodule Otel.API.Common.Types do
   is arbitrary precision; this typespec does not encode the
   limit. Exporters are responsible for out-of-range handling.
 
-  ## Array homogeneity
+  ## Array shapes
 
-  Attribute values permit only **homogeneous** arrays — spec
-  L45-L46 forbids mixed types inside one array.
-  `[primitive()]` in a typespec permits `[1, "a", true]` as
-  far as Dialyzer is concerned; runtime homogeneity is a
-  caller obligation documented here but not checked.
+  AnyValue arrays come in two flavours per spec L45-L48:
+
+  - **Homogeneous primitive arrays** — array of `primitive`
+    values, all the same type, no mixing (spec L45-L46).
+  - **AnyValue arrays** — array of `AnyValue` (i.e.
+    `primitive_any`) values, may be heterogeneous and may
+    nest further arrays / maps.
+
+  `primitive_any` covers both via `[primitive_any()]`. The
+  homogeneity SHOULD on plain primitive arrays is a caller
+  obligation documented here but not Dialyzer-checked.
 
   ## Performance
 
@@ -143,18 +173,25 @@ defmodule Otel.API.Common.Types do
   > performance overhead compared to primitive values."*
 
   Single-primitive attribute values (`String.t()`,
-  `integer()`, etc.) are the cheapest. `[primitive()]`
-  arrays and `primitive_any()` map/list values
-  (`LogRecord.body`) carry additional allocation and
-  traversal cost at recording time, during SDK aggregation,
-  and at exporter serialization. Prefer primitives where
-  the signal permits.
+  `integer()`, etc.) are the cheapest. List values, map
+  values, and any nested composite under `primitive_any()`
+  carry additional allocation and traversal cost at recording
+  time, during SDK aggregation, and at exporter
+  serialisation. Prefer primitives where the signal permits.
 
   ## References
 
   - OTel Common §AnyValue: `opentelemetry-specification/specification/common/README.md` L39-L74
   - OTel Common §Attributes: `opentelemetry-specification/specification/common/README.md` L179-L187
+  - OTel Common §Attribute Collections: `opentelemetry-specification/specification/common/README.md` L198-L209
   - OTLP `AnyValue` proto: `opentelemetry-proto/opentelemetry/proto/common/v1/common.proto` L25-L53
+
+  ## Spec verification
+
+  Verified against `opentelemetry-specification` v1.55.0
+  (commit `9e23700`) on 2026-04-27. Re-verify after any
+  submodule advance — see `.claude/rules/workflow.md`
+  § Spec submodule update.
   """
 
   @doc """
@@ -172,7 +209,7 @@ defmodule Otel.API.Common.Types do
       defmodule MyModule do
         use Otel.API.Common.Types
 
-        @type attributes :: %{String.t() => primitive() | [primitive()]}
+        @type attributes :: %{String.t() => primitive_any()}
       end
   """
   defmacro __using__(_opts) do

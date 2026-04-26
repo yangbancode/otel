@@ -61,7 +61,7 @@ defmodule Otel.SDK.Trace.Span do
           kind: Otel.API.Trace.SpanKind.t(),
           start_time: non_neg_integer(),
           end_time: non_neg_integer() | nil,
-          attributes: %{String.t() => primitive() | [primitive()]},
+          attributes: %{String.t() => primitive_any()},
           events: [Otel.API.Trace.Event.t()],
           links: [Otel.API.Trace.Link.t()],
           status: Otel.API.Trace.Status.t(),
@@ -192,7 +192,7 @@ defmodule Otel.SDK.Trace.Span do
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           key :: String.t(),
-          value :: primitive() | [primitive()]
+          value :: primitive_any()
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{span_id: span_id}, key, value) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
@@ -215,8 +215,8 @@ defmodule Otel.SDK.Trace.Span do
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           attributes ::
-            %{String.t() => primitive() | [primitive()]}
-            | [{String.t(), primitive() | [primitive()]}]
+            %{String.t() => primitive_any()}
+            | [{String.t(), primitive_any()}]
         ) :: :ok
   def set_attributes(%Otel.API.Trace.SpanContext{span_id: span_id}, new_attributes) do
     new_attributes = to_map(new_attributes)
@@ -374,7 +374,7 @@ defmodule Otel.SDK.Trace.Span do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         ) :: :ok
   def record_exception(span_ctx, exception, stacktrace, attributes) do
     exception_attributes =
@@ -451,10 +451,10 @@ defmodule Otel.SDK.Trace.Span do
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         ) ::
-          {Otel.API.Trace.SpanContext.trace_flags(), boolean(),
-           %{String.t() => primitive() | [primitive()]}, Otel.API.Trace.TraceState.t()}
+          {Otel.API.Trace.SpanContext.trace_flags(), boolean(), %{String.t() => primitive_any()},
+           Otel.API.Trace.TraceState.t()}
   defp sample(ctx, sampler, trace_id, links, name, kind, attributes) do
     {decision, new_attributes, tracestate} =
       Otel.SDK.Trace.Sampler.should_sample(
@@ -475,10 +475,10 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   @spec merge_attributes(
-          new_attributes :: %{String.t() => primitive() | [primitive()]},
-          existing :: %{String.t() => primitive() | [primitive()]},
+          new_attributes :: %{String.t() => primitive_any()},
+          existing :: %{String.t() => primitive_any()},
           limits :: Otel.SDK.Trace.SpanLimits.t()
-        ) :: %{String.t() => primitive() | [primitive()]}
+        ) :: %{String.t() => primitive_any()}
   defp merge_attributes(new_attributes, existing, limits) do
     Enum.reduce(new_attributes, existing, fn {key, value}, acc ->
       put_attribute(
@@ -491,11 +491,11 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   @spec put_attribute(
-          attributes :: %{String.t() => primitive() | [primitive()]},
+          attributes :: %{String.t() => primitive_any()},
           key :: String.t(),
-          value :: primitive() | [primitive()],
+          value :: primitive_any(),
           count_limit :: pos_integer()
-        ) :: %{String.t() => primitive() | [primitive()]}
+        ) :: %{String.t() => primitive_any()}
   defp put_attribute(attributes, key, value, count_limit) do
     cond do
       Map.has_key?(attributes, key) -> Map.put(attributes, key, value)
@@ -531,10 +531,10 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   @spec apply_attribute_limits(
-          attributes :: %{String.t() => primitive() | [primitive()]},
+          attributes :: %{String.t() => primitive_any()},
           count_limit :: pos_integer(),
           value_length_limit :: pos_integer() | :infinity
-        ) :: %{String.t() => primitive() | [primitive()]}
+        ) :: %{String.t() => primitive_any()}
   defp apply_attribute_limits(attributes, count_limit, value_length_limit) do
     attributes
     |> Enum.take(count_limit)
@@ -544,9 +544,16 @@ defmodule Otel.SDK.Trace.Span do
     |> Map.new()
   end
 
-  @spec truncate_value(value :: primitive() | [primitive()], limit :: pos_integer() | :infinity) ::
-          primitive() | [primitive()]
+  # Spec common/README.md L260-L274 truncation rules. Recurses
+  # through nested maps and AnyValue arrays per L270-L273. The
+  # case shape mirrors `Otel.SDK.Logs.LogRecordLimits.do_truncate/2`.
+  @spec truncate_value(value :: primitive_any(), limit :: pos_integer() | :infinity) ::
+          primitive_any()
   defp truncate_value(value, :infinity), do: value
+
+  defp truncate_value({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
+    {:bytes, binary_part(bin, 0, limit)}
+  end
 
   defp truncate_value(value, limit) when is_binary(value) do
     if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
@@ -556,13 +563,17 @@ defmodule Otel.SDK.Trace.Span do
     Enum.map(value, &truncate_value(&1, limit))
   end
 
+  defp truncate_value(value, limit) when is_map(value) do
+    Map.new(value, fn {k, v} -> {k, truncate_value(v, limit)} end)
+  end
+
   defp truncate_value(value, _limit), do: value
 
   @spec to_map(
           attributes ::
-            %{String.t() => primitive() | [primitive()]}
-            | [{String.t(), primitive() | [primitive()]}]
-        ) :: %{String.t() => primitive() | [primitive()]}
+            %{String.t() => primitive_any()}
+            | [{String.t(), primitive_any()}]
+        ) :: %{String.t() => primitive_any()}
   defp to_map(attributes) when is_map(attributes), do: attributes
   defp to_map(attributes) when is_list(attributes), do: Map.new(attributes)
 

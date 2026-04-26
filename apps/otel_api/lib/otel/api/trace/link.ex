@@ -79,7 +79,7 @@ defmodule Otel.API.Trace.Link do
   """
   @type t :: %__MODULE__{
           context: Otel.API.Trace.SpanContext.t(),
-          attributes: %{String.t() => primitive() | [primitive()]}
+          attributes: %{String.t() => primitive_any()}
         }
 
   defstruct context: %Otel.API.Trace.SpanContext{}, attributes: %{}

@@ -304,7 +304,7 @@ defmodule Otel.API.Metrics.Meter do
   @spec record(
           instrument :: Otel.API.Metrics.Instrument.t(),
           value :: number(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         ) :: :ok
   def record(
         %Otel.API.Metrics.Instrument{meter: {module, _}} = instrument,
@@ -533,7 +533,7 @@ defmodule Otel.API.Metrics.Meter do
   @callback record(
               instrument :: Otel.API.Metrics.Instrument.t(),
               value :: number(),
-              attributes :: %{String.t() => primitive() | [primitive()]}
+              attributes :: %{String.t() => primitive_any()}
             ) :: :ok
 
   @doc """

@@ -78,7 +78,7 @@ defmodule Otel.API.Trace.Span do
   """
   @type start_opts :: [
           kind: Otel.API.Trace.SpanKind.t(),
-          attributes: %{String.t() => primitive() | [primitive()]},
+          attributes: %{String.t() => primitive_any()},
           links: [Otel.API.Trace.Link.t()],
           start_time: non_neg_integer(),
           is_root: boolean()
@@ -133,7 +133,7 @@ defmodule Otel.API.Trace.Span do
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           key :: String.t(),
-          value :: primitive() | [primitive()]
+          value :: primitive_any()
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{} = span_ctx, key, value) do
     get_module().set_attribute(span_ctx, key, value)
@@ -149,7 +149,7 @@ defmodule Otel.API.Trace.Span do
   """
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         ) ::
           :ok
   def set_attributes(%Otel.API.Trace.SpanContext{} = span_ctx, attributes) do
@@ -290,7 +290,7 @@ defmodule Otel.API.Trace.Span do
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           exception :: Exception.t(),
           stacktrace :: list(),
-          attributes :: %{String.t() => primitive() | [primitive()]}
+          attributes :: %{String.t() => primitive_any()}
         ) :: :ok
   def record_exception(
         %Otel.API.Trace.SpanContext{} = span_ctx,
@@ -326,7 +326,7 @@ defmodule Otel.API.Trace.Span do
   @callback set_attribute(
               span_ctx :: Otel.API.Trace.SpanContext.t(),
               key :: String.t(),
-              value :: primitive() | [primitive()]
+              value :: primitive_any()
             ) :: :ok
 
   @doc """
@@ -338,7 +338,7 @@ defmodule Otel.API.Trace.Span do
   """
   @callback set_attributes(
               span_ctx :: Otel.API.Trace.SpanContext.t(),
-              attributes :: %{String.t() => primitive() | [primitive()]}
+              attributes :: %{String.t() => primitive_any()}
             ) :: :ok
 
   @doc """
@@ -419,7 +419,7 @@ defmodule Otel.API.Trace.Span do
               span_ctx :: Otel.API.Trace.SpanContext.t(),
               exception :: Exception.t(),
               stacktrace :: list(),
-              attributes :: %{String.t() => primitive() | [primitive()]}
+              attributes :: %{String.t() => primitive_any()}
             ) :: :ok
 
   # --- SDK installation hooks ---

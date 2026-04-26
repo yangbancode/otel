@@ -16,7 +16,7 @@ defmodule Otel.SDK.Resource do
   use Otel.API.Common.Types
 
   @type t :: %__MODULE__{
-          attributes: %{String.t() => primitive() | [primitive()]},
+          attributes: %{String.t() => primitive_any()},
           schema_url: String.t()
         }
 
