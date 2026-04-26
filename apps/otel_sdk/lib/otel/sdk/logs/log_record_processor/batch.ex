@@ -59,9 +59,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     replayed in `:idle`, and each carries its own absolute
     deadline.
 
-  Supervisor `restart: :transient` means a `:normal` exit
-  from a successful `shutdown/2` does not auto-restart,
-  while crashes still do.
+  No `child_spec/1` is exposed — the LoggerProvider is the
+  only supervisor for this processor and it calls
+  `start_link/1` directly. Users who want to put the processor
+  under their own Supervisor can write a one-line spec inline.
 
   ## Drop reporting
 
@@ -275,16 +276,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   # --- gen_statem lifecycle ---
 
-  @spec child_spec(arg :: term()) :: Supervisor.child_spec()
-  def child_spec(arg) do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, [arg]},
-      type: :worker,
-      restart: :transient
-    }
-  end
-
   @spec start_link(config :: start_link_config()) :: :gen_statem.start_ret()
   def start_link(config) do
     :gen_statem.start_link(__MODULE__, config, [])
@@ -317,7 +308,15 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   @spec idle(
           event_type :: :gen_statem.event_type(),
-          event_content :: term(),
+          event_content ::
+            :idle
+            | :exporting
+            | {:add_record, Otel.SDK.Logs.LogRecord.t()}
+            | {:force_flush | :shutdown, integer() | :infinity}
+            | :export_timer
+            | :pending_deadline
+            | {:export_done, pid()}
+            | {:DOWN, reference(), :process, pid(), term()},
           state :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
   def idle(:enter, _old_state, _state), do: :keep_state_and_data
@@ -391,7 +390,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   @spec exporting(
           event_type :: :gen_statem.event_type(),
-          event_content :: term(),
+          event_content ::
+            :idle
+            | :exporting
+            | {:add_record, Otel.SDK.Logs.LogRecord.t()}
+            | {:force_flush | :shutdown, integer() | :infinity}
+            | :export_timer
+            | :export_timeout
+            | :pending_deadline
+            | {:export_done, pid()}
+            | {:DOWN, reference(), :process, pid(), term()},
           state :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
   def exporting(:enter, _old_state, state) do
