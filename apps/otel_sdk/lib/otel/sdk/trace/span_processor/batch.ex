@@ -53,14 +53,14 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
 
   # --- GenServer ---
 
-  @spec start_link(config :: map()) :: GenServer.on_start()
+  @spec start_link(config :: Otel.SDK.Trace.SpanProcessor.config()) :: GenServer.on_start()
   def start_link(config) do
     name = Map.get(config, :name, __MODULE__)
     GenServer.start_link(__MODULE__, config, name: name)
   end
 
   @impl GenServer
-  @spec init(config :: map()) :: {:ok, map()}
+  @spec init(config :: Otel.SDK.Trace.SpanProcessor.config()) :: {:ok, map()}
   def init(config) do
     {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
 

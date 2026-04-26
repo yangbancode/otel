@@ -18,7 +18,7 @@ defmodule Otel.SDK.Trace.SpanExporter.Console do
 
   @spec export(
           spans :: [Otel.SDK.Trace.Span.t()],
-          resource :: map(),
+          resource :: Otel.SDK.Resource.t(),
           state :: Otel.SDK.Trace.SpanExporter.state()
         ) :: :ok | :error
   @impl true
@@ -36,16 +36,13 @@ defmodule Otel.SDK.Trace.SpanExporter.Console do
 
   @spec format_span(span :: Otel.SDK.Trace.Span.t()) :: String.t()
   defp format_span(span) do
-    trace_id =
-      span.trace_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(32, "0")
-
-    span_id =
-      span.span_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(16, "0")
+    trace_id = Otel.API.Trace.TraceId.to_hex(span.trace_id)
+    span_id = Otel.API.Trace.SpanId.to_hex(span.span_id)
 
     parent =
       case span.parent_span_id do
         nil -> "none"
-        id -> id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(16, "0")
+        id -> Otel.API.Trace.SpanId.to_hex(id)
       end
 
     "[otel] #{span.name} trace_id=#{trace_id} span_id=#{span_id} parent=#{parent} kind=#{span.kind} status=#{inspect(span.status)} attributes=#{inspect(span.attributes)}"
