@@ -192,7 +192,7 @@ defmodule Otel.SDK.Trace.Span do
   @spec set_attribute(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           key :: String.t(),
-          value :: term()
+          value :: primitive() | [primitive()]
         ) :: :ok
   def set_attribute(%Otel.API.Trace.SpanContext{span_id: span_id}, key, value) do
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
@@ -214,7 +214,9 @@ defmodule Otel.SDK.Trace.Span do
   @impl true
   @spec set_attributes(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
-          attributes :: map() | [{String.t(), term()}]
+          attributes ::
+            %{String.t() => primitive() | [primitive()]}
+            | [{String.t(), primitive() | [primitive()]}]
         ) :: :ok
   def set_attributes(%Otel.API.Trace.SpanContext{span_id: span_id}, new_attributes) do
     new_attributes = to_map(new_attributes)
@@ -449,8 +451,10 @@ defmodule Otel.SDK.Trace.Span do
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map()
-        ) :: {non_neg_integer(), boolean(), map(), Otel.API.Trace.TraceState.t()}
+          attributes :: %{String.t() => primitive() | [primitive()]}
+        ) ::
+          {Otel.API.Trace.SpanContext.trace_flags(), boolean(),
+           %{String.t() => primitive() | [primitive()]}, Otel.API.Trace.TraceState.t()}
   defp sample(ctx, sampler, trace_id, links, name, kind, attributes) do
     {decision, new_attributes, tracestate} =
       Otel.SDK.Trace.Sampler.should_sample(
@@ -471,10 +475,10 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   @spec merge_attributes(
-          new_attributes :: map(),
-          existing :: map(),
+          new_attributes :: %{String.t() => primitive() | [primitive()]},
+          existing :: %{String.t() => primitive() | [primitive()]},
           limits :: Otel.SDK.Trace.SpanLimits.t()
-        ) :: map()
+        ) :: %{String.t() => primitive() | [primitive()]}
   defp merge_attributes(new_attributes, existing, limits) do
     Enum.reduce(new_attributes, existing, fn {key, value}, acc ->
       put_attribute(
@@ -487,11 +491,11 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   @spec put_attribute(
-          attributes :: map(),
+          attributes :: %{String.t() => primitive() | [primitive()]},
           key :: String.t(),
-          value :: term(),
+          value :: primitive() | [primitive()],
           count_limit :: pos_integer()
-        ) :: map()
+        ) :: %{String.t() => primitive() | [primitive()]}
   defp put_attribute(attributes, key, value, count_limit) do
     cond do
       Map.has_key?(attributes, key) -> Map.put(attributes, key, value)
@@ -518,7 +522,7 @@ defmodule Otel.SDK.Trace.Span do
 
   @spec run_on_end(
           span :: t(),
-          processors :: [{module(), term()}]
+          processors :: [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
         ) :: :ok
   defp run_on_end(span, processors) do
     Enum.each(processors, fn {processor, processor_config} ->
@@ -527,10 +531,10 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   @spec apply_attribute_limits(
-          attributes :: map(),
+          attributes :: %{String.t() => primitive() | [primitive()]},
           count_limit :: pos_integer(),
           value_length_limit :: pos_integer() | :infinity
-        ) :: map()
+        ) :: %{String.t() => primitive() | [primitive()]}
   defp apply_attribute_limits(attributes, count_limit, value_length_limit) do
     attributes
     |> Enum.take(count_limit)
@@ -540,7 +544,8 @@ defmodule Otel.SDK.Trace.Span do
     |> Map.new()
   end
 
-  @spec truncate_value(value :: term(), limit :: pos_integer() | :infinity) :: term()
+  @spec truncate_value(value :: primitive() | [primitive()], limit :: pos_integer() | :infinity) ::
+          primitive() | [primitive()]
   defp truncate_value(value, :infinity), do: value
 
   defp truncate_value(value, limit) when is_binary(value) do
@@ -553,7 +558,11 @@ defmodule Otel.SDK.Trace.Span do
 
   defp truncate_value(value, _limit), do: value
 
-  @spec to_map(attributes :: map() | [{String.t(), term()}]) :: map()
+  @spec to_map(
+          attributes ::
+            %{String.t() => primitive() | [primitive()]}
+            | [{String.t(), primitive() | [primitive()]}]
+        ) :: %{String.t() => primitive() | [primitive()]}
   defp to_map(attributes) when is_map(attributes), do: attributes
   defp to_map(attributes) when is_list(attributes), do: Map.new(attributes)
 
