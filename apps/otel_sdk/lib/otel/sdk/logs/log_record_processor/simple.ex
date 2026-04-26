@@ -27,16 +27,24 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   via the `%{pid: pid}` config. The gen_statem is therefore
   unregistered (no atom name) — PIDs are first-class.
 
-  ## Synchronous emit trade-off
+  ## Non-blocking emit
 
-  Spec §LogRecordProcessor L397 says *"OnEmit ... SHOULD NOT
-  block or throw exceptions"*, but §Simple processor L516-L519
-  mandates *"as soon as they are finished"* synchronous export.
-  The Simple processor takes the trade-off explicitly:
-  `on_emit/3` blocks the calling process via
-  `:gen_statem.call/2` until the exporter returns. Use
-  `Otel.SDK.Logs.LogRecordProcessor.Batch` when non-blocking
-  emit is required.
+  `on_emit/3` is non-blocking per spec §LogRecordProcessor
+  L394-L396 — *"called synchronously on the thread that
+  emitted the LogRecord, therefore it SHOULD NOT block or
+  throw exceptions"*. The processor uses `:gen_statem.cast/2`
+  to enqueue the record and returns immediately; the
+  gen_statem then runs the exporter's `export/2` in its own
+  process. This satisfies §Simple processor L515-L518 (*"as
+  soon as they are finished"* — no batching) together with
+  L521-L522 (*"MUST synchronize calls to LogRecordExporter's
+  Export to make sure that they are not invoked concurrently"*).
+
+  Diverges from
+  `opentelemetry-erlang/apps/opentelemetry/src/otel_simple_processor.erl`,
+  which uses `gen_statem:call` (blocks the emit thread, violating
+  spec L394-L396). We follow spec per the project's
+  spec-over-erlang rule.
 
   ## State model and shutdown
 
@@ -50,12 +58,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   *"Shutdown MUST include the effects of ForceFlush"*) and
   then exits the process cleanly.
 
-  Late-arriving requests after termination — `on_emit/3`,
-  `force_flush/2`, or a second `shutdown/2` — fail the
-  underlying `:gen_statem.call/2` with `:exit, {:noproc, _}`.
-  Each behaviour callback catches that and returns `:ok`,
-  satisfying spec §LogRecordProcessor L463 *"SDKs SHOULD
-  ignore these calls gracefully"*.
+  Late-arriving `on_emit/3` after termination is silently
+  dropped — `:gen_statem.cast/2` to a dead pid is dead-lettered
+  and returns `:ok`. Late `force_flush/2` or a second
+  `shutdown/2` still go through `:gen_statem.call` /
+  `:gen_statem.stop`, so they catch `:exit, {:noproc, _}` /
+  `:exit, :noproc` and return `:ok`. All three satisfy spec
+  §LogRecordProcessor L462-L464 *"SDKs SHOULD ignore these
+  calls gracefully"*.
 
   Supervisor `restart: :transient` ensures the process is
   not restarted after a `:normal` (shutdown-initiated) or
@@ -101,21 +111,23 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   """
   @type start_link_config :: %{required(:exporter) => {module(), term()}}
 
-  # Default timeout for `force_flush/2` and `shutdown/2`. Matches
-  # spec `OTEL_BLRP_EXPORT_TIMEOUT` default (30000ms) — Simple's
-  # cleanup ultimately invokes the exporter's `force_flush/1` +
-  # `shutdown/1`, both bounded by this same per-export budget.
+  # Default timeout for `force_flush/2` and `shutdown/2` (30000ms).
+  # Same value as Batch's `exportTimeoutMillis` default — a
+  # reasonable upper bound for the exporter's own `force_flush/1`
+  # + `shutdown/1`, the slowest path during processor cleanup.
   @default_force_flush_timeout_ms 30_000
   @default_shutdown_timeout_ms 30_000
 
   # --- LogRecordProcessor callbacks ---
 
   @doc """
-  **SDK** (Simple implementation) — Hand the emitted record to
-  the gen_statem for serialised export
-  (`logs/sdk.md` §Simple processor L516-L519). Returns `:ok`
-  silently when the gen_statem has already terminated, per
-  spec L463.
+  **SDK** (Simple implementation) — Cast the emitted record
+  to the gen_statem for serialised export, satisfying spec
+  §LogRecordProcessor L394-L396 (*"SHOULD NOT block"*) and
+  §Simple processor L521-L522 (*"MUST synchronize calls to
+  LogRecordExporter's Export"*). Returns `:ok` immediately;
+  late casts after termination are silently dead-lettered, per
+  spec L462-L464.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec on_emit(
@@ -124,12 +136,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: :ok
   def on_emit(log_record, _ctx, %{pid: pid}) do
-    :gen_statem.call(pid, {:export, log_record})
-  catch
-    # `:gen_statem.call/2,3` (via `:gen.do_call/4`) wraps the
-    # noproc exit with an MFA tuple — different from
-    # `:gen_statem.stop/3` which raises bare `:noproc`.
-    :exit, {:noproc, _} -> :ok
+    :gen_statem.cast(pid, {:export, log_record})
   end
 
   @doc """
@@ -151,11 +158,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   callback runs the exporter's `force_flush/1` then
   `shutdown/1` (spec L469) before the process exits.
 
-  `timeout` (default 30_000ms, matching spec
-  `OTEL_BLRP_EXPORT_TIMEOUT`) bounds the wait for terminate
+  `timeout` (default 30_000ms) bounds the wait for terminate
   to complete. Returns `{:error, :timeout}` if exceeded,
-  per spec L161-L162 / L487-L491. Returns `:ok` silently when
-  the gen_statem has already terminated, per spec L463
+  per spec L466-L467 / L487-L491. Returns `:ok` silently when
+  the gen_statem has already terminated, per spec L462-L464
   (covers idempotent re-entry from a duplicate `shutdown/2`).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
@@ -175,16 +181,17 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   @doc """
   **SDK** (Simple implementation) — Forwards `force_flush/1`
-  to the configured exporter. The processor itself has no
-  buffer (synchronous emit), but spec §LogRecordProcessor
-  L484-L486 makes it a built-in MUST to *"invoke ForceFlush
-  on [the exporter]"* — the exporter may have its own
-  buffering (HTTP keep-alive batching, OS write buffers, etc.).
+  to the configured exporter. The processor itself buffers
+  nothing beyond the gen_statem mailbox (each cast immediately
+  triggers an export), but spec §LogRecordProcessor L484-L486
+  makes it a built-in MUST to *"invoke ForceFlush on [the
+  exporter]"* — the exporter may have its own buffering (HTTP
+  keep-alive batching, OS write buffers, etc.).
 
   `timeout` (default 30_000ms) bounds the call. Returns
-  `{:error, :timeout}` if exceeded, per spec L161-L162 /
+  `{:error, :timeout}` if exceeded, per spec L492-L493 /
   L487-L491. Returns `:ok` silently when the gen_statem has
-  already terminated, per spec L463.
+  already terminated, per spec L462-L464.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(
@@ -238,13 +245,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
           event_content :: term(),
           state :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
-  def running(
-        {:call, from},
-        {:export, log_record},
-        %State{exporter: {module, exporter_state}} = state
-      ) do
+  def running(:cast, {:export, log_record}, %State{exporter: {module, exporter_state}} = state) do
     module.export([log_record], exporter_state)
-    {:keep_state, state, [{:reply, from, :ok}]}
+    {:keep_state, state}
   end
 
   def running({:call, from}, :force_flush, %State{exporter: {module, exporter_state}} = state) do

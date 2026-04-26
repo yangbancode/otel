@@ -54,6 +54,17 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   from a successful `shutdown/2` does not auto-restart,
   while crashes still do.
 
+  ## Design notes
+
+  `force_flush/2` and `shutdown/2` use `:gen_statem.call` (not
+  `:cast`) to surface the result back to the caller. Spec
+  §LogRecordProcessor L466-L467 / L492-L493 SHOULD provide a
+  way to let the caller know whether the call succeeded,
+  failed, or timed out. The erlang reference uses
+  `gen_statem:cast` for `force_flush` (`otel_batch_processor.erl`),
+  which silently drops the result and violates the SHOULD —
+  we follow spec.
+
   ## Public API
 
   | Function | Role |
@@ -144,9 +155,11 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   @doc """
   **SDK** (Batch implementation) — Enqueue the record via
   `:gen_statem.cast/2` (non-blocking, per spec
-  §LogRecordProcessor L397 *"OnEmit ... SHOULD NOT block"*).
-  Triggers an immediate transition to `:exporting` when the
-  queue reaches `max_export_batch_size`.
+  §LogRecordProcessor L394-L396 *"called synchronously on the
+  thread that emitted the LogRecord, therefore it SHOULD NOT
+  block or throw exceptions"*). Triggers an immediate
+  transition to `:exporting` when the queue reaches
+  `max_export_batch_size`.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec on_emit(
@@ -162,7 +175,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   @doc """
   **SDK** (Batch implementation) — Always returns `true`; the
   Batch processor has no filtering policy of its own
-  (`logs/sdk.md` §LogRecordProcessor L420 *"MAY"*).
+  (`logs/sdk.md` §LogRecordProcessor L420 *"MAY implement"*).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec enabled?(
@@ -179,11 +192,11 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   `timeout` (default 30_000ms, matching spec
   `OTEL_BLRP_EXPORT_TIMEOUT`) bounds the call. Returns
-  `{:error, :timeout}` if exceeded, per spec L161-L162 /
+  `{:error, :timeout}` if exceeded, per spec L466-L467 /
   L487-L491. Returns `:ok` silently when the gen_statem has
-  already terminated, per spec §LogRecordProcessor L463 *"SDKs
-  SHOULD ignore these calls gracefully"* (covers idempotent
-  re-entry from a duplicate `shutdown/2`).
+  already terminated, per spec §LogRecordProcessor L462-L464
+  *"SDKs SHOULD ignore these calls gracefully"* (covers
+  idempotent re-entry from a duplicate `shutdown/2`).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(
@@ -205,9 +218,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   runner completes.
 
   `timeout` (default 30_000ms) bounds the call. Returns
-  `{:error, :timeout}` if exceeded, per spec L161-L162 /
+  `{:error, :timeout}` if exceeded, per spec L492-L493 /
   L487-L491. Returns `:ok` silently when the gen_statem has
-  already terminated, per spec L463.
+  already terminated, per spec L462-L464.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(
