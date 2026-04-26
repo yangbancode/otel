@@ -68,6 +68,32 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @behaviour :gen_statem
   @behaviour Otel.SDK.Logs.LogRecordProcessor
 
+  defmodule State do
+    @moduledoc false
+
+    @typedoc false
+    @type t :: %__MODULE__{
+            exporter: {module(), Otel.SDK.Logs.LogRecordExporter.state()} | nil
+          }
+    defstruct [:exporter]
+  end
+
+  @typedoc """
+  `start_link/1` configuration map.
+
+  - `:exporter` (**required**) — `{module, opts}` where `module`
+    implements `Otel.SDK.Logs.LogRecordExporter` and `opts` is
+    passed to `module.init/1` once at startup.
+  - `:name` (**optional**) — the registered atom for the
+    gen_statem. Defaults to `__MODULE__`. Provide a unique name
+    to run multiple Simple processors with different exporters
+    in the same BEAM node.
+  """
+  @type start_link_config :: %{
+          required(:exporter) => {module(), term()},
+          optional(:name) => atom()
+        }
+
   # --- LogRecordProcessor callbacks ---
 
   @doc """
@@ -139,7 +165,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
     }
   end
 
-  @spec start_link(config :: map()) :: :gen_statem.start_ret()
+  @spec start_link(config :: start_link_config()) :: :gen_statem.start_ret()
   def start_link(config) do
     name = Map.get(config, :name, __MODULE__)
     :gen_statem.start_link({:local, name}, __MODULE__, config, [])
@@ -150,11 +176,11 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   def callback_mode, do: :state_functions
 
   @impl :gen_statem
-  @spec init(config :: map()) :: {:ok, :running, map()}
+  @spec init(config :: start_link_config()) :: {:ok, :running, State.t()}
   def init(config) do
     {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
     exporter = init_exporter(exporter_module, exporter_opts)
-    {:ok, :running, %{exporter: exporter}}
+    {:ok, :running, %State{exporter: exporter}}
   end
 
   # --- State: :running ---
@@ -162,41 +188,41 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @spec running(
           event_type :: :gen_statem.event_type(),
           event_content :: term(),
-          data :: map()
-        ) :: :gen_statem.event_handler_result(map())
-  def running({:call, from}, {:export, _log_record}, %{exporter: nil} = data) do
+          data :: State.t()
+        ) :: :gen_statem.event_handler_result(State.t())
+  def running({:call, from}, {:export, _log_record}, %State{exporter: nil} = data) do
     {:keep_state, data, [{:reply, from, :ok}]}
   end
 
   def running(
         {:call, from},
         {:export, log_record},
-        %{exporter: {module, exporter_state}} = data
+        %State{exporter: {module, exporter_state}} = data
       ) do
     module.export([log_record], exporter_state)
     {:keep_state, data, [{:reply, from, :ok}]}
   end
 
-  def running({:call, from}, :force_flush, %{exporter: nil} = data) do
+  def running({:call, from}, :force_flush, %State{exporter: nil} = data) do
     {:keep_state, data, [{:reply, from, :ok}]}
   end
 
-  def running({:call, from}, :force_flush, %{exporter: {module, exporter_state}} = data) do
+  def running({:call, from}, :force_flush, %State{exporter: {module, exporter_state}} = data) do
     result = module.force_flush(exporter_state)
     {:keep_state, data, [{:reply, from, result}]}
   end
 
-  def running({:call, from}, :shutdown, %{exporter: nil} = data) do
+  def running({:call, from}, :shutdown, %State{exporter: nil} = data) do
     {:next_state, :shut_down, data, [{:reply, from, :ok}]}
   end
 
-  def running({:call, from}, :shutdown, %{exporter: {module, exporter_state}} = data) do
+  def running({:call, from}, :shutdown, %State{exporter: {module, exporter_state}} = data) do
     # Spec §LogRecordProcessor L469: "Shutdown MUST include the
     # effects of ForceFlush" — flush exporter buffers before
     # tearing it down.
     module.force_flush(exporter_state)
     module.shutdown(exporter_state)
-    {:next_state, :shut_down, %{data | exporter: nil}, [{:reply, from, :ok}]}
+    {:next_state, :shut_down, %State{data | exporter: nil}, [{:reply, from, :ok}]}
   end
 
   # --- State: :shut_down ---
@@ -204,17 +230,17 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @spec shut_down(
           event_type :: :gen_statem.event_type(),
           event_content :: term(),
-          data :: map()
-        ) :: :gen_statem.event_handler_result(map())
-  def shut_down({:call, from}, {:export, _log_record}, data) do
+          data :: State.t()
+        ) :: :gen_statem.event_handler_result(State.t())
+  def shut_down({:call, from}, {:export, _log_record}, %State{} = data) do
     {:keep_state, data, [{:reply, from, :ok}]}
   end
 
-  def shut_down({:call, from}, :force_flush, data) do
+  def shut_down({:call, from}, :force_flush, %State{} = data) do
     {:keep_state, data, [{:reply, from, :ok}]}
   end
 
-  def shut_down({:call, from}, :shutdown, data) do
+  def shut_down({:call, from}, :shutdown, %State{} = data) do
     {:keep_state, data, [{:reply, from, {:error, :already_shut_down}}]}
   end
 
