@@ -20,7 +20,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
   Single line per record, prefixed with `[otel]`:
 
-      [otel] <severity> [scope=<name> ][trace=<hex> span=<hex> ]body=<inspect> attributes=<inspect>
+      [otel] <severity> [scope=<name> ]trace=<hex> span=<hex> body=<inspect> attributes=<inspect>
 
   - **severity** — combined display per `data-model.md`
     §Displaying Severity L365-L372: short name derived from
@@ -35,11 +35,12 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
     debug exporter benefits from preserving the source signal
     rather than fabricating a level.
   - **scope** — emitted only when `scope.name` is non-empty.
-  - **trace context** — emitted only when both `trace_id` and
-    `span_id` are valid (`Otel.API.Trace.TraceId.valid?/1` and
-    `Otel.API.Trace.SpanId.valid?/1`). When no Context is
-    active, `Otel.SDK.Logs.LogRecord` defaults both to the
-    invalid sentinel and the trace context is omitted.
+  - **trace context** — always rendered as 32-hex `trace_id`
+    and 16-hex `span_id`. When no Context is active,
+    `Otel.SDK.Logs.LogRecord` defaults both to the all-zeros
+    invalid sentinel; the field is still emitted so the
+    absence is visible at a glance, matching
+    `Otel.SDK.Trace.SpanExporter.Console`.
 
   ## Public API
 
@@ -137,10 +138,6 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
   @spec format_trace(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_trace(%{trace_id: trace_id, span_id: span_id}) do
-    if Otel.API.Trace.TraceId.valid?(trace_id) and Otel.API.Trace.SpanId.valid?(span_id) do
-      "trace=#{Otel.API.Trace.TraceId.to_hex(trace_id)} span=#{Otel.API.Trace.SpanId.to_hex(span_id)} "
-    else
-      ""
-    end
+    "trace=#{Otel.API.Trace.TraceId.to_hex(trace_id)} span=#{Otel.API.Trace.SpanId.to_hex(span_id)} "
   end
 end

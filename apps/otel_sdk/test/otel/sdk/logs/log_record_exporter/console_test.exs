@@ -136,7 +136,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
       end
     end
 
-    test "includes trace context when present" do
+    test "renders trace context hex when present" do
       record = %{
         @record
         | trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
@@ -148,17 +148,18 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
           Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
         end)
 
-      assert output =~ "trace="
-      assert output =~ "span="
+      assert output =~ "trace=0af7651916cd43dd8448eb211c80319c"
+      assert output =~ "span=b7ad6b7169203331"
     end
 
-    test "omits trace context when zero" do
+    test "renders all-zeros trace context when no Context is active" do
       output =
         capture_io(fn ->
           Otel.SDK.Logs.LogRecordExporter.Console.export([@record], %{})
         end)
 
-      refute output =~ "trace="
+      assert output =~ "trace=00000000000000000000000000000000"
+      assert output =~ "span=0000000000000000"
     end
 
     test "omits scope when name is empty" do
