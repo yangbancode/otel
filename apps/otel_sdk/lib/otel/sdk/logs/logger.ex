@@ -79,7 +79,8 @@ defmodule Otel.SDK.Logs.Logger do
     end
   end
 
-  @spec get_processors(config :: map()) :: [{module(), map()}]
+  @spec get_processors(config :: map()) ::
+          [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
   defp get_processors(config) do
     :persistent_term.get(config.processors_key, [])
   end
@@ -161,7 +162,8 @@ defmodule Otel.SDK.Logs.Logger do
   defp apply_exception_attributes(%Otel.API.Logs.LogRecord{} = log_record), do: log_record
 
   @spec extract_trace_context(ctx :: Otel.API.Ctx.t()) ::
-          {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(), non_neg_integer()}
+          {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(),
+           Otel.API.Trace.SpanContext.trace_flags()}
   defp extract_trace_context(ctx) do
     %Otel.API.Trace.SpanContext{
       trace_id: trace_id,
