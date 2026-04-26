@@ -94,7 +94,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       assert_receive :exporter_shutdown
     end
 
-    test "second shutdown returns error" do
+    test "second shutdown is a graceful no-op" do
       {:ok, _pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
           exporter: {TestExporter, %{test_pid: self()}},
@@ -104,8 +104,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       config = %{reg_name: :simple_double_shutdown}
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
 
-      assert {:error, :already_shut_down} ==
-               Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
+      # Process is gone; spec L463 — caller-side graceful ignore.
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
     end
 
     test "emit after shutdown is no-op" do
