@@ -66,6 +66,11 @@ defmodule Otel.SDK.Logs.Logger do
         ) :: boolean()
   def enabled?({_module, config}, opts) do
     processors = get_processors(config)
+    # The API dispatcher always injects `:ctx`, but a direct SDK
+    # caller may omit it. Mirror the API's fallback to the current
+    # Context so the processor's `enabled?/4` always sees a valid
+    # ctx (spec §LogRecordProcessor L423-L426).
+    {ctx, processor_opts} = Keyword.pop_lazy(opts, :ctx, &Otel.API.Ctx.current/0)
 
     case processors do
       [] ->
@@ -73,8 +78,8 @@ defmodule Otel.SDK.Logs.Logger do
 
       _ ->
         not Enum.all?(processors, fn {processor, processor_config} ->
-          function_exported?(processor, :enabled?, 3) and
-            not processor.enabled?(opts, config.scope, processor_config)
+          function_exported?(processor, :enabled?, 4) and
+            not processor.enabled?(ctx, config.scope, processor_opts, processor_config)
         end)
     end
   end

@@ -82,9 +82,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
     end
   end
 
-  describe "enabled?/2" do
+  describe "enabled?/4" do
     test "returns true" do
-      assert Otel.SDK.Logs.LogRecordProcessor.Simple.enabled?([], %{}, %{})
+      assert Otel.SDK.Logs.LogRecordProcessor.Simple.enabled?(%{}, %{}, [], %{})
     end
   end
 

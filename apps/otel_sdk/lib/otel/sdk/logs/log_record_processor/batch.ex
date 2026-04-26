@@ -208,11 +208,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec enabled?(
-          opts :: Otel.API.Logs.Logger.enabled_opts(),
+          ctx :: Otel.API.Ctx.t(),
           scope :: Otel.API.InstrumentationScope.t(),
+          opts :: Otel.SDK.Logs.LogRecordProcessor.enabled_opts(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: boolean()
-  def enabled?(_opts, _scope, _config), do: true
+  def enabled?(_ctx, _scope, _opts, _config), do: true
 
   @doc """
   **SDK** (Batch implementation) — Drain the queue, invoke the

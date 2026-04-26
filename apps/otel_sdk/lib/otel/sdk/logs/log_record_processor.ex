@@ -16,6 +16,23 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
 
   @type config :: term()
 
+  @typedoc """
+  Subset of `Otel.API.Logs.Logger.enabled_opts/0` excluding
+  `:ctx`. Spec §LogRecordProcessor L423-L426 lists the four
+  `Enabled` parameters (Context, Instrumentation Scope, Severity
+  Number, Event Name) as separate inputs, so this layer surfaces
+  Context as the first argument of `enabled?/4` and keeps the
+  remaining caller-supplied keys here.
+
+  The SDK Logger pops `:ctx` out of the API-level
+  `enabled_opts/0` before invoking `enabled?/4`, so processor
+  implementations only ever see this subset.
+  """
+  @type enabled_opts :: [
+          {:severity_number, Otel.API.Logs.severity_number()}
+          | {:event_name, String.t()}
+        ]
+
   @doc """
   Called when a log record is emitted (spec L393-L416).
 
@@ -38,26 +55,33 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   Spec L420 — *"Enabled is an operation that a LogRecordProcessor
   MAY implement"*. Marked optional via `@optional_callbacks`
   below; the SDK Logger guards each delegation with
-  `function_exported?/3` so processors that omit `enabled?/3`
+  `function_exported?/4` so processors that omit `enabled?/4`
   pass through transparently.
 
-  Modifications to parameters inside `enabled?/3` MUST NOT be
+  Modifications to parameters inside `enabled?/4` MUST NOT be
   propagated to the caller (spec L439-L440).
 
-  - `opts` — `Otel.API.Logs.Logger.enabled_opts/0`, the
-    spec-defined keyword list with `:ctx`, `:severity_number`,
-    `:event_name` (`logs/api.md` L137-L142).
-  - `scope` — the Instrumentation Scope associated with the
-    Logger (spec L427-L428). Supplied by the SDK Logger when
-    delegating; the API caller never sees scope directly.
+  Spec L423-L426 lists the four parameters explicitly:
+
+  - `ctx` — the resolved `Otel.API.Ctx.t/0` (the explicitly
+    passed Context or the current Context). The SDK Logger
+    pops it out of the API `enabled_opts/0` and passes it as
+    the first argument so the type system enforces presence.
+  - `scope` — the `Otel.API.InstrumentationScope.t/0`
+    associated with the Logger. Supplied by the SDK Logger
+    when delegating; the API caller never sees scope directly.
+  - `opts` — `enabled_opts/0`, the remaining caller-supplied
+    keys (`:severity_number`, `:event_name`).
+  - `config` — the processor's own per-instance config.
   """
   @callback enabled?(
-              opts :: Otel.API.Logs.Logger.enabled_opts(),
+              ctx :: Otel.API.Ctx.t(),
               scope :: Otel.API.InstrumentationScope.t(),
+              opts :: enabled_opts(),
               config :: config()
             ) :: boolean()
 
-  @optional_callbacks enabled?: 3
+  @optional_callbacks enabled?: 4
 
   @doc """
   Shuts down the processor (spec L457-L474). MUST include the
