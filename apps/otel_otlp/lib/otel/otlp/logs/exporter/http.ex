@@ -34,7 +34,7 @@ defmodule Otel.OTLP.Logs.Exporter.HTTP do
   @user_agent "OTel-OTLP-Exporter-Elixir/0.1.0"
 
   @impl true
-  @spec init(config :: term()) :: {:ok, Otel.SDK.Logs.LogRecordExporter.state()} | :ignore
+  @spec init(config :: term()) :: {:ok, Otel.SDK.Logs.LogRecordExporter.state()}
   def init(config) do
     :inets.start()
 

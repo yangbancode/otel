@@ -73,7 +73,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
     @typedoc false
     @type t :: %__MODULE__{
-            exporter: {module(), Otel.SDK.Logs.LogRecordExporter.state()} | nil
+            exporter: {module(), Otel.SDK.Logs.LogRecordExporter.state()}
           }
     defstruct [:exporter]
   end
@@ -190,10 +190,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
           event_content :: term(),
           data :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
-  def running({:call, from}, {:export, _log_record}, %State{exporter: nil} = data) do
-    {:keep_state, data, [{:reply, from, :ok}]}
-  end
-
   def running(
         {:call, from},
         {:export, log_record},
@@ -203,17 +199,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
     {:keep_state, data, [{:reply, from, :ok}]}
   end
 
-  def running({:call, from}, :force_flush, %State{exporter: nil} = data) do
-    {:keep_state, data, [{:reply, from, :ok}]}
-  end
-
   def running({:call, from}, :force_flush, %State{exporter: {module, exporter_state}} = data) do
     result = module.force_flush(exporter_state)
     {:keep_state, data, [{:reply, from, result}]}
-  end
-
-  def running({:call, from}, :shutdown, %State{exporter: nil} = data) do
-    {:next_state, :shut_down, data, [{:reply, from, :ok}]}
   end
 
   def running({:call, from}, :shutdown, %State{exporter: {module, exporter_state}} = data) do
@@ -222,7 +210,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
     # tearing it down.
     module.force_flush(exporter_state)
     module.shutdown(exporter_state)
-    {:next_state, :shut_down, %State{data | exporter: nil}, [{:reply, from, :ok}]}
+    {:next_state, :shut_down, data, [{:reply, from, :ok}]}
   end
 
   # --- State: :shut_down ---
@@ -247,11 +235,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   # --- Private ---
 
   @spec init_exporter(module :: module(), opts :: term()) ::
-          {module(), Otel.SDK.Logs.LogRecordExporter.state()} | nil
+          {module(), Otel.SDK.Logs.LogRecordExporter.state()}
   defp init_exporter(module, opts) do
-    case module.init(opts) do
-      {:ok, state} -> {module, state}
-      :ignore -> nil
-    end
+    {:ok, state} = module.init(opts)
+    {module, state}
   end
 end

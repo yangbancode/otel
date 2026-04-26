@@ -30,7 +30,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter do
 
   ## Design notes
 
-  Three deliberate divergences from
+  Four deliberate divergences from
   `references/opentelemetry-erlang/apps/opentelemetry_experimental/src/otel_exporter_logs.erl`:
 
   1. **`force_flush/1` callback present** — erlang's
@@ -53,6 +53,18 @@ defmodule Otel.SDK.Logs.LogRecordExporter do
      processor doesn't dispatch on result). We use `:ok | :error`
      to match spec semantics; richer retry classification stays
      internal to each exporter implementation.
+  4. **No `:ignore` from `init/1`** — erlang's
+     `otel_exporter_logs.erl` allows `init/1` to return
+     `ignore`, which the owning processor maps to a
+     silently-dropping no-op exporter. The OTel spec defines
+     no such mechanism, and `code-conventions.md`
+     §"Happy path only" rules out this kind of third-rail
+     branch (neither success nor failure). Soft-disable
+     belongs at the supervision/config layer — *omit the
+     exporter from the processor list when disabled*, rather
+     than letting the exporter return a "drop everything"
+     signal at runtime. Real `init/1` failures `raise`
+     instead, surfacing immediately via the supervisor.
 
   ## References
 
@@ -71,14 +83,14 @@ defmodule Otel.SDK.Logs.LogRecordExporter do
   @doc """
   **SDK** (SDK lifecycle) — Initializes the exporter from the
   caller-supplied config and returns the implementer-owned
-  `state` to thread through subsequent calls. Returning
-  `:ignore` causes the owning processor to drop log records
-  silently (used when an exporter is configured but disabled).
+  `state` to thread through subsequent calls.
 
-  Not in the spec (lifecycle is language-specific); mirrors
-  the erlang reference `init/1` callback shape.
+  Not in the spec (lifecycle is language-specific). Diverges
+  from the erlang reference `init/1` (which also allows
+  `:ignore`) — see the `## Design notes` section below for
+  the rationale.
   """
-  @callback init(config :: term()) :: {:ok, state()} | :ignore
+  @callback init(config :: term()) :: {:ok, state()}
 
   @doc """
   **SDK** (OTel API MUST) — "Export" (`logs/sdk.md` L566-L612).

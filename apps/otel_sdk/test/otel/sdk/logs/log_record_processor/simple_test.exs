@@ -27,23 +27,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
     end
   end
 
-  defmodule IgnoredExporter do
-    @moduledoc false
-    @behaviour Otel.SDK.Logs.LogRecordExporter
-
-    @impl true
-    def init(_config), do: :ignore
-
-    @impl true
-    def export(_log_records, _config), do: :ok
-
-    @impl true
-    def force_flush(_config), do: :ok
-
-    @impl true
-    def shutdown(_config), do: :ok
-  end
-
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
@@ -56,17 +39,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
           exporter: {TestExporter, %{test_pid: self()}},
           name: :simple_init_test
-        })
-
-      assert Process.alive?(pid)
-      :gen_statem.stop(pid)
-    end
-
-    test "starts with ignored exporter" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {IgnoredExporter, %{}},
-          name: :simple_ignore_test
         })
 
       assert Process.alive?(pid)
@@ -87,23 +59,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
 
       Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(log_record, %{}, config)
       assert_receive {:exported, [^log_record]}
-    end
-
-    test "no-op when exporter is ignored" do
-      {:ok, _pid} =
-        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {IgnoredExporter, %{}},
-          name: :simple_noop_test
-        })
-
-      config = %{reg_name: :simple_noop_test}
-
-      assert :ok ==
-               Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(
-                 %Otel.SDK.Logs.LogRecord{body: "test"},
-                 %{},
-                 config
-               )
     end
   end
 
@@ -137,17 +92,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
       assert_receive :exporter_force_flush
       assert_receive :exporter_shutdown
-    end
-
-    test "shutdown of ignored exporter returns :ok" do
-      {:ok, _pid} =
-        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {IgnoredExporter, %{}},
-          name: :simple_shutdown_ignored_test
-        })
-
-      config = %{reg_name: :simple_shutdown_ignored_test}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
     end
 
     test "second shutdown returns error" do
@@ -196,17 +140,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       config = %{reg_name: :simple_force_flush_test}
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(config)
       assert_receive :exporter_force_flush
-    end
-
-    test "returns :ok when exporter is ignored" do
-      {:ok, _pid} =
-        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {IgnoredExporter, %{}},
-          name: :simple_force_flush_ignored_test
-        })
-
-      config = %{reg_name: :simple_force_flush_ignored_test}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(config)
     end
 
     test "force_flush after shutdown is no-op" do
