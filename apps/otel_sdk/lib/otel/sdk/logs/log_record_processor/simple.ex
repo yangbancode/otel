@@ -182,8 +182,11 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
       id: __MODULE__,
       start: {__MODULE__, :start_link, [arg]},
       type: :worker,
-      restart: :transient,
-      shutdown: 500
+      restart: :transient
+      # `:shutdown` omitted — `:worker` default 5000ms gives
+      # `terminate/3` (which calls exporter's `force_flush/1` +
+      # `shutdown/1`) enough time to complete an OTLP HTTP final
+      # flush, satisfying spec §LogRecordProcessor L469/L471.
     }
   end
 
