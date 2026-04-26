@@ -67,14 +67,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   §LogRecordProcessor L462-L464 *"SDKs SHOULD ignore these
   calls gracefully"*.
 
-  Supervisor `restart: :transient` ensures the process is
-  not restarted after a `:normal` (shutdown-initiated) or
-  `:shutdown` (supervisor-initiated) exit, while still
-  restarting on abnormal crashes.
-
   When the day comes that we want hung-exporter timeout
   isolation, an additional `:exporting` state with a runner
   process would slot in here cleanly. For now, single state.
+
+  No `child_spec/1` is exposed — the LoggerProvider is the
+  only supervisor for this processor and it calls
+  `start_link/1` directly. Users who want to put the processor
+  under their own Supervisor can write a one-line spec inline.
 
   ## Public API
 
@@ -208,20 +208,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   # --- gen_statem lifecycle ---
 
-  @spec child_spec(arg :: term()) :: Supervisor.child_spec()
-  def child_spec(arg) do
-    %{
-      id: __MODULE__,
-      start: {__MODULE__, :start_link, [arg]},
-      type: :worker,
-      restart: :transient
-      # `:shutdown` omitted — `:worker` default 5000ms gives
-      # `terminate/3` (which calls exporter's `force_flush/1` +
-      # `shutdown/1`) enough time to complete an OTLP HTTP final
-      # flush, satisfying spec §LogRecordProcessor L469/L471.
-    }
-  end
-
   @spec start_link(config :: start_link_config()) :: :gen_statem.start_ret()
   def start_link(config) do
     :gen_statem.start_link(__MODULE__, config, [])
@@ -241,9 +227,19 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   # --- State: :running ---
 
+  @typedoc """
+  Events the `:running` state handles.
+
+  - `{:export, log_record}` arrives via `:gen_statem.cast/2`
+    from `on_emit/3` — non-blocking enqueue + immediate export.
+  - `:force_flush` arrives via `:gen_statem.call/3` from
+    `force_flush/2` — synchronous exporter flush with reply.
+  """
+  @type running_event_content :: {:export, Otel.SDK.Logs.LogRecord.t()} | :force_flush
+
   @spec running(
           event_type :: :gen_statem.event_type(),
-          event_content :: term(),
+          event_content :: running_event_content(),
           state :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
   def running(:cast, {:export, log_record}, %State{exporter: {module, exporter_state}} = state) do
