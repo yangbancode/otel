@@ -22,7 +22,7 @@ defmodule Otel.SDK.Trace.SpanExporter do
   """
   @callback export(
               spans :: [Otel.SDK.Trace.Span.t()],
-              resource :: map(),
+              resource :: Otel.SDK.Resource.t(),
               state :: state()
             ) :: :ok | :error
 

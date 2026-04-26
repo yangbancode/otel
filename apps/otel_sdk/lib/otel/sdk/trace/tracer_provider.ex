@@ -12,7 +12,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
 
   @type config :: %{
           sampler: {module(), term()},
-          processors: [{module(), map()}],
+          processors: [{module(), Otel.SDK.Trace.SpanProcessor.config()}],
           id_generator: module(),
           resource: Otel.SDK.Resource.t(),
           span_limits: Otel.SDK.Trace.SpanLimits.t()
@@ -100,7 +100,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
     {:ok, config}
   end
 
-  @spec default_config() :: map()
+  @spec default_config() :: config()
   defp default_config do
     %{
       sampler:
@@ -171,7 +171,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   end
 
   @spec invoke_all_processors(
-          processors :: [{module(), map()}],
+          processors :: [{module(), Otel.SDK.Trace.SpanProcessor.config()}],
           function :: :shutdown | :force_flush
         ) :: :ok | {:error, [{module(), term()}]}
   defp invoke_all_processors(processors, function) do

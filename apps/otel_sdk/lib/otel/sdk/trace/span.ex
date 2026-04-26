@@ -69,7 +69,7 @@ defmodule Otel.SDK.Trace.Span do
           is_recording: boolean(),
           instrumentation_scope: Otel.API.InstrumentationScope.t() | nil,
           span_limits: Otel.SDK.Trace.SpanLimits.t(),
-          processors: [{module(), term()}]
+          processors: [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
         }
 
   defstruct [
