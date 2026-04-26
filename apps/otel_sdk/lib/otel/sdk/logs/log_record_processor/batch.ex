@@ -106,8 +106,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   - `:exporter` (**required**) — `{module, opts}`; `opts` is
     passed to `module.init/1` once at startup.
-  - `:name` (optional) — registered atom, defaults to
-    `__MODULE__`.
   - `:max_queue_size` (optional) — spec L540-L541, default 2048.
   - `:scheduled_delay_ms` (optional) — spec L542-L543, default 1000.
   - `:export_timeout_ms` (optional) — spec L544-L545, default 30000.
@@ -116,7 +114,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   """
   @type start_link_config :: %{
           required(:exporter) => {module(), term()},
-          optional(:name) => atom(),
           optional(:max_queue_size) => pos_integer(),
           optional(:scheduled_delay_ms) => non_neg_integer(),
           optional(:export_timeout_ms) => non_neg_integer(),
@@ -151,8 +148,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
           ctx :: Otel.API.Ctx.t(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: :ok
-  def on_emit(log_record, _ctx, %{reg_name: reg_name}) do
-    :gen_statem.cast(reg_name, {:add_record, log_record})
+  def on_emit(log_record, _ctx, %{pid: pid}) do
+    :gen_statem.cast(pid, {:add_record, log_record})
     :ok
   end
 
@@ -179,8 +176,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
-  def shutdown(%{reg_name: reg_name}) do
-    :gen_statem.call(reg_name, :shutdown, :infinity)
+  def shutdown(%{pid: pid}) do
+    :gen_statem.call(pid, :shutdown, :infinity)
   catch
     :exit, {:noproc, _} -> :ok
   end
@@ -196,8 +193,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
           :ok | {:error, term()}
-  def force_flush(%{reg_name: reg_name}) do
-    :gen_statem.call(reg_name, :force_flush, :infinity)
+  def force_flush(%{pid: pid}) do
+    :gen_statem.call(pid, :force_flush, :infinity)
   catch
     :exit, {:noproc, _} -> :ok
   end
@@ -216,8 +213,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   @spec start_link(config :: start_link_config()) :: :gen_statem.start_ret()
   def start_link(config) do
-    name = Map.get(config, :name, __MODULE__)
-    :gen_statem.start_link({:local, name}, __MODULE__, config, [])
+    :gen_statem.start_link(__MODULE__, config, [])
   end
 
   @impl :gen_statem

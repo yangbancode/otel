@@ -37,8 +37,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
     test "starts with exporter" do
       {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_init_test
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
       assert Process.alive?(pid)
@@ -48,16 +47,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
 
   describe "on_emit/2" do
     test "exports log record immediately" do
-      {:ok, _pid} =
+      {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_emit_test
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
-      config = %{reg_name: :simple_emit_test}
       log_record = %Otel.SDK.Logs.LogRecord{body: "hello", severity_number: 9}
 
-      Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(log_record, %{}, config)
+      Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(log_record, %{}, %{pid: pid})
       assert_receive {:exported, [^log_record]}
     end
   end
@@ -70,59 +67,49 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
 
   describe "shutdown/1" do
     test "shuts down exporter" do
-      {:ok, _pid} =
+      {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_shutdown_test
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
-      config = %{reg_name: :simple_shutdown_test}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
       assert_receive :exporter_shutdown
     end
 
     test "shutdown invokes exporter force_flush before exporter shutdown" do
-      {:ok, _pid} =
+      {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_shutdown_includes_flush_test
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
-      config = %{reg_name: :simple_shutdown_includes_flush_test}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
       assert_receive :exporter_force_flush
       assert_receive :exporter_shutdown
     end
 
     test "second shutdown is a graceful no-op" do
-      {:ok, _pid} =
+      {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_double_shutdown
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
-      config = %{reg_name: :simple_double_shutdown}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
-
-      # Process is gone; spec L463 — caller-side graceful ignore.
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
     end
 
     test "emit after shutdown is no-op" do
-      {:ok, _pid} =
+      {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_emit_after_shutdown
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
-      config = %{reg_name: :simple_emit_after_shutdown}
-      Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
+      Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
 
       assert :ok ==
                Otel.SDK.Logs.LogRecordProcessor.Simple.on_emit(
                  %Otel.SDK.Logs.LogRecord{body: "late"},
                  %{},
-                 config
+                 %{pid: pid}
                )
 
       refute_receive {:exported, _}
@@ -131,43 +118,34 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
 
   describe "force_flush/1" do
     test "invokes exporter force_flush" do
-      {:ok, _pid} =
+      {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_force_flush_test
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
-      config = %{reg_name: :simple_force_flush_test}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(%{pid: pid})
       assert_receive :exporter_force_flush
     end
 
     test "force_flush after shutdown is no-op" do
-      {:ok, _pid} =
+      {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_force_flush_after_shutdown
+          exporter: {TestExporter, %{test_pid: self()}}
         })
 
-      config = %{reg_name: :simple_force_flush_after_shutdown}
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(%{pid: pid})
     end
   end
 
   describe "integration with LoggerProvider" do
     test "end-to-end emit through provider" do
-      {:ok, proc_pid} =
-        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
-          exporter: {TestExporter, %{test_pid: self()}},
-          name: :simple_e2e_test
-        })
-
       {:ok, provider_pid} =
         Otel.SDK.Logs.LoggerProvider.start_link(
           config: %{
             processors: [
-              {Otel.SDK.Logs.LogRecordProcessor.Simple, %{reg_name: :simple_e2e_test}}
+              {Otel.SDK.Logs.LogRecordProcessor.Simple,
+               %{exporter: {TestExporter, %{test_pid: self()}}}}
             ]
           }
         )
@@ -187,8 +165,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       assert_receive {:exported, [record]}
       assert record.body == "e2e test"
       assert record.scope.name == "test_lib"
-
-      :gen_statem.stop(proc_pid)
     end
   end
 end
