@@ -4,10 +4,11 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   collections (`logs/sdk.md` §LogRecord Limits L321-348).
 
   Holds the two limit values and exposes a single `apply/2`
-  entry point that returns a new `LogRecord` with both
-  limits enforced. Composition ordering, dropped-count
-  tracking, and the spec-required discard message
-  (`logs/sdk.md` L345-348) are the orchestrator's
+  entry point that returns the limited `LogRecord` together
+  with the dropped-attributes count for the orchestrator to
+  forward into `Otel.SDK.Logs.LogRecord.dropped_attributes_count`.
+  Composition ordering and the spec-required discard message
+  (`logs/sdk.md` L345-348) remain the orchestrator's
   responsibility — see `Otel.SDK.Logs.Logger.build_log_record/3`.
 
   ## Configurable parameters
@@ -70,25 +71,29 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L181-204
   """
 
+  @default_attribute_count_limit 128
+  @default_attribute_value_length_limit :infinity
+
   @type t :: %__MODULE__{
           attribute_count_limit: non_neg_integer(),
           attribute_value_length_limit: non_neg_integer() | :infinity
         }
 
-  defstruct attribute_count_limit: 128,
-            attribute_value_length_limit: :infinity
+  defstruct attribute_count_limit: @default_attribute_count_limit,
+            attribute_value_length_limit: @default_attribute_value_length_limit
 
   @doc """
   Applies all attribute limits to a `LogRecord`.
 
-  Truncation precedes count-drop so `dropped_attributes_count`
-  (computed by the caller as a `map_size` delta) reflects only
-  count-limit drops. Pattern-matches the record's `attributes`
-  field so the private pipeline operates on a pure map and the
-  struct is rewrapped only once.
+  Returns `{limited_record, dropped_attributes_count}`. The
+  count is the size delta from the count-limit drop step
+  (truncation precedes drop and preserves map size, so the
+  delta is exclusively the dropped-attribute count that
+  belongs in `Otel.SDK.Logs.LogRecord.dropped_attributes_count`
+  and the OTLP proto field of the same name).
   """
   @spec apply(log_record :: Otel.API.Logs.LogRecord.t(), limits :: t()) ::
-          Otel.API.Logs.LogRecord.t()
+          {Otel.API.Logs.LogRecord.t(), non_neg_integer()}
   def apply(
         %Otel.API.Logs.LogRecord{attributes: attributes} = log_record,
         %__MODULE__{
@@ -96,7 +101,12 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
           attribute_count_limit: count_limit
         }
       ) do
-    %{log_record | attributes: attributes |> truncate(value_length_limit) |> drop(count_limit)}
+    new_attributes = attributes |> truncate(value_length_limit) |> drop(count_limit)
+
+    {
+      %{log_record | attributes: new_attributes},
+      map_size(attributes) - map_size(new_attributes)
+    }
   end
 
   @spec truncate(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
