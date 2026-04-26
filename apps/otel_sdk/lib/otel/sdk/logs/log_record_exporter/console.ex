@@ -91,8 +91,8 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
       format_severity(record),
       format_scope(record),
       format_trace(record),
-      "body=#{inspect(record.body)}",
-      "attributes=#{inspect(record.attributes)}"
+      format_body(record),
+      format_attributes(record)
     ]
     |> Enum.reject(&(&1 == ""))
     |> Enum.join(" ")
@@ -145,4 +145,10 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   defp format_trace(%{trace_id: trace_id, span_id: span_id}) do
     "trace=#{Otel.API.Trace.TraceId.to_hex(trace_id)} span=#{Otel.API.Trace.SpanId.to_hex(span_id)}"
   end
+
+  @spec format_body(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
+  defp format_body(%{body: body}), do: "body=#{inspect(body)}"
+
+  @spec format_attributes(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
+  defp format_attributes(%{attributes: attributes}), do: "attributes=#{inspect(attributes)}"
 end
