@@ -36,6 +36,9 @@ defmodule Otel.API.Logs.LogRecord do
   | `body` | `nil` | proto `AnyValue` message type — proto3 messages use presence tracking; Elixir `nil` ≡ absent. Spec `common.md` L50 explicitly permits `nil` as a valid AnyValue ("empty value if supported by the language") — `body: nil` conflates "missing" and "null-as-AnyValue", but both mean the same thing to downstream processors and wire format |
   | `attributes` | `%{}` | proto `repeated KeyValue`; empty map ≡ empty repeated after encoding |
   | `event_name` | `""` | proto `string`; `logs.proto` L221 *"Presence of event_name identifies this record as an event"* — empty = non-Event |
+  | `trace_id` | `0` | proto `bytes` (16 bytes, all zeros = invalid); `data-model.md` §Field TraceId; `logs.proto` L199-L204. SDK fills from resolved `Context` per spec L208-L213; bridges may stamp directly |
+  | `span_id` | `0` | proto `bytes` (8 bytes, all zeros = invalid); `data-model.md` §Field SpanId; `logs.proto` L206-L211. Same SDK / bridge handling as `trace_id` |
+  | `trace_flags` | `0` | proto `fixed32`; `data-model.md` §Field TraceFlags; `logs.proto` L213. Sampled bit (0x01) per W3C Trace Context |
   | `exception` | `nil` | Not in proto LogRecord; API-layer MAY-accepted field per `api.md` L131. SDK converts to `exception.*` attributes |
 
   `nil` appears as a default only for `body` (spec-permitted
@@ -43,6 +46,29 @@ defmodule Otel.API.Logs.LogRecord do
   fields use proto3 zero-values, which are correctly
   distinguished by consumers as "missing" per the proto
   comments cited above.
+
+  ## Trace context fields
+
+  `trace_id`, `span_id`, `trace_flags` are LogRecord fields
+  per `data-model.md` §Field TraceId / SpanId / TraceFlags
+  (sections covered by L208-L232) and proto `logs.proto`
+  L199-L213.
+
+  In the **emit-from-Context** path the SDK derives them
+  from the resolved `Otel.API.Ctx.t/0` per spec L208-L213
+  (*"trace context fields MUST be populated from the
+  resolved Context (either the explicitly passed Context or
+  the current Context)"*) — the API caller does not need
+  to set them.
+
+  In the **bridge-from-external-source** path (e.g. ingesting
+  pre-stamped logs from another OTel-aware system, replaying
+  recorded telemetry, custom protocol handlers), the caller
+  fills these fields on the struct directly. The SDK uses
+  the value the caller supplied without re-deriving from
+  Context. All-zeros (the proto3 zero) signals "no trace
+  context"; SDK falls back to the resolved Context only
+  when the bridge supplied zeros.
 
   ## References
 
@@ -73,6 +99,9 @@ defmodule Otel.API.Logs.LogRecord do
           body: primitive_any(),
           attributes: %{String.t() => primitive_any()},
           event_name: String.t(),
+          trace_id: Otel.API.Trace.TraceId.t(),
+          span_id: Otel.API.Trace.SpanId.t(),
+          trace_flags: Otel.API.Trace.SpanContext.trace_flags(),
           exception: Exception.t() | nil
         }
 
@@ -83,5 +112,8 @@ defmodule Otel.API.Logs.LogRecord do
             body: nil,
             attributes: %{},
             event_name: "",
+            trace_id: 0,
+            span_id: 0,
+            trace_flags: 0,
             exception: nil
 end

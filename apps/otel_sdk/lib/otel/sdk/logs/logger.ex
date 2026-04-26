@@ -188,7 +188,13 @@ defmodule Otel.SDK.Logs.Logger do
         ) :: Otel.SDK.Logs.LogRecord.t()
   defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)
-    {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
+
+    # Spec data-model.md L208-L213 (`bridge from non-OTel source`
+    # path): if the caller pre-stamped trace context on the API
+    # LogRecord struct, use those values verbatim. Otherwise
+    # (the typical emit-from-Context path) derive from the
+    # resolved Context.
+    {trace_id, span_id, trace_flags} = resolve_trace_context(log_record, ctx)
 
     {limited_record, dropped_attributes_count} =
       Otel.SDK.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
@@ -219,6 +225,27 @@ defmodule Otel.SDK.Logs.Logger do
       scope: config.scope,
       resource: config.resource
     }
+  end
+
+  # If the caller stamped a valid trace context on the API
+  # LogRecord (bridge path), prefer it. The all-zero proto3
+  # default signals "no caller-supplied context" via
+  # `TraceId.valid?/1` + `SpanId.valid?/1` returning false on
+  # the all-zero opaque sentinels; fall back to deriving from
+  # `ctx`.
+  @spec resolve_trace_context(
+          log_record :: Otel.API.Logs.LogRecord.t(),
+          ctx :: Otel.API.Ctx.t()
+        ) ::
+          {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(),
+           Otel.API.Trace.SpanContext.trace_flags()}
+  defp resolve_trace_context(%Otel.API.Logs.LogRecord{} = log_record, ctx) do
+    if Otel.API.Trace.TraceId.valid?(log_record.trace_id) and
+         Otel.API.Trace.SpanId.valid?(log_record.span_id) do
+      {log_record.trace_id, log_record.span_id, log_record.trace_flags}
+    else
+      extract_trace_context(ctx)
+    end
   end
 
   # When both a count drop and a value truncation occur in
