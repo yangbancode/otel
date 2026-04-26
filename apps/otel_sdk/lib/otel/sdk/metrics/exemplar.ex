@@ -6,12 +6,14 @@ defmodule Otel.SDK.Metrics.Exemplar do
   collection.
   """
 
+  use Otel.API.Common.Types
+
   @type t :: %__MODULE__{
           value: number(),
           time: non_neg_integer(),
-          filtered_attributes: map(),
-          span_id: binary() | nil,
-          trace_id: binary() | nil
+          filtered_attributes: %{String.t() => primitive() | [primitive()]},
+          span_id: Otel.API.Trace.SpanId.t() | nil,
+          trace_id: Otel.API.Trace.TraceId.t() | nil
         }
 
   defstruct value: 0,
@@ -23,7 +25,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
   @spec new(
           value :: number(),
           time :: non_neg_integer(),
-          filtered_attributes :: map(),
+          filtered_attributes :: %{String.t() => primitive() | [primitive()]},
           ctx :: Otel.API.Ctx.t()
         ) :: t()
   def new(value, time, filtered_attributes, ctx) do
