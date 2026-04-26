@@ -17,10 +17,10 @@ defmodule Otel.SDK.Trace.Span do
   @behaviour Otel.API.Trace.Span
 
   @type t :: %__MODULE__{
-          trace_id: non_neg_integer(),
-          span_id: non_neg_integer(),
+          trace_id: Otel.API.Trace.TraceId.t(),
+          span_id: Otel.API.Trace.SpanId.t(),
           tracestate: Otel.API.Trace.TraceState.t(),
-          parent_span_id: non_neg_integer() | nil,
+          parent_span_id: Otel.API.Trace.SpanId.t() | nil,
           parent_span_is_remote: boolean() | nil,
           name: String.t(),
           kind: Otel.API.Trace.SpanKind.t(),
@@ -30,7 +30,7 @@ defmodule Otel.SDK.Trace.Span do
           events: [Otel.API.Trace.Event.t()],
           links: [Otel.API.Trace.Link.t()],
           status: Otel.API.Trace.Status.t(),
-          trace_flags: non_neg_integer(),
+          trace_flags: Otel.API.Trace.SpanContext.trace_flags(),
           is_recording: boolean(),
           instrumentation_scope: Otel.API.InstrumentationScope.t() | nil,
           span_limits: Otel.SDK.Trace.SpanLimits.t(),
