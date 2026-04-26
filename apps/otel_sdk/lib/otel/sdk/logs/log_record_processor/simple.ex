@@ -11,12 +11,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   Spec L521-L522 — *"The processor MUST synchronize calls to
   `LogRecordExporter`'s `Export` to make sure that they are
   not invoked concurrently."* — implemented by routing every
-  emit through the GenServer's `handle_call/3`, which is
-  inherently serial per-process.
+  emit through `:gen_statem.call/2`, which is inherently
+  serial per-process.
 
   Spec L526 — the only configurable parameter is `exporter`;
   this implementation also accepts an optional `:name` for
-  registering the GenServer.
+  registering the gen_statem.
 
   ## Synchronous emit trade-off
 
@@ -24,10 +24,33 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   block or throw exceptions"*, but §Simple processor L516-L519
   mandates *"as soon as they are finished"* synchronous export.
   The Simple processor takes the trade-off explicitly:
-  `on_emit/3` blocks the calling process via `GenServer.call/2`
-  until the exporter returns. Use
+  `on_emit/3` blocks the calling process via
+  `:gen_statem.call/2` until the exporter returns. Use
   `Otel.SDK.Logs.LogRecordProcessor.Batch` when non-blocking
   emit is required.
+
+  ## State model
+
+  Two `:gen_statem` states make the processor's lifecycle
+  explicit:
+
+  - `:running` — accepts `:export`, `:force_flush`, and
+    `:shutdown` requests. The first `:shutdown` transitions
+    here to `:shut_down`.
+  - `:shut_down` — terminal. Subsequent `:export` and
+    `:force_flush` are no-ops (per spec L462-L464 *"SDKs
+    SHOULD ignore these calls gracefully"*); a second
+    `:shutdown` returns `{:error, :already_shut_down}` so
+    callers can distinguish idempotent re-entry from real
+    failure.
+
+  No `:exporting` intermediate state — export runs inline in
+  the `:running` state callback because the spec mandates
+  synchronous semantics; there is nothing for the gen_statem
+  to do *between* receiving the request and replying. (When
+  the day comes that we want hung-exporter timeout isolation,
+  a third `:exporting` state with a runner process would slot
+  in here cleanly.)
 
   ## Public API
 
@@ -42,15 +65,40 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   - Parent behaviour: `Otel.SDK.Logs.LogRecordProcessor`
   """
 
-  use GenServer
-
+  @behaviour :gen_statem
   @behaviour Otel.SDK.Logs.LogRecordProcessor
+
+  defmodule State do
+    @moduledoc false
+
+    @typedoc false
+    @type t :: %__MODULE__{
+            exporter: {module(), Otel.SDK.Logs.LogRecordExporter.state()}
+          }
+    defstruct [:exporter]
+  end
+
+  @typedoc """
+  `start_link/1` configuration map.
+
+  - `:exporter` (**required**) — `{module, opts}` where `module`
+    implements `Otel.SDK.Logs.LogRecordExporter` and `opts` is
+    passed to `module.init/1` once at startup.
+  - `:name` (**optional**) — the registered atom for the
+    gen_statem. Defaults to `__MODULE__`. Provide a unique name
+    to run multiple Simple processors with different exporters
+    in the same BEAM node.
+  """
+  @type start_link_config :: %{
+          required(:exporter) => {module(), term()},
+          optional(:name) => atom()
+        }
 
   # --- LogRecordProcessor callbacks ---
 
   @doc """
   **SDK** (Simple implementation) — Hand the emitted record to
-  the GenServer for serialised export
+  the gen_statem for serialised export
   (`logs/sdk.md` §Simple processor L516-L519).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
@@ -60,7 +108,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: :ok
   def on_emit(log_record, _ctx, %{reg_name: reg_name}) do
-    GenServer.call(reg_name, {:export, log_record})
+    :gen_statem.call(reg_name, {:export, log_record})
   end
 
   @doc """
@@ -77,16 +125,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   def enabled?(_opts, _scope, _config), do: true
 
   @doc """
-  **SDK** (Simple implementation) — Shut down the GenServer,
-  cascading to the exporter's `shutdown/1`. Returns
-  `{:error, :already_shut_down}` on a second call so callers
-  can distinguish idempotency from real failure
-  (`logs/sdk.md` §LogRecordProcessor L457-L474).
+  **SDK** (Simple implementation) — Transition to `:shut_down`
+  and cascade to the exporter's `force_flush/1` then
+  `shutdown/1`. Returns `{:error, :already_shut_down}` on a
+  second call so callers can distinguish idempotency from
+  real failure (`logs/sdk.md` §LogRecordProcessor L457-L474).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
   def shutdown(%{reg_name: reg_name}) do
-    GenServer.call(reg_name, :shutdown)
+    :gen_statem.call(reg_name, :shutdown)
   end
 
   @doc """
@@ -101,81 +149,95 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
           :ok | {:error, term()}
   def force_flush(%{reg_name: reg_name}) do
-    GenServer.call(reg_name, :force_flush)
+    :gen_statem.call(reg_name, :force_flush)
   end
 
-  # --- GenServer lifecycle ---
+  # --- gen_statem lifecycle ---
 
-  @spec start_link(config :: map()) :: GenServer.on_start()
+  @spec child_spec(arg :: term()) :: Supervisor.child_spec()
+  def child_spec(arg) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [arg]},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 500
+    }
+  end
+
+  @spec start_link(config :: start_link_config()) :: :gen_statem.start_ret()
   def start_link(config) do
     name = Map.get(config, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, config, name: name)
+    :gen_statem.start_link({:local, name}, __MODULE__, config, [])
   end
 
-  @impl GenServer
-  @spec init(config :: map()) :: {:ok, map()}
+  @impl :gen_statem
+  @spec callback_mode() :: :state_functions
+  def callback_mode, do: :state_functions
+
+  @impl :gen_statem
+  @spec init(config :: start_link_config()) :: {:ok, :running, State.t()}
   def init(config) do
-    name = Map.get(config, :name, __MODULE__)
     {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
     exporter = init_exporter(exporter_module, exporter_opts)
-
-    {:ok, %{exporter: exporter, name: name, shut_down: false}}
+    {:ok, :running, %State{exporter: exporter}}
   end
 
-  @impl GenServer
-  @spec handle_call(msg :: term(), from :: GenServer.from(), state :: map()) ::
-          {:reply, term(), map()}
-  def handle_call({:export, _log_record}, _from, %{exporter: nil} = state) do
-    {:reply, :ok, state}
-  end
+  # --- State: :running ---
 
-  def handle_call({:export, _log_record}, _from, %{shut_down: true} = state) do
-    {:reply, :ok, state}
-  end
-
-  def handle_call(
+  @spec running(
+          event_type :: :gen_statem.event_type(),
+          event_content :: term(),
+          data :: State.t()
+        ) :: :gen_statem.event_handler_result(State.t())
+  def running(
+        {:call, from},
         {:export, log_record},
-        _from,
-        %{exporter: {module, exporter_state}} = state
+        %State{exporter: {module, exporter_state}} = data
       ) do
     module.export([log_record], exporter_state)
-    {:reply, :ok, state}
+    {:keep_state, data, [{:reply, from, :ok}]}
   end
 
-  def handle_call(:shutdown, _from, %{shut_down: true} = state) do
-    {:reply, {:error, :already_shut_down}, state}
+  def running({:call, from}, :force_flush, %State{exporter: {module, exporter_state}} = data) do
+    result = module.force_flush(exporter_state)
+    {:keep_state, data, [{:reply, from, result}]}
   end
 
-  def handle_call(:shutdown, _from, %{exporter: nil} = state) do
-    {:reply, :ok, %{state | shut_down: true}}
-  end
-
-  def handle_call(:shutdown, _from, %{exporter: {module, exporter_state}} = state) do
+  def running({:call, from}, :shutdown, %State{exporter: {module, exporter_state}} = data) do
     # Spec §LogRecordProcessor L469: "Shutdown MUST include the
     # effects of ForceFlush" — flush exporter buffers before
     # tearing it down.
     module.force_flush(exporter_state)
     module.shutdown(exporter_state)
-    {:reply, :ok, %{state | exporter: nil, shut_down: true}}
+    {:next_state, :shut_down, data, [{:reply, from, :ok}]}
   end
 
-  def handle_call(:force_flush, _from, %{exporter: nil} = state) do
-    {:reply, :ok, state}
+  # --- State: :shut_down ---
+
+  @spec shut_down(
+          event_type :: :gen_statem.event_type(),
+          event_content :: term(),
+          data :: State.t()
+        ) :: :gen_statem.event_handler_result(State.t())
+  def shut_down({:call, from}, {:export, _log_record}, %State{} = data) do
+    {:keep_state, data, [{:reply, from, :ok}]}
   end
 
-  def handle_call(:force_flush, _from, %{exporter: {module, exporter_state}} = state) do
-    result = module.force_flush(exporter_state)
-    {:reply, result, state}
+  def shut_down({:call, from}, :force_flush, %State{} = data) do
+    {:keep_state, data, [{:reply, from, :ok}]}
+  end
+
+  def shut_down({:call, from}, :shutdown, %State{} = data) do
+    {:keep_state, data, [{:reply, from, {:error, :already_shut_down}}]}
   end
 
   # --- Private ---
 
   @spec init_exporter(module :: module(), opts :: term()) ::
-          {module(), Otel.SDK.Logs.LogRecordExporter.state()} | nil
+          {module(), Otel.SDK.Logs.LogRecordExporter.state()}
   defp init_exporter(module, opts) do
-    case module.init(opts) do
-      {:ok, state} -> {module, state}
-      :ignore -> nil
-    end
+    {:ok, state} = module.init(opts)
+    {module, state}
   end
 end

@@ -64,11 +64,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
     scheduled_delay = Map.get(config, :scheduled_delay_ms, @default_scheduled_delay_ms)
 
-    exporter =
-      case exporter_module.init(exporter_opts) do
-        {:ok, state} -> {exporter_module, state}
-        :ignore -> nil
-      end
+    {:ok, exporter_state} = exporter_module.init(exporter_opts)
+    exporter = {exporter_module, exporter_state}
 
     state = %{
       exporter: exporter,
