@@ -106,6 +106,17 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
 
       refute output =~ "trace="
     end
+
+    test "omits scope when name is empty" do
+      record = %{@record | scope: %Otel.API.InstrumentationScope{name: ""}}
+
+      output =
+        capture_io(fn ->
+          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
+        end)
+
+      refute output =~ "scope="
+    end
   end
 
   describe "force_flush/1" do
