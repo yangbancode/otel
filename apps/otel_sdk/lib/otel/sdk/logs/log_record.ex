@@ -45,11 +45,14 @@ defmodule Otel.SDK.Logs.LogRecord do
   spec's ReadWriteLogRecord shape filled in by
   `Otel.SDK.Logs.Logger.build_log_record/3`.
 
-  All defaults are proto3 zero values where applicable; `scope`
-  and `resource` default to `nil` to signal *"not yet
-  populated by the SDK Logger"* — they are populated on every
-  emit path through the SDK and are never absent in records
-  the processor pipeline observes.
+  All defaults are proto3 zero values for the
+  `Otel.API.Logs.LogRecord`-mirrored fields; `scope` and
+  `resource` default to their respective empty structs so
+  the spec MUST in `logs/sdk.md` L281-L283 — *"It MUST
+  also be able to access the Instrumentation Scope and
+  Resource information ... associated with the LogRecord"*
+  — holds on every record without needing nil-guards in
+  processors and exporters.
   """
   @type t :: %__MODULE__{
           timestamp: non_neg_integer(),
@@ -63,8 +66,8 @@ defmodule Otel.SDK.Logs.LogRecord do
           trace_id: non_neg_integer(),
           span_id: non_neg_integer(),
           trace_flags: non_neg_integer(),
-          scope: Otel.API.InstrumentationScope.t() | nil,
-          resource: Otel.SDK.Resource.t() | nil
+          scope: Otel.API.InstrumentationScope.t(),
+          resource: Otel.SDK.Resource.t()
         }
 
   defstruct timestamp: 0,
@@ -78,6 +81,6 @@ defmodule Otel.SDK.Logs.LogRecord do
             trace_id: 0,
             span_id: 0,
             trace_flags: 0,
-            scope: nil,
-            resource: nil
+            scope: %Otel.API.InstrumentationScope{},
+            resource: %Otel.SDK.Resource{}
 end
