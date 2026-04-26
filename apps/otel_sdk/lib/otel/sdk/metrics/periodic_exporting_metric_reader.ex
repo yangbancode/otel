@@ -13,7 +13,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReader do
   @default_export_interval_ms 60_000
 
   @impl Otel.SDK.Metrics.MetricReader
-  @spec start_link(config :: map()) :: GenServer.on_start()
+  @spec start_link(config :: Otel.SDK.Metrics.MetricReader.config()) :: GenServer.on_start()
   def start_link(config) do
     GenServer.start_link(__MODULE__, config)
   end
