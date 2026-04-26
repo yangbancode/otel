@@ -65,12 +65,11 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   defp format_scope(_record), do: ""
 
   @spec format_trace(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
-  defp format_trace(%{trace_id: trace_id, span_id: span_id})
-       when trace_id != 0 and span_id != 0 do
-    tid = trace_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(32, "0")
-    sid = span_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(16, "0")
-    " trace=#{tid} span=#{sid}"
+  defp format_trace(%{trace_id: trace_id, span_id: span_id}) do
+    if Otel.API.Trace.TraceId.valid?(trace_id) and Otel.API.Trace.SpanId.valid?(span_id) do
+      " trace=#{Otel.API.Trace.TraceId.to_hex(trace_id)} span=#{Otel.API.Trace.SpanId.to_hex(span_id)}"
+    else
+      ""
+    end
   end
-
-  defp format_trace(_record), do: ""
 end
