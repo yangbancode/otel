@@ -506,7 +506,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   # is waiting, otherwise resumes the periodic batching cycle.
   @spec after_runner(state :: State.t()) :: :gen_statem.event_handler_result(State.t())
   defp after_runner(%State{pending_call: nil} = state), do: next_after_export(state)
-  defp after_runner(%State{pending_call: pending} = state), do: handle_pending_call(pending, state)
+
+  defp after_runner(%State{pending_call: pending} = state),
+    do: handle_pending_call(pending, state)
 
   @spec next_after_export(state :: State.t()) :: :gen_statem.event_handler_result(State.t())
   defp next_after_export(%State{queue_size: 0} = state) do
