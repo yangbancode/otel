@@ -227,19 +227,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   # --- State: :running ---
 
-  @typedoc """
-  Events the `:running` state handles.
-
-  - `{:export, log_record}` arrives via `:gen_statem.cast/2`
-    from `on_emit/3` — non-blocking enqueue + immediate export.
-  - `:force_flush` arrives via `:gen_statem.call/3` from
-    `force_flush/2` — synchronous exporter flush with reply.
-  """
-  @type running_event_content :: {:export, Otel.SDK.Logs.LogRecord.t()} | :force_flush
-
+  # `event_content` is one of:
+  # - `{:export, log_record}` — from `on_emit/3` via cast
+  # - `:force_flush` — from `force_flush/2` via call
   @spec running(
           event_type :: :gen_statem.event_type(),
-          event_content :: running_event_content(),
+          event_content :: {:export, Otel.SDK.Logs.LogRecord.t()} | :force_flush,
           state :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
   def running(:cast, {:export, log_record}, %State{exporter: {module, exporter_state}} = state) do
