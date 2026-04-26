@@ -1,6 +1,8 @@
 defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
+
   defmodule TestExporter do
     @moduledoc false
     @behaviour Otel.SDK.Logs.LogRecordExporter
@@ -502,6 +504,91 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
       # new export for the queued "second" record.
       assert_receive :exported_after_delay, 500
       assert_receive :exported_after_delay, 500
+    end
+  end
+
+  describe "drop reporting" do
+    test "logs a throttled warning on the next :export_timer when records were dropped" do
+      log =
+        capture_log(fn ->
+          pid =
+            start_batch(%{
+              exporter: {TestExporter, %{test_pid: self()}},
+              max_queue_size: 1,
+              max_export_batch_size: 100,
+              # Fast tick so we don't slow the suite down
+              scheduled_delay_ms: 50
+            })
+
+          config = %{pid: pid}
+
+          # Three more emits than the queue can hold → 3 drops.
+          for body <- ["1", "2", "3", "4"] do
+            Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(
+              %Otel.SDK.Logs.LogRecord{body: body},
+              %{},
+              config
+            )
+          end
+
+          # Wait for at least one :export_timer cycle to fire and
+          # report the throttled total.
+          Process.sleep(120)
+          Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
+        end)
+
+      assert log =~ "queue full, dropped 3 log record(s) since last report"
+    end
+
+    test "no warning when no records were dropped" do
+      log =
+        capture_log(fn ->
+          pid =
+            start_batch(%{
+              exporter: {TestExporter, %{test_pid: self()}},
+              scheduled_delay_ms: 50
+            })
+
+          Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(
+            %Otel.SDK.Logs.LogRecord{body: "ok"},
+            %{},
+            %{pid: pid}
+          )
+
+          Process.sleep(120)
+          Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(%{pid: pid})
+        end)
+
+      refute log =~ "dropped"
+    end
+
+    test "terminate/3 flushes the final tally on shutdown" do
+      log =
+        capture_log(fn ->
+          pid =
+            start_batch(%{
+              exporter: {TestExporter, %{test_pid: self()}},
+              max_queue_size: 1,
+              max_export_batch_size: 100,
+              # Long tick so the periodic warning never fires; only
+              # `terminate/3` reports the count.
+              scheduled_delay_ms: 60_000
+            })
+
+          config = %{pid: pid}
+
+          for body <- ["1", "2", "3"] do
+            Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(
+              %Otel.SDK.Logs.LogRecord{body: body},
+              %{},
+              config
+            )
+          end
+
+          Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
+        end)
+
+      assert log =~ "queue full, dropped 2 log record(s) since last report"
     end
   end
 
