@@ -26,7 +26,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   or the current Context at emit time).
   """
   @callback on_emit(
-              log_record :: map(),
+              log_record :: Otel.SDK.Logs.LogRecord.t(),
               ctx :: Otel.API.Ctx.t(),
               config :: config()
             ) :: :ok

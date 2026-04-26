@@ -56,7 +56,7 @@ defmodule Otel.OTLP.Logs.Exporter.HTTP do
 
   @impl true
   @spec export(
-          log_records :: [map()],
+          log_records :: [Otel.SDK.Logs.LogRecord.t()],
           state :: Otel.SDK.Logs.LogRecordExporter.state()
         ) :: :ok
   def export([], _state), do: :ok

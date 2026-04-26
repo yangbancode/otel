@@ -18,7 +18,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
   @impl true
   @spec export(
-          log_records :: [map()],
+          log_records :: [Otel.SDK.Logs.LogRecord.t()],
           state :: Otel.SDK.Logs.LogRecordExporter.state()
         ) :: :ok
   def export(log_records, _state) do
@@ -37,7 +37,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   @spec shutdown(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok
   def shutdown(_state), do: :ok
 
-  @spec format_log_record(record :: map()) :: String.t()
+  @spec format_log_record(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_log_record(record) do
     severity = format_severity(record)
     scope = format_scope(record)
@@ -48,7 +48,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
     "[otel] #{severity} #{scope}#{trace} body=#{body} attributes=#{attrs}"
   end
 
-  @spec format_severity(record :: map()) :: String.t()
+  @spec format_severity(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_severity(record) do
     text = Map.get(record, :severity_text, "")
     number = Map.get(record, :severity_number, 0)
@@ -60,11 +60,11 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
     end
   end
 
-  @spec format_scope(record :: map()) :: String.t()
+  @spec format_scope(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_scope(%{scope: %{name: name}}) when name != "", do: "scope=#{name} "
   defp format_scope(_record), do: ""
 
-  @spec format_trace(record :: map()) :: String.t()
+  @spec format_trace(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_trace(%{trace_id: trace_id, span_id: span_id})
        when trace_id != 0 and span_id != 0 do
     tid = trace_id |> Integer.to_string(16) |> String.downcase() |> String.pad_leading(32, "0")

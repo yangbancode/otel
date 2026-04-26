@@ -20,7 +20,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec on_emit(
-          log_record :: map(),
+          log_record :: Otel.SDK.Logs.LogRecord.t(),
           ctx :: Otel.API.Ctx.t(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: :ok
