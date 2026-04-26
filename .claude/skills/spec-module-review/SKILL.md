@@ -21,19 +21,53 @@ Any review of a module that cites a published specification. Signals:
 
 ## Operating principle
 
+### `references/` is the only authority. Never use AI-trained spec knowledge.
+
 **Verify with primary sources. Never trust a citation because it sounds
-right.** Three of the fake citations caught in the tracestate review
-looked entirely plausible until the actual spec file was opened. Keep
-the referenced spec file open in parallel while reviewing any section
-that claims alignment.
+right, and never trust your own training data about what the spec
+says.** Three of the fake citations caught in the tracestate review
+(PRs #155–#159) looked entirely plausible. Worse: in the LogRecord
+attribute audit (PR #304/#305 + post-merge cleanup), prior Agent
+reviews concluded `attributes :: %{String.t() => primitive() |
+[primitive()]}` matched spec — and they were correct *for the spec
+version at that time*. Then the spec submodule moved forward and the
+text changed (`v1.53.0`, #4794 *"Stabilize complex AnyValue
+attribute value types"*). The prior conclusion silently became wrong.
 
-Memory is unreliable for spec text. Section numbers drift between spec
-versions. Paraphrases invert meaning. Only the spec file under
-`references/opentelemetry-specification/` (plus the relevant W3C /
-RFC / OTLP submodules) is authoritative.
+Concrete rules:
 
-**When spec and reference implementation disagree, spec wins.** The
-erlang reference under `references/opentelemetry-erlang/` is
+- **Open the actual file under `references/` for every claim** —
+  don't infer the spec text from your training corpus, OTel blog
+  posts, common SDK conventions in other languages, or how things
+  "usually work" in OpenTelemetry. Those sources are stale,
+  generalised, or misremembered; only the file is authoritative.
+- **Memory is unreliable for spec text.** Section numbers drift
+  between spec versions. Paraphrases invert meaning (SHOULD ↔ MUST,
+  minimum ↔ maximum, characters ↔ bytes). Re-quote verbatim from
+  the file every time.
+- **AI training cutoffs lag the spec.** OTel spec releases monthly
+  or faster. Anything you "know" about attribute types,
+  LogRecordProcessor callbacks, propagator interfaces, etc. may be
+  6+ months out of date. The pinned `references/` submodule is the
+  current truth.
+
+The submodule under `references/opentelemetry-specification/`
+(plus W3C / RFC / OTLP / semantic-conventions submodules) is the
+sole authoritative source. If a piece of information is not there,
+it is not part of this project's spec contract.
+
+### Spec evolves. Prior reviews can become stale.
+
+A passed review is valid **only against the spec version it was
+performed on**. When the spec submodule advances, every prior
+conclusion about that area must be re-checked. See Phase 1.0 below
+for the CHANGELOG sweep, and `.claude/rules/workflow.md` § Spec
+submodule update for the cross-cutting workflow that runs whenever
+the submodule pin moves.
+
+### Spec wins over reference implementation.
+
+The erlang reference under `references/opentelemetry-erlang/` is
 informative, not authoritative. A docstring reading "matching
 opentelemetry-erlang" is **not self-justifying** — if erlang
 diverges from spec (whether by workaround, oversight, or pending
@@ -54,6 +88,56 @@ until spec alignment (Phase 1) is confirmed.
 ## Phase 1 — Spec alignment verification
 
 Ensure every claim the code makes about the spec is true.
+
+### 1.0 Spec evolution sweep (do this first)
+
+Before checking the module's citations, look at what the spec itself
+has changed since the module was last reviewed.
+
+1. Note the current submodule pin and tag:
+   ```bash
+   cd references/opentelemetry-specification
+   git log --oneline -1
+   git describe --tags HEAD
+   ```
+   Record both in your scratch notes — every finding in this review is
+   relative to that pin.
+2. Look for the module's last verification timestamp:
+   - `git log -1 --format=%H -- <module-path>` and read the commit body
+     for any "verified against spec vX.Y.Z" notes
+   - If the module's `@moduledoc` carries a `## Spec verification` line,
+     read it
+3. Diff the CHANGELOG between the prior pin and the current one:
+   ```bash
+   cd references/opentelemetry-specification
+   git log <prev-tag>..HEAD CHANGELOG.md
+   ```
+   Skim for the signal areas relevant to the module under review:
+   - Keywords that *change semantics*: `Stabilize`, `Extend`, `Add`,
+     `Deprecate`, `Remove`, `MUST`, `Breaking`
+   - Section names matching the module (e.g. "Logs", "Common",
+     "Traces" for a trace module)
+
+If the CHANGELOG shows a relevant change, **assume prior conclusions
+about that area are stale** until verified against the new spec
+text in 1.1–1.5.
+
+**Real example (PR #304/#305, LogRecord attributes):**
+- Prior reviews concluded `attributes` was narrow
+  (`primitive() | [primitive()]`).
+- v1.50.0 CHANGELOG: *"Extending the set of standard attribute value
+  types is no longer a breaking change."* (#4614) — opens the door.
+- v1.52.0: *"Extend the set of attribute value types to support more
+  complex data structures."* (#4651) — Development.
+- v1.53.0: *"Stabilize complex AnyValue attribute value types and
+  related attribute limits."* (#4794) — **stable**.
+- Conclusion: any prior review of LogRecord attributes performed on
+  ≤v1.49 needed re-verification against the current pin (v1.55.0+).
+
+If `Phase 1.0` finds nothing relevant, you can still proceed — but
+record that you checked. "I looked at the CHANGELOG between v1.X
+and v1.Y and found no changes affecting <module>" is a valid finding
+and worth keeping in the review output.
 
 ### 1.1 Fake citation detection
 
@@ -201,6 +285,55 @@ or a spec-optional field typed without `optional()`.
 Compare the spec's "MUST provide" / "optional" / "MAY"
 wording against the typespec's `optional()` wrapper — the
 two should match.
+
+#### Pattern D — Spec evolved while code stood still
+
+The code's `@type` matches an *earlier* version of the spec
+exactly, but the spec submodule has since moved forward and
+the type has changed. The code is then "correctly drifted"
+— it correctly implements an outdated rule.
+
+This pattern is invisible to a Phase-1.1–1.3 sweep that
+only compares *current* code against *current* spec text:
+the code looks well-aligned with whatever version of the
+spec it was written against. Detection requires Phase 1.0
+(CHANGELOG sweep) plus knowing what spec version the
+module was last verified against.
+
+**Real example (PR #304/#305 + cleanup PR):**
+`Otel.API.Logs.LogRecord.attributes` was typed
+`%{String.t() => primitive() | [primitive()]}`. Multiple
+prior reviews verified this type as spec-aligned, and
+they were right at the time (spec ≤v1.49 narrowed
+LogRecord attribute values to primitive or homogeneous
+primitive arrays). Spec evolution:
+
+- v1.50.0 (#4614): allow extending standard attribute value
+  types without it being a breaking change
+- v1.52.0 (#4651): extend value types to support more
+  complex data structures (Development)
+- v1.53.0 (#4794): stabilize complex `AnyValue` attribute
+  value types and related attribute limits
+
+After v1.53.0 the code's narrow type became Pattern-D
+drift: it correctly implemented a no-longer-current rule.
+The type needed widening to `primitive_any()` to match the
+new spec text, and `Otel.LoggerHandler.to_attribute_value/1`
+needed to be merged into the existing `to_primitive_any/1`
+recursive walker.
+
+Detection signal:
+- `git log -1 --format=%H -- <module>` shows the module's
+  last touch
+- `cd references/<spec> && git log <date>..HEAD CHANGELOG.md`
+  shows spec changes since
+- If keywords in the module's domain appear in the diff
+  (for Logs: "Logs", "LogRecord", "attribute", "AnyValue"),
+  re-verify the relevant `@type`s
+
+Pattern D is the most insidious of the four — it presents
+as "the code matches the spec" if you only look at the
+current text. Always start with Phase 1.0.
 
 #### Verification steps
 
@@ -489,7 +622,33 @@ identifies changes, the standard flow applies:
 6. **Update docs** — if the change affects an architectural decision,
    update or add a doc under `docs/architecture/`. Otherwise update
    the relevant module's `@moduledoc` to reflect the new behaviour.
-7. **PR** — single commit preferred; PR title = commit subject, PR
+7. **Pin the spec version in commit + moduledoc** — every spec-review
+   PR MUST record which spec submodule pin the verification was
+   performed against. Without this, the next reviewer cannot tell
+   whether your conclusions are still valid after a future submodule
+   update (Pattern D in 1.5).
+
+   Commit body line:
+   ```
+   Verified against opentelemetry-specification <tag> (commit <sha>).
+   ```
+
+   For modules that gain a `## Spec verification` moduledoc section
+   (recommended for any non-trivial spec-aligned module), include
+   the same pin:
+   ```markdown
+   ## Spec verification
+
+   Verified against `opentelemetry-specification` <tag>
+   (commit <sha>) on <YYYY-MM-DD>. Re-verify after any submodule
+   advance — see `.claude/rules/workflow.md` § Spec submodule update.
+   ```
+
+   Use the actual values from `git -C references/opentelemetry-specification
+   describe --tags HEAD` and `git -C references/opentelemetry-specification
+   log --format=%H -1`.
+
+8. **PR** — single commit preferred; PR title = commit subject, PR
    body = commit body verbatim (per `git-conventions.md` and
    `memory/feedback_pr_body_verbatim.md`)
 

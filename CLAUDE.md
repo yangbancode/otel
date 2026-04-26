@@ -20,7 +20,10 @@
 
 Per-module rationale lives in each module's `@moduledoc`
 (`## Design notes` section where applicable). Spec compliance is
-verified against `references/` directly, not a secondary checklist.
+verified against `references/` directly, **not against AI
+training-data knowledge of the spec** — see `.claude/rules/workflow.md`
+§ Spec sources for the references-only mandate and § Spec submodule
+update for the re-verification workflow when the pin advances.
 
 ## Rules
 
