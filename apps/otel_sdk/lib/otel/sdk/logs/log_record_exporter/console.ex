@@ -18,9 +18,11 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
   ## Output format
 
-  Single line per record, prefixed with `[otel]`:
+  Single line per record, prefixed with `[otel]`. Fields are
+  joined with single spaces; absent fields (empty `scope`)
+  are dropped entirely so no double-space gaps appear.
 
-      [otel] <severity> [scope=<name> ]trace=<hex> span=<hex> body=<inspect> attributes=<inspect>
+      [otel] <severity> [scope=<name>] trace=<hex> span=<hex> body=<inspect> attributes=<inspect>
 
   - **severity** — combined display per `data-model.md`
     §Displaying Severity L365-L372: short name derived from
@@ -84,13 +86,16 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
   @spec format_log_record(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_log_record(record) do
-    severity = format_severity(record)
-    scope = format_scope(record)
-    trace = format_trace(record)
-    body = inspect(record.body)
-    attrs = inspect(record.attributes)
-
-    "[otel] #{severity} #{scope}#{trace}body=#{body} attributes=#{attrs}"
+    [
+      "[otel]",
+      format_severity(record),
+      format_scope(record),
+      format_trace(record),
+      "body=#{inspect(record.body)}",
+      "attributes=#{inspect(record.attributes)}"
+    ]
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" ")
   end
 
   @spec format_severity(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
@@ -134,10 +139,10 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
   @spec format_scope(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_scope(%{scope: %{name: ""}}), do: ""
-  defp format_scope(%{scope: %{name: name}}), do: "scope=#{name} "
+  defp format_scope(%{scope: %{name: name}}), do: "scope=#{name}"
 
   @spec format_trace(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_trace(%{trace_id: trace_id, span_id: span_id}) do
-    "trace=#{Otel.API.Trace.TraceId.to_hex(trace_id)} span=#{Otel.API.Trace.SpanId.to_hex(span_id)} "
+    "trace=#{Otel.API.Trace.TraceId.to_hex(trace_id)} span=#{Otel.API.Trace.SpanId.to_hex(span_id)}"
   end
 end
