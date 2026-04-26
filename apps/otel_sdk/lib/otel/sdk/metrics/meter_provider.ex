@@ -15,7 +15,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
           views: [Otel.SDK.Metrics.View.t()],
-          readers: [{module(), map()}]
+          readers: [{module(), Otel.SDK.Metrics.MetricReader.config()}],
+          exemplar_filter: Otel.SDK.Metrics.Exemplar.Filter.t()
         }
 
   # --- Client API ---
@@ -224,7 +225,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   # --- Private ---
 
-  @spec default_config() :: map()
+  @spec default_config() :: config()
   defp default_config do
     %{
       resource: Otel.SDK.Resource.default(),
@@ -235,7 +236,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   @spec start_readers(
-          readers :: [{module(), map()}],
+          readers :: [{module(), Otel.SDK.Metrics.MetricReader.config()}],
           base_meter_config :: map()
         ) :: {[{module(), pid()}], [{reference() | nil, map()}]}
   defp start_readers([], base_meter_config) do

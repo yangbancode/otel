@@ -21,11 +21,20 @@ defmodule Otel.SDK.Metrics.MetricReader do
           datapoints: [Otel.SDK.Metrics.Aggregation.datapoint()]
         }
 
-  @callback start_link(config :: map()) :: GenServer.on_start()
+  @typedoc """
+  Reader-implementer config — the value passed to a reader's
+  `start_link/1` callback. Each implementation defines its own
+  shape; the alias names the boundary so callers (notably
+  `Otel.SDK.Metrics.MeterProvider`) can refer to it in @specs
+  rather than the bare `map()` literal.
+  """
+  @type config :: map()
+
+  @callback start_link(config :: config()) :: GenServer.on_start()
   @callback shutdown(server :: GenServer.server()) :: :ok | {:error, term()}
   @callback force_flush(server :: GenServer.server()) :: :ok | {:error, term()}
 
-  @spec collect(config :: map()) :: [metric()]
+  @spec collect(config :: config()) :: [metric()]
   def collect(config) do
     Otel.SDK.Metrics.Meter.run_callbacks(config)
 
@@ -39,7 +48,7 @@ defmodule Otel.SDK.Metrics.MetricReader do
     |> Enum.flat_map(fn stream -> collect_stream(config, stream) end)
   end
 
-  @spec collect_stream(config :: map(), stream :: Otel.SDK.Metrics.Stream.t()) :: [metric()]
+  @spec collect_stream(config :: config(), stream :: Otel.SDK.Metrics.Stream.t()) :: [metric()]
   defp collect_stream(config, stream) do
     stream_key = {stream.name, stream.instrument.scope}
     collect_opts = build_collect_opts(stream)
@@ -91,7 +100,7 @@ defmodule Otel.SDK.Metrics.MetricReader do
   end
 
   @spec attach_exemplars(
-          config :: map(),
+          config :: config(),
           stream :: Otel.SDK.Metrics.Stream.t(),
           datapoints :: [Otel.SDK.Metrics.Aggregation.datapoint()]
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
