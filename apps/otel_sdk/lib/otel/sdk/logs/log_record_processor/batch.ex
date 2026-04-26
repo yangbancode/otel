@@ -26,19 +26,19 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   `LogRecordExporter`'s `Export` to make sure that they are
   not invoked concurrently."* — the gen_statem's mailbox
   serialises events, and only the `:exporting` state owns a
-  runner process. Postpone of `:force_flush` / `:shutdown`
-  during `:exporting` ensures their drains happen *after*
-  the in-progress runner completes.
+  runner process. The `force_flush` / `shutdown` paths drain
+  the queue from inside the gen_statem after the runner has
+  cleared, so no two `export/2` calls overlap.
 
   ## State model
 
   Two `:gen_statem` states with `:state_enter` callbacks:
 
   - `:idle` — accepts cast `{:add_record, _}`, periodic
-    `:export_timer`, and synchronous `:force_flush` /
-    `:shutdown` calls. Transitions to `:exporting` when
-    the queue threshold is met or the periodic timer fires
-    with a non-empty queue.
+    `:export_timer`, and synchronous `{:force_flush, deadline}`
+    / `{:shutdown, deadline}` calls. Transitions to
+    `:exporting` when the queue threshold is met or the
+    periodic timer fires with a non-empty queue.
   - `:exporting` — the `:enter` callback spawns a runner
     process (`spawn_monitor`) that calls the exporter's
     `export/2`. A `:state_timeout` of `export_timeout_ms`
@@ -46,9 +46,18 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     (spec L544-L545 *"how long the export can run before
     it is cancelled"*). Cast `{:add_record, _}` continues
     to enqueue during export (no postpone — back-pressure
-    stays at `max_queue_size`); `:force_flush` and
-    `:shutdown` calls are postponed until the runner
-    completes.
+    stays at `max_queue_size`); the first
+    `{:force_flush, deadline}` / `{:shutdown, deadline}` is
+    saved as `pending_call` and a `:pending_deadline` generic
+    timeout is armed. When the runner finishes (or that
+    timeout fires) we either run the drain inside the caller's
+    remaining budget or abort and reply `{:error, :timeout}` —
+    spec §LogRecordProcessor L487-L491 *"MUST prioritize
+    honoring the timeout over finishing all calls. It MAY
+    skip or abort some or all Export or ForceFlush calls"*.
+    Subsequent `force_flush` / `shutdown` calls postpone, are
+    replayed in `:idle`, and each carries its own absolute
+    deadline.
 
   Supervisor `restart: :transient` means a `:normal` exit
   from a successful `shutdown/2` does not auto-restart,
@@ -88,6 +97,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     @moduledoc false
 
     @typedoc false
+    @type pending_call ::
+            {:force_flush | :shutdown, :gen_statem.from(), integer() | :infinity}
+
+    @typedoc false
     @type t :: %__MODULE__{
             exporter: {module(), Otel.SDK.Logs.LogRecordExporter.state()},
             queue: [Otel.SDK.Logs.LogRecord.t()],
@@ -96,7 +109,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
             scheduled_delay_ms: non_neg_integer(),
             export_timeout_ms: non_neg_integer(),
             max_export_batch_size: pos_integer(),
-            runner: {pid(), reference()} | nil
+            runner: {pid(), reference()} | nil,
+            pending_call: pending_call() | nil
           }
     defstruct [
       :exporter,
@@ -106,7 +120,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
       :max_export_batch_size,
       queue: [],
       queue_size: 0,
-      runner: nil
+      runner: nil,
+      pending_call: nil
     ]
   end
 
@@ -191,12 +206,17 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   gen_statem.
 
   `timeout` (default 30_000ms, matching spec
-  `OTEL_BLRP_EXPORT_TIMEOUT`) bounds the call. Returns
-  `{:error, :timeout}` if exceeded, per spec L466-L467 /
-  L487-L491. Returns `:ok` silently when the gen_statem has
-  already terminated, per spec §LogRecordProcessor L462-L464
-  *"SDKs SHOULD ignore these calls gracefully"* (covers
-  idempotent re-entry from a duplicate `shutdown/2`).
+  `OTEL_BLRP_EXPORT_TIMEOUT`) is converted to an absolute
+  deadline and forwarded to the gen_statem. Per spec
+  §LogRecordProcessor L487-L491 the processor MUST honor that
+  deadline over finishing all calls — drain, exporter
+  `force_flush/1`, and exporter `shutdown/1` are each gated on
+  the deadline; if any step would exceed it, the rest are
+  skipped and `{:error, :timeout}` is returned (per L466-L467).
+  Returns `:ok` silently when the gen_statem has already
+  terminated, per spec L462-L464 *"SDKs SHOULD ignore these
+  calls gracefully"* (covers idempotent re-entry from a
+  duplicate `shutdown/2`).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(
@@ -204,7 +224,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
           timeout :: timeout()
         ) :: :ok | {:error, term()}
   def shutdown(%{pid: pid}, timeout \\ @default_shutdown_timeout_ms) do
-    :gen_statem.call(pid, :shutdown, timeout)
+    deadline = compute_deadline(timeout)
+    :gen_statem.call(pid, {:shutdown, deadline}, timeout)
   catch
     :exit, {:noproc, _} -> :ok
     :exit, {:timeout, _} -> {:error, :timeout}
@@ -214,13 +235,15 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   **SDK** (Batch implementation) — Drain the queue and invoke
   the exporter's `force_flush/1` (spec §LogRecordProcessor
   L484-L486 MUST). When the gen_statem is currently in
-  `:exporting`, the call is postponed until the in-progress
-  runner completes.
+  `:exporting`, the call waits for the runner to clear; if the
+  caller's deadline elapses first the runner is aborted (spec
+  L487-L491 MAY).
 
-  `timeout` (default 30_000ms) bounds the call. Returns
-  `{:error, :timeout}` if exceeded, per spec L492-L493 /
-  L487-L491. Returns `:ok` silently when the gen_statem has
-  already terminated, per spec L462-L464.
+  `timeout` (default 30_000ms) is converted to an absolute
+  deadline. Drain and exporter `force_flush/1` are gated on it
+  per spec L487-L491; on expiry, returns `{:error, :timeout}`
+  per L492-L493. Returns `:ok` silently when the gen_statem
+  has already terminated, per spec L462-L464.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(
@@ -228,7 +251,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
           timeout :: timeout()
         ) :: :ok | {:error, term()}
   def force_flush(%{pid: pid}, timeout \\ @default_force_flush_timeout_ms) do
-    :gen_statem.call(pid, :force_flush, timeout)
+    deadline = compute_deadline(timeout)
+    :gen_statem.call(pid, {:force_flush, deadline}, timeout)
   catch
     :exit, {:noproc, _} -> :ok
     :exit, {:timeout, _} -> {:error, :timeout}
@@ -293,22 +317,37 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     end
   end
 
-  def idle({:call, from}, :force_flush, state) do
-    state = drain_all_sync(state)
-    {module, exporter_state} = state.exporter
-    result = module.force_flush(exporter_state)
+  def idle({:call, from}, {:force_flush, deadline}, state) do
+    state = drain_all_sync(state, deadline)
+
+    result =
+      if deadline_exceeded?(deadline) do
+        {:error, :timeout}
+      else
+        {module, exporter_state} = state.exporter
+        module.force_flush(exporter_state)
+      end
+
     {:keep_state, state, [{:reply, from, result}]}
   end
 
-  def idle({:call, from}, :shutdown, state) do
-    state = drain_all_sync(state)
+  def idle({:call, from}, {:shutdown, deadline}, state) do
+    state = drain_all_sync(state, deadline)
     {module, exporter_state} = state.exporter
-    # Spec §LogRecordProcessor L469: "Shutdown MUST include the
-    # effects of ForceFlush" — flush exporter buffers before
-    # tearing it down.
-    module.force_flush(exporter_state)
-    module.shutdown(exporter_state)
-    {:stop_and_reply, :normal, [{:reply, from, :ok}], state}
+
+    result =
+      if deadline_exceeded?(deadline) do
+        {:error, :timeout}
+      else
+        # Spec §LogRecordProcessor L469: "Shutdown MUST include the
+        # effects of ForceFlush" — flush exporter buffers before
+        # tearing it down.
+        module.force_flush(exporter_state)
+        module.shutdown(exporter_state)
+        :ok
+      end
+
+    {:stop_and_reply, :normal, [{:reply, from, result}], state}
   end
 
   def idle(:info, :export_timer, state) do
@@ -320,6 +359,17 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
       {:keep_state, state}
     end
   end
+
+  # Stale `:pending_deadline` generic-timeout from a runner that
+  # finished or was killed before the deadline fired in
+  # `:exporting`. Generic timeouts persist across state changes,
+  # so absorb the late event here.
+  def idle({:timeout, :pending_deadline}, _content, _state), do: :keep_state_and_data
+
+  # Stray `:export_done` / `:DOWN` from a runner aborted by
+  # `abort_runner/1` after we transitioned out of `:exporting`.
+  def idle(:info, {:export_done, _pid}, _state), do: :keep_state_and_data
+  def idle(:info, {:DOWN, _ref, :process, _pid, _reason}, _state), do: :keep_state_and_data
 
   # --- State: :exporting ---
 
@@ -337,11 +387,36 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     {:keep_state, enqueue(state, log_record)}
   end
 
-  def exporting({:call, _from}, :force_flush, _state) do
-    {:keep_state_and_data, [:postpone]}
+  # First `force_flush` / `shutdown` while exporting — save as
+  # `pending_call` and arm a `:pending_deadline` generic timeout.
+  # When the runner completes (or the deadline fires first), we
+  # reply to the caller. Spec §LogRecordProcessor L487-L491:
+  # *"MUST prioritize honoring the timeout over finishing all
+  # calls. It MAY skip or abort some or all Export or ForceFlush
+  # calls it has made to achieve this goal."*
+  def exporting(
+        {:call, from},
+        {tag, deadline},
+        %State{pending_call: nil} = state
+      )
+      when tag in [:force_flush, :shutdown] do
+    case deadline_remaining(deadline) do
+      :exceeded ->
+        # Caller's budget already gone — abort runner immediately.
+        state = abort_runner(state)
+        reply_pending(tag, from, {:error, :timeout}, state)
+
+      remaining ->
+        state = %State{state | pending_call: {tag, from, deadline}}
+        {:keep_state, state, [{{:timeout, :pending_deadline}, remaining, :pending_deadline}]}
+    end
   end
 
-  def exporting({:call, _from}, :shutdown, _state) do
+  # Subsequent `force_flush` / `shutdown` while a `pending_call` is
+  # already armed — postpone. They will be replayed in `:idle` after
+  # the pending one resolves; each carries its own deadline.
+  def exporting({:call, _from}, {tag, _deadline}, _state)
+      when tag in [:force_flush, :shutdown] do
     {:keep_state_and_data, [:postpone]}
   end
 
@@ -352,13 +427,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   def exporting(:info, {:export_done, pid}, %State{runner: {pid, ref}} = state) do
     Process.demonitor(ref, [:flush])
-    next_after_export(%State{state | runner: nil})
+    after_runner(%State{state | runner: nil})
   end
 
   def exporting(:info, {:DOWN, ref, :process, pid, reason}, %State{runner: {pid, ref}} = state) do
     Logger.warning("Otel.SDK.Logs.LogRecordProcessor.Batch: exporter crashed: #{inspect(reason)}")
 
-    next_after_export(%State{state | runner: nil})
+    after_runner(%State{state | runner: nil})
   end
 
   def exporting(:state_timeout, :export_timeout, %State{runner: {pid, ref}} = state) do
@@ -369,7 +444,23 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
       "Otel.SDK.Logs.LogRecordProcessor.Batch: exporter timed out after #{state.export_timeout_ms}ms"
     )
 
-    next_after_export(%State{state | runner: nil})
+    after_runner(%State{state | runner: nil})
+  end
+
+  # Pending caller's deadline expired before the runner finished —
+  # abort runner and reply timeout to the caller.
+  def exporting({:timeout, :pending_deadline}, :pending_deadline, %State{pending_call: nil}) do
+    # Stale (race with `:export_done` clearing pending_call) — ignore.
+    :keep_state_and_data
+  end
+
+  def exporting(
+        {:timeout, :pending_deadline},
+        :pending_deadline,
+        %State{pending_call: {tag, from, _deadline}} = state
+      ) do
+    state = abort_runner(state)
+    reply_pending(tag, from, {:error, :timeout}, %State{state | pending_call: nil})
   end
 
   # --- Private helpers ---
@@ -410,6 +501,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     end)
   end
 
+  # Called after the runner finishes (naturally, by crash, or by
+  # export-timeout kill). Hands off to the pending caller if one
+  # is waiting, otherwise resumes the periodic batching cycle.
+  @spec after_runner(state :: State.t()) :: :gen_statem.event_handler_result(State.t())
+  defp after_runner(%State{pending_call: nil} = state), do: next_after_export(state)
+  defp after_runner(%State{pending_call: pending} = state), do: handle_pending_call(pending, state)
+
   @spec next_after_export(state :: State.t()) :: :gen_statem.event_handler_result(State.t())
   defp next_after_export(%State{queue_size: 0} = state) do
     {:next_state, :idle, state}
@@ -420,20 +518,114 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     {:keep_state, state, [{:state_timeout, state.export_timeout_ms, :export_timeout}]}
   end
 
-  @spec drain_all_sync(state :: State.t()) :: State.t()
-  defp drain_all_sync(%State{queue_size: 0} = state), do: state
+  # Drain whatever fits in the deadline, then run the exporter's
+  # `force_flush/1` / `shutdown/1` (also deadline-bounded), and
+  # reply to the pending caller. Reached only after a runner has
+  # cleared, so we always start in a runner-less state.
+  @spec handle_pending_call(pending :: State.pending_call(), state :: State.t()) ::
+          :gen_statem.event_handler_result(State.t())
+  defp handle_pending_call({:force_flush, from, deadline}, state) do
+    state = drain_all_sync(state, deadline)
 
-  defp drain_all_sync(state) do
-    {batch_reversed, remaining} = Enum.split(state.queue, state.max_export_batch_size)
-    batch = Enum.reverse(batch_reversed)
+    result =
+      if deadline_exceeded?(deadline) do
+        {:error, :timeout}
+      else
+        {module, exporter_state} = state.exporter
+        module.force_flush(exporter_state)
+      end
+
+    state = %State{state | pending_call: nil}
+    {:next_state, :idle, state, [{:reply, from, result}]}
+  end
+
+  defp handle_pending_call({:shutdown, from, deadline}, state) do
+    state = drain_all_sync(state, deadline)
     {module, exporter_state} = state.exporter
-    module.export(batch, exporter_state)
 
-    drain_all_sync(%State{
+    result =
+      if deadline_exceeded?(deadline) do
+        {:error, :timeout}
+      else
+        # Spec L469: "Shutdown MUST include the effects of ForceFlush".
+        module.force_flush(exporter_state)
+        module.shutdown(exporter_state)
+        :ok
+      end
+
+    {:stop_and_reply, :normal, [{:reply, from, result}], state}
+  end
+
+  # Reply to a `pending_call` while still in `:exporting` (called by
+  # the immediate-deadline and pending-timeout paths). Mirrors
+  # `handle_pending_call/2` but skips the drain — the caller is
+  # already past their deadline so we just signal and transition.
+  @spec reply_pending(
+          tag :: :force_flush | :shutdown,
+          from :: :gen_statem.from(),
+          reply :: term(),
+          state :: State.t()
+        ) :: :gen_statem.event_handler_result(State.t())
+  defp reply_pending(:force_flush, from, reply, state) do
+    {:next_state, :idle, state, [{:reply, from, reply}]}
+  end
+
+  defp reply_pending(:shutdown, from, reply, state) do
+    {:stop_and_reply, :normal, [{:reply, from, reply}], state}
+  end
+
+  # Force-kill the in-flight runner so we can either honor a tighter
+  # caller deadline or transition to `:idle` immediately. Spec
+  # §LogRecordProcessor L487-L491 explicitly allows aborting in-
+  # progress export calls in service of the timeout.
+  @spec abort_runner(state :: State.t()) :: State.t()
+  defp abort_runner(%State{runner: nil} = state), do: state
+
+  defp abort_runner(%State{runner: {pid, ref}} = state) do
+    Process.demonitor(ref, [:flush])
+    Process.exit(pid, :kill)
+    %State{state | runner: nil}
+  end
+
+  @spec compute_deadline(timeout :: timeout()) :: integer() | :infinity
+  defp compute_deadline(:infinity), do: :infinity
+
+  defp compute_deadline(timeout) when is_integer(timeout) and timeout >= 0 do
+    System.monotonic_time(:millisecond) + timeout
+  end
+
+  @spec deadline_exceeded?(deadline :: integer() | :infinity) :: boolean()
+  defp deadline_exceeded?(:infinity), do: false
+  defp deadline_exceeded?(deadline), do: System.monotonic_time(:millisecond) >= deadline
+
+  @spec deadline_remaining(deadline :: integer() | :infinity) ::
+          non_neg_integer() | :infinity | :exceeded
+  defp deadline_remaining(:infinity), do: :infinity
+
+  defp deadline_remaining(deadline) do
+    case deadline - System.monotonic_time(:millisecond) do
+      remaining when remaining > 0 -> remaining
+      _ -> :exceeded
+    end
+  end
+
+  @spec drain_all_sync(state :: State.t(), deadline :: integer() | :infinity) :: State.t()
+  defp drain_all_sync(%State{queue_size: 0} = state, _deadline), do: state
+
+  defp drain_all_sync(state, deadline) do
+    if deadline_exceeded?(deadline) do
       state
-      | queue: remaining,
-        queue_size: state.queue_size - length(batch_reversed)
-    })
+    else
+      {batch_reversed, remaining} = Enum.split(state.queue, state.max_export_batch_size)
+      batch = Enum.reverse(batch_reversed)
+      {module, exporter_state} = state.exporter
+      module.export(batch, exporter_state)
+
+      drain_all_sync(
+        %State{state | queue: remaining, queue_size: state.queue_size - length(batch_reversed)},
+        deadline
+      )
+    end
   end
 
   @spec schedule_periodic_export(delay_ms :: non_neg_integer()) :: reference()
