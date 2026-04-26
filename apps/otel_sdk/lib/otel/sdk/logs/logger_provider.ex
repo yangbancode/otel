@@ -7,14 +7,54 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   on start.
 
   All public functions are safe for concurrent use.
+
+  ## Processor monitoring
+
+  When a registered processor's callback config carries enough
+  information to identify the processor's process (`:reg_name`
+  or `:pid`), the LoggerProvider monitors that process at start
+  via `Process.monitor/1`. If the process dies, the
+  LoggerProvider receives `{:DOWN, ...}` and removes the
+  processor from its dispatch list (and from the
+  `:persistent_term` fast path used by `Logger.emit`).
+
+  This is graceful degradation: a single processor's death does
+  not propagate to the LoggerProvider or its other registered
+  processors. Once removed, the processor is **not** re-added,
+  even if a supervisor restarts the underlying process — the
+  LoggerProvider holds no PID for the new instance. Re-adding
+  is the application's explicit choice (no public API for it
+  yet).
+
+  Module-only processors (callback config carries no
+  identifiable process — typical for in-test fixtures) are
+  registered without monitoring; they have no process to die.
+
+  Mirrors the pattern used by erlang
+  `otel_meter_server.erl:369` for monitored readers.
   """
 
   use GenServer
   @behaviour Otel.API.Logs.LoggerProvider
 
+  @typedoc """
+  A registered processor in the provider state.
+
+  - `:module` — the `LogRecordProcessor` implementation
+  - `:config` — the user-supplied callback config (passed to
+    every processor callback verbatim)
+  - `:monitor_ref` — `Process.monitor/1` reference, or `nil`
+    for module-only processors that expose no process to monitor
+  """
+  @type processor_entry :: %{
+          module: module(),
+          config: Otel.SDK.Logs.LogRecordProcessor.config(),
+          monitor_ref: reference() | nil
+        }
+
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
-          processors: [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}],
+          processors: [processor_entry()],
           log_record_limits: Otel.SDK.Logs.LogRecordLimits.t()
         }
 
@@ -93,13 +133,17 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   def init(user_config) do
     processors_key = {__MODULE__, :processors, make_ref()}
 
+    base = Map.merge(default_config(), user_config)
+
+    monitored = Enum.map(Map.get(base, :processors, []), &monitor_processor/1)
+
     config =
-      default_config()
-      |> Map.merge(user_config)
+      base
+      |> Map.put(:processors, monitored)
       |> Map.put(:shut_down, false)
       |> Map.put(:processors_key, processors_key)
 
-    :persistent_term.put(processors_key, config.processors)
+    :persistent_term.put(processors_key, project_processors(monitored))
 
     Otel.API.Logs.LoggerProvider.set_provider({__MODULE__, self_ref()})
     {:ok, config}
@@ -139,6 +183,11 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   def handle_call(:shutdown, _from, config) do
+    # Demonitor (and flush any queued :DOWN) before invoking each
+    # processor's shutdown — we initiate the deaths here, so the
+    # resulting :DOWN messages would only be noise.
+    Enum.each(config.processors, &demonitor_processor/1)
+
     result = invoke_all_processors(config.processors, :shutdown)
     {:reply, result, %{config | shut_down: true}}
   end
@@ -160,9 +209,25 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     {:reply, config, config}
   end
 
+  @impl true
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, %{shut_down: true} = config) do
+    # Already shutting down — ignore late-arriving DOWN.
+    {:noreply, config}
+  end
+
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, config) do
+    new_processors = Enum.reject(config.processors, &(&1.monitor_ref == ref))
+
+    # Update the persistent_term fast path so `Logger.emit` stops
+    # dispatching to the dead processor immediately.
+    :persistent_term.put(config.processors_key, project_processors(new_processors))
+
+    {:noreply, %{config | processors: new_processors}}
+  end
+
   # --- Private ---
 
-  @spec default_config() :: config()
+  @spec default_config() :: %{atom() => term()}
   defp default_config do
     %{
       resource: Otel.SDK.Resource.default(),
@@ -171,16 +236,65 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     }
   end
 
+  @spec monitor_processor({module(), Otel.SDK.Logs.LogRecordProcessor.config()}) ::
+          processor_entry()
+  defp monitor_processor({module, callback_config}) do
+    %{
+      module: module,
+      config: callback_config,
+      monitor_ref: monitor_if_resolvable(callback_config)
+    }
+  end
+
+  @spec monitor_if_resolvable(Otel.SDK.Logs.LogRecordProcessor.config()) :: reference() | nil
+  defp monitor_if_resolvable(callback_config) do
+    case resolve_pid(callback_config) do
+      nil -> nil
+      pid -> Process.monitor(pid)
+    end
+  end
+
+  @spec resolve_pid(Otel.SDK.Logs.LogRecordProcessor.config()) :: pid() | nil
+  defp resolve_pid(%{pid: pid}) when is_pid(pid), do: pid
+
+  defp resolve_pid(%{reg_name: name}) when is_atom(name) do
+    case Process.whereis(name) do
+      nil ->
+        raise ArgumentError,
+              "LogRecordProcessor :reg_name #{inspect(name)} is not registered. " <>
+                "Start the processor before LoggerProvider."
+
+      pid ->
+        pid
+    end
+  end
+
+  defp resolve_pid(_), do: nil
+
+  @spec demonitor_processor(processor_entry()) :: :ok
+  defp demonitor_processor(%{monitor_ref: nil}), do: :ok
+
+  defp demonitor_processor(%{monitor_ref: ref}) do
+    Process.demonitor(ref, [:flush])
+    :ok
+  end
+
+  @spec project_processors([processor_entry()]) ::
+          [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
+  defp project_processors(processors) do
+    Enum.map(processors, fn %{module: m, config: c} -> {m, c} end)
+  end
+
   @spec invoke_all_processors(
-          processors :: [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}],
+          processors :: [processor_entry()],
           function :: :shutdown | :force_flush
         ) :: :ok | {:error, [{module(), term()}]}
   defp invoke_all_processors(processors, function) do
     results =
-      Enum.reduce(processors, [], fn {processor, processor_config}, errors ->
-        case apply(processor, function, [processor_config]) do
+      Enum.reduce(processors, [], fn %{module: module, config: callback_config}, errors ->
+        case apply(module, function, [callback_config]) do
           :ok -> errors
-          {:error, reason} -> [{processor, reason} | errors]
+          {:error, reason} -> [{module, reason} | errors]
         end
       end)
 
