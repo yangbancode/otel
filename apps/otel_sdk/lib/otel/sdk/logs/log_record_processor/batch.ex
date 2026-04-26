@@ -31,7 +31,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec enabled?(
-          opts :: keyword(),
+          opts :: Otel.API.Logs.Logger.enabled_opts(),
           scope :: Otel.API.InstrumentationScope.t(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: boolean()
