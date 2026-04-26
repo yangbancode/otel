@@ -538,9 +538,10 @@ defmodule Otel.LoggerHandlerTest do
   # `Logger.metadata/1` and per-call meta args put arbitrary
   # keys on `:logger`'s meta map. Every non-reserved key flows
   # through as a custom attribute — `Atom.to_string(key)` maps
-  # to a `primitive() | [primitive()]`-coerced value. The
-  # reserved list covers semconv-mapped, pipeline-consumed,
-  # and spec-mismatched keys (see moduledoc).
+  # to a `primitive_any()`-coerced value (full AnyValue per
+  # spec common/README.md L187). The reserved list covers
+  # semconv-mapped, pipeline-consumed, and spec-mismatched
+  # keys (see moduledoc).
   describe "user metadata pass-through" do
     test "primitive-valued user meta flows through as attributes" do
       meta = %{
@@ -602,19 +603,30 @@ defmodule Otel.LoggerHandlerTest do
       assert attrs["point"] == "{1, 2}"
     end
 
-    test "nested map user meta coerces via inspect (attributes forbid maps)" do
-      # `common/README.md` §Attribute L185-L197: attribute
-      # values are primitive or homogeneous primitive arrays,
-      # NOT maps. A map-valued user meta is outside contract;
-      # inspect/1 preserves debuggability.
-      meta = %{detail: %{a: 1, b: 2}}
+    test "nested map user meta is preserved as nested AnyValue map" do
+      # spec common/README.md L187 — *"The attribute value MUST
+      # be one of types defined in [AnyValue](#anyvalue)"* —
+      # plus proto KeyValue.value = AnyValue. Map-valued user
+      # meta recurses through `to_primitive_any/1` with keys
+      # stringified at every depth.
+      meta = %{detail: %{a: 1, b: "two"}}
       Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
       assert_received {:captured_log, _, %{attributes: attrs}}
-      # Map inspect order isn't guaranteed across BEAM versions,
-      # but inspect output is a string either way.
-      assert is_binary(attrs["detail"])
-      assert attrs["detail"] =~ "a: 1"
-      assert attrs["detail"] =~ "b: 2"
+
+      assert attrs["detail"] == %{"a" => 1, "b" => "two"}
+    end
+
+    test "heterogeneous list user meta is preserved (AnyValue array)" do
+      # Lists no longer require homogeneous primitive elements.
+      # spec common/README.md L260-L274 — array of AnyValue is
+      # permitted; element-wise recursion through
+      # `to_primitive_any/1` normalises atoms to strings while
+      # preserving nested shape.
+      meta = %{items: [1, "a", :x, %{k: "v"}]}
+      Otel.LoggerHandler.log(log_event(:info, {:string, "x"}, meta), handler_config())
+      assert_received {:captured_log, _, %{attributes: attrs}}
+
+      assert attrs["items"] == [1, "a", "x", %{"k" => "v"}]
     end
 
     test "list of primitives flows as homogeneous array attribute" do

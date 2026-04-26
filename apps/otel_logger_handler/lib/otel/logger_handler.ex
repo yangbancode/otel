@@ -211,7 +211,7 @@ defmodule Otel.LoggerHandler do
   `Logger.metadata/1` or per-call meta args. Every key not
   in the reserved list below flows through as a custom
   attribute — the key is `Atom.to_string(meta_key)` and the
-  value is coerced to `primitive() | [primitive()]`:
+  value is coerced to `primitive_any()`:
 
       Logger.metadata(request_id: "req-abc", user_id: 42)
       Logger.info("processed")
@@ -229,21 +229,21 @@ defmodule Otel.LoggerHandler do
   | `:gl` | Group-leader PID — process-internal, no OTel semantic |
   | `:pid` | `process.pid` type mismatch (see above) |
 
-  Value coercion is **flat** (unlike `to_primitive_any/1`
-  which recurses through nested maps for body) — our
-  `LogRecord.attributes` type is
-  `%{String.t() => primitive() | [primitive()]}`
-  (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74), a
-  narrower subset of what OTel's AnyValue (`common/README.md`
-  §Attribute L185-L197) permits. Primitives (`String.t()`,
-  `integer()`, `float()`, `boolean()`, `nil`,
+  Value coercion delegates to `to_primitive_any/1` — the same
+  recursive walker the body path uses. spec
+  `common/README.md` L187 — *"The attribute value MUST be one
+  of types defined in [AnyValue](#anyvalue)"* — and proto
+  `logs.proto` L178 (`KeyValue.value = AnyValue`) define
+  `LogRecord.attributes` values as full AnyValue, including
+  nested maps and heterogeneous arrays. Primitives
+  (`String.t()`, `integer()`, `float()`, `boolean()`, `nil`,
   `{:bytes, binary()}`) pass through. Non-primitives (atoms,
   structs, tuples, PIDs, refs, functions) coerce to string
   via `String.Chars` when implemented, `inspect/1` otherwise.
-  Lists become homogeneous primitive arrays via element-wise
-  coercion. Nested maps — which have no valid attribute
-  representation under our type — fall through to
-  `inspect/1`.
+  Lists recurse element-wise so nested arrays survive.
+  Nested maps (non-struct) recurse with stringified keys so
+  the AnyValue `map<string, AnyValue>` contract holds at
+  every depth.
 
   ## Exception events
 
@@ -506,13 +506,9 @@ defmodule Otel.LoggerHandler do
   # module or `nil`, so this is pure dispatch — no
   # `try/rescue`.
   #
-  # Callsites:
-  #
-  # - `to_primitive_any/1` — body path; delegates here for
-  #   every non-map, non-list value.
-  # - `to_attribute_value/1` — attribute path; delegates
-  #   here for every non-list value, and via `Enum.map` for
-  #   list elements.
+  # Callsite: `to_primitive_any/1` — recursive walker shared
+  # by both the body path and the user-metadata attribute
+  # path. Delegates here for every non-map, non-list value.
   @spec to_primitive(value :: term()) :: primitive()
   defp to_primitive(nil), do: nil
   defp to_primitive(value) when is_boolean(value), do: value
@@ -621,24 +617,9 @@ defmodule Otel.LoggerHandler do
     meta
     |> Map.drop(@reserved_meta_keys)
     |> Enum.reduce(attrs, fn {key, value}, acc ->
-      Map.put(acc, Atom.to_string(key), to_attribute_value(value))
+      Map.put(acc, Atom.to_string(key), to_primitive_any(value))
     end)
   end
-
-  # Coerces any Elixir term to `primitive() | [primitive()]`
-  # — the attribute-value type from `LogRecord.t/0`
-  # (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74).
-  #
-  # Similar to `to_primitive_any/1` (body path) but FLATTER:
-  # our attribute-value type narrows what OTel's `AnyValue`
-  # (`common/README.md` §Attribute L185-L197) permits — only
-  # primitive or homogeneous primitive arrays, no nested
-  # maps. A list iterates to a homogeneous primitive array
-  # via `to_primitive/1` on each element; non-list values go
-  # through `to_primitive/1` directly.
-  @spec to_attribute_value(value :: term()) :: primitive() | [primitive()]
-  defp to_attribute_value(value) when is_list(value), do: Enum.map(value, &to_primitive/1)
-  defp to_attribute_value(value), do: to_primitive(value)
 
   # Exception struct from `meta.crash_reason = {exception,
   # stacktrace}` — OTP's standard crash-report shape. Returns
