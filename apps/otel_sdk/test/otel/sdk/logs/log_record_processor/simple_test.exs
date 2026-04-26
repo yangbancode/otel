@@ -110,14 +110,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       assert_receive :exporter_shutdown
     end
 
-    test "second shutdown is a graceful no-op" do
+    test "second shutdown returns {:error, :already_shutdown}" do
       {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
           exporter: {TestExporter, %{test_pid: self()}}
         })
 
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
+
+      assert {:error, :already_shutdown} ==
+               Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
     end
 
     test "emit after shutdown is no-op" do
@@ -150,14 +152,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       assert_receive :exporter_force_flush
     end
 
-    test "force_flush after shutdown is no-op" do
+    test "force_flush after shutdown returns {:error, :already_shutdown}" do
       {:ok, pid} =
         Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
           exporter: {TestExporter, %{test_pid: self()}}
         })
 
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(%{pid: pid})
+
+      assert {:error, :already_shutdown} ==
+               Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(%{pid: pid})
     end
   end
 

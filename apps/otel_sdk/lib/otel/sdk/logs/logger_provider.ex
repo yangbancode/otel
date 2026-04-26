@@ -207,7 +207,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   def handle_call({:shutdown, _timeout}, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :already_shut_down}, config}
+    {:reply, {:error, :already_shutdown}, config}
   end
 
   def handle_call({:shutdown, timeout}, _from, config) do
@@ -216,7 +216,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   def handle_call({:force_flush, _timeout}, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :shut_down}, config}
+    {:reply, {:error, :already_shutdown}, config}
   end
 
   def handle_call({:force_flush, timeout}, _from, config) do

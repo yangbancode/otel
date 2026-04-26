@@ -95,7 +95,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
     test "returns error on second shutdown", %{provider: pid} do
       Otel.SDK.Logs.LoggerProvider.shutdown(pid)
-      assert {:error, :already_shut_down} == Otel.SDK.Logs.LoggerProvider.shutdown(pid)
+      assert {:error, :already_shutdown} == Otel.SDK.Logs.LoggerProvider.shutdown(pid)
     end
 
     test "returns noop logger after shutdown", %{provider: pid} do
@@ -117,7 +117,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
     test "returns error after shutdown", %{provider: pid} do
       Otel.SDK.Logs.LoggerProvider.shutdown(pid)
-      assert {:error, :shut_down} == Otel.SDK.Logs.LoggerProvider.force_flush(pid)
+      assert {:error, :already_shutdown} == Otel.SDK.Logs.LoggerProvider.force_flush(pid)
     end
   end
 

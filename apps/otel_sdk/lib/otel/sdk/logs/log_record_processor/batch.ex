@@ -229,10 +229,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   `force_flush/1`, and exporter `shutdown/1` are each gated on
   the deadline; if any step would exceed it, the rest are
   skipped and `{:error, :timeout}` is returned (per L466-L467).
-  Returns `:ok` silently when the gen_statem has already
-  terminated, per spec L462-L464 *"SDKs SHOULD ignore these
-  calls gracefully"* (covers idempotent re-entry from a
-  duplicate `shutdown/2`).
+  Returns `{:error, :already_shutdown}` when the gen_statem has
+  already terminated — spec L466-L467 classifies this as failed
+  rather than silently succeeded.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(
@@ -243,7 +242,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     deadline = compute_deadline(timeout)
     :gen_statem.call(pid, {:shutdown, deadline}, timeout)
   catch
-    :exit, {:noproc, _} -> :ok
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
     :exit, {:timeout, _} -> {:error, :timeout}
   end
 
@@ -258,8 +257,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   `timeout` (default 30_000ms) is converted to an absolute
   deadline. Drain and exporter `force_flush/1` are gated on it
   per spec L487-L491; on expiry, returns `{:error, :timeout}`
-  per L492-L493. Returns `:ok` silently when the gen_statem
-  has already terminated, per spec L462-L464.
+  per L492-L493. Returns `{:error, :already_shutdown}` when
+  the gen_statem has already terminated — spec L492-L493
+  classifies this as failed.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(
@@ -270,7 +270,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     deadline = compute_deadline(timeout)
     :gen_statem.call(pid, {:force_flush, deadline}, timeout)
   catch
-    :exit, {:noproc, _} -> :ok
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
     :exit, {:timeout, _} -> {:error, :timeout}
   end
 

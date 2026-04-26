@@ -173,11 +173,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
       assert_receive :exporter_force_flush
     end
 
-    test "second force_flush after shutdown is graceful no-op" do
+    test "force_flush after shutdown returns {:error, :already_shutdown}" do
       pid = start_batch(%{exporter: {TestExporter, %{test_pid: self()}}})
       config = %{pid: pid}
       Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Batch.force_flush(config)
+
+      assert {:error, :already_shutdown} ==
+               Otel.SDK.Logs.LogRecordProcessor.Batch.force_flush(config)
     end
   end
 
@@ -205,11 +207,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
       assert_receive :exporter_shutdown
     end
 
-    test "second shutdown is a graceful no-op" do
+    test "second shutdown returns {:error, :already_shutdown}" do
       pid = start_batch(%{exporter: {TestExporter, %{test_pid: self()}}})
       config = %{pid: pid}
       :ok = Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
-      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
+
+      assert {:error, :already_shutdown} ==
+               Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
     end
   end
 

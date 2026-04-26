@@ -60,12 +60,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   Late-arriving `on_emit/3` after termination is silently
   dropped — `:gen_statem.cast/2` to a dead pid is dead-lettered
-  and returns `:ok`. Late `force_flush/2` or a second
-  `shutdown/2` still go through `:gen_statem.call` /
-  `:gen_statem.stop`, so they catch `:exit, {:noproc, _}` /
-  `:exit, :noproc` and return `:ok`. All three satisfy spec
-  §LogRecordProcessor L462-L464 *"SDKs SHOULD ignore these
-  calls gracefully"*.
+  and returns `:ok`. This satisfies spec §LogRecordProcessor
+  L462-L464 *"SDKs SHOULD ignore these calls gracefully"* (the
+  spec only mentions OnEmit explicitly).
+
+  Late `force_flush/2` or a second `shutdown/2` go through
+  `:gen_statem.call` / `:gen_statem.stop`, catch `:exit,
+  {:noproc, _}` / `:exit, :noproc` and return
+  `{:error, :already_shutdown}` per spec L466-L467 / L492-L493
+  (*"succeeded, failed or timed out"* — failed is the right
+  classification here, not silent success).
 
   When the day comes that we want hung-exporter timeout
   isolation, an additional `:exporting` state with a runner
@@ -161,9 +165,11 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   `timeout` (default 30_000ms) bounds the wait for terminate
   to complete. Returns `{:error, :timeout}` if exceeded,
-  per spec L466-L467 / L487-L491. Returns `:ok` silently when
-  the gen_statem has already terminated, per spec L462-L464
-  (covers idempotent re-entry from a duplicate `shutdown/2`).
+  per spec L466-L467 / L487-L491. Returns
+  `{:error, :already_shutdown}` when the gen_statem has
+  already terminated — the spec L466-L467 result enumeration
+  (*"succeeded, failed or timed out"*) classifies this as
+  failed rather than silently succeeded.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(
@@ -176,7 +182,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
     # `:gen_statem.stop/3` (via `:proc_lib.stop/3`) raises bare
     # `:noproc` / `:timeout` exits — different shape from
     # `:gen_statem.call/3`, which wraps both with an MFA tuple.
-    :exit, :noproc -> :ok
+    :exit, :noproc -> {:error, :already_shutdown}
     :exit, :timeout -> {:error, :timeout}
   end
 
@@ -191,8 +197,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   `timeout` (default 30_000ms) bounds the call. Returns
   `{:error, :timeout}` if exceeded, per spec L492-L493 /
-  L487-L491. Returns `:ok` silently when the gen_statem has
-  already terminated, per spec L462-L464.
+  L487-L491. Returns `{:error, :already_shutdown}` when the
+  gen_statem has already terminated — spec L492-L493
+  classifies this as failed.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(
@@ -202,7 +209,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   def force_flush(%{pid: pid}, timeout \\ @default_force_flush_timeout_ms) do
     :gen_statem.call(pid, :force_flush, timeout)
   catch
-    :exit, {:noproc, _} -> :ok
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
     :exit, {:timeout, _} -> {:error, :timeout}
   end
 
