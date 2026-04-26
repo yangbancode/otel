@@ -90,7 +90,7 @@ defmodule Otel.SDK.Logs.Logger do
           log_record :: Otel.API.Logs.LogRecord.t(),
           config :: map(),
           ctx :: Otel.API.Ctx.t()
-        ) :: map()
+        ) :: Otel.SDK.Logs.LogRecord.t()
   defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)
     {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
@@ -107,7 +107,7 @@ defmodule Otel.SDK.Logs.Logger do
         ts -> ts
       end
 
-    %{
+    %Otel.SDK.Logs.LogRecord{
       timestamp: log_record.timestamp,
       observed_timestamp: observed_timestamp,
       severity_number: log_record.severity_number,

@@ -20,7 +20,8 @@ defmodule Otel.SDK.Logs.LogRecordExporter do
   @doc """
   Exports a batch of log records. MUST NOT block indefinitely.
   """
-  @callback export(log_records :: [map()], state :: state()) :: :ok | :error
+  @callback export(log_records :: [Otel.SDK.Logs.LogRecord.t()], state :: state()) ::
+              :ok | :error
 
   @doc """
   Forces the exporter to flush any buffered data.
