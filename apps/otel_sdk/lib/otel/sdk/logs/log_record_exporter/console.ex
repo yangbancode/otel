@@ -44,6 +44,41 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
     absence is visible at a glance, matching
     `Otel.SDK.Trace.SpanExporter.Console`.
 
+  ## Concurrency
+
+  Spec `logs/sdk.md` L559-L560 — *"Each implementation MUST
+  document the concurrency characteristics the SDK requires
+  of the exporter."* Console is stateless (the user's config
+  is opaque, never mutated):
+
+  - `export/2` writes to `:stdio` via `IO.puts/1`. The OTel
+    SDK's bundled processors (`Simple`, `Batch`) serialise
+    `export/2` calls per spec L572-L573, so Console assumes
+    a single `export/2` in flight at a time. `IO.puts/1`
+    itself is thread-safe (the IO server serialises writes),
+    so even concurrent invocation by a non-bundled
+    processor would not corrupt output, only interleave
+    records.
+  - `force_flush/1` and `shutdown/1` are no-ops and therefore
+    safe to call concurrently with `export/2` per spec
+    L659-L660.
+
+  ## Shutdown semantics
+
+  Spec L637-L639 says *"After the call to `Shutdown`
+  subsequent calls to `Export` are not allowed and SHOULD
+  return a Failure result."* Console does not enforce this
+  internally — `shutdown/1` returns `:ok` without mutating
+  state, and `export/2` continues to work afterward. The
+  `LogRecordExporter` behaviour returns `:ok | {:error,
+  term()}` from `shutdown/1` (no new state), so tracking
+  the shut-down flag would require side-channel storage
+  (process dictionary, ETS, or a GenServer wrapper) that
+  is overkill for a debug stdout exporter. The bundled
+  processors never call `export/2` after `shutdown/1` by
+  construction, so the SHOULD is satisfied at the processor
+  layer in practice.
+
   ## Public API
 
   | Function | Role |
@@ -53,7 +88,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   ## References
 
   - OTel Logs SDK Stdout: `opentelemetry-specification/specification/logs/sdk_exporters/stdout.md`
-  - SeverityNumber short-name table: `opentelemetry-specification/specification/logs/data-model.md` §Displaying Severity L334-L372
+  - SeverityNumber short-name table: `opentelemetry-specification/specification/logs/data-model.md` §Displaying Severity L338-L363
   - Parent behaviour: `Otel.SDK.Logs.LogRecordExporter`
   """
 
@@ -112,7 +147,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
     "#{short_name(n)} (#{text})"
   end
 
-  # Spec `data-model.md` §Displaying Severity L334-L363 short-name
+  # Spec `data-model.md` §Displaying Severity L338-L363 short-name
   # table. Kept private — Console is currently the only consumer. If
   # another exporter needs the same lookup later, promote to
   # `Otel.API.Logs.severity_short_name/1`.

@@ -38,29 +38,20 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
 
   ## Truncation rules
 
-  Values pass through type-specific truncation per
-  `common/README.md` L260-274. The cases below are the only
-  shapes the `LogRecord.attributes` value type permits
-  (`apps/otel_api/lib/otel/api/logs/log_record.ex` L74:
-  `primitive() | [primitive()]`).
+  `LogRecord.attributes` values are the full
+  `t:primitive_any/0` per spec
+  (`opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto`
+  L178 — `repeated KeyValue` where `KeyValue.value = AnyValue`).
+  Truncation applies recursively per `common/README.md`
+  L260-L274:
 
   | Value shape | Truncation |
   |---|---|
   | `String.t()` | character (grapheme) count via `String.slice/3` (spec L262-263 *"counting any character in it as 1"*) |
   | `{:bytes, binary()}` | byte count via `binary_part/3` (spec L265-267 *"counting each byte as 1"*) |
-  | `[primitive()]` | element-wise recursion (spec L268-269) |
+  | `[primitive_any()]` | element-wise recursion — covers both homogeneous primitive arrays (spec L268-269) and heterogeneous AnyValue arrays (spec L270-271) |
+  | `%{String.t() => primitive_any()}` | recursion over map values (spec L272-273) |
   | `boolean()`, `integer()`, `float()`, `nil` | passes through unchanged (spec L274 *"otherwise a value MUST NOT be truncated"*) |
-
-  The spec also defines map-valued (`common/README.md`
-  L272-273) and AnyValue-array (L270-271) recursion. Neither
-  applies here — `LogRecord.attributes`'s
-  `primitive() | [primitive()]` value type
-  (`apps/otel_api/lib/otel/api/common/types.ex` L180-L181)
-  excludes nested maps and heterogeneous AnyValue arrays. The
-  `Otel.LoggerHandler` body path
-  (`apps/otel_logger_handler/lib/otel/logger_handler.ex`)
-  uses `primitive_any()` for that recursion; attribute values
-  here are intentionally a flatter subset.
 
   ## References
 
@@ -112,9 +103,9 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   end
 
   @spec truncate(
-          attributes :: %{String.t() => primitive() | [primitive()]},
+          attributes :: %{String.t() => primitive_any()},
           limit :: non_neg_integer() | :infinity
-        ) :: %{String.t() => primitive() | [primitive()]}
+        ) :: %{String.t() => primitive_any()}
   defp truncate(attributes, :infinity), do: attributes
 
   defp truncate(attributes, limit) do
@@ -122,17 +113,17 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   end
 
   @spec drop(
-          attributes :: %{String.t() => primitive() | [primitive()]},
+          attributes :: %{String.t() => primitive_any()},
           limit :: non_neg_integer()
-        ) :: %{String.t() => primitive() | [primitive()]}
+        ) :: %{String.t() => primitive_any()}
   defp drop(attributes, limit) when map_size(attributes) <= limit, do: attributes
 
   defp drop(attributes, limit) do
     attributes |> Enum.take(limit) |> Map.new()
   end
 
-  @spec do_truncate(value :: primitive() | [primitive()], limit :: non_neg_integer()) ::
-          primitive() | [primitive()]
+  @spec do_truncate(value :: primitive_any(), limit :: non_neg_integer()) ::
+          primitive_any()
   defp do_truncate({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
     {:bytes, binary_part(bin, 0, limit)}
   end
@@ -143,6 +134,10 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
 
   defp do_truncate(value, limit) when is_list(value) do
     Enum.map(value, &do_truncate(&1, limit))
+  end
+
+  defp do_truncate(value, limit) when is_map(value) do
+    Map.new(value, fn {k, v} -> {k, do_truncate(v, limit)} end)
   end
 
   defp do_truncate(value, _limit), do: value

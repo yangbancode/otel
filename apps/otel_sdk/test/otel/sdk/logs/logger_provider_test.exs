@@ -1,6 +1,8 @@
 defmodule Otel.SDK.Logs.LoggerProviderTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
+
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
@@ -69,6 +71,64 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       assert module == Otel.SDK.Logs.Logger
       assert config.scope.name == ""
+    end
+
+    test "logs a warning for empty Logger name (spec L78-L81)", %{provider: pid} do
+      log =
+        capture_log(fn ->
+          Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: ""})
+        end)
+
+      assert log =~ "invalid Logger name"
+    end
+
+    test "no warning for a valid Logger name", %{provider: pid} do
+      log =
+        capture_log(fn ->
+          Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+            name: "my_lib"
+          })
+        end)
+
+      refute log =~ "invalid Logger name"
+    end
+
+    test "default LoggerConfig is attached when no configurator is supplied", %{provider: pid} do
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "my_lib"
+        })
+
+      assert config.logger_config == %Otel.SDK.Logs.LoggerConfig{}
+    end
+
+    test "user-supplied LoggerConfigurator is invoked per get_logger" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      configurator = fn
+        %Otel.API.InstrumentationScope{name: "noisy"} ->
+          %Otel.SDK.Logs.LoggerConfig{enabled: false}
+
+        _ ->
+          %Otel.SDK.Logs.LoggerConfig{minimum_severity: 9}
+      end
+
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(config: %{logger_configurator: configurator})
+
+      {_mod, noisy} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "noisy"
+        })
+
+      {_mod, other} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
+          name: "other"
+        })
+
+      assert noisy.logger_config.enabled == false
+      assert other.logger_config.minimum_severity == 9
     end
   end
 

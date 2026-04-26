@@ -139,6 +139,42 @@ defmodule Otel.SDK.Logs.LogRecordLimitsTest do
       {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(log_record, limits)
       assert result.attributes.key == {:bytes, <<>>}
     end
+
+    test "truncates strings inside nested AnyValue maps (spec L272-273)" do
+      log_record = %Otel.API.Logs.LogRecord{
+        attributes: %{
+          "envelope" => %{
+            "name" => "abcdefghij",
+            "nested" => %{"deep" => "wxyzabcdef"}
+          }
+        }
+      }
+
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 5}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(log_record, limits)
+
+      assert result.attributes == %{
+               "envelope" => %{
+                 "name" => "abcde",
+                 "nested" => %{"deep" => "wxyza"}
+               }
+             }
+    end
+
+    test "truncates strings inside heterogeneous AnyValue arrays (spec L270-271)" do
+      log_record = %Otel.API.Logs.LogRecord{
+        attributes: %{
+          "items" => ["abcdefghij", 42, %{"k" => "abcdefghij"}, ["nestedString"]]
+        }
+      }
+
+      limits = %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 5}
+      {result, _dropped} = Otel.SDK.Logs.LogRecordLimits.apply(log_record, limits)
+
+      assert result.attributes == %{
+               "items" => ["abcde", 42, %{"k" => "abcde"}, ["neste"]]
+             }
+    end
   end
 
   describe "apply/2 — count limit" do
