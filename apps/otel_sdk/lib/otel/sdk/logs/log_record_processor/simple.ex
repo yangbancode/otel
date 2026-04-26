@@ -29,28 +29,33 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   `Otel.SDK.Logs.LogRecordProcessor.Batch` when non-blocking
   emit is required.
 
-  ## State model
+  ## State model and shutdown
 
-  Two `:gen_statem` states make the processor's lifecycle
-  explicit:
+  One `:gen_statem` state, `:running`. The processor accepts
+  `:export` and `:force_flush` requests there. Shutdown
+  terminates the gen_statem rather than transitioning to a
+  parked state — `shutdown/1` calls
+  `:gen_statem.stop(__MODULE__, :normal, :infinity)`, which
+  invokes `terminate/3` (where the exporter's `force_flush/1`
+  and `shutdown/1` run, satisfying spec L469
+  *"Shutdown MUST include the effects of ForceFlush"*) and
+  then exits the process cleanly.
 
-  - `:running` — accepts `:export`, `:force_flush`, and
-    `:shutdown` requests. The first `:shutdown` transitions
-    here to `:shut_down`.
-  - `:shut_down` — terminal. Subsequent `:export` and
-    `:force_flush` are no-ops (per spec L462-L464 *"SDKs
-    SHOULD ignore these calls gracefully"*); a second
-    `:shutdown` returns `{:error, :already_shut_down}` so
-    callers can distinguish idempotent re-entry from real
-    failure.
+  Late-arriving requests after termination — `on_emit/3`,
+  `force_flush/1`, or a second `shutdown/1` — fail the
+  underlying `:gen_statem.call/2` with `:exit, {:noproc, _}`.
+  Each behaviour callback catches that and returns `:ok`,
+  satisfying spec §LogRecordProcessor L463 *"SDKs SHOULD
+  ignore these calls gracefully"*.
 
-  No `:exporting` intermediate state — export runs inline in
-  the `:running` state callback because the spec mandates
-  synchronous semantics; there is nothing for the gen_statem
-  to do *between* receiving the request and replying. (When
-  the day comes that we want hung-exporter timeout isolation,
-  a third `:exporting` state with a runner process would slot
-  in here cleanly.)
+  Supervisor `restart: :transient` ensures the process is
+  not restarted after a `:normal` (shutdown-initiated) or
+  `:shutdown` (supervisor-initiated) exit, while still
+  restarting on abnormal crashes.
+
+  When the day comes that we want hung-exporter timeout
+  isolation, an additional `:exporting` state with a runner
+  process would slot in here cleanly. For now, single state.
 
   ## Public API
 
@@ -99,7 +104,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @doc """
   **SDK** (Simple implementation) — Hand the emitted record to
   the gen_statem for serialised export
-  (`logs/sdk.md` §Simple processor L516-L519).
+  (`logs/sdk.md` §Simple processor L516-L519). Returns `:ok`
+  silently when the gen_statem has already terminated, per
+  spec L463.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec on_emit(
@@ -109,6 +116,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
         ) :: :ok
   def on_emit(log_record, _ctx, %{reg_name: reg_name}) do
     :gen_statem.call(reg_name, {:export, log_record})
+  catch
+    # `:gen_statem.call/2` to a dead/unregistered atom raises
+    # `exit({:noproc, mfa})` via `:gen.do_for_proc/2`.
+    :exit, {:noproc, _} -> :ok
   end
 
   @doc """
@@ -125,16 +136,23 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   def enabled?(_opts, _scope, _config), do: true
 
   @doc """
-  **SDK** (Simple implementation) — Transition to `:shut_down`
-  and cascade to the exporter's `force_flush/1` then
-  `shutdown/1`. Returns `{:error, :already_shut_down}` on a
-  second call so callers can distinguish idempotency from
-  real failure (`logs/sdk.md` §LogRecordProcessor L457-L474).
+  **SDK** (Simple implementation) — Synchronously stop the
+  gen_statem via `:gen_statem.stop/3`. The `terminate/3`
+  callback runs the exporter's `force_flush/1` then
+  `shutdown/1` (spec L469) before the process exits. Returns
+  `:ok` silently when the gen_statem has already terminated,
+  per spec L463 (covers idempotent re-entry from a duplicate
+  `shutdown/1`).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
+  @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
   def shutdown(%{reg_name: reg_name}) do
-    :gen_statem.call(reg_name, :shutdown)
+    :gen_statem.stop(reg_name, :normal, :infinity)
+  catch
+    # `:gen_statem.stop/3` (via `:gen.stop/3`) raises bare
+    # `exit(noproc)` for a dead/unregistered atom — different
+    # shape from `:gen_statem.call/2` which wraps in a tuple.
+    :exit, :noproc -> :ok
   end
 
   @doc """
@@ -144,12 +162,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   L484-L486 makes it a built-in MUST to *"invoke ForceFlush
   on [the exporter]"* — the exporter may have its own
   buffering (HTTP keep-alive batching, OS write buffers, etc.).
+  Returns `:ok` silently when the gen_statem has already
+  terminated, per spec L463.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
           :ok | {:error, term()}
   def force_flush(%{reg_name: reg_name}) do
     :gen_statem.call(reg_name, :force_flush)
+  catch
+    :exit, {:noproc, _} -> :ok
   end
 
   # --- gen_statem lifecycle ---
@@ -160,7 +182,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
       id: __MODULE__,
       start: {__MODULE__, :start_link, [arg]},
       type: :worker,
-      restart: :permanent,
+      restart: :transient,
       shutdown: 500
     }
   end
@@ -204,31 +226,18 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
     {:keep_state, state, [{:reply, from, result}]}
   end
 
-  def running({:call, from}, :shutdown, %State{exporter: {module, exporter_state}} = state) do
+  # --- terminate ---
+
+  @impl :gen_statem
+  @spec terminate(reason :: term(), state_name :: atom(), state :: State.t()) :: :ok
+  def terminate(_reason, _state_name, %State{exporter: {module, exporter_state}}) do
     # Spec §LogRecordProcessor L469: "Shutdown MUST include the
     # effects of ForceFlush" — flush exporter buffers before
-    # tearing it down.
+    # tearing it down. Runs for any exit path (`:gen_statem.stop`
+    # from our `shutdown/1`, supervisor-initiated `:shutdown`,
+    # uncaught crash with `terminate/3` invoked).
     module.force_flush(exporter_state)
     module.shutdown(exporter_state)
-    {:next_state, :shut_down, state, [{:reply, from, :ok}]}
-  end
-
-  # --- State: :shut_down ---
-
-  @spec shut_down(
-          event_type :: :gen_statem.event_type(),
-          event_content :: term(),
-          state :: State.t()
-        ) :: :gen_statem.event_handler_result(State.t())
-  def shut_down({:call, from}, {:export, _log_record}, %State{} = state) do
-    {:keep_state, state, [{:reply, from, :ok}]}
-  end
-
-  def shut_down({:call, from}, :force_flush, %State{} = state) do
-    {:keep_state, state, [{:reply, from, :ok}]}
-  end
-
-  def shut_down({:call, from}, :shutdown, %State{} = state) do
-    {:keep_state, state, [{:reply, from, {:error, :already_shut_down}}]}
+    :ok
   end
 end
