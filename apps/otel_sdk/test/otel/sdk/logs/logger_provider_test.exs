@@ -187,73 +187,69 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
     end
   end
 
-  describe "processor monitoring" do
-    defmodule MonitoredProcessor do
+  describe "provider-owned processor lifecycle" do
+    defmodule LinkableProcessor do
+      @moduledoc false
+      use GenServer
+
+      def start_link(config), do: GenServer.start_link(__MODULE__, config)
+
+      @impl true
+      def init(config), do: {:ok, config}
+
+      def on_emit(_record, _ctx, _config), do: :ok
+      def shutdown(_config), do: :ok
+      def force_flush(_config), do: :ok
+    end
+
+    defmodule ModuleOnlyProcessor do
       @moduledoc false
       def on_emit(_record, _ctx, _config), do: :ok
       def shutdown(_config), do: :ok
       def force_flush(_config), do: :ok
     end
 
-    test "removes processor from list when its registered process dies" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-
-      proc_pid = spawn(fn -> Process.sleep(:infinity) end)
-      Process.register(proc_pid, :monitor_removal_test)
-
-      {:ok, provider_pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{MonitoredProcessor, %{reg_name: :monitor_removal_test}}]
-          }
-        )
-
-      assert match?([_], Otel.SDK.Logs.LoggerProvider.config(provider_pid).processors)
-
-      provider_ref = Process.monitor(provider_pid)
-      proc_ref = Process.monitor(proc_pid)
-      Process.exit(proc_pid, :kill)
-      assert_receive {:DOWN, ^proc_ref, :process, ^proc_pid, :killed}
-
-      # Round-trip a call so we know the LoggerProvider has finished
-      # handling its own DOWN message before we inspect state.
-      _ = Otel.SDK.Logs.LoggerProvider.config(provider_pid)
-      assert Process.alive?(provider_pid)
-      assert Otel.SDK.Logs.LoggerProvider.config(provider_pid).processors == []
-
-      Process.demonitor(provider_ref, [:flush])
-    end
-
-    test "module-only processor (no resolvable PID) is registered without a monitor" do
+    test "starts process-backed processors and removes them when they die" do
       Application.stop(:otel_sdk)
       Application.ensure_all_started(:otel_sdk)
 
       {:ok, provider_pid} =
         Otel.SDK.Logs.LoggerProvider.start_link(
           config: %{
-            processors: [{MonitoredProcessor, %{test_pid: self()}}]
+            processors: [{LinkableProcessor, %{}}]
           }
         )
 
       [entry] = Otel.SDK.Logs.LoggerProvider.config(provider_pid).processors
-      assert entry.monitor_ref == nil
+      assert is_pid(entry.pid)
+      assert entry.callback_config == %{pid: entry.pid}
+
+      proc_pid = entry.pid
+      proc_ref = Process.monitor(proc_pid)
+      Process.exit(proc_pid, :kill)
+      assert_receive {:DOWN, ^proc_ref, :process, ^proc_pid, :killed}
+
+      # Round-trip a call so the LoggerProvider has finished its own EXIT handler.
+      _ = Otel.SDK.Logs.LoggerProvider.config(provider_pid)
+      assert Process.alive?(provider_pid)
+      assert Otel.SDK.Logs.LoggerProvider.config(provider_pid).processors == []
     end
 
-    test "raises when :reg_name points to an unregistered atom" do
+    test "module-only processor is registered without a PID" do
       Application.stop(:otel_sdk)
       Application.ensure_all_started(:otel_sdk)
 
-      Process.flag(:trap_exit, true)
-
-      {:error, {%ArgumentError{message: message}, _stack}} =
+      {:ok, provider_pid} =
         Otel.SDK.Logs.LoggerProvider.start_link(
           config: %{
-            processors: [{MonitoredProcessor, %{reg_name: :never_registered}}]
+            processors: [{ModuleOnlyProcessor, %{test_pid: self()}}]
           }
         )
 
-      assert message =~ ":never_registered"
+      [entry] = Otel.SDK.Logs.LoggerProvider.config(provider_pid).processors
+      assert entry.pid == nil
+      # Callback config is the user's verbatim init_config for module-only.
+      assert entry.callback_config == %{test_pid: self()}
     end
   end
 end

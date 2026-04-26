@@ -14,9 +14,18 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   emit through `:gen_statem.call/2`, which is inherently
   serial per-process.
 
-  Spec L526 — the only configurable parameter is `exporter`;
-  this implementation also accepts an optional `:name` for
-  registering the gen_statem.
+  Spec L526 — the only configurable parameter is `exporter`.
+
+  ## Lifecycle ownership
+
+  This processor is started by `Otel.SDK.Logs.LoggerProvider`
+  (typical OTel SDK pattern, matching erlang's
+  `otel_tracer_server.erl:158-183`). The user supplies the
+  `start_link/1` config to LoggerProvider's processors list;
+  LoggerProvider then calls `start_link/1`, captures the PID,
+  links to it, and passes that PID to the behaviour callbacks
+  via the `%{pid: pid}` config. The gen_statem is therefore
+  unregistered (no atom name) — PIDs are first-class.
 
   ## Synchronous emit trade-off
 
@@ -89,15 +98,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   - `:exporter` (**required**) — `{module, opts}` where `module`
     implements `Otel.SDK.Logs.LogRecordExporter` and `opts` is
     passed to `module.init/1` once at startup.
-  - `:name` (**optional**) — the registered atom for the
-    gen_statem. Defaults to `__MODULE__`. Provide a unique name
-    to run multiple Simple processors with different exporters
-    in the same BEAM node.
   """
-  @type start_link_config :: %{
-          required(:exporter) => {module(), term()},
-          optional(:name) => atom()
-        }
+  @type start_link_config :: %{required(:exporter) => {module(), term()}}
 
   # --- LogRecordProcessor callbacks ---
 
@@ -114,11 +116,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
           ctx :: Otel.API.Ctx.t(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: :ok
-  def on_emit(log_record, _ctx, %{reg_name: reg_name}) do
-    :gen_statem.call(reg_name, {:export, log_record})
+  def on_emit(log_record, _ctx, %{pid: pid}) do
+    :gen_statem.call(pid, {:export, log_record})
   catch
-    # `:gen_statem.call/2` to a dead/unregistered atom raises
-    # `exit({:noproc, mfa})` via `:gen.do_for_proc/2`.
+    # `:gen_statem.call/2,3` (via `:gen.do_call/4`) wraps the
+    # noproc exit with an MFA tuple — different from
+    # `:gen_statem.stop/3` which raises bare `:noproc`.
     :exit, {:noproc, _} -> :ok
   end
 
@@ -146,12 +149,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
-  def shutdown(%{reg_name: reg_name}) do
-    :gen_statem.stop(reg_name, :normal, :infinity)
+  def shutdown(%{pid: pid}) do
+    :gen_statem.stop(pid, :normal, :infinity)
   catch
-    # `:gen_statem.stop/3` (via `:gen.stop/3`) raises bare
-    # `exit(noproc)` for a dead/unregistered atom — different
-    # shape from `:gen_statem.call/2` which wraps in a tuple.
     :exit, :noproc -> :ok
   end
 
@@ -168,8 +168,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
           :ok | {:error, term()}
-  def force_flush(%{reg_name: reg_name}) do
-    :gen_statem.call(reg_name, :force_flush)
+  def force_flush(%{pid: pid}) do
+    :gen_statem.call(pid, :force_flush)
   catch
     :exit, {:noproc, _} -> :ok
   end
@@ -192,8 +192,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   @spec start_link(config :: start_link_config()) :: :gen_statem.start_ret()
   def start_link(config) do
-    name = Map.get(config, :name, __MODULE__)
-    :gen_statem.start_link({:local, name}, __MODULE__, config, [])
+    :gen_statem.start_link(__MODULE__, config, [])
   end
 
   @impl :gen_statem
