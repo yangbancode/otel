@@ -15,13 +15,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     def enabled?(_opts, _scope, _config), do: true
 
     @impl true
-    def shutdown(config) do
+    def shutdown(config, _timeout \\ 5000) do
       send(config.test_pid, :shutdown)
       :ok
     end
 
     @impl true
-    def force_flush(config) do
+    def force_flush(config, _timeout \\ 5000) do
       send(config.test_pid, :force_flush)
       :ok
     end
@@ -38,10 +38,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     def enabled?(_opts, _scope, _config), do: false
 
     @impl true
-    def shutdown(_config), do: :ok
+    def shutdown(_config, _timeout \\ 5000), do: :ok
 
     @impl true
-    def force_flush(_config), do: :ok
+    def force_flush(_config, _timeout \\ 5000), do: :ok
   end
 
   defmodule MutatingProcessor do
@@ -59,10 +59,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     def enabled?(_opts, _scope, _config), do: true
 
     @impl true
-    def shutdown(_config), do: :ok
+    def shutdown(_config, _timeout \\ 5000), do: :ok
 
     @impl true
-    def force_flush(_config), do: :ok
+    def force_flush(_config, _timeout \\ 5000), do: :ok
   end
 
   defmodule MinimalProcessor do
@@ -77,10 +77,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     def on_emit(_log_record, _ctx, _config), do: :ok
 
     @impl true
-    def shutdown(_config), do: :ok
+    def shutdown(_config, _timeout \\ 5000), do: :ok
 
     @impl true
-    def force_flush(_config), do: :ok
+    def force_flush(_config, _timeout \\ 5000), do: :ok
   end
 
   setup do

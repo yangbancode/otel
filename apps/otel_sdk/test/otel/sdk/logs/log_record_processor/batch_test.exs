@@ -249,6 +249,36 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
     end
   end
 
+  describe "caller-supplied timeout" do
+    test "force_flush/2 returns {:error, :timeout} when the budget is exceeded" do
+      pid = start_batch(%{exporter: {SlowExporter, %{delay_ms: 1000, test_pid: self()}}})
+      config = %{pid: pid}
+
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(
+        %Otel.SDK.Logs.LogRecord{body: "slow"},
+        %{},
+        config
+      )
+
+      assert {:error, :timeout} ==
+               Otel.SDK.Logs.LogRecordProcessor.Batch.force_flush(config, 50)
+    end
+
+    test "shutdown/2 returns {:error, :timeout} when the budget is exceeded" do
+      pid = start_batch(%{exporter: {SlowExporter, %{delay_ms: 1000, test_pid: self()}}})
+      config = %{pid: pid}
+
+      Otel.SDK.Logs.LogRecordProcessor.Batch.on_emit(
+        %Otel.SDK.Logs.LogRecord{body: "slow"},
+        %{},
+        config
+      )
+
+      assert {:error, :timeout} ==
+               Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config, 50)
+    end
+  end
+
   describe "enabled?/2" do
     test "returns true" do
       assert Otel.SDK.Logs.LogRecordProcessor.Batch.enabled?([], %{}, %{})

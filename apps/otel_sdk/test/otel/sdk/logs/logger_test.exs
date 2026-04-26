@@ -10,8 +10,8 @@ defmodule Otel.SDK.Logs.LoggerTest do
       :ok
     end
 
-    def shutdown(_config), do: :ok
-    def force_flush(_config), do: :ok
+    def shutdown(_config, _timeout \\ 5000), do: :ok
+    def force_flush(_config, _timeout \\ 5000), do: :ok
   end
 
   defp start_logger_with_limits(limit_overrides) do

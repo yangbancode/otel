@@ -27,6 +27,29 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
     end
   end
 
+  defmodule SlowExporter do
+    @moduledoc false
+    @behaviour Otel.SDK.Logs.LogRecordExporter
+
+    @impl true
+    def init(config), do: {:ok, config}
+
+    @impl true
+    def export(_log_records, config) do
+      Process.sleep(config.delay_ms)
+      :ok
+    end
+
+    @impl true
+    def force_flush(config) do
+      Process.sleep(config.delay_ms)
+      :ok
+    end
+
+    @impl true
+    def shutdown(_config), do: :ok
+  end
+
   setup do
     Application.stop(:otel_sdk)
     Application.ensure_all_started(:otel_sdk)
@@ -135,6 +158,31 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
 
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid})
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(%{pid: pid})
+    end
+  end
+
+  describe "caller-supplied timeout" do
+    test "force_flush/2 returns {:error, :timeout} when the budget is exceeded" do
+      {:ok, pid} =
+        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
+          exporter: {SlowExporter, %{delay_ms: 1000}}
+        })
+
+      assert {:error, :timeout} ==
+               Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(%{pid: pid}, 50)
+    end
+
+    test "shutdown/2 returns {:error, :timeout} when the budget is exceeded" do
+      # `terminate/3` runs the exporter's `force_flush/1`. SlowExporter
+      # sleeps `delay_ms` there, so a 50ms shutdown budget against a
+      # 1000ms exporter must time out.
+      {:ok, pid} =
+        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
+          exporter: {SlowExporter, %{delay_ms: 1000}}
+        })
+
+      assert {:error, :timeout} ==
+               Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(%{pid: pid}, 50)
     end
   end
 
