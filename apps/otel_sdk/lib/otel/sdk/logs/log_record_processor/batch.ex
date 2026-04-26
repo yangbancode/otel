@@ -308,7 +308,15 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   @spec idle(
           event_type :: :gen_statem.event_type(),
-          event_content :: term(),
+          event_content ::
+            :idle
+            | :exporting
+            | {:add_record, Otel.SDK.Logs.LogRecord.t()}
+            | {:force_flush | :shutdown, integer() | :infinity}
+            | :export_timer
+            | :pending_deadline
+            | {:export_done, pid()}
+            | {:DOWN, reference(), :process, pid(), term()},
           state :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
   def idle(:enter, _old_state, _state), do: :keep_state_and_data
@@ -382,7 +390,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   @spec exporting(
           event_type :: :gen_statem.event_type(),
-          event_content :: term(),
+          event_content ::
+            :idle
+            | :exporting
+            | {:add_record, Otel.SDK.Logs.LogRecord.t()}
+            | {:force_flush | :shutdown, integer() | :infinity}
+            | :export_timer
+            | :export_timeout
+            | :pending_deadline
+            | {:export_done, pid()}
+            | {:DOWN, reference(), :process, pid(), term()},
           state :: State.t()
         ) :: :gen_statem.event_handler_result(State.t())
   def exporting(:enter, _old_state, state) do
