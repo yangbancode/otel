@@ -13,10 +13,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   - **Scheduled timer** (`scheduled_delay_ms`) — periodic
     `:export_timer` info while in `:idle` triggers an export
     if the queue is non-empty.
-  - **`force_flush/1`** — synchronous drain of the entire
+  - **`force_flush/2`** — synchronous drain of the entire
     queue followed by the exporter's `force_flush/1`
     (spec §LogRecordProcessor L484-L486 MUST).
-  - **`shutdown/1`** — synchronous drain plus exporter's
+  - **`shutdown/2`** — synchronous drain plus exporter's
     `force_flush/1` then `shutdown/1` (spec L469 MUST that
     *"Shutdown MUST include the effects of ForceFlush"*).
     The gen_statem then exits via `{:stop_and_reply, :normal,
@@ -51,14 +51,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     completes.
 
   Supervisor `restart: :transient` means a `:normal` exit
-  from a successful `shutdown/1` does not auto-restart,
+  from a successful `shutdown/2` does not auto-restart,
   while crashes still do.
 
   ## Public API
 
   | Function | Role |
   |---|---|
-  | `on_emit/3`, `enabled?/3`, `shutdown/1`, `force_flush/1` | **SDK** (Batch implementation) |
+  | `on_emit/3`, `enabled?/3`, `shutdown/2`, `force_flush/2` | **SDK** (Batch implementation) |
   | `start_link/1` | **SDK** (lifecycle) |
 
   ## References
@@ -133,6 +133,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   # MUST be ≤ `maxQueueSize`.
   @default_max_export_batch_size 512
 
+  # Default timeout for `force_flush/2` and `shutdown/2`. Matches
+  # spec `OTEL_BLRP_EXPORT_TIMEOUT` default (30000ms) — the same
+  # per-export budget the runner enforces via `state_timeout`.
+  @default_force_flush_timeout_ms 30_000
+  @default_shutdown_timeout_ms 30_000
+
   # --- LogRecordProcessor callbacks ---
 
   @doc """
@@ -169,17 +175,26 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   @doc """
   **SDK** (Batch implementation) — Drain the queue, invoke the
   exporter's `force_flush/1` then `shutdown/1`, and exit the
-  gen_statem. Returns `:ok` silently when the gen_statem has
+  gen_statem.
+
+  `timeout` (default 30_000ms, matching spec
+  `OTEL_BLRP_EXPORT_TIMEOUT`) bounds the call. Returns
+  `{:error, :timeout}` if exceeded, per spec L161-L162 /
+  L487-L491. Returns `:ok` silently when the gen_statem has
   already terminated, per spec §LogRecordProcessor L463 *"SDKs
   SHOULD ignore these calls gracefully"* (covers idempotent
-  re-entry from a duplicate `shutdown/1`).
+  re-entry from a duplicate `shutdown/2`).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
-  def shutdown(%{pid: pid}) do
-    :gen_statem.call(pid, :shutdown, :infinity)
+  @spec shutdown(
+          config :: Otel.SDK.Logs.LogRecordProcessor.config(),
+          timeout :: timeout()
+        ) :: :ok | {:error, term()}
+  def shutdown(%{pid: pid}, timeout \\ @default_shutdown_timeout_ms) do
+    :gen_statem.call(pid, :shutdown, timeout)
   catch
     :exit, {:noproc, _} -> :ok
+    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
   @doc """
@@ -187,16 +202,23 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   the exporter's `force_flush/1` (spec §LogRecordProcessor
   L484-L486 MUST). When the gen_statem is currently in
   `:exporting`, the call is postponed until the in-progress
-  runner completes. Returns `:ok` silently when the gen_statem
-  has already terminated, per spec L463.
+  runner completes.
+
+  `timeout` (default 30_000ms) bounds the call. Returns
+  `{:error, :timeout}` if exceeded, per spec L161-L162 /
+  L487-L491. Returns `:ok` silently when the gen_statem has
+  already terminated, per spec L463.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
-          :ok | {:error, term()}
-  def force_flush(%{pid: pid}) do
-    :gen_statem.call(pid, :force_flush, :infinity)
+  @spec force_flush(
+          config :: Otel.SDK.Logs.LogRecordProcessor.config(),
+          timeout :: timeout()
+        ) :: :ok | {:error, term()}
+  def force_flush(%{pid: pid}, timeout \\ @default_force_flush_timeout_ms) do
+    :gen_statem.call(pid, :force_flush, timeout)
   catch
     :exit, {:noproc, _} -> :ok
+    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
   # --- gen_statem lifecycle ---

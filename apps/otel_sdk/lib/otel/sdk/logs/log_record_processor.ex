@@ -61,13 +61,28 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
 
   @doc """
   Shuts down the processor (spec L457-L474). MUST include the
-  effects of `force_flush/1` (spec L469).
+  effects of `force_flush/2` (spec L469).
+
+  `timeout` is the upper bound the processor SHOULD honor for
+  the whole shutdown sequence (spec L471-L474). When a timeout
+  is specified, spec L487-L491 says the processor MUST
+  prioritize honoring it over finishing all calls — `:timeout`
+  return is the conventional signal that the upper bound was
+  hit. Implementations propagate this to the underlying
+  `:gen_statem.call/3` etc. and may translate the `:exit,
+  {:timeout, _}` raised by OTP into `{:error, :timeout}`.
   """
-  @callback shutdown(config :: config()) :: :ok | {:error, term()}
+  @callback shutdown(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
 
   @doc """
   Forces the processor to export all pending log records
   immediately (spec L476-L503).
+
+  Same `timeout` contract as `shutdown/2`: spec L487-L491 MUST
+  prioritize honoring the timeout, and L161-L162/L492 ask the
+  processor to let the caller know whether the call succeeded,
+  failed, or timed out. `{:error, :timeout}` is the
+  conventional signal for the third case.
   """
-  @callback force_flush(config :: config()) :: :ok | {:error, term()}
+  @callback force_flush(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
 end

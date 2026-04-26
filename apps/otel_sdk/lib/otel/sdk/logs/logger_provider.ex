@@ -11,8 +11,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   When a registered processor module exports `start_link/1`,
   the LoggerProvider starts it as a linked child during
   `init/1`, captures the resulting PID, and passes that PID to
-  every behaviour callback (`on_emit/3`, `shutdown/1`,
-  `force_flush/1`) via the `%{pid: pid}` config. The user does
+  every behaviour callback (`on_emit/3`, `shutdown/2`,
+  `force_flush/2`) via the `%{pid: pid}` config. The user does
   not start processors separately and does not provide an atom
   registration name — the LoggerProvider owns the lifecycle.
 
@@ -119,23 +119,39 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     GenServer.call(server, :config)
   end
 
+  # Default timeout for `shutdown/2` and `force_flush/2`, matching
+  # the spec `OTEL_BLRP_EXPORT_TIMEOUT` default (30000ms). The same
+  # value is forwarded to each processor's own `shutdown/2` /
+  # `force_flush/2` so a single-processor provider has its outer
+  # GenServer.call and inner processor budgets aligned.
+  @default_shutdown_timeout_ms 30_000
+  @default_force_flush_timeout_ms 30_000
+
   @doc """
   Shuts down the LoggerProvider.
 
   Invokes shutdown on all registered processors. After shutdown,
   get_logger returns the noop logger. Can only be called once.
+
+  `timeout` is forwarded to each processor's `shutdown/2` and
+  also bounds the outer GenServer call. Default 30_000ms (matching
+  spec `OTEL_BLRP_EXPORT_TIMEOUT`).
   """
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(server, timeout \\ 5000) do
-    GenServer.call(server, :shutdown, timeout)
+  def shutdown(server, timeout \\ @default_shutdown_timeout_ms) do
+    GenServer.call(server, {:shutdown, timeout}, timeout)
   end
 
   @doc """
   Forces all registered processors to flush pending log records.
+
+  `timeout` is forwarded to each processor's `force_flush/2` and
+  also bounds the outer GenServer call. Default 30_000ms (matching
+  spec `OTEL_BLRP_EXPORT_TIMEOUT`).
   """
   @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
-  def force_flush(server, timeout \\ 5000) do
-    GenServer.call(server, :force_flush, timeout)
+  def force_flush(server, timeout \\ @default_force_flush_timeout_ms) do
+    GenServer.call(server, {:force_flush, timeout}, timeout)
   end
 
   # --- Server Callbacks ---
@@ -191,21 +207,21 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     {:reply, logger, config}
   end
 
-  def handle_call(:shutdown, _from, %{shut_down: true} = config) do
+  def handle_call({:shutdown, _timeout}, _from, %{shut_down: true} = config) do
     {:reply, {:error, :already_shut_down}, config}
   end
 
-  def handle_call(:shutdown, _from, config) do
-    result = invoke_all_processors(config.processors, :shutdown)
+  def handle_call({:shutdown, timeout}, _from, config) do
+    result = invoke_all_processors(config.processors, :shutdown, timeout)
     {:reply, result, %{config | shut_down: true}}
   end
 
-  def handle_call(:force_flush, _from, %{shut_down: true} = config) do
+  def handle_call({:force_flush, _timeout}, _from, %{shut_down: true} = config) do
     {:reply, {:error, :shut_down}, config}
   end
 
-  def handle_call(:force_flush, _from, config) do
-    result = invoke_all_processors(config.processors, :force_flush)
+  def handle_call({:force_flush, timeout}, _from, config) do
+    result = invoke_all_processors(config.processors, :force_flush, timeout)
     {:reply, result, config}
   end
 
@@ -265,13 +281,14 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   @spec invoke_all_processors(
           processors :: [processor_entry()],
-          function :: :shutdown | :force_flush
+          function :: :shutdown | :force_flush,
+          timeout :: timeout()
         ) :: :ok | {:error, [{module(), term()}]}
-  defp invoke_all_processors(processors, function) do
+  defp invoke_all_processors(processors, function, timeout) do
     results =
       Enum.reduce(processors, [], fn %{module: module, callback_config: callback_config},
                                      errors ->
-        case apply(module, function, [callback_config]) do
+        case apply(module, function, [callback_config, timeout]) do
           :ok -> errors
           {:error, reason} -> [{module, reason} | errors]
         end

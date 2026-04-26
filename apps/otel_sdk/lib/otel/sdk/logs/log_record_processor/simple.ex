@@ -43,15 +43,15 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   One `:gen_statem` state, `:running`. The processor accepts
   `:export` and `:force_flush` requests there. Shutdown
   terminates the gen_statem rather than transitioning to a
-  parked state — `shutdown/1` calls
-  `:gen_statem.stop(__MODULE__, :normal, :infinity)`, which
+  parked state — `shutdown/2` calls
+  `:gen_statem.stop(__MODULE__, :normal, timeout)`, which
   invokes `terminate/3` (where the exporter's `force_flush/1`
   and `shutdown/1` run, satisfying spec L469
   *"Shutdown MUST include the effects of ForceFlush"*) and
   then exits the process cleanly.
 
   Late-arriving requests after termination — `on_emit/3`,
-  `force_flush/1`, or a second `shutdown/1` — fail the
+  `force_flush/2`, or a second `shutdown/2` — fail the
   underlying `:gen_statem.call/2` with `:exit, {:noproc, _}`.
   Each behaviour callback catches that and returns `:ok`,
   satisfying spec §LogRecordProcessor L463 *"SDKs SHOULD
@@ -70,7 +70,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
 
   | Function | Role |
   |---|---|
-  | `on_emit/3`, `enabled?/3`, `shutdown/1`, `force_flush/1` | **SDK** (Simple implementation) |
+  | `on_emit/3`, `enabled?/3`, `shutdown/2`, `force_flush/2` | **SDK** (Simple implementation) |
   | `start_link/1` | **SDK** (lifecycle) |
 
   ## References
@@ -100,6 +100,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
     passed to `module.init/1` once at startup.
   """
   @type start_link_config :: %{required(:exporter) => {module(), term()}}
+
+  # Default timeout for `force_flush/2` and `shutdown/2`. Matches
+  # spec `OTEL_BLRP_EXPORT_TIMEOUT` default (30000ms) — Simple's
+  # cleanup ultimately invokes the exporter's `force_flush/1` +
+  # `shutdown/1`, both bounded by this same per-export budget.
+  @default_force_flush_timeout_ms 30_000
+  @default_shutdown_timeout_ms 30_000
 
   # --- LogRecordProcessor callbacks ---
 
@@ -142,17 +149,28 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   **SDK** (Simple implementation) — Synchronously stop the
   gen_statem via `:gen_statem.stop/3`. The `terminate/3`
   callback runs the exporter's `force_flush/1` then
-  `shutdown/1` (spec L469) before the process exits. Returns
-  `:ok` silently when the gen_statem has already terminated,
-  per spec L463 (covers idempotent re-entry from a duplicate
-  `shutdown/1`).
+  `shutdown/1` (spec L469) before the process exits.
+
+  `timeout` (default 30_000ms, matching spec
+  `OTEL_BLRP_EXPORT_TIMEOUT`) bounds the wait for terminate
+  to complete. Returns `{:error, :timeout}` if exceeded,
+  per spec L161-L162 / L487-L491. Returns `:ok` silently when
+  the gen_statem has already terminated, per spec L463
+  (covers idempotent re-entry from a duplicate `shutdown/2`).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
-  def shutdown(%{pid: pid}) do
-    :gen_statem.stop(pid, :normal, :infinity)
+  @spec shutdown(
+          config :: Otel.SDK.Logs.LogRecordProcessor.config(),
+          timeout :: timeout()
+        ) :: :ok | {:error, term()}
+  def shutdown(%{pid: pid}, timeout \\ @default_shutdown_timeout_ms) do
+    :gen_statem.stop(pid, :normal, timeout)
   catch
+    # `:gen_statem.stop/3` (via `:proc_lib.stop/3`) raises bare
+    # `:noproc` / `:timeout` exits — different shape from
+    # `:gen_statem.call/3`, which wraps both with an MFA tuple.
     :exit, :noproc -> :ok
+    :exit, :timeout -> {:error, :timeout}
   end
 
   @doc """
@@ -162,16 +180,22 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   L484-L486 makes it a built-in MUST to *"invoke ForceFlush
   on [the exporter]"* — the exporter may have its own
   buffering (HTTP keep-alive batching, OS write buffers, etc.).
-  Returns `:ok` silently when the gen_statem has already
-  terminated, per spec L463.
+
+  `timeout` (default 30_000ms) bounds the call. Returns
+  `{:error, :timeout}` if exceeded, per spec L161-L162 /
+  L487-L491. Returns `:ok` silently when the gen_statem has
+  already terminated, per spec L463.
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
-          :ok | {:error, term()}
-  def force_flush(%{pid: pid}) do
-    :gen_statem.call(pid, :force_flush)
+  @spec force_flush(
+          config :: Otel.SDK.Logs.LogRecordProcessor.config(),
+          timeout :: timeout()
+        ) :: :ok | {:error, term()}
+  def force_flush(%{pid: pid}, timeout \\ @default_force_flush_timeout_ms) do
+    :gen_statem.call(pid, :force_flush, timeout)
   catch
     :exit, {:noproc, _} -> :ok
+    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
   # --- gen_statem lifecycle ---
@@ -236,7 +260,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
     # Spec §LogRecordProcessor L469: "Shutdown MUST include the
     # effects of ForceFlush" — flush exporter buffers before
     # tearing it down. Runs for any exit path (`:gen_statem.stop`
-    # from our `shutdown/1`, supervisor-initiated `:shutdown`,
+    # from our `shutdown/2`, supervisor-initiated `:shutdown`,
     # uncaught crash with `terminate/3` invoked).
     module.force_flush(exporter_state)
     module.shutdown(exporter_state)

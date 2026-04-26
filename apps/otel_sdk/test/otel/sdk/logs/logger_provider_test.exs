@@ -129,8 +129,8 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
         :ok
       end
 
-      def shutdown(_config), do: :ok
-      def force_flush(_config), do: :ok
+      def shutdown(_config, _timeout \\ 5000), do: :ok
+      def force_flush(_config, _timeout \\ 5000), do: :ok
     end
 
     test "shutdown invokes processor shutdown" do
@@ -141,12 +141,12 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
         @moduledoc false
         def on_emit(_record, _ctx, _config), do: :ok
 
-        def shutdown(config) do
+        def shutdown(config, _timeout \\ 5000) do
           send(config.test_pid, :processor_shutdown)
           :ok
         end
 
-        def force_flush(_config), do: :ok
+        def force_flush(_config, _timeout \\ 5000), do: :ok
       end
 
       {:ok, pid} =
@@ -167,9 +167,9 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       defmodule FlushProcessor do
         @moduledoc false
         def on_emit(_record, _ctx, _config), do: :ok
-        def shutdown(_config), do: :ok
+        def shutdown(_config, _timeout \\ 5000), do: :ok
 
-        def force_flush(config) do
+        def force_flush(config, _timeout \\ 5000) do
           send(config.test_pid, :processor_force_flush)
           :ok
         end
@@ -198,15 +198,15 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       def init(config), do: {:ok, config}
 
       def on_emit(_record, _ctx, _config), do: :ok
-      def shutdown(_config), do: :ok
-      def force_flush(_config), do: :ok
+      def shutdown(_config, _timeout \\ 5000), do: :ok
+      def force_flush(_config, _timeout \\ 5000), do: :ok
     end
 
     defmodule ModuleOnlyProcessor do
       @moduledoc false
       def on_emit(_record, _ctx, _config), do: :ok
-      def shutdown(_config), do: :ok
-      def force_flush(_config), do: :ok
+      def shutdown(_config, _timeout \\ 5000), do: :ok
+      def force_flush(_config, _timeout \\ 5000), do: :ok
     end
 
     test "starts process-backed processors and removes them when they die" do
