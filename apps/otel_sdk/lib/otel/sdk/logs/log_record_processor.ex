@@ -36,7 +36,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   matching the given parameters (spec L418-L455).
 
   Spec L420 — *"Enabled is an operation that a LogRecordProcessor
-  **MAY** implement"*. Marked optional via `@optional_callbacks`
+  MAY implement"*. Marked optional via `@optional_callbacks`
   below; the SDK Logger guards each delegation with
   `function_exported?/3` so processors that omit `enabled?/3`
   pass through transparently.
@@ -66,11 +66,13 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   `timeout` is the upper bound the processor SHOULD honor for
   the whole shutdown sequence (spec L471-L474). When a timeout
   is specified, spec L487-L491 says the processor MUST
-  prioritize honoring it over finishing all calls — `:timeout`
-  return is the conventional signal that the upper bound was
-  hit. Implementations propagate this to the underlying
-  `:gen_statem.call/3` etc. and may translate the `:exit,
-  {:timeout, _}` raised by OTP into `{:error, :timeout}`.
+  prioritize honoring it over finishing all calls, and L466-L467
+  asks the processor to let the caller know whether the call
+  succeeded, failed, or timed out — `{:error, :timeout}` is the
+  conventional signal for the third case. Implementations
+  propagate this to the underlying `:gen_statem.call/3` /
+  `:gen_statem.stop/3` and may translate OTP's `:exit, :timeout`
+  / `{:timeout, _}` into `{:error, :timeout}`.
   """
   @callback shutdown(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
 
@@ -79,7 +81,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   immediately (spec L476-L503).
 
   Same `timeout` contract as `shutdown/2`: spec L487-L491 MUST
-  prioritize honoring the timeout, and L161-L162/L492 ask the
+  prioritize honoring the timeout, and L492-L493 asks the
   processor to let the caller know whether the call succeeded,
   failed, or timed out. `{:error, :timeout}` is the
   conventional signal for the third case.

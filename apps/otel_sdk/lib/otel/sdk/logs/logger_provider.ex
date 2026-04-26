@@ -119,8 +119,9 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     GenServer.call(server, :config)
   end
 
-  # Default timeout for `shutdown/2` and `force_flush/2`, matching
-  # the spec `OTEL_BLRP_EXPORT_TIMEOUT` default (30000ms). The same
+  # Default timeout for `shutdown/2` and `force_flush/2` (30000ms).
+  # Matches Batch's `exportTimeoutMillis` default — a reasonable
+  # upper bound for the slowest processor cleanup path. The same
   # value is forwarded to each processor's own `shutdown/2` /
   # `force_flush/2` so a single-processor provider has its outer
   # GenServer.call and inner processor budgets aligned.
@@ -134,8 +135,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   get_logger returns the noop logger. Can only be called once.
 
   `timeout` is forwarded to each processor's `shutdown/2` and
-  also bounds the outer GenServer call. Default 30_000ms (matching
-  spec `OTEL_BLRP_EXPORT_TIMEOUT`).
+  also bounds the outer GenServer call. Default 30_000ms.
   """
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ @default_shutdown_timeout_ms) do
@@ -146,8 +146,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   Forces all registered processors to flush pending log records.
 
   `timeout` is forwarded to each processor's `force_flush/2` and
-  also bounds the outer GenServer call. Default 30_000ms (matching
-  spec `OTEL_BLRP_EXPORT_TIMEOUT`).
+  also bounds the outer GenServer call. Default 30_000ms.
   """
   @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def force_flush(server, timeout \\ @default_force_flush_timeout_ms) do
