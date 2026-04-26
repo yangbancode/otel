@@ -60,7 +60,7 @@ defmodule Otel.SDK.Logs.LogRecord do
           severity_number: Otel.API.Logs.severity_number(),
           severity_text: Otel.API.Logs.severity_level(),
           body: primitive_any(),
-          attributes: %{String.t() => primitive() | [primitive()]},
+          attributes: %{String.t() => primitive_any()},
           event_name: String.t(),
           dropped_attributes_count: non_neg_integer(),
           trace_id: Otel.API.Trace.TraceId.t(),

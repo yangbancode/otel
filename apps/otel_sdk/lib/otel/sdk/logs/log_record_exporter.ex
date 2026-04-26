@@ -11,13 +11,18 @@ defmodule Otel.SDK.Logs.LogRecordExporter do
 
   Spec L572-L573 — *"`Export` should not be called concurrently
   with other `Export` calls for the same exporter instance."*
-  The SDK's `Otel.SDK.Logs.LogRecordProcessor.Simple` and
-  `Otel.SDK.Logs.LogRecordProcessor.Batch` serialize export
-  calls through a GenServer, so exporter implementations may
+  Note this is a SHOULD-strength clause (lowercase *"should
+  not"* in the spec text), not a MUST. The SDK's
+  `Otel.SDK.Logs.LogRecordProcessor.Simple` and
+  `Otel.SDK.Logs.LogRecordProcessor.Batch` serialise export
+  calls through a gen_statem so exporter implementations may
   assume single-threaded `export/2`.
 
-  Spec L654-L660 — `force_flush/1` and `shutdown/1` MUST be
-  safe to call concurrently with `export/2`.
+  Spec L659-L660 — *"`ForceFlush` and `Shutdown` MUST be safe
+  to be called concurrently."* The MUST applies independently
+  of `export/2` — the two cleanup callbacks must tolerate
+  concurrent invocation with each other and with anything
+  else.
 
   ## Public API
 

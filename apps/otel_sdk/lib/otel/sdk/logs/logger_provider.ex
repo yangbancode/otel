@@ -42,6 +42,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   All public functions are safe for concurrent use.
   """
 
+  require Logger
+
   use GenServer
   @behaviour Otel.API.Logs.LoggerProvider
 
@@ -63,10 +65,27 @@ defmodule Otel.SDK.Logs.LoggerProvider do
           callback_config: Otel.SDK.Logs.LogRecordProcessor.config()
         }
 
+  @typedoc """
+  Runtime state held by the LoggerProvider GenServer.
+
+  - `:resource` / `:processors` / `:log_record_limits` come
+    from the user's `start_link/1` config (or defaults).
+  - `:shut_down` is the lifecycle flag flipped by
+    `handle_call({:shutdown, _}, _, _)`. Once `true`,
+    `get_logger/2` returns the noop logger and
+    `force_flush/2` / `shutdown/2` reply with
+    `{:error, :already_shutdown}`.
+  - `:processors_key` is the `:persistent_term` key under
+    which `Otel.SDK.Logs.Logger` reads the projected
+    `[{module, callback_config}]` list on every emit.
+  """
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
           processors: [processor_entry()],
-          log_record_limits: Otel.SDK.Logs.LogRecordLimits.t()
+          log_record_limits: Otel.SDK.Logs.LogRecordLimits.t(),
+          logger_configurator: Otel.SDK.Logs.LoggerConfig.configurator(),
+          shut_down: boolean(),
+          processors_key: {module(), :processors, reference()}
         }
 
   # --- Client API ---
@@ -195,11 +214,18 @@ defmodule Otel.SDK.Logs.LoggerProvider do
         _from,
         config
       ) do
+    warn_on_invalid_scope_name(instrumentation_scope)
+
     logger_config = %{
       scope: instrumentation_scope,
       resource: config.resource,
       processors_key: config.processors_key,
-      log_record_limits: config.log_record_limits
+      log_record_limits: config.log_record_limits,
+      # Spec L83-L86: provider MUST compute LoggerConfig via the
+      # configured LoggerConfigurator on Logger creation. Falls
+      # through to `LoggerConfig.default/1` when no
+      # `:logger_configurator` was supplied to `start_link/1`.
+      logger_config: config.logger_configurator.(instrumentation_scope)
     }
 
     logger = {Otel.SDK.Logs.Logger, logger_config}
@@ -256,7 +282,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     %{
       resource: Otel.SDK.Resource.default(),
       processors: [],
-      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{}
+      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{},
+      logger_configurator: &Otel.SDK.Logs.LoggerConfig.default/1
     }
   end
 
@@ -298,4 +325,24 @@ defmodule Otel.SDK.Logs.LoggerProvider do
       errors -> {:error, Enum.reverse(errors)}
     end
   end
+
+  # Spec sdk.md L78-L81 — *"In the case where an invalid `name`
+  # (null or empty string) is specified, a working `Logger` MUST
+  # be returned as a fallback rather than returning null or
+  # throwing an exception, its `name` SHOULD keep the original
+  # invalid value, and a message reporting that the specified
+  # value is invalid SHOULD be logged."* The MUST (working
+  # logger) and the original-value SHOULD are satisfied
+  # structurally — we always return the SDK Logger and never
+  # rewrite the scope name. The warning SHOULD is enforced here.
+  @spec warn_on_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
+  defp warn_on_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+    Logger.warning(
+      "Otel.SDK.Logs.LoggerProvider: invalid Logger name (empty string) — returning a working Logger as fallback per spec L78-L81"
+    )
+
+    :ok
+  end
+
+  defp warn_on_invalid_scope_name(_scope), do: :ok
 end

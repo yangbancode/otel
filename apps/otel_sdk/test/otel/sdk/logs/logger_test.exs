@@ -161,6 +161,115 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
   end
 
+  describe "LoggerConfig filtering — emit" do
+    defp start_logger_with_config(logger_config) do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(
+          config: %{
+            processors: [{CollectorProcessor, %{test_pid: self()}}],
+            logger_configurator: fn _scope -> logger_config end
+          }
+        )
+
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
+      {Otel.SDK.Logs.Logger, config}
+    end
+
+    test "drops the record when LoggerConfig.enabled is false (spec L190-L196 MUST)" do
+      logger = start_logger_with_config(%Otel.SDK.Logs.LoggerConfig{enabled: false})
+      ctx = Otel.API.Ctx.current()
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "dropped"})
+      refute_receive {:log_record, _}, 50
+    end
+
+    test "drops when severity_number < minimum_severity (spec L198-L206 MUST)" do
+      logger = start_logger_with_config(%Otel.SDK.Logs.LoggerConfig{minimum_severity: 9})
+      ctx = Otel.API.Ctx.current()
+
+      # severity 5 (DEBUG) < 9 (INFO) → dropped
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+        body: "dropped",
+        severity_number: 5
+      })
+
+      refute_receive {:log_record, _}, 50
+    end
+
+    test "passes through when severity_number >= minimum_severity" do
+      logger = start_logger_with_config(%Otel.SDK.Logs.LoggerConfig{minimum_severity: 9})
+      ctx = Otel.API.Ctx.current()
+
+      # severity 9 (INFO) == 9 → passes
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+        body: "kept",
+        severity_number: 9
+      })
+
+      assert_receive {:log_record, _}
+    end
+
+    test "does not filter when severity_number is unspecified (0) — spec L204-L206" do
+      logger = start_logger_with_config(%Otel.SDK.Logs.LoggerConfig{minimum_severity: 9})
+      ctx = Otel.API.Ctx.current()
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+        body: "kept",
+        severity_number: 0
+      })
+
+      assert_receive {:log_record, _}
+    end
+  end
+
+  describe "LoggerConfig filtering — enabled?" do
+    test "returns false when LoggerConfig.enabled is false (spec L258-L260)" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(
+          config: %{
+            processors: [{CollectorProcessor, %{test_pid: self()}}],
+            logger_configurator: fn _scope -> %Otel.SDK.Logs.LoggerConfig{enabled: false} end
+          }
+        )
+
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
+      logger = {Otel.SDK.Logs.Logger, config}
+      refute Otel.SDK.Logs.Logger.enabled?(logger, [])
+    end
+
+    test "returns false when severity_number < minimum_severity (spec L261-L263)" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      {:ok, pid} =
+        Otel.SDK.Logs.LoggerProvider.start_link(
+          config: %{
+            processors: [{CollectorProcessor, %{test_pid: self()}}],
+            logger_configurator: fn _scope -> %Otel.SDK.Logs.LoggerConfig{minimum_severity: 9} end
+          }
+        )
+
+      {_mod, config} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
+      logger = {Otel.SDK.Logs.Logger, config}
+      refute Otel.SDK.Logs.Logger.enabled?(logger, severity_number: 5)
+      assert Otel.SDK.Logs.Logger.enabled?(logger, severity_number: 9)
+      # severity 0 (unspecified) bypasses filter
+      assert Otel.SDK.Logs.Logger.enabled?(logger, severity_number: 0)
+    end
+  end
+
   describe "exception handling" do
     test "sets exception attributes from exception", %{logger: logger} do
       ctx = Otel.API.Ctx.current()
