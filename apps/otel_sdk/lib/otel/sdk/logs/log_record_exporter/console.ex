@@ -9,8 +9,12 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   It is not recommended for production use. The output format
   is not standardized and can change at any time."*
 
-  Spec L33-L34 — by default this exporter SHOULD be paired
-  with `Otel.SDK.Logs.LogRecordProcessor.Simple`.
+  Spec L29-L34 — recommended pairing is
+  `Otel.SDK.Logs.LogRecordProcessor.Simple`. The spec SHOULD
+  is conditional on the SDK providing an auto-configuration
+  mechanism (e.g. `OTEL_LOGS_EXPORTER`); this SDK does not
+  currently, so the pairing is informational rather than
+  mandated.
 
   ## Output format
 
@@ -25,7 +29,11 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
     (`INFO (info)`). Falls back to `severity_text` alone when
     `severity_number == 0`, the short name alone when
     `severity_text` is empty, and `UNSPECIFIED` when both are
-    the proto3 zero value.
+    the proto3 zero value. The `UNSPECIFIED` choice follows
+    `data-model.md` L298-L302 option 1 (distinct display of
+    missing severity) over option 2 (interpret as INFO) — a
+    debug exporter benefits from preserving the source signal
+    rather than fabricating a level.
   - **scope** — emitted only when `scope.name` is non-empty.
   - **trace context** — emitted only when both `trace_id` and
     `span_id` are valid (`Otel.API.Trace.TraceId.valid?/1` and

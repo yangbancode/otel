@@ -81,8 +81,8 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
           Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
         end)
 
-      assert output =~ "custom"
-      refute output =~ "("
+      assert output =~ "[otel] custom "
+      refute output =~ "(custom)"
     end
 
     test "shows UNSPECIFIED when no severity" do
