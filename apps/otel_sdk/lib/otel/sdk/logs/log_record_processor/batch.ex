@@ -1,23 +1,64 @@
 defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   @moduledoc """
-  BatchLogRecordProcessor that accumulates log records and exports
-  in batches.
+  Batching `LogRecordProcessor`
+  (`logs/sdk.md` §Batching processor L528-L548).
 
-  Exports are triggered by a timer, queue size threshold, or
-  force_flush. Uses a GenServer to serialize export calls (L534).
+  Spec L530-L532 — *"creates batches of `LogRecord`s and passes
+  the export-friendly `ReadableLogRecord` representations to the
+  configured `LogRecordExporter`."* Exports are triggered by:
+
+  - **Queue size threshold** (`max_export_batch_size`) — emit
+    pushes the queue past the threshold, immediate export.
+  - **Scheduled timer** (`scheduled_delay_ms`) — periodic
+    export regardless of queue size.
+  - **`force_flush/1`** — explicit caller request.
+  - **`shutdown/1`** — drains the queue before shutting down
+    the exporter (spec §LogRecordProcessor L469).
+
+  Spec L534-L535 — *"The processor MUST synchronize calls to
+  `LogRecordExporter`'s `Export` to make sure that they are
+  not invoked concurrently."* — implemented by routing every
+  export through the GenServer's `handle_*` callbacks, which
+  are inherently serial per-process.
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `on_emit/3`, `enabled?/3`, `shutdown/1`, `force_flush/1` | **SDK** (Batch implementation) |
+  | `start_link/1` | **SDK** (lifecycle) |
+
+  ## References
+
+  - OTel Logs SDK Batching processor: `opentelemetry-specification/specification/logs/sdk.md` §Batching processor
+  - Parent behaviour: `Otel.SDK.Logs.LogRecordProcessor`
   """
 
   use GenServer
 
   @behaviour Otel.SDK.Logs.LogRecordProcessor
 
+  # Spec §Batching processor L540-L541: `maxQueueSize` default 2048.
   @default_max_queue_size 2048
+
+  # Spec L542-L543: `scheduledDelayMillis` default 1000.
   @default_scheduled_delay_ms 1000
+
+  # Spec L544-L545: `exportTimeoutMillis` default 30000.
   @default_export_timeout_ms 30_000
+
+  # Spec L546-L547: `maxExportBatchSize` default 512.
+  # MUST be ≤ `maxQueueSize`.
   @default_max_export_batch_size 512
 
   # --- LogRecordProcessor callbacks ---
 
+  @doc """
+  **SDK** (Batch implementation) — Enqueue the record via
+  `GenServer.cast/2` (non-blocking, per spec §LogRecordProcessor
+  L397 *"OnEmit ... SHOULD NOT block"*). Triggers an immediate
+  export when the queue reaches `max_export_batch_size`.
+  """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec on_emit(
           log_record :: Otel.SDK.Logs.LogRecord.t(),
@@ -29,6 +70,11 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     :ok
   end
 
+  @doc """
+  **SDK** (Batch implementation) — Always returns `true`; the
+  Batch processor has no filtering policy of its own
+  (`logs/sdk.md` §LogRecordProcessor L420 *"MAY"*).
+  """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec enabled?(
           opts :: Otel.API.Logs.Logger.enabled_opts(),
@@ -37,12 +83,30 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
         ) :: boolean()
   def enabled?(_opts, _scope, _config), do: true
 
+  @doc """
+  **SDK** (Batch implementation) — Drain the queue via
+  `do_export/1` then cascade to the exporter's `shutdown/1`.
+  Returns `{:error, :already_shut_down}` on a second call so
+  callers can distinguish idempotency from real failure
+  (`logs/sdk.md` §LogRecordProcessor L457-L474). Spec L469 —
+  *"Shutdown MUST include the effects of ForceFlush"* — the
+  drain satisfies this for the processor's queue; cascading
+  the exporter's `force_flush/1` would also be required (see
+  the cross-cutting fix landed for Simple in PR #288 — Batch
+  follow-up pending).
+  """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec shutdown(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
   def shutdown(%{reg_name: reg_name}) do
     GenServer.call(reg_name, :shutdown)
   end
 
+  @doc """
+  **SDK** (Batch implementation) — Drain the queue immediately
+  (`logs/sdk.md` §LogRecordProcessor L476-L503). Spec L484-L486
+  also requires invoking the exporter's `force_flush/1`
+  afterward (same cross-cutting follow-up as the shutdown path).
+  """
   @impl Otel.SDK.Logs.LogRecordProcessor
   @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok | {:error, term()}
   def force_flush(%{reg_name: reg_name}) do
