@@ -39,7 +39,7 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBased do
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map(),
+          attributes :: Otel.SDK.Trace.Sampler.attributes(),
           config :: Otel.SDK.Trace.Sampler.config()
         ) :: Otel.SDK.Trace.Sampler.sampling_result()
   @impl true

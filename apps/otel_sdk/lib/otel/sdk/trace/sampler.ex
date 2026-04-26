@@ -6,11 +6,15 @@ defmodule Otel.SDK.Trace.Sampler do
   (propagated). Custom samplers implement this behaviour.
   """
 
+  use Otel.API.Common.Types
+
   @type sampling_decision :: :drop | :record_only | :record_and_sample
+
+  @type attributes :: %{String.t() => primitive() | [primitive()]}
 
   @type sampling_result :: {
           sampling_decision(),
-          map(),
+          attributes(),
           Otel.API.Trace.TraceState.t()
         }
 
@@ -39,7 +43,7 @@ defmodule Otel.SDK.Trace.Sampler do
               links :: [Otel.API.Trace.Link.t()],
               name :: String.t(),
               kind :: Otel.API.Trace.SpanKind.t(),
-              attributes :: map(),
+              attributes :: attributes(),
               config :: config()
             ) :: sampling_result()
 
@@ -64,7 +68,7 @@ defmodule Otel.SDK.Trace.Sampler do
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: map()
+          attributes :: attributes()
         ) ::
           sampling_result()
   def should_sample({module, _description, config}, ctx, trace_id, links, name, kind, attributes) do
