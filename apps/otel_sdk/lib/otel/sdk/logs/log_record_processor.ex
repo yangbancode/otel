@@ -44,15 +44,15 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   Modifications to parameters inside `enabled?/3` MUST NOT be
   propagated to the caller (spec L439-L440).
 
-  - `opts` — caller-supplied keyword list with `:ctx`,
-    `:severity_number`, `:event_name` per
-    `Otel.API.Logs.Logger.enabled_opt/0`.
+  - `opts` — `Otel.API.Logs.Logger.enabled_opts/0`, the
+    spec-defined keyword list with `:ctx`, `:severity_number`,
+    `:event_name` (`logs/api.md` L137-L142).
   - `scope` — the Instrumentation Scope associated with the
     Logger (spec L427-L428). Supplied by the SDK Logger when
     delegating; the API caller never sees scope directly.
   """
   @callback enabled?(
-              opts :: keyword(),
+              opts :: Otel.API.Logs.Logger.enabled_opts(),
               scope :: Otel.API.InstrumentationScope.t(),
               config :: config()
             ) :: boolean()
