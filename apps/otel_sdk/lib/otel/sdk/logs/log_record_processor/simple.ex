@@ -18,6 +18,17 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   this implementation also accepts an optional `:name` for
   registering the GenServer.
 
+  ## Synchronous emit trade-off
+
+  Spec §LogRecordProcessor L397 says *"OnEmit ... SHOULD NOT
+  block or throw exceptions"*, but §Simple processor L516-L519
+  mandates *"as soon as they are finished"* synchronous export.
+  The Simple processor takes the trade-off explicitly:
+  `on_emit/3` blocks the calling process via `GenServer.call/2`
+  until the exporter returns. Use
+  `Otel.SDK.Logs.LogRecordProcessor.Batch` when non-blocking
+  emit is required.
+
   ## Public API
 
   | Function | Role |
@@ -79,13 +90,19 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   end
 
   @doc """
-  **SDK** (Simple implementation) — No-op: every emit is
-  exported synchronously, so there is nothing buffered to
-  flush (`logs/sdk.md` §LogRecordProcessor L476-L503).
+  **SDK** (Simple implementation) — Forwards `force_flush/1`
+  to the configured exporter. The processor itself has no
+  buffer (synchronous emit), but spec §LogRecordProcessor
+  L484-L486 makes it a built-in MUST to *"invoke ForceFlush
+  on [the exporter]"* — the exporter may have its own
+  buffering (HTTP keep-alive batching, OS write buffers, etc.).
   """
   @impl Otel.SDK.Logs.LogRecordProcessor
-  @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) :: :ok
-  def force_flush(_config), do: :ok
+  @spec force_flush(config :: Otel.SDK.Logs.LogRecordProcessor.config()) ::
+          :ok | {:error, term()}
+  def force_flush(%{reg_name: reg_name}) do
+    GenServer.call(reg_name, :force_flush)
+  end
 
   # --- GenServer lifecycle ---
 
@@ -134,8 +151,21 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   end
 
   def handle_call(:shutdown, _from, %{exporter: {module, exporter_state}} = state) do
+    # Spec §LogRecordProcessor L469: "Shutdown MUST include the
+    # effects of ForceFlush" — flush exporter buffers before
+    # tearing it down.
+    module.force_flush(exporter_state)
     module.shutdown(exporter_state)
     {:reply, :ok, %{state | exporter: nil, shut_down: true}}
+  end
+
+  def handle_call(:force_flush, _from, %{exporter: nil} = state) do
+    {:reply, :ok, state}
+  end
+
+  def handle_call(:force_flush, _from, %{exporter: {module, exporter_state}} = state) do
+    result = module.force_flush(exporter_state)
+    {:reply, result, state}
   end
 
   # --- Private ---
