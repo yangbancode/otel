@@ -14,7 +14,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
-          processors: [{module(), map()}]
+          processors: [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}],
+          log_record_limits: Otel.SDK.Logs.LogRecordLimits.t()
         }
 
   # --- Client API ---
@@ -161,7 +162,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   # --- Private ---
 
-  @spec default_config() :: map()
+  @spec default_config() :: config()
   defp default_config do
     %{
       resource: Otel.SDK.Resource.default(),
@@ -171,7 +172,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   @spec invoke_all_processors(
-          processors :: [{module(), map()}],
+          processors :: [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}],
           function :: :shutdown | :force_flush
         ) :: :ok | {:error, [{module(), term()}]}
   defp invoke_all_processors(processors, function) do

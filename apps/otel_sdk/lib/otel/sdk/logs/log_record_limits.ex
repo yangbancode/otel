@@ -71,6 +71,8 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L181-204
   """
 
+  use Otel.API.Common.Types
+
   @default_attribute_count_limit 128
   @default_attribute_value_length_limit :infinity
 
@@ -109,22 +111,28 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
     }
   end
 
-  @spec truncate(attributes :: map(), limit :: non_neg_integer() | :infinity) ::
-          map()
+  @spec truncate(
+          attributes :: %{String.t() => primitive() | [primitive()]},
+          limit :: non_neg_integer() | :infinity
+        ) :: %{String.t() => primitive() | [primitive()]}
   defp truncate(attributes, :infinity), do: attributes
 
   defp truncate(attributes, limit) do
     Map.new(attributes, fn {key, value} -> {key, do_truncate(value, limit)} end)
   end
 
-  @spec drop(attributes :: map(), limit :: non_neg_integer()) :: map()
+  @spec drop(
+          attributes :: %{String.t() => primitive() | [primitive()]},
+          limit :: non_neg_integer()
+        ) :: %{String.t() => primitive() | [primitive()]}
   defp drop(attributes, limit) when map_size(attributes) <= limit, do: attributes
 
   defp drop(attributes, limit) do
     attributes |> Enum.take(limit) |> Map.new()
   end
 
-  @spec do_truncate(value :: term(), limit :: non_neg_integer()) :: term()
+  @spec do_truncate(value :: primitive() | [primitive()], limit :: non_neg_integer()) ::
+          primitive() | [primitive()]
   defp do_truncate({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
     {:bytes, binary_part(bin, 0, limit)}
   end
