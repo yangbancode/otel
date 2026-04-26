@@ -63,6 +63,18 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   from a successful `shutdown/2` does not auto-restart,
   while crashes still do.
 
+  ## Drop reporting
+
+  When the queue is full at emit time the new record is
+  dropped (spec L540-L541 *"After the size is reached logs
+  are dropped"*). Drops are silently allowed by spec, but to
+  give operators visibility into sustained back-pressure we
+  count them on the state and surface a throttled
+  `Logger.warning` with the running total on every
+  `:export_timer` tick (i.e. once per `scheduled_delay_ms`,
+  default 1000ms). `terminate/3` flushes the final tally so
+  no drops are lost across shutdown.
+
   ## Design notes
 
   `force_flush/2` and `shutdown/2` use `:gen_statem.call` (not
@@ -110,7 +122,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
             export_timeout_ms: non_neg_integer(),
             max_export_batch_size: pos_integer(),
             runner: {pid(), reference()} | nil,
-            pending_call: pending_call() | nil
+            pending_call: pending_call() | nil,
+            dropped_since_last_report: non_neg_integer()
           }
     defstruct [
       :exporter,
@@ -121,7 +134,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
       queue: [],
       queue_size: 0,
       runner: nil,
-      pending_call: nil
+      pending_call: nil,
+      dropped_since_last_report: 0
     ]
   end
 
@@ -352,6 +366,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   def idle(:info, :export_timer, state) do
     schedule_periodic_export(state.scheduled_delay_ms)
+    state = report_drops_if_any(state)
 
     if state.queue_size > 0 do
       {:next_state, :exporting, state}
@@ -422,7 +437,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
 
   def exporting(:info, :export_timer, state) do
     schedule_periodic_export(state.scheduled_delay_ms)
-    :keep_state_and_data
+    {:keep_state, report_drops_if_any(state)}
   end
 
   def exporting(:info, {:export_done, pid}, %State{runner: {pid, ref}} = state) do
@@ -463,16 +478,42 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
     reply_pending(tag, from, {:error, :timeout}, %State{state | pending_call: nil})
   end
 
+  # --- terminate ---
+
+  # Final flush of the throttled drop counter so an operator never
+  # loses the last batch of "queue full" drops that arrived between
+  # the last `:export_timer` tick and shutdown.
+  @impl :gen_statem
+  @spec terminate(reason :: term(), state_name :: atom(), state :: State.t()) :: :ok
+  def terminate(_reason, _state_name, state) do
+    _ = report_drops_if_any(state)
+    :ok
+  end
+
   # --- Private helpers ---
 
   @spec enqueue(state :: State.t(), log_record :: Otel.SDK.Logs.LogRecord.t()) :: State.t()
   defp enqueue(state, _log_record) when state.queue_size >= state.max_queue_size do
-    # Queue full — drop record (spec L540-L541).
-    state
+    # Queue full — drop record (spec L540-L541). Count it; the next
+    # `:export_timer` cycle will surface the throttled total via
+    # `report_drops_if_any/1` so operators can observe sustained
+    # back-pressure without being spammed once per dropped record.
+    %State{state | dropped_since_last_report: state.dropped_since_last_report + 1}
   end
 
   defp enqueue(state, log_record) do
     %State{state | queue: [log_record | state.queue], queue_size: state.queue_size + 1}
+  end
+
+  @spec report_drops_if_any(state :: State.t()) :: State.t()
+  defp report_drops_if_any(%State{dropped_since_last_report: 0} = state), do: state
+
+  defp report_drops_if_any(%State{dropped_since_last_report: count} = state) do
+    Logger.warning(
+      "Otel.SDK.Logs.LogRecordProcessor.Batch: queue full, dropped #{count} log record(s) since last report"
+    )
+
+    %State{state | dropped_since_last_report: 0}
   end
 
   @spec start_export(state :: State.t()) :: State.t()
