@@ -91,6 +91,13 @@ defmodule Otel.API.Metrics.Meter do
   - OTel Metrics API §General operations / Enabled: `opentelemetry-specification/specification/metrics/api.md` L473-L495
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_meter.erl`
+
+  ## Spec verification
+
+  Verified against `opentelemetry-specification` v1.55.0
+  (commit `9e23700`) on 2026-04-27. Re-verify after any
+  submodule advance — see `.claude/rules/workflow.md`
+  § Spec submodule update.
   """
 
   use Otel.API.Common.Types

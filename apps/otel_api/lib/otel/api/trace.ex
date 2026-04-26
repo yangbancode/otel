@@ -44,6 +44,13 @@ defmodule Otel.API.Trace do
   - OTel Trace API §Context Interaction: `opentelemetry-specification/specification/trace/api.md` L159-L183
   - OTel Trace API §Span Creation: `opentelemetry-specification/specification/trace/api.md` L378-L414
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api/src/otel_tracer.erl`
+
+  ## Spec verification
+
+  Verified against `opentelemetry-specification` v1.55.0
+  (commit `9e23700`) on 2026-04-27. Re-verify after any
+  submodule advance — see `.claude/rules/workflow.md`
+  § Spec submodule update.
   """
 
   @typedoc "Options for span creation. See `Otel.API.Trace.Span.start_opts/0`."

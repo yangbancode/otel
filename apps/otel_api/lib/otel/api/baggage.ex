@@ -42,6 +42,13 @@ defmodule Otel.API.Baggage do
 
   - OTel Baggage API: `opentelemetry-specification/specification/baggage/api.md`
   - W3C Baggage HTTP Header Format: `w3c-baggage/baggage/HTTP_HEADER_FORMAT.md`
+
+  ## Spec verification
+
+  Verified against `opentelemetry-specification` v1.55.0
+  (commit `9e23700`) on 2026-04-27. Re-verify after any
+  submodule advance — see `.claude/rules/workflow.md`
+  § Spec submodule update.
   """
 
   @typedoc """
