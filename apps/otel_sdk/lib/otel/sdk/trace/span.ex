@@ -10,6 +10,41 @@ defmodule Otel.SDK.Trace.Span do
   Registered as the global span module on SDK application start;
   the API layer's `Otel.API.Trace.Span` dispatches to the functions
   defined here via the `Otel.API.Trace.Span` behaviour.
+
+  ## Design notes
+
+  ### Span-resident SpanLimits and processors
+
+  `span_limits` and `processors` are stored as fields on each
+  span (lines 36-37 of the typespec) rather than threaded
+  through call arguments or fetched from a global registry.
+  This diverges from `opentelemetry-erlang`, which threads
+  limits through `otel_span_utils` per call
+  (`opentelemetry/src/otel_span_utils.erl`) and stores
+  processors on the `span_ctx.span_sdk` tuple
+  (`otel_span_ets.erl` L60, L77). Our placement keeps every
+  ETS read self-contained — `set_attribute/3`, `add_event/2`,
+  etc. operate on the span fetched from `SpanStorage` without
+  needing a separate lookup for the limits/processors state.
+
+  ### Dropped-count proto fields not tracked
+
+  Proto `Span` fields 10 (`dropped_attributes_count`), 12
+  (`dropped_events_count`), and 14 (`dropped_links_count`)
+  are absent from this struct. The current implementation
+  silently drops on overflow without counting; consistent
+  with `opentelemetry-erlang` which also omits the counters
+  (`otel_span.hrl`). A follow-up could add tracking for full
+  proto parity; this is a known divergence rather than a bug.
+
+  ### `is_recording`, `instrumentation_scope` on the span
+
+  Both fields exist on the span (lines 34-35) but neither
+  appears in the proto `Span` message. They mirror erlang's
+  `otel_span.hrl` (L60, L62) — `is_recording` is an
+  implementation optimization not propagated to wire format,
+  and `instrumentation_scope` is held on the span for
+  grouping into `ScopeSpans` at export time.
   """
 
   use Otel.API.Common.Types
