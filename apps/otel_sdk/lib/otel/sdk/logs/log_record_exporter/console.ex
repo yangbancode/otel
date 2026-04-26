@@ -18,9 +18,14 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
       [otel] <severity> [scope=<name> ][trace=<hex> span=<hex> ]body=<inspect> attributes=<inspect>
 
-  - **severity** — `severity_text` if non-empty;
-    `severity=<n>` when only `severity_number` is set;
-    `UNSPECIFIED` when both are zero (proto3 default).
+  - **severity** — combined display per `data-model.md`
+    §Displaying Severity L365-L372: short name derived from
+    `severity_number` (e.g. `INFO`), with `severity_text`
+    appended in parentheses when both are present
+    (`INFO (info)`). Falls back to `severity_text` alone when
+    `severity_number == 0`, the short name alone when
+    `severity_text` is empty, and `UNSPECIFIED` when both are
+    the proto3 zero value.
   - **scope** — emitted only when `scope.name` is non-empty.
   - **trace context** — emitted only when both `trace_id` and
     `span_id` are valid (`Otel.API.Trace.TraceId.valid?/1` and
@@ -37,6 +42,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   ## References
 
   - OTel Logs SDK Stdout: `opentelemetry-specification/specification/logs/sdk_exporters/stdout.md`
+  - SeverityNumber short-name table: `opentelemetry-specification/specification/logs/data-model.md` §Displaying Severity L334-L372
   - Parent behaviour: `Otel.SDK.Logs.LogRecordExporter`
   """
 
@@ -80,8 +86,42 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
 
   @spec format_severity(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_severity(%{severity_text: "", severity_number: 0}), do: "UNSPECIFIED"
-  defp format_severity(%{severity_text: "", severity_number: n}), do: "severity=#{n}"
-  defp format_severity(%{severity_text: text}), do: text
+  defp format_severity(%{severity_text: text, severity_number: 0}), do: text
+  defp format_severity(%{severity_text: "", severity_number: n}), do: short_name(n)
+
+  defp format_severity(%{severity_text: text, severity_number: n}) do
+    "#{short_name(n)} (#{text})"
+  end
+
+  # Spec `data-model.md` §Displaying Severity L334-L363 short-name
+  # table. Kept private — Console is currently the only consumer. If
+  # another exporter needs the same lookup later, promote to
+  # `Otel.API.Logs.severity_short_name/1`.
+  @spec short_name(n :: 1..24) :: String.t()
+  defp short_name(1), do: "TRACE"
+  defp short_name(2), do: "TRACE2"
+  defp short_name(3), do: "TRACE3"
+  defp short_name(4), do: "TRACE4"
+  defp short_name(5), do: "DEBUG"
+  defp short_name(6), do: "DEBUG2"
+  defp short_name(7), do: "DEBUG3"
+  defp short_name(8), do: "DEBUG4"
+  defp short_name(9), do: "INFO"
+  defp short_name(10), do: "INFO2"
+  defp short_name(11), do: "INFO3"
+  defp short_name(12), do: "INFO4"
+  defp short_name(13), do: "WARN"
+  defp short_name(14), do: "WARN2"
+  defp short_name(15), do: "WARN3"
+  defp short_name(16), do: "WARN4"
+  defp short_name(17), do: "ERROR"
+  defp short_name(18), do: "ERROR2"
+  defp short_name(19), do: "ERROR3"
+  defp short_name(20), do: "ERROR4"
+  defp short_name(21), do: "FATAL"
+  defp short_name(22), do: "FATAL2"
+  defp short_name(23), do: "FATAL3"
+  defp short_name(24), do: "FATAL4"
 
   @spec format_scope(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
   defp format_scope(%{scope: %{name: ""}}), do: ""
