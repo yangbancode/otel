@@ -59,7 +59,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
         })
 
       assert Process.alive?(pid)
-      GenServer.stop(pid)
+      :gen_statem.stop(pid)
     end
 
     test "starts with ignored exporter" do
@@ -70,7 +70,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
         })
 
       assert Process.alive?(pid)
-      GenServer.stop(pid)
+      :gen_statem.stop(pid)
     end
   end
 
@@ -208,6 +208,18 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       config = %{reg_name: :simple_force_flush_ignored_test}
       assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(config)
     end
+
+    test "force_flush after shutdown is no-op" do
+      {:ok, _pid} =
+        Otel.SDK.Logs.LogRecordProcessor.Simple.start_link(%{
+          exporter: {TestExporter, %{test_pid: self()}},
+          name: :simple_force_flush_after_shutdown
+        })
+
+      config = %{reg_name: :simple_force_flush_after_shutdown}
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.shutdown(config)
+      assert :ok == Otel.SDK.Logs.LogRecordProcessor.Simple.force_flush(config)
+    end
   end
 
   describe "integration with LoggerProvider" do
@@ -243,7 +255,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.SimpleTest do
       assert record.body == "e2e test"
       assert record.scope.name == "test_lib"
 
-      GenServer.stop(proc_pid)
+      :gen_statem.stop(proc_pid)
     end
   end
 end
