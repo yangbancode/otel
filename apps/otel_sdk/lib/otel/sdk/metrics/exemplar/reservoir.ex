@@ -8,13 +8,15 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
   (stream + attribute combination).
   """
 
+  use Otel.API.Common.Types
+
   @callback new(opts :: map()) :: state :: term()
 
   @callback offer(
               state :: term(),
               value :: number(),
               time :: non_neg_integer(),
-              filtered_attributes :: map(),
+              filtered_attributes :: %{String.t() => primitive() | [primitive()]},
               ctx :: Otel.API.Ctx.t()
             ) :: state :: term()
 
@@ -25,7 +27,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
           filter :: Otel.SDK.Metrics.Exemplar.Filter.t(),
           value :: number(),
           time :: non_neg_integer(),
-          filtered_attributes :: map(),
+          filtered_attributes :: %{String.t() => primitive() | [primitive()]},
           ctx :: Otel.API.Ctx.t()
         ) :: {module(), term()} | nil
   def offer_to(nil, _filter, _value, _time, _attrs, _ctx), do: nil
