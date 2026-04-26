@@ -3,7 +3,7 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
 
   import ExUnit.CaptureIO
 
-  @record %{
+  @record %Otel.SDK.Logs.LogRecord{
     body: "Hello, world!",
     severity_number: 9,
     severity_text: "info",

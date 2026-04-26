@@ -99,11 +99,16 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   end
 
   @spec format_severity(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
-  defp format_severity(%{severity_text: "", severity_number: 0}), do: "UNSPECIFIED"
-  defp format_severity(%{severity_text: text, severity_number: 0}), do: text
-  defp format_severity(%{severity_text: "", severity_number: n}), do: short_name(n)
+  defp format_severity(%Otel.SDK.Logs.LogRecord{severity_text: "", severity_number: 0}),
+    do: "UNSPECIFIED"
 
-  defp format_severity(%{severity_text: text, severity_number: n}) do
+  defp format_severity(%Otel.SDK.Logs.LogRecord{severity_text: text, severity_number: 0}),
+    do: text
+
+  defp format_severity(%Otel.SDK.Logs.LogRecord{severity_text: "", severity_number: n}),
+    do: short_name(n)
+
+  defp format_severity(%Otel.SDK.Logs.LogRecord{severity_text: text, severity_number: n}) do
     "#{short_name(n)} (#{text})"
   end
 
@@ -138,17 +143,21 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   defp short_name(24), do: "FATAL4"
 
   @spec format_scope(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
-  defp format_scope(%{scope: %{name: ""}}), do: ""
-  defp format_scope(%{scope: %{name: name}}), do: "scope=#{name}"
+  defp format_scope(%Otel.SDK.Logs.LogRecord{scope: %Otel.API.InstrumentationScope{name: ""}}),
+    do: ""
+
+  defp format_scope(%Otel.SDK.Logs.LogRecord{scope: %Otel.API.InstrumentationScope{name: name}}),
+    do: "scope=#{name}"
 
   @spec format_trace(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
-  defp format_trace(%{trace_id: trace_id, span_id: span_id}) do
+  defp format_trace(%Otel.SDK.Logs.LogRecord{trace_id: trace_id, span_id: span_id}) do
     "trace=#{Otel.API.Trace.TraceId.to_hex(trace_id)} span=#{Otel.API.Trace.SpanId.to_hex(span_id)}"
   end
 
   @spec format_body(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
-  defp format_body(%{body: body}), do: "body=#{inspect(body)}"
+  defp format_body(%Otel.SDK.Logs.LogRecord{body: body}), do: "body=#{inspect(body)}"
 
   @spec format_attributes(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
-  defp format_attributes(%{attributes: attributes}), do: "attributes=#{inspect(attributes)}"
+  defp format_attributes(%Otel.SDK.Logs.LogRecord{attributes: attributes}),
+    do: "attributes=#{inspect(attributes)}"
 end
