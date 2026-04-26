@@ -646,7 +646,7 @@ defmodule Otel.OTLP.EncoderTest do
   end
 
   describe "encode_logs/1" do
-    @log_record %{
+    @log_record %Otel.SDK.Logs.LogRecord{
       body: "test message",
       severity_number: 9,
       severity_text: "INFO",

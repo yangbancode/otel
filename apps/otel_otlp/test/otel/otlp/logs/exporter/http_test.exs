@@ -3,7 +3,7 @@ defmodule Otel.OTLP.Logs.Exporter.HTTPTest do
 
   @test_resource Otel.SDK.Resource.create(%{"service.name" => "test"})
 
-  @test_log_record %{
+  @test_log_record %Otel.SDK.Logs.LogRecord{
     body: "test log message",
     severity_number: 9,
     severity_text: "INFO",
