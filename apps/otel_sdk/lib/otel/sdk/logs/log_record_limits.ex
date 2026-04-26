@@ -71,13 +71,16 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L181-204
   """
 
+  @default_attribute_count_limit 128
+  @default_attribute_value_length_limit :infinity
+
   @type t :: %__MODULE__{
           attribute_count_limit: non_neg_integer(),
           attribute_value_length_limit: non_neg_integer() | :infinity
         }
 
-  defstruct attribute_count_limit: 128,
-            attribute_value_length_limit: :infinity
+  defstruct attribute_count_limit: @default_attribute_count_limit,
+            attribute_value_length_limit: @default_attribute_value_length_limit
 
   @doc """
   Applies all attribute limits to a `LogRecord`.
