@@ -1,14 +1,22 @@
 defmodule Otel.SDK.Resource do
   @moduledoc """
-  Immutable representation of the entity producing telemetry.
+  Immutable representation of the entity producing telemetry
+  (`resource/sdk.md` §"SDK").
 
   A Resource is a set of key-value attributes describing the service
   (e.g., service.name, host.name) and an optional Schema URL. Resources
   are associated with TracerProvider/MeterProvider at creation time.
+
+  ## References
+
+  - OTel Resource SDK: `opentelemetry-specification/specification/resource/sdk.md`
+  - OTLP proto Resource: `opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto`
   """
 
+  use Otel.API.Common.Types
+
   @type t :: %__MODULE__{
-          attributes: %{String.t() => String.t() | integer() | float() | boolean()},
+          attributes: %{String.t() => primitive() | [primitive()]},
           schema_url: String.t()
         }
 
