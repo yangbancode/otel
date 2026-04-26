@@ -30,11 +30,11 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   end
 
   @impl true
-  @spec force_flush(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok
+  @spec force_flush(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok | {:error, term()}
   def force_flush(_state), do: :ok
 
   @impl true
-  @spec shutdown(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok
+  @spec shutdown(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok | {:error, term()}
   def shutdown(_state), do: :ok
 
   @spec format_log_record(record :: Otel.SDK.Logs.LogRecord.t()) :: String.t()
