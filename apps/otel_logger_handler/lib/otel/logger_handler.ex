@@ -28,7 +28,7 @@ defmodule Otel.LoggerHandler do
 
   | Key | Default | Description |
   |---|---|---|
-  | `scope_name` | `""` | `Otel.API.InstrumentationScope.name` — **SHOULD** be set to the calling application/library name. Spec `common/instrumentation-scope.md`: *"Instrumentation libraries SHOULD supply a meaningful name — typically the library's own module path"*. An empty name is spec-valid ("unspecified scope") but loses origin identification at the backend |
+  | `scope_name` | `""` | `Otel.API.InstrumentationScope.name` — **SHOULD** be set to the calling application/library name. Spec `common/instrumentation-scope.md` L23: *"The instrumentation scope's name SHOULD be specified to identify the `InstrumentationScope` name."* L18-22 names the typical approach as the *"fully qualified name of the emitting software unit (e.g. fully qualified library name or fully qualified class name)."* An empty name is accepted by `LoggerProvider.get_logger/1`-style fallbacks but loses origin identification at the backend |
   | `scope_version` | `""` | `Otel.API.InstrumentationScope.version` — typically `Application.spec(:my_app, :vsn)` |
   | `scope_schema_url` | `""` | `Otel.API.InstrumentationScope.schema_url` (OTel spec v1.13.0+) |
   | `scope_attributes` | `%{}` | `Otel.API.InstrumentationScope.attributes` (OTEP 0201). Follows OTel attribute rules: primitives or homogeneous arrays only |
@@ -256,7 +256,13 @@ defmodule Otel.LoggerHandler do
     sidecar per `api.md` L131. SDK converts this to the
     stable `exception.type` and `exception.message`
     attributes (reading `.__struct__` and calling
-    `Exception.message/1`).
+    `Exception.message/1`) per `logs/sdk.md` L228-L232:
+    *"If an Exception is provided, the SDK MUST by default
+    set attributes from the exception on the LogRecord with
+    the conventions outlined in the exception semantic
+    conventions. User-provided attributes MUST take
+    precedence and MUST NOT be overwritten by
+    exception-derived attributes."*
   - **`stacktrace`** → `log_record.attributes` under
     `"exception.stacktrace"` (stable semconv attribute per
     `semantic-conventions/model/exceptions/registry.yaml`

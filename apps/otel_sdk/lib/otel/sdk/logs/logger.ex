@@ -239,10 +239,12 @@ defmodule Otel.SDK.Logs.Logger do
     :ok
   end
 
-  # Spec sdk.md L228-L230: *"If an Exception is provided, the
+  # Spec sdk.md L228-L232: *"If an Exception is provided, the
   # SDK MUST by default set attributes from the exception on
   # the LogRecord with the conventions outlined in the
-  # exception semantic conventions"* (see
+  # exception semantic conventions. User-provided attributes
+  # MUST take precedence and MUST NOT be overwritten by
+  # exception-derived attributes."* (see
   # `semantic-conventions/docs/exceptions/exceptions-logs.md`):
   # `exception.type`, `exception.message`, `exception.stacktrace`.
   #
@@ -253,8 +255,9 @@ defmodule Otel.SDK.Logs.Logger do
   # value bound at the catch site. Callers who have a stacktrace
   # set `attributes["exception.stacktrace"]` themselves; that
   # attribute survives `Map.merge/2` because user attributes win
-  # on key conflict (`Otel.LoggerHandler` follows this pattern,
-  # `apps/otel_logger_handler/lib/otel/logger_handler.ex`).
+  # on key conflict (the L231-L232 user-precedence MUST), which
+  # `Otel.LoggerHandler` relies on
+  # (`apps/otel_logger_handler/lib/otel/logger_handler.ex`).
   @spec apply_exception_attributes(log_record :: Otel.API.Logs.LogRecord.t()) ::
           Otel.API.Logs.LogRecord.t()
   defp apply_exception_attributes(
