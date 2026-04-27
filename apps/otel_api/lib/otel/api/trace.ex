@@ -135,8 +135,7 @@ defmodule Otel.API.Trace do
           opts :: start_opts()
         ) ::
           Otel.API.Trace.SpanContext.t()
-  def start_span(ctx, {module, _config} = tracer, name, opts)
-      when is_binary(name) and name != "" do
+  def start_span(ctx, {module, _config} = tracer, name, opts) do
     module.start_span(ctx, tracer, name, opts)
   end
 
@@ -174,8 +173,7 @@ defmodule Otel.API.Trace do
         ) ::
           result
         when result: term()
-  def with_span(ctx, {module, _config} = tracer, name, opts, fun)
-      when is_binary(name) and name != "" do
+  def with_span(ctx, {module, _config} = tracer, name, opts, fun) do
     module.with_span(ctx, tracer, name, opts, fun)
   end
 
@@ -244,31 +242,4 @@ defmodule Otel.API.Trace do
   def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
     Otel.API.Trace.TracerProvider.get_tracer(instrumentation_scope)
   end
-
-  @doc """
-  **Application** (OTel API MUST) — "Wrapping a SpanContext in a Span"
-  (`trace/api.md` L720-L739).
-
-  Wraps an existing `SpanContext` so it can be used as the active
-  span via `make_current/1` / `set_current_span/2` /
-  `Otel.API.Ctx.attach/1`. The returned handle is non-recording —
-  attribute mutations, events, links, and status changes are
-  silently ignored at the SDK boundary because the span is not
-  registered in the SDK's span storage.
-
-  In the BEAM model the `SpanContext` itself plays the role of
-  the "object implementing the Span interface" the spec describes:
-  every `Otel.API.Trace.Span` operation already takes a
-  `SpanContext` as its first argument and dispatches through
-  the registered SDK module, which handles unknown spans as
-  no-ops.
-
-  Use this when receiving a `SpanContext` from an external source
-  (propagator extraction, custom protocol bridge, manual
-  reconstruction) and you need to make it the active span without
-  starting a new SDK-managed span.
-  """
-  @spec wrap_span_context(span_ctx :: Otel.API.Trace.SpanContext.t()) ::
-          Otel.API.Trace.SpanContext.t()
-  def wrap_span_context(%Otel.API.Trace.SpanContext{} = span_ctx), do: span_ctx
 end
