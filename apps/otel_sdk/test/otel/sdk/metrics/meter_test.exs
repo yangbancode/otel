@@ -129,20 +129,6 @@ defmodule Otel.SDK.Metrics.MeterTest do
       assert result.advisory == [attributes: ["method", "status"]]
     end
 
-    test "advisory attributes filter recording attributes", %{meter: meter} do
-      instrument =
-        Otel.SDK.Metrics.Meter.create_counter(meter, "adv_filter",
-          advisory: [attributes: ["method"]]
-        )
-
-      Otel.SDK.Metrics.Meter.record(instrument, 1, %{"method" => "GET", "path" => "/api"})
-
-      {_module, config} = meter
-      stream_key = {"adv_filter", config.scope}
-      [dp] = Otel.SDK.Metrics.Aggregation.Sum.collect(config.metrics_tab, stream_key, %{})
-      assert dp.attributes == %{"method" => "GET"}
-    end
-
     test "unit is case-sensitive (kb vs kB stored verbatim)", %{meter: meter} do
       lower = Otel.SDK.Metrics.Meter.create_counter(meter, "bytes_lower", unit: "kb")
       upper = Otel.SDK.Metrics.Meter.create_counter(meter, "bytes_upper", unit: "kB")

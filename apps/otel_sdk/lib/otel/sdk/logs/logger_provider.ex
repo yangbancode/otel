@@ -103,7 +103,6 @@ defmodule Otel.SDK.Logs.LoggerProvider do
           resource: Otel.SDK.Resource.t(),
           processors: [processor_entry()],
           log_record_limits: Otel.SDK.Logs.LogRecordLimits.t(),
-          logger_configurator: Otel.SDK.Logs.LoggerConfig.configurator(),
           shut_down: boolean(),
           processors_key: {module(), :processors, reference()}
         }
@@ -249,12 +248,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
       scope: instrumentation_scope,
       resource: config.resource,
       processors_key: config.processors_key,
-      log_record_limits: config.log_record_limits,
-      # Spec L83-L86: provider MUST compute LoggerConfig via the
-      # configured LoggerConfigurator on Logger creation. Falls
-      # through to `LoggerConfig.default/1` when no
-      # `:logger_configurator` was supplied to `start_link/1`.
-      logger_config: config.logger_configurator.(instrumentation_scope)
+      log_record_limits: config.log_record_limits
     }
 
     logger = {Otel.SDK.Logs.Logger, logger_config}
@@ -311,8 +305,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     %{
       resource: Otel.SDK.Resource.default(),
       processors: [],
-      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{},
-      logger_configurator: &Otel.SDK.Logs.LoggerConfig.default/1
+      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{}
     }
   end
 

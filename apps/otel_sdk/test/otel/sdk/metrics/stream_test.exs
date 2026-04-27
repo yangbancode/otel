@@ -28,12 +28,6 @@ defmodule Otel.SDK.Metrics.StreamTest do
       assert stream.exemplar_reservoir == nil
       assert stream.aggregation_cardinality_limit == nil
     end
-
-    test "uses advisory attributes when present" do
-      inst = instrument(%{advisory: [attributes: [:method, :status]]})
-      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
-      assert stream.attribute_keys == {:include, [:method, :status]}
-    end
   end
 
   describe "from_view/2" do
@@ -72,14 +66,7 @@ defmodule Otel.SDK.Metrics.StreamTest do
       assert stream.attribute_keys == {:include, ["method"]}
     end
 
-    test "falls back to advisory attributes" do
-      {:ok, view} = Otel.SDK.Metrics.View.new()
-      inst = instrument(%{advisory: [attributes: [:method]]})
-      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
-      assert stream.attribute_keys == {:include, [:method]}
-    end
-
-    test "no attribute_keys and no advisory leaves nil" do
+    test "no attribute_keys leaves nil" do
       {:ok, view} = Otel.SDK.Metrics.View.new()
       stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
       assert stream.attribute_keys == nil

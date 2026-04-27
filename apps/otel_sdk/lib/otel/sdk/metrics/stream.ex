@@ -5,7 +5,8 @@ defmodule Otel.SDK.Metrics.Stream do
   Streams are the unit of metric output: each stream has a name,
   description, attribute filter, and references to its source
   instrument. Aggregation, exemplar reservoir, and cardinality
-  limit fields are placeholders for subsequent Decisions.
+  limit fields are populated by `resolve/1` from view config or
+  spec defaults.
   """
 
   @type t :: %__MODULE__{
@@ -37,8 +38,7 @@ defmodule Otel.SDK.Metrics.Stream do
     %__MODULE__{
       name: instrument.name,
       description: instrument.description,
-      instrument: instrument,
-      attribute_keys: advisory_attribute_keys(instrument)
+      instrument: instrument
     }
   end
 
@@ -53,7 +53,7 @@ defmodule Otel.SDK.Metrics.Stream do
       name: Otel.SDK.Metrics.View.name(view, instrument),
       description: Otel.SDK.Metrics.View.description(view, instrument),
       instrument: instrument,
-      attribute_keys: Map.get(config, :attribute_keys, advisory_attribute_keys(instrument)),
+      attribute_keys: Map.get(config, :attribute_keys),
       aggregation: Map.get(config, :aggregation),
       aggregation_options: Map.get(config, :aggregation_options, %{}),
       exemplar_reservoir: Map.get(config, :exemplar_reservoir),
@@ -105,15 +105,6 @@ defmodule Otel.SDK.Metrics.Stream do
 
       boundaries ->
         Map.put_new(opts, :boundaries, boundaries)
-    end
-  end
-
-  @spec advisory_attribute_keys(instrument :: Otel.API.Metrics.Instrument.t()) ::
-          {:include, [String.t()]} | nil
-  defp advisory_attribute_keys(instrument) do
-    case Keyword.get(instrument.advisory, :attributes) do
-      nil -> nil
-      keys -> {:include, keys}
     end
   end
 end

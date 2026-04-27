@@ -65,9 +65,7 @@ defmodule Otel.SDK.Logs.Logger do
   **SDK** (OTel API MUST) — Emit a LogRecord
   (`logs/api.md` L111-L131).
 
-  Applies LoggerConfig filters (disabled / minimum_severity /
-  trace_based) per `logs/sdk.md` L195-L196 + L243-L252, then
-  dispatches the limited record to every registered processor.
+  Dispatches the limited record to every registered processor.
   """
   @impl true
   @spec emit(
@@ -76,30 +74,24 @@ defmodule Otel.SDK.Logs.Logger do
           log_record :: Otel.API.Logs.LogRecord.t()
         ) :: :ok
   def emit({_module, config}, ctx, log_record) do
-    # Spec L195-L196 (disabled MUST: *"If a Logger is disabled, it
-    # MUST behave equivalently to No-op Logger"*) and L243-L252
-    # (emit-time filter list — only severity + trace_based are
-    # enumerated there). We apply all three in order:
-    # (1) Logger disabled → drop, (2) minimum_severity, (3) trace_based.
-    if logger_config_drops_emit?(config.logger_config, log_record, ctx) do
-      :ok
-    else
-      record = log_record |> apply_exception_attributes() |> build_log_record(config, ctx)
-      processors = get_processors(config)
+    record = log_record |> apply_exception_attributes() |> build_log_record(config, ctx)
+    processors = get_processors(config)
 
-      Enum.each(processors, fn {processor, processor_config} ->
-        processor.on_emit(record, ctx, processor_config)
-      end)
-    end
+    Enum.each(processors, fn {processor, processor_config} ->
+      processor.on_emit(record, ctx, processor_config)
+    end)
   end
 
   @doc """
   **SDK** (OTel API SHOULD) — Enabled
   (`logs/api.md` L133-L154 + `logs/sdk.md` §Enabled L256-L268).
 
-  Returns false when no processors are registered, when
-  LoggerConfig filters reject the call, or when every
-  processor implementing `enabled?/4` returns false.
+  Returns false when no processors are registered, or when every
+  processor implementing `enabled?/4` returns false. The
+  Development-status `LoggerConfig` filter legs (L259-L266 —
+  enabled / minimum_severity / trace_based) are deferred per the
+  project's Stable-only policy, mirroring how
+  `Otel.SDK.Trace.Tracer.enabled?/2` defers `TracerConfig`.
   """
   @impl true
   @spec enabled?(
@@ -108,104 +100,25 @@ defmodule Otel.SDK.Logs.Logger do
         ) :: boolean()
   def enabled?({_module, config}, opts) do
     processors = get_processors(config)
-    # The API dispatcher always injects `:ctx`, but a direct SDK
-    # caller may omit it. Mirror the API's fallback to the current
-    # Context so the processor's `enabled?/4` always sees a valid
-    # ctx (spec §LogRecordProcessor L425-L426).
-    {ctx, processor_opts} = Keyword.pop_lazy(opts, :ctx, &Otel.API.Ctx.current/0)
 
-    cond do
-      # Spec L256 + L258 (header + bullet): MUST return false when
-      # there are no registered LogRecordProcessors.
-      processors == [] ->
-        false
-
-      # Spec L259-L260: MUST return false when LoggerConfig.enabled
-      # is false (Status: Development).
-      not config.logger_config.enabled ->
-        false
-
-      # Spec L261-L263: MUST return false when severity_number is
-      # specified (not 0) and < minimum_severity (Status: Development).
-      logger_config_severity_filters?(config.logger_config, processor_opts) ->
-        false
-
-      # Spec L264-L266: MUST return false when trace_based is true
-      # and ctx is associated with an unsampled trace (Development).
-      logger_config_trace_filters?(config.logger_config, ctx) ->
-        false
+    # Spec L256 + L258 (header + bullet): MUST return false when
+    # there are no registered LogRecordProcessors.
+    if processors == [] do
+      false
+    else
+      # The API dispatcher always injects `:ctx`, but a direct
+      # SDK caller may omit it. Mirror the API's fallback to the
+      # current Context so the processor's `enabled?/4` always
+      # sees a valid ctx (spec §LogRecordProcessor L425-L426).
+      {ctx, processor_opts} = Keyword.pop_lazy(opts, :ctx, &Otel.API.Ctx.current/0)
 
       # Spec L267-L268: MUST return false when all processors
       # implement Enabled and all return false.
-      true ->
-        not Enum.all?(processors, fn {processor, processor_config} ->
-          function_exported?(processor, :enabled?, 4) and
-            not processor.enabled?(ctx, config.scope, processor_opts, processor_config)
-        end)
+      not Enum.all?(processors, fn {processor, processor_config} ->
+        function_exported?(processor, :enabled?, 4) and
+          not processor.enabled?(ctx, config.scope, processor_opts, processor_config)
+      end)
     end
-  end
-
-  # Spec L243-L252 emit-time filter rules. Returns true when the
-  # record should be dropped per LoggerConfig.
-  @spec logger_config_drops_emit?(
-          logger_config :: Otel.SDK.Logs.LoggerConfig.t(),
-          log_record :: Otel.API.Logs.LogRecord.t(),
-          ctx :: Otel.API.Ctx.t()
-        ) :: boolean()
-  defp logger_config_drops_emit?(
-         %Otel.SDK.Logs.LoggerConfig{
-           enabled: enabled,
-           minimum_severity: min_sev,
-           trace_based: trace_based
-         },
-         %Otel.API.Logs.LogRecord{severity_number: sev},
-         ctx
-       ) do
-    cond do
-      not enabled -> true
-      min_sev > 0 and sev > 0 and sev < min_sev -> true
-      trace_based -> ctx_has_unsampled_trace?(ctx)
-      true -> false
-    end
-  end
-
-  @spec logger_config_severity_filters?(
-          logger_config :: Otel.SDK.Logs.LoggerConfig.t(),
-          opts :: Otel.SDK.Logs.LogRecordProcessor.enabled_opts()
-        ) :: boolean()
-  defp logger_config_severity_filters?(%Otel.SDK.Logs.LoggerConfig{minimum_severity: 0}, _opts),
-    do: false
-
-  defp logger_config_severity_filters?(
-         %Otel.SDK.Logs.LoggerConfig{minimum_severity: min_sev},
-         opts
-       ) do
-    case Keyword.get(opts, :severity_number, 0) do
-      0 -> false
-      sev when sev < min_sev -> true
-      _ -> false
-    end
-  end
-
-  @spec logger_config_trace_filters?(
-          logger_config :: Otel.SDK.Logs.LoggerConfig.t(),
-          ctx :: Otel.API.Ctx.t()
-        ) :: boolean()
-  defp logger_config_trace_filters?(%Otel.SDK.Logs.LoggerConfig{trace_based: false}, _ctx),
-    do: false
-
-  defp logger_config_trace_filters?(%Otel.SDK.Logs.LoggerConfig{trace_based: true}, ctx),
-    do: ctx_has_unsampled_trace?(ctx)
-
-  # Spec L213-L217: a log record is associated with an unsampled
-  # trace when it has a valid SpanId and TraceFlags' SAMPLED bit
-  # is unset. Records without trace context bypass this filter.
-  @spec ctx_has_unsampled_trace?(ctx :: Otel.API.Ctx.t()) :: boolean()
-  defp ctx_has_unsampled_trace?(ctx) do
-    %Otel.API.Trace.SpanContext{span_id: span_id, trace_flags: trace_flags} =
-      Otel.API.Trace.current_span(ctx)
-
-    Otel.API.Trace.SpanId.valid?(span_id) and Bitwise.band(trace_flags, 1) == 0
   end
 
   @spec get_processors(config :: map()) ::
