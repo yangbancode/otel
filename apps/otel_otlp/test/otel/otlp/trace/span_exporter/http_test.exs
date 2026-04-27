@@ -269,6 +269,52 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
     end
   end
 
+  describe "export/3 retry" do
+    test "returns :error after exhausting attempts on persistent 503" do
+      {pid, port, listen} = start_test_server(503)
+
+      {:ok, state} =
+        Otel.OTLP.Trace.SpanExporter.HTTP.init(%{
+          endpoint: "http://localhost:#{port}",
+          retry_opts: %{
+            max_attempts: 2,
+            initial_backoff_ms: 1,
+            max_backoff_ms: 5,
+            jitter_ratio: 0.0
+          }
+        })
+
+      assert Otel.OTLP.Trace.SpanExporter.HTTP.export([@test_span], @test_resource, state) ==
+               :error
+
+      stop_test_server(pid, listen)
+    end
+
+    test "returns :error immediately on non-retryable 400" do
+      {pid, port, listen} = start_test_server(400)
+
+      {:ok, state} =
+        Otel.OTLP.Trace.SpanExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
+      assert Otel.OTLP.Trace.SpanExporter.HTTP.export([@test_span], @test_resource, state) ==
+               :error
+
+      stop_test_server(pid, listen)
+    end
+
+    test "init/1 stores retry_opts from config" do
+      {:ok, state} =
+        Otel.OTLP.Trace.SpanExporter.HTTP.init(%{retry_opts: %{max_attempts: 7}})
+
+      assert state.retry_opts == %{max_attempts: 7}
+    end
+
+    test "init/1 defaults retry_opts to empty map" do
+      {:ok, state} = Otel.OTLP.Trace.SpanExporter.HTTP.init(%{})
+      assert state.retry_opts == %{}
+    end
+  end
+
   describe "shutdown/1" do
     test "returns :ok" do
       {:ok, state} = Otel.OTLP.Trace.SpanExporter.HTTP.init(%{})

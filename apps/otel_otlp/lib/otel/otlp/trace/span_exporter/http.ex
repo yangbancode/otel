@@ -24,6 +24,15 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
   using system CA certificates (`:public_key.cacerts_get/0`).
 
   Custom SSL options can be provided via the `:ssl_options` config key.
+
+  ## Retry
+
+  Transient errors are retried with exponential backoff and
+  jitter per `protocol/exporter.md` §Retry L181-L183. Retry
+  behavior is delegated to `Otel.OTLP.HTTP.Retry`; defaults
+  match the Java OTLP SDK (5 attempts, 1s → 5s capped, 1.5x
+  multiplier, ±20% jitter). Override via the `:retry_opts`
+  config key.
   """
 
   @behaviour Otel.SDK.Trace.SpanExporter
@@ -43,6 +52,7 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
     compression = resolve_compression(config)
     timeout = resolve_timeout(config)
     ssl_options = build_ssl_options(endpoint, config)
+    retry_opts = Map.get(config, :retry_opts, %{})
 
     {:ok,
      %{
@@ -50,7 +60,8 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
        headers: headers,
        compression: compression,
        timeout: timeout,
-       ssl_options: ssl_options
+       ssl_options: ssl_options,
+       retry_opts: retry_opts
      }}
   end
 
@@ -58,7 +69,7 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
           spans :: [Otel.SDK.Trace.Span.t()],
           resource :: Otel.SDK.Resource.t(),
           state :: Otel.SDK.Trace.SpanExporter.state()
-        ) :: :ok
+        ) :: :ok | :error
   @impl true
   def export([], _resource, _state), do: :ok
 
@@ -70,11 +81,15 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
     url = String.to_charlist(state.endpoint)
     http_options = build_http_options(state)
 
-    {:ok, {{_version, status, _reason}, _headers, _body}} =
-      :httpc.request(:post, {url, headers, ~c"application/x-protobuf", body}, http_options, [])
-
-    true = status in 200..299
-    :ok
+    case Otel.OTLP.HTTP.Retry.request(
+           {url, headers, ~c"application/x-protobuf", body},
+           http_options,
+           [],
+           state.retry_opts
+         ) do
+      :ok -> :ok
+      {:error, _reason} -> :error
+    end
   end
 
   @spec shutdown(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok
