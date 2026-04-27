@@ -2,8 +2,18 @@ defmodule Otel.SDK.Trace.TracerTest do
   use ExUnit.Case
 
   setup do
+    # Disable the default OTLP + Batch wiring so the supervised
+    # TracerProvider boots with an empty processor list — the
+    # `enabled?/2` tests below depend on the no-processor leg.
     Application.stop(:otel_sdk)
+    Application.put_env(:otel_sdk, :trace, exporter: :none)
     Application.ensure_all_started(:otel_sdk)
+
+    on_exit(fn ->
+      Application.stop(:otel_sdk)
+      Application.delete_env(:otel_sdk, :trace)
+      Application.ensure_all_started(:otel_sdk)
+    end)
 
     {_module, tracer_config} =
       Otel.SDK.Trace.TracerProvider.get_tracer(
