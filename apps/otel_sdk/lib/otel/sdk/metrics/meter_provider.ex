@@ -209,6 +209,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
         _from,
         config
       ) do
+    warn_on_invalid_scope_name(instrumentation_scope)
+
     reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
 
     meter_config = %{
@@ -288,6 +290,25 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   # --- Private ---
+
+  # Spec `metrics/api.md` §Get a Meter — *"In the case where an
+  # invalid `name` (null or empty string) is specified, a working
+  # `Meter` MUST be returned as a fallback rather than returning
+  # null or throwing an exception, its `name` SHOULD keep the
+  # original invalid value, and a message reporting that the
+  # specified value is invalid SHOULD be logged."* The MUST is
+  # satisfied structurally — we always return the SDK Meter; the
+  # SHOULD log is enforced here.
+  @spec warn_on_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
+  defp warn_on_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+    Logger.warning(
+      "Otel.SDK.Metrics.MeterProvider: invalid Meter name (empty string) — returning a working Meter as fallback"
+    )
+
+    :ok
+  end
+
+  defp warn_on_invalid_scope_name(_scope), do: :ok
 
   @spec default_config() :: config()
   defp default_config do

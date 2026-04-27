@@ -103,6 +103,26 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
       assert %Otel.SDK.Resource{} = resource
       assert resource.attributes["telemetry.sdk.name"] == "otel"
     end
+
+    test "logs a warning for empty Meter name (spec MUST/SHOULD)", %{provider: pid} do
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: ""})
+        end)
+
+      assert log =~ "invalid Meter name"
+    end
+
+    test "no warning for a valid Meter name", %{provider: pid} do
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+            name: "my_lib"
+          })
+        end)
+
+      refute log =~ "invalid Meter name"
+    end
   end
 
   describe "shutdown/1" do

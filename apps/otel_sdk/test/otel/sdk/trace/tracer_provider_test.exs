@@ -92,6 +92,26 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
       assert %Otel.SDK.Trace.SpanLimits{} = config.span_limits
     end
+
+    test "logs a warning for empty Tracer name (spec MUST/SHOULD)", %{provider: pid} do
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{name: ""})
+        end)
+
+      assert log =~ "invalid Tracer name"
+    end
+
+    test "no warning for a valid Tracer name", %{provider: pid} do
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
+            name: "my_lib"
+          })
+        end)
+
+      refute log =~ "invalid Tracer name"
+    end
   end
 
   describe "shutdown/1" do
