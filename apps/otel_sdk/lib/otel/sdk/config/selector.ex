@@ -10,7 +10,7 @@ defmodule Otel.SDK.Config.Selector do
     modules. The shortcut set is closed; only spec values defined in
     `configuration/sdk-environment-variables.md` L122-L131, L243-L265,
     and L143-L152 are accepted.
-  - **module atom** (e.g. `Otel.OTLP.TraceExporter.HTTP`) — direct
+  - **module atom** (e.g. `Otel.OTLP.Trace.SpanExporter.HTTP`) — direct
     module reference, normalized to `{Module, %{}}`.
   - **{module, config} tuple** — passed through unchanged. Always the
     canonical form a provider expects at its `start_link/1` boundary.
@@ -48,7 +48,7 @@ defmodule Otel.SDK.Config.Selector do
   """
   @spec trace_exporter(value :: atom() | module() | {module(), map()}) ::
           {module(), map()} | :none
-  def trace_exporter(:otlp), do: {Otel.OTLP.TraceExporter.HTTP, %{}}
+  def trace_exporter(:otlp), do: {Otel.OTLP.Trace.SpanExporter.HTTP, %{}}
   def trace_exporter(:console), do: {Otel.SDK.Trace.SpanExporter.Console, %{}}
   def trace_exporter(:none), do: :none
 
@@ -64,7 +64,7 @@ defmodule Otel.SDK.Config.Selector do
   """
   @spec metrics_exporter(value :: atom() | module() | {module(), map()}) ::
           {module(), map()} | :none
-  def metrics_exporter(:otlp), do: {Otel.OTLP.MetricsExporter.HTTP, %{}}
+  def metrics_exporter(:otlp), do: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}}
   def metrics_exporter(:console), do: {Otel.SDK.Metrics.MetricExporter.Console, %{}}
   def metrics_exporter(:none), do: :none
 
@@ -80,7 +80,7 @@ defmodule Otel.SDK.Config.Selector do
   """
   @spec logs_exporter(value :: atom() | module() | {module(), map()}) ::
           {module(), map()} | :none
-  def logs_exporter(:otlp), do: {Otel.OTLP.LogsExporter.HTTP, %{}}
+  def logs_exporter(:otlp), do: {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}
   def logs_exporter(:console), do: {Otel.SDK.Logs.LogRecordExporter.Console, %{}}
   def logs_exporter(:none), do: :none
 

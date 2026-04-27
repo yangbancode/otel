@@ -67,7 +67,7 @@ defmodule Otel.SDK.ConfigTest do
 
       assert [
                {Otel.SDK.Trace.SpanProcessor.Batch,
-                %{exporter: {Otel.OTLP.TraceExporter.HTTP, %{}}}}
+                %{exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{}}}}
              ] = config.processors
 
       assert %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 128} = config.span_limits
@@ -202,7 +202,7 @@ defmodule Otel.SDK.ConfigTest do
       [{Otel.SDK.Metrics.PeriodicExportingMetricReader, reader_config}] =
         Otel.SDK.Config.metrics().readers
 
-      assert reader_config.exporter == {Otel.OTLP.MetricsExporter.HTTP, %{}}
+      assert reader_config.exporter == {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}}
       assert reader_config.export_interval_ms == 60_000
       assert reader_config.export_timeout_ms == 30_000
       assert Otel.SDK.Config.metrics().exemplar_filter == :trace_based
@@ -236,7 +236,7 @@ defmodule Otel.SDK.ConfigTest do
       [{Otel.SDK.Logs.LogRecordProcessor.Batch, config}] =
         Otel.SDK.Config.logs().processors
 
-      assert config.exporter == {Otel.OTLP.LogsExporter.HTTP, %{}}
+      assert config.exporter == {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}
       assert config.scheduled_delay_ms == 1_000
 
       assert %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 128} =

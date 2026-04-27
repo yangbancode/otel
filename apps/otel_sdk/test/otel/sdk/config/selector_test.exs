@@ -4,7 +4,7 @@ defmodule Otel.SDK.Config.SelectorTest do
   describe "trace_exporter/1" do
     test "shortcut atoms map to project modules" do
       assert Otel.SDK.Config.Selector.trace_exporter(:otlp) ==
-               {Otel.OTLP.TraceExporter.HTTP, %{}}
+               {Otel.OTLP.Trace.SpanExporter.HTTP, %{}}
 
       assert Otel.SDK.Config.Selector.trace_exporter(:console) ==
                {Otel.SDK.Trace.SpanExporter.Console, %{}}
@@ -28,7 +28,7 @@ defmodule Otel.SDK.Config.SelectorTest do
   describe "metrics_exporter/1" do
     test "shortcut atoms" do
       assert Otel.SDK.Config.Selector.metrics_exporter(:otlp) ==
-               {Otel.OTLP.MetricsExporter.HTTP, %{}}
+               {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}}
 
       assert Otel.SDK.Config.Selector.metrics_exporter(:console) ==
                {Otel.SDK.Metrics.MetricExporter.Console, %{}}
@@ -45,7 +45,7 @@ defmodule Otel.SDK.Config.SelectorTest do
   describe "logs_exporter/1" do
     test "shortcut atoms" do
       assert Otel.SDK.Config.Selector.logs_exporter(:otlp) ==
-               {Otel.OTLP.LogsExporter.HTTP, %{}}
+               {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}
 
       assert Otel.SDK.Config.Selector.logs_exporter(:console) ==
                {Otel.SDK.Logs.LogRecordExporter.Console, %{}}

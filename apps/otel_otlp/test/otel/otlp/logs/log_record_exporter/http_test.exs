@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.LogsExporter.HTTPTest do
+defmodule Otel.OTLP.Logs.LogRecordExporter.HTTPTest do
   use ExUnit.Case
 
   @test_resource Otel.SDK.Resource.create(%{"service.name" => "test"})
@@ -73,7 +73,7 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
 
   describe "init/1 defaults" do
     test "returns state with default values" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.endpoint == "http://localhost:4318/v1/logs"
       assert state.compression == :none
       assert state.timeout == 10_000
@@ -83,32 +83,32 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
   describe "init/1 endpoint" do
     test "general endpoint appends /v1/logs" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://collector:4318")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.endpoint == "http://collector:4318/v1/logs"
     end
 
     test "signal-specific endpoint used as-is" do
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://logs:4318/custom")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.endpoint == "http://logs:4318/custom"
     end
 
     test "signal-specific overrides general" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://general:4318")
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "http://logs:4318/v1/logs")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.endpoint == "http://logs:4318/v1/logs"
     end
 
     test "empty env var treated as unset" do
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_ENDPOINT", "")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.endpoint == "http://localhost:4318/v1/logs"
     end
 
     test "code config overrides defaults" do
       {:ok, state} =
-        Otel.OTLP.LogsExporter.HTTP.init(%{
+        Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{
           endpoint: "http://custom:4318",
           compression: :gzip,
           timeout: 5_000
@@ -121,7 +121,7 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
 
     test "general env overrides code config" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env:4318")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{endpoint: "http://code:4318"})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "http://code:4318"})
       assert state.endpoint == "http://env:4318/v1/logs"
     end
   end
@@ -129,7 +129,7 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
   describe "init/1 headers" do
     test "general headers env var" do
       System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "key1=val1,key2=val2")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert {~c"key1", ~c"val1"} in state.headers
       assert {~c"key2", ~c"val2"} in state.headers
     end
@@ -137,24 +137,24 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
     test "signal-specific headers override general" do
       System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "general=yes")
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_HEADERS", "logs=yes")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert {~c"logs", ~c"yes"} in state.headers
       refute Enum.any?(state.headers, fn {k, _} -> k == ~c"general" end)
     end
 
     test "always includes user-agent" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert Enum.any?(state.headers, fn {k, _} -> k == ~c"user-agent" end)
     end
 
     test "skips invalid header pairs" do
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_HEADERS", "valid=yes,=invalid")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert {~c"valid", ~c"yes"} in state.headers
     end
 
     test "code config headers as map" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{headers: %{"auth" => "token"}})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{headers: %{"auth" => "token"}})
       assert {~c"auth", ~c"token"} in state.headers
     end
   end
@@ -162,20 +162,20 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
   describe "init/1 compression" do
     test "general compression env var" do
       System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.compression == :gzip
     end
 
     test "signal-specific compression overrides general" do
       System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_COMPRESSION", "none")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.compression == :none
     end
 
     test "unknown compression defaults to none" do
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_COMPRESSION", "brotli")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.compression == :none
     end
   end
@@ -183,38 +183,38 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
   describe "init/1 timeout" do
     test "general timeout env var" do
       System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "5000")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.timeout == 5000
     end
 
     test "signal-specific timeout overrides general" do
       System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "5000")
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_TIMEOUT", "3000")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.timeout == 3000
     end
 
     test "unparseable timeout uses default" do
       System.put_env("OTEL_EXPORTER_OTLP_LOGS_TIMEOUT", "abc")
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.timeout == 10_000
     end
   end
 
   describe "init/1 SSL" do
     test "http endpoint has empty ssl_options" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
       assert state.ssl_options == []
     end
 
     test "https endpoint gets default ssl_options" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{endpoint: "https://collector:4318"})
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "https://collector:4318"})
       assert state.ssl_options[:verify] == :verify_peer
     end
 
     test "custom ssl_options override defaults" do
       {:ok, state} =
-        Otel.OTLP.LogsExporter.HTTP.init(%{
+        Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{
           endpoint: "https://collector:4318",
           ssl_options: [verify: :verify_none]
         })
@@ -225,14 +225,14 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
 
   describe "export/2" do
     test "returns :ok for empty list" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
-      assert :ok == Otel.OTLP.LogsExporter.HTTP.export([], state)
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
+      assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.export([], state)
     end
 
     test "returns :ok when server responds 200" do
       {pid, port, listen} = start_test_server(200)
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
-      assert :ok == Otel.OTLP.LogsExporter.HTTP.export([@test_log_record], state)
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+      assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.export([@test_log_record], state)
       stop_test_server(pid, listen)
     end
 
@@ -240,25 +240,25 @@ defmodule Otel.OTLP.LogsExporter.HTTPTest do
       {pid, port, listen} = start_test_server(200)
 
       {:ok, state} =
-        Otel.OTLP.LogsExporter.HTTP.init(%{
+        Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{
           endpoint: "http://localhost:#{port}",
           compression: :gzip
         })
 
-      assert :ok == Otel.OTLP.LogsExporter.HTTP.export([@test_log_record], state)
+      assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.export([@test_log_record], state)
       stop_test_server(pid, listen)
     end
   end
 
   describe "shutdown/1 and force_flush/1" do
     test "shutdown returns :ok" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
-      assert :ok == Otel.OTLP.LogsExporter.HTTP.shutdown(state)
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
+      assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.shutdown(state)
     end
 
     test "force_flush returns :ok" do
-      {:ok, state} = Otel.OTLP.LogsExporter.HTTP.init(%{})
-      assert :ok == Otel.OTLP.LogsExporter.HTTP.force_flush(state)
+      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{})
+      assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.force_flush(state)
     end
   end
 end
