@@ -265,6 +265,18 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
       assert :ok = Otel.SDK.Metrics.MeterProvider.force_flush(provider)
       assert [{_, ^survivor}] = :sys.get_state(provider).readers
     end
+
+    test "ignores EXIT from unmanaged process", %{provider: provider} do
+      send(Process.whereis(provider), {:EXIT, self(), :unrelated})
+      # Round-trip a call to force the EXIT to be processed.
+      assert is_map(:sys.get_state(provider))
+    end
+
+    test "ignores late EXIT after shutdown", %{provider: provider} do
+      :ok = Otel.SDK.Metrics.MeterProvider.shutdown(provider)
+      send(Process.whereis(provider), {:EXIT, self(), :late})
+      assert match?(%{shut_down: true}, :sys.get_state(provider))
+    end
   end
 
   # The provider's view list is observable through the meter

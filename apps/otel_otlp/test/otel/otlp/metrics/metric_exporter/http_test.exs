@@ -104,6 +104,12 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
       assert state.endpoint == "http://env-collector:4318/v1/metrics"
     end
 
+    test "empty env var treated as unset" do
+      System.put_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "")
+      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
+      assert state.endpoint == "http://localhost:4318/v1/metrics"
+    end
+
     test "signal-specific endpoint used as-is" do
       System.put_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://metrics:4318/custom")
       {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
@@ -240,6 +246,36 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
           endpoint: "http://localhost:#{port}",
           compression: :gzip
         })
+
+      assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([@test_metric], state) == :ok
+      stop_test_server(pid, listen)
+    end
+
+    test "returns :error after exhausting retries on persistent 503" do
+      {pid, port, listen} = start_test_server(503)
+
+      {:ok, state} =
+        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{
+          endpoint: "http://localhost:#{port}",
+          retry_opts: %{
+            max_attempts: 2,
+            initial_backoff_ms: 1,
+            max_backoff_ms: 5,
+            jitter_ratio: 0.0
+          }
+        })
+
+      assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([@test_metric], state) == :error
+      stop_test_server(pid, listen)
+    end
+
+    test "returns :ok with ssl_options set" do
+      {pid, port, listen} = start_test_server(200)
+
+      {:ok, state} =
+        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
+      state = %{state | ssl_options: [verify: :verify_none]}
 
       assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([@test_metric], state) == :ok
       stop_test_server(pid, listen)

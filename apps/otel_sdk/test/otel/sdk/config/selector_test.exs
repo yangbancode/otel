@@ -40,6 +40,11 @@ defmodule Otel.SDK.Config.SelectorTest do
       assert Otel.SDK.Config.Selector.metrics_exporter({MyApp.Reader, %{x: 1}}) ==
                {MyApp.Reader, %{x: 1}}
     end
+
+    test "bare module wraps with empty config" do
+      assert Otel.SDK.Config.Selector.metrics_exporter(MyApp.Reader) ==
+               {MyApp.Reader, %{}}
+    end
   end
 
   describe "logs_exporter/1" do
@@ -51,6 +56,16 @@ defmodule Otel.SDK.Config.SelectorTest do
                {Otel.SDK.Logs.LogRecordExporter.Console, %{}}
 
       assert Otel.SDK.Config.Selector.logs_exporter(:none) == :none
+    end
+
+    test "{module, config} passthrough" do
+      assert Otel.SDK.Config.Selector.logs_exporter({MyApp.Exporter, %{x: 1}}) ==
+               {MyApp.Exporter, %{x: 1}}
+    end
+
+    test "bare module wraps with empty config" do
+      assert Otel.SDK.Config.Selector.logs_exporter(MyApp.Exporter) ==
+               {MyApp.Exporter, %{}}
     end
   end
 
@@ -76,6 +91,11 @@ defmodule Otel.SDK.Config.SelectorTest do
 
       assert Otel.SDK.Config.Selector.logs_processor(:simple) ==
                Otel.SDK.Logs.LogRecordProcessor.Simple
+    end
+
+    test "module passthrough" do
+      assert Otel.SDK.Config.Selector.logs_processor(MyApp.LogProcessor) ==
+               MyApp.LogProcessor
     end
   end
 

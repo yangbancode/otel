@@ -102,6 +102,15 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       refute log =~ "invalid Logger name"
     end
+
+    test "accepts pid handle (alive? pid branch)", %{provider: provider} do
+      pid = Process.whereis(provider)
+
+      {module, _} =
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
+      assert module == Otel.SDK.Logs.Logger
+    end
   end
 
   describe "resource/1" do
@@ -188,6 +197,13 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       end
     end
 
+    defmodule FailProcessor do
+      @moduledoc false
+      def on_emit(_record, _ctx, _config), do: :ok
+      def shutdown(_config, _timeout \\ 5000), do: {:error, :shutdown_failed}
+      def force_flush(_config, _timeout \\ 5000), do: {:error, :flush_failed}
+    end
+
     test "shutdown invokes processor shutdown" do
       restart_sdk(logs: [processors: [{ShutdownProcessor, %{test_pid: self()}}]])
 
@@ -200,6 +216,33 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
       assert_receive :processor_force_flush
+    end
+
+    test "shutdown collects errors from failing processors" do
+      restart_sdk(logs: [processors: [{FailProcessor, %{}}]])
+
+      assert {:error, [{FailProcessor, :shutdown_failed}]} =
+               Otel.SDK.Logs.LoggerProvider.shutdown(Otel.SDK.Logs.LoggerProvider)
+    end
+
+    test "force_flush collects errors from failing processors" do
+      restart_sdk(logs: [processors: [{FailProcessor, %{}}]])
+
+      assert {:error, [{FailProcessor, :flush_failed}]} =
+               Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
+    end
+  end
+
+  describe "EXIT signal handling" do
+    test "ignores EXIT from unmanaged process", %{provider: provider} do
+      send(Process.whereis(provider), {:EXIT, self(), :unrelated})
+      assert is_map(:sys.get_state(provider))
+    end
+
+    test "ignores late EXIT after shutdown", %{provider: provider} do
+      :ok = Otel.SDK.Logs.LoggerProvider.shutdown(provider)
+      send(Process.whereis(provider), {:EXIT, self(), :late})
+      assert match?(%{shut_down: true}, :sys.get_state(provider))
     end
   end
 

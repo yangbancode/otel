@@ -98,4 +98,10 @@ defmodule Otel.SDK.Trace.SpanExporter.ConsoleTest do
       assert :ok = Otel.SDK.Trace.SpanExporter.Console.shutdown(%{})
     end
   end
+
+  describe "force_flush/1" do
+    test "returns :ok" do
+      assert :ok = Otel.SDK.Trace.SpanExporter.Console.force_flush(%{})
+    end
+  end
 end
