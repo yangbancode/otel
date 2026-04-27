@@ -66,7 +66,7 @@ defmodule Otel.SDK.Metrics.Stream do
   @spec resolve(stream :: t()) :: t()
   def resolve(%__MODULE__{} = stream) do
     aggregation =
-      stream.aggregation || Otel.SDK.Metrics.Aggregation.default_module(stream.instrument.kind)
+      stream.aggregation || Otel.SDK.Metrics.Aggregation.default_for(stream.instrument.kind)
 
     aggregation_options =
       if stream.aggregation == nil do

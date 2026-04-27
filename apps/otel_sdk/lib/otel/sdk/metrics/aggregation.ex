@@ -62,12 +62,12 @@ defmodule Otel.SDK.Metrics.Aggregation do
               opts :: map()
             ) :: [datapoint()]
 
-  @spec default_module(kind :: Otel.API.Metrics.Instrument.kind()) :: module()
-  def default_module(:counter), do: Otel.SDK.Metrics.Aggregation.Sum
-  def default_module(:updown_counter), do: Otel.SDK.Metrics.Aggregation.Sum
-  def default_module(:histogram), do: Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram
-  def default_module(:gauge), do: Otel.SDK.Metrics.Aggregation.LastValue
-  def default_module(:observable_counter), do: Otel.SDK.Metrics.Aggregation.Sum
-  def default_module(:observable_gauge), do: Otel.SDK.Metrics.Aggregation.LastValue
-  def default_module(:observable_updown_counter), do: Otel.SDK.Metrics.Aggregation.Sum
+  @spec default_for(kind :: Otel.API.Metrics.Instrument.kind()) :: module()
+  def default_for(:counter), do: Otel.SDK.Metrics.Aggregation.Sum
+  def default_for(:updown_counter), do: Otel.SDK.Metrics.Aggregation.Sum
+  def default_for(:histogram), do: Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram
+  def default_for(:gauge), do: Otel.SDK.Metrics.Aggregation.LastValue
+  def default_for(:observable_counter), do: Otel.SDK.Metrics.Aggregation.Sum
+  def default_for(:observable_gauge), do: Otel.SDK.Metrics.Aggregation.LastValue
+  def default_for(:observable_updown_counter), do: Otel.SDK.Metrics.Aggregation.Sum
 end
