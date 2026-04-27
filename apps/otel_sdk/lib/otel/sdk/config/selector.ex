@@ -142,8 +142,9 @@ defmodule Otel.SDK.Config.Selector do
     do: {Otel.SDK.Trace.Sampler.TraceIdRatioBased, ratio}
 
   def sampler({:parentbased_traceidratio, ratio}) when is_float(ratio),
-    do: {Otel.SDK.Trace.Sampler.ParentBased,
-         %{root: {Otel.SDK.Trace.Sampler.TraceIdRatioBased, ratio}}}
+    do:
+      {Otel.SDK.Trace.Sampler.ParentBased,
+       %{root: {Otel.SDK.Trace.Sampler.TraceIdRatioBased, ratio}}}
 
   def sampler({module, opts}) when is_atom(module), do: {module, opts}
   def sampler(module) when is_atom(module), do: {module, %{}}

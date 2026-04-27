@@ -238,6 +238,7 @@ defmodule Otel.SDK.ConfigTest do
 
       assert config.exporter == {Otel.OTLP.Logs.Exporter.HTTP, %{}}
       assert config.scheduled_delay_ms == 1_000
+
       assert %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 128} =
                Otel.SDK.Config.logs().log_record_limits
     end

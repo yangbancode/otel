@@ -211,13 +211,10 @@ defmodule Otel.SDK.Config do
 
     base = %{
       exporter: exporter,
-      scheduled_delay_ms:
-        Otel.SDK.Config.Env.duration_ms("OTEL_BSP_SCHEDULE_DELAY") || 5_000,
-      export_timeout_ms:
-        Otel.SDK.Config.Env.timeout_ms("OTEL_BSP_EXPORT_TIMEOUT") || 30_000,
+      scheduled_delay_ms: Otel.SDK.Config.Env.duration_ms("OTEL_BSP_SCHEDULE_DELAY") || 5_000,
+      export_timeout_ms: Otel.SDK.Config.Env.timeout_ms("OTEL_BSP_EXPORT_TIMEOUT") || 30_000,
       max_queue_size: Otel.SDK.Config.Env.integer("OTEL_BSP_MAX_QUEUE_SIZE") || 2_048,
-      max_export_batch_size:
-        Otel.SDK.Config.Env.integer("OTEL_BSP_MAX_EXPORT_BATCH_SIZE") || 512
+      max_export_batch_size: Otel.SDK.Config.Env.integer("OTEL_BSP_MAX_EXPORT_BATCH_SIZE") || 512
     }
 
     Map.merge(base, overrides)
@@ -278,8 +275,11 @@ defmodule Otel.SDK.Config do
           [{module(), Otel.SDK.Metrics.MetricReader.config()}]
   defp default_metrics_readers(pillar) do
     case metrics_exporter(pillar) do
-      :none -> []
-      exporter -> [{Otel.SDK.Metrics.PeriodicExportingMetricReader, reader_config(pillar, exporter)}]
+      :none ->
+        []
+
+      exporter ->
+        [{Otel.SDK.Metrics.PeriodicExportingMetricReader, reader_config(pillar, exporter)}]
     end
   end
 
@@ -306,8 +306,7 @@ defmodule Otel.SDK.Config do
       exporter: exporter,
       export_interval_ms:
         Otel.SDK.Config.Env.duration_ms("OTEL_METRIC_EXPORT_INTERVAL") || 60_000,
-      export_timeout_ms:
-        Otel.SDK.Config.Env.timeout_ms("OTEL_METRIC_EXPORT_TIMEOUT") || 30_000
+      export_timeout_ms: Otel.SDK.Config.Env.timeout_ms("OTEL_METRIC_EXPORT_TIMEOUT") || 30_000
     }
 
     Map.merge(base, overrides)
@@ -393,13 +392,10 @@ defmodule Otel.SDK.Config do
 
     base = %{
       exporter: exporter,
-      scheduled_delay_ms:
-        Otel.SDK.Config.Env.duration_ms("OTEL_BLRP_SCHEDULE_DELAY") || 1_000,
-      export_timeout_ms:
-        Otel.SDK.Config.Env.timeout_ms("OTEL_BLRP_EXPORT_TIMEOUT") || 30_000,
+      scheduled_delay_ms: Otel.SDK.Config.Env.duration_ms("OTEL_BLRP_SCHEDULE_DELAY") || 1_000,
+      export_timeout_ms: Otel.SDK.Config.Env.timeout_ms("OTEL_BLRP_EXPORT_TIMEOUT") || 30_000,
       max_queue_size: Otel.SDK.Config.Env.integer("OTEL_BLRP_MAX_QUEUE_SIZE") || 2_048,
-      max_export_batch_size:
-        Otel.SDK.Config.Env.integer("OTEL_BLRP_MAX_EXPORT_BATCH_SIZE") || 512
+      max_export_batch_size: Otel.SDK.Config.Env.integer("OTEL_BLRP_MAX_EXPORT_BATCH_SIZE") || 512
     }
 
     Map.merge(base, overrides)
