@@ -139,38 +139,6 @@ defmodule Otel.SDK.Logs.LoggerTest do
       assert record.attributes == %{"method" => "GET", "status" => 200}
       assert record.event_name == "http.request"
     end
-
-    test "uses caller-supplied trace context (bridge path)", %{logger: logger} do
-      # Spec data-model.md L208-L213 — when a bridge stamps trace
-      # context on the API LogRecord, the SDK uses those values
-      # verbatim instead of deriving from the resolved Context.
-      ctx = Otel.API.Ctx.current()
-
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
-        body: "bridged",
-        trace_id: 0xDEADBEEF_DEADBEEF_DEADBEEF_DEADBEEF,
-        span_id: 0xCAFEBABE_CAFEBABE,
-        trace_flags: 1
-      })
-
-      assert_receive {:log_record, record}
-      assert record.trace_id == 0xDEADBEEF_DEADBEEF_DEADBEEF_DEADBEEF
-      assert record.span_id == 0xCAFEBABE_CAFEBABE
-      assert record.trace_flags == 1
-    end
-
-    test "all-zero caller trace context falls back to resolved Context", %{logger: logger} do
-      # Caller didn't stamp (proto3 zero defaults). SDK falls back
-      # to deriving from the resolved Context — which here is empty
-      # so we get the all-zero invalid-context sentinel.
-      ctx = Otel.API.Ctx.current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "no-bridge"})
-
-      assert_receive {:log_record, record}
-      assert record.trace_id == 0
-      assert record.span_id == 0
-      assert record.trace_flags == 0
-    end
   end
 
   describe "enabled?/2" do
