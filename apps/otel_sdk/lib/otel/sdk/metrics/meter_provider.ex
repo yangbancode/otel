@@ -109,6 +109,24 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   @doc """
+  **SDK** (introspection) — Returns the resource associated with
+  this provider.
+  """
+  @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
+  def resource(server) do
+    GenServer.call(server, :resource)
+  end
+
+  @doc """
+  **SDK** (introspection) — Returns the current configuration
+  snapshot.
+  """
+  @spec config(server :: GenServer.server()) :: config()
+  def config(server) do
+    GenServer.call(server, :config)
+  end
+
+  @doc """
   **SDK** (OTel API MUST) — Register a View
   (`metrics/sdk.md` §View L259-L327).
 
@@ -226,6 +244,14 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   def handle_call(:force_flush, _from, config) do
     result = invoke_all_readers(config.readers, :force_flush)
     {:reply, result, config}
+  end
+
+  def handle_call(:resource, _from, config) do
+    {:reply, config.resource, config}
+  end
+
+  def handle_call(:config, _from, config) do
+    {:reply, config, config}
   end
 
   def handle_call({:add_view, criteria, view_config}, _from, config) do

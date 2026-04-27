@@ -216,4 +216,18 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       assert [{LinkableProcessor, _}] = :persistent_term.get(key)
     end
   end
+
+  describe "introspection" do
+    test "resource/1 returns the configured resource", %{provider: pid} do
+      assert %Otel.SDK.Resource{} = Otel.SDK.Trace.TracerProvider.resource(pid)
+    end
+
+    test "config/1 returns the runtime config snapshot", %{provider: pid} do
+      config = Otel.SDK.Trace.TracerProvider.config(pid)
+      assert is_map(config)
+      assert Map.has_key?(config, :sampler)
+      assert Map.has_key?(config, :processors)
+      assert Map.has_key?(config, :resource)
+    end
+  end
 end

@@ -260,6 +260,20 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
   # The provider's view list is observable through the meter
   # config returned by `get_meter/2` — the meter sees the
+  describe "introspection" do
+    test "resource/1 returns the configured resource", %{provider: pid} do
+      assert %Otel.SDK.Resource{} = Otel.SDK.Metrics.MeterProvider.resource(pid)
+    end
+
+    test "config/1 returns the runtime config snapshot", %{provider: pid} do
+      config = Otel.SDK.Metrics.MeterProvider.config(pid)
+      assert is_map(config)
+      assert Map.has_key?(config, :readers)
+      assert Map.has_key?(config, :views)
+      assert Map.has_key?(config, :resource)
+    end
+  end
+
   # view list at every dispatch.
   defp assert_view_count(provider_pid, expected_count) do
     {_module, %{views: views}} =
