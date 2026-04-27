@@ -86,8 +86,11 @@ defmodule Otel.OTLP.Encoder do
       start_time_unix_nano: span.start_time,
       end_time_unix_nano: span.end_time || 0,
       attributes: encode_attributes(span.attributes || %{}),
+      dropped_attributes_count: span.dropped_attributes_count,
       events: Enum.map(span.events || [], &encode_event/1),
+      dropped_events_count: span.dropped_events_count,
       links: Enum.map(span.links || [], &encode_link/1),
+      dropped_links_count: span.dropped_links_count,
       status: encode_status(span.status),
       flags: span.trace_flags
     }
@@ -95,26 +98,28 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Event ---
 
-  @spec encode_event(event :: Otel.API.Trace.Event.t()) ::
+  @spec encode_event(event :: Otel.SDK.Trace.Event.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.Event.t()
-  defp encode_event(%Otel.API.Trace.Event{} = event) do
+  defp encode_event(%Otel.SDK.Trace.Event{} = event) do
     %Opentelemetry.Proto.Trace.V1.Span.Event{
       time_unix_nano: event.timestamp,
       name: event.name,
-      attributes: encode_attributes(event.attributes)
+      attributes: encode_attributes(event.attributes),
+      dropped_attributes_count: event.dropped_attributes_count
     }
   end
 
   # --- Link ---
 
-  @spec encode_link(link :: Otel.API.Trace.Link.t()) ::
+  @spec encode_link(link :: Otel.SDK.Trace.Link.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.Link.t()
-  defp encode_link(%Otel.API.Trace.Link{context: span_ctx, attributes: attrs}) do
+  defp encode_link(%Otel.SDK.Trace.Link{} = link) do
     %Opentelemetry.Proto.Trace.V1.Span.Link{
-      trace_id: encode_id(span_ctx.trace_id, 16),
-      span_id: encode_id(span_ctx.span_id, 8),
-      trace_state: Otel.API.Trace.TraceState.encode(span_ctx.tracestate),
-      attributes: encode_attributes(attrs)
+      trace_id: encode_id(link.context.trace_id, 16),
+      span_id: encode_id(link.context.span_id, 8),
+      trace_state: Otel.API.Trace.TraceState.encode(link.context.tracestate),
+      attributes: encode_attributes(link.attributes),
+      dropped_attributes_count: link.dropped_attributes_count
     }
   end
 
