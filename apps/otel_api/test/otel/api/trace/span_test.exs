@@ -53,26 +53,6 @@ defmodule Otel.API.Trace.SpanTest.FakeSpanOperations do
   def record_exception(_span_ctx, _exception, _stacktrace, _attributes), do: :ok
 end
 
-defmodule Otel.API.Trace.SpanTest.CapturingStatusOperations do
-  # Captures every set_status call into the test process mailbox
-  # so the test can assert on the Status the SDK callback received.
-
-  def recording?(_span_ctx), do: true
-  def set_attribute(_span_ctx, _key, _value), do: :ok
-  def set_attributes(_span_ctx, _attributes), do: :ok
-  def add_event(_span_ctx, _event), do: :ok
-  def add_link(_span_ctx, _link), do: :ok
-
-  def set_status(_span_ctx, status) do
-    send(:capturing_status_test, {:set_status, status})
-    :ok
-  end
-
-  def update_name(_span_ctx, _name), do: :ok
-  def end_span(_span_ctx, _timestamp), do: :ok
-  def record_exception(_span_ctx, _exception, _stacktrace, _attributes), do: :ok
-end
-
 defmodule Otel.API.Trace.SpanTest do
   use ExUnit.Case, async: false
 
@@ -244,41 +224,6 @@ defmodule Otel.API.Trace.SpanTest do
     test "record_exception dispatches to module" do
       assert Otel.API.Trace.Span.record_exception(@valid_ctx, %RuntimeError{message: "oops"}) ==
                :ok
-    end
-  end
-
-  describe "set_status/2 re-normalizes via Status.new (spec L599-L600 MUST IGNORE)" do
-    setup do
-      Process.register(self(), :capturing_status_test)
-
-      Otel.API.Trace.Span.set_module(Otel.API.Trace.SpanTest.CapturingStatusOperations)
-
-      on_exit(fn ->
-        :persistent_term.erase({Otel.API.Trace.Span, :module})
-      end)
-
-      :ok
-    end
-
-    test "drops description on a struct-literal :ok status with stale description" do
-      stale = %Otel.API.Trace.Status{code: :ok, description: "stale"}
-      Otel.API.Trace.Span.set_status(@valid_ctx, stale)
-
-      assert_received {:set_status, %Otel.API.Trace.Status{code: :ok, description: ""}}
-    end
-
-    test "drops description on a struct-literal :unset status with stale description" do
-      stale = %Otel.API.Trace.Status{code: :unset, description: "stale"}
-      Otel.API.Trace.Span.set_status(@valid_ctx, stale)
-
-      assert_received {:set_status, %Otel.API.Trace.Status{code: :unset, description: ""}}
-    end
-
-    test "preserves description on :error" do
-      status = %Otel.API.Trace.Status{code: :error, description: "boom"}
-      Otel.API.Trace.Span.set_status(@valid_ctx, status)
-
-      assert_received {:set_status, %Otel.API.Trace.Status{code: :error, description: "boom"}}
     end
   end
 end

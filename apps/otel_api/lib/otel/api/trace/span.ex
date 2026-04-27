@@ -207,28 +207,24 @@ defmodule Otel.API.Trace.Span do
   **Application** (OTel API MUST) — "SetStatus" (`trace/api.md`
   L565-L624).
 
-  Sets the status of the span. Status priority per spec L590
-  *"These values form a total order: Ok > Error > Unset"*:
+  Sets the status of the span. Per spec L590 status values form
+  the total order `Ok > Error > Unset`. The MUST/SHOULD rules
+  (L599 description IGNORE on `:ok`/`:unset`, L604 ignore
+  `:unset` writes, L619-L620 `:ok` is final) are *recording-time*
+  invariants and belong to the SDK implementation — see the
+  `@callback set_status/2` contract below.
 
-  - L599 `Description` MUST be IGNORED for `:ok` and `:unset`
-    (also enforced by `Otel.API.Trace.Status.new/2`)
-  - L604 an attempt to set `:unset` SHOULD be ignored
-  - L619-L620 once set to `:ok`, the status SHOULD be
-    considered final and further attempts SHOULD be ignored
+  This facade is a pure dispatcher; it forwards the
+  caller-supplied `Status` verbatim. Callers building a
+  `Status` via `Otel.API.Trace.Status.new/2` are protected from
+  the L599 trap at construction time.
   """
   @spec set_status(
           span_ctx :: Otel.API.Trace.SpanContext.t(),
           status :: Otel.API.Trace.Status.t()
         ) :: :ok
-  def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{
-        code: code,
-        description: description
-      }) do
-    # Re-route through `Status.new/2` so the spec L599-L600 MUST
-    # ("Description MUST be IGNORED for StatusCode Ok & Unset
-    # values") holds even when the caller bypassed `Status.new/2`
-    # by constructing the struct directly with `%Status{...}`.
-    get_module().set_status(span_ctx, Otel.API.Trace.Status.new(code, description))
+  def set_status(%Otel.API.Trace.SpanContext{} = span_ctx, %Otel.API.Trace.Status{} = status) do
+    get_module().set_status(span_ctx, status)
   end
 
   @doc """
@@ -393,10 +389,10 @@ defmodule Otel.API.Trace.Span do
   Status priority per L590: `Ok > Error > Unset`. The SDK
   implementation MUST honour:
 
-  - **L599** `Description` MUST be IGNORED for `:ok` / `:unset`
-    (the API facade re-routes through `Status.new/2` which
-    enforces this, but SDKs MUST NOT re-introduce a
-    description on `:ok` / `:unset` paths).
+  - **L599** `Description` MUST be IGNORED for `:ok` / `:unset`.
+    A caller that constructed `%Status{}` directly may still
+    pass a stale description on `:ok` / `:unset`; the SDK MUST
+    drop it before recording.
   - **L604** SHOULD — an attempt to set `:unset` SHOULD be
     ignored (do not overwrite an existing `:ok` or `:error`).
   - **L619-L620** SHOULD — once the status is `:ok`, further
