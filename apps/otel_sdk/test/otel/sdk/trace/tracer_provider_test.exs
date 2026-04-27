@@ -178,4 +178,42 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == {:error, :already_shutdown}
     end
   end
+
+  describe "processor crash handling" do
+    defmodule LinkableProcessor do
+      @moduledoc false
+      use GenServer
+
+      def start_link(config), do: GenServer.start_link(__MODULE__, config)
+
+      @impl true
+      def init(config), do: {:ok, config}
+
+      def on_start(_ctx, span, _config), do: span
+      def on_end(_span, _config), do: :ok
+      def shutdown(_config, _timeout \\ 5_000), do: :ok
+      def force_flush(_config, _timeout \\ 5_000), do: :ok
+    end
+
+    test "removes a crashed processor and keeps serving the rest" do
+      {:ok, provider} =
+        Otel.SDK.Trace.TracerProvider.start_link(
+          config: %{processors: [{LinkableProcessor, %{}}, {LinkableProcessor, %{}}]}
+        )
+
+      [%{pid: victim} = _entry, %{pid: survivor}] = :sys.get_state(provider).processors
+      key = :sys.get_state(provider).processors_key
+      assert length(:persistent_term.get(key)) == 2
+
+      ref = Process.monitor(victim)
+      Process.exit(victim, :kill)
+      assert_receive {:DOWN, ^ref, :process, ^victim, :killed}
+
+      # Round-trip a call so the provider has finished its EXIT handler.
+      _ = :sys.get_state(provider)
+      assert Process.alive?(provider)
+      assert [%{pid: ^survivor}] = :sys.get_state(provider).processors
+      assert [{LinkableProcessor, _}] = :persistent_term.get(key)
+    end
+  end
 end
