@@ -130,4 +130,30 @@ defmodule Otel.SDK.Config.SelectorTest do
                {MyApp.Sampler, %{}}
     end
   end
+
+  describe "propagator/1" do
+    test "implemented spec atoms map to project modules" do
+      assert Otel.SDK.Config.Selector.propagator(:tracecontext) ==
+               Otel.API.Propagator.TextMap.TraceContext
+
+      assert Otel.SDK.Config.Selector.propagator(:baggage) ==
+               Otel.API.Propagator.TextMap.Baggage
+
+      assert Otel.SDK.Config.Selector.propagator(:none) ==
+               Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "spec-known but unimplemented propagators raise" do
+      for unimpl <- [:b3, :b3multi, :jaeger, :xray, :ottrace] do
+        assert_raise ArgumentError, ~r/not implemented in this SDK/, fn ->
+          Otel.SDK.Config.Selector.propagator(unimpl)
+        end
+      end
+    end
+
+    test "custom module passes through unchanged" do
+      assert Otel.SDK.Config.Selector.propagator(MyApp.CustomPropagator) ==
+               MyApp.CustomPropagator
+    end
+  end
 end

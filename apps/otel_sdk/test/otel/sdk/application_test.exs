@@ -8,6 +8,9 @@ defmodule Otel.SDK.ApplicationTest do
   setup do
     on_exit(fn ->
       System.delete_env(@config_file_env)
+      System.delete_env("OTEL_SDK_DISABLED")
+      System.delete_env("OTEL_PROPAGATORS")
+      Application.delete_env(:otel_sdk, :propagators)
       Application.stop(:otel_sdk)
       Application.ensure_all_started(:otel_sdk)
     end)
@@ -46,6 +49,42 @@ defmodule Otel.SDK.ApplicationTest do
       # with a console exporter per the fixture.
       logs_state = :sys.get_state(Otel.SDK.Logs.LoggerProvider)
       assert [%{module: Otel.SDK.Logs.LogRecordProcessor.Simple}] = logs_state.processors
+    end
+  end
+
+  describe "OTEL_PROPAGATORS wiring" do
+    test "default — global propagator is Composite of TraceContext + Baggage" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      assert {Otel.API.Propagator.TextMap.Composite,
+              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
+               Otel.API.Propagator.TextMap.get_propagator()
+    end
+
+    test "OTEL_PROPAGATORS=tracecontext installs single propagator" do
+      System.put_env("OTEL_PROPAGATORS", "tracecontext")
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      assert Otel.API.Propagator.TextMap.get_propagator() ==
+               Otel.API.Propagator.TextMap.TraceContext
+    end
+
+    test "OTEL_SDK_DISABLED=true still installs propagators (spec L113)" do
+      System.put_env("OTEL_SDK_DISABLED", "true")
+      System.put_env("OTEL_PROPAGATORS", "baggage")
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      # Propagator IS set even though providers are not.
+      assert Otel.API.Propagator.TextMap.get_propagator() ==
+               Otel.API.Propagator.TextMap.Baggage
+
+      # No supervised provider GenServers — supervisor children list is empty.
+      refute Process.whereis(Otel.SDK.Trace.TracerProvider)
+      refute Process.whereis(Otel.SDK.Metrics.MeterProvider)
+      refute Process.whereis(Otel.SDK.Logs.LoggerProvider)
     end
   end
 end

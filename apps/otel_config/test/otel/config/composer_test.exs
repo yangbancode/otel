@@ -416,6 +416,88 @@ defmodule Otel.Config.ComposerTest do
     end
   end
 
+  describe "compose propagator" do
+    test "no propagator section → Noop" do
+      assert Otel.Config.Composer.compose!(%{}).propagator ==
+               Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "composite list of two yields Composite" do
+      model = %{
+        "propagator" => %{
+          "composite" => [%{"tracecontext" => nil}, %{"baggage" => nil}]
+        }
+      }
+
+      assert {Otel.API.Propagator.TextMap.Composite,
+              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
+               Otel.Config.Composer.compose!(model).propagator
+    end
+
+    test "single composite entry yields the propagator module directly" do
+      model = %{"propagator" => %{"composite" => [%{"tracecontext" => nil}]}}
+
+      assert Otel.Config.Composer.compose!(model).propagator ==
+               Otel.API.Propagator.TextMap.TraceContext
+    end
+
+    test "composite_list (post-substitution comma string) is parsed" do
+      model = %{"propagator" => %{"composite_list" => "tracecontext,baggage"}}
+
+      assert {Otel.API.Propagator.TextMap.Composite,
+              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
+               Otel.Config.Composer.compose!(model).propagator
+    end
+
+    test "empty composite_list string yields no entries (Noop)" do
+      model = %{"propagator" => %{"composite_list" => ""}}
+      assert Otel.Config.Composer.compose!(model).propagator == Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "composite + composite_list merge with dedup" do
+      model = %{
+        "propagator" => %{
+          "composite" => [%{"tracecontext" => nil}],
+          "composite_list" => "baggage,tracecontext"
+        }
+      }
+
+      assert {Otel.API.Propagator.TextMap.Composite,
+              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
+               Otel.Config.Composer.compose!(model).propagator
+    end
+
+    test "none in composite list yields Noop" do
+      model = %{"propagator" => %{"composite" => [%{"none" => nil}]}}
+      assert Otel.Config.Composer.compose!(model).propagator == Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "unknown propagator name warns + ignored (spec L107)" do
+      model = %{
+        "propagator" => %{
+          "composite" => [%{"tracecontext" => nil}, %{"mycustom" => nil}]
+        }
+      }
+
+      log =
+        capture_log(fn ->
+          assert Otel.Config.Composer.compose!(model).propagator ==
+                   Otel.API.Propagator.TextMap.TraceContext
+        end)
+
+      assert log =~ "unknown propagator name"
+      assert log =~ "mycustom"
+    end
+
+    test "spec-known but unimplemented (b3) propagates Selector raise" do
+      model = %{"propagator" => %{"composite" => [%{"b3" => nil}]}}
+
+      assert_raise ArgumentError, ~r/not implemented in this SDK/, fn ->
+        Otel.Config.Composer.compose!(model)
+      end
+    end
+  end
+
   describe "end-to-end with v1.0.0 fixtures" do
     test "otel-getting-started.yaml composes after Substitution + Parser + Schema" do
       configs =

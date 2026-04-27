@@ -109,7 +109,12 @@ defmodule Otel.Config do
   validation, or composition encounters an unsupported feature
   (e.g. `pull` MetricReader, `otlp_grpc`).
   """
-  @spec load!() :: %{trace: map(), metrics: map(), logs: map()}
+  @spec load!() :: %{
+          trace: map(),
+          metrics: map(),
+          logs: map(),
+          propagator: module() | {module(), [module()]}
+        }
   def load! do
     path =
       System.get_env(@env_var) ||

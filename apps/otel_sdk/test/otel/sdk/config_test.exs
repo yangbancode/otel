@@ -29,7 +29,8 @@ defmodule Otel.SDK.ConfigTest do
     "OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT",
     "OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT",
     "OTEL_ATTRIBUTE_COUNT_LIMIT",
-    "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT"
+    "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT",
+    "OTEL_PROPAGATORS"
   ]
 
   setup do
@@ -38,6 +39,7 @@ defmodule Otel.SDK.ConfigTest do
       Application.delete_env(:otel_sdk, :trace)
       Application.delete_env(:otel_sdk, :metrics)
       Application.delete_env(:otel_sdk, :logs)
+      Application.delete_env(:otel_sdk, :propagators)
     end)
 
     :ok
@@ -267,6 +269,86 @@ defmodule Otel.SDK.ConfigTest do
     test "OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT overrides the default" do
       System.put_env("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", "16")
       assert Otel.SDK.Config.logs().log_record_limits.attribute_count_limit == 16
+    end
+  end
+
+  describe "propagator/0" do
+    test "default — Composite of TraceContext + Baggage (spec L116)" do
+      assert {Otel.API.Propagator.TextMap.Composite,
+              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
+               Otel.SDK.Config.propagator()
+    end
+
+    test "single propagator returns module directly (no Composite wrapper)" do
+      Application.put_env(:otel_sdk, :propagators, [:tracecontext])
+      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.TraceContext
+    end
+
+    test ":none returns Noop" do
+      Application.put_env(:otel_sdk, :propagators, [:none])
+      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
+    end
+
+    test ":none in a list still wins (no propagator registered)" do
+      Application.put_env(:otel_sdk, :propagators, [:tracecontext, :none])
+      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "empty list yields Noop" do
+      Application.put_env(:otel_sdk, :propagators, [])
+      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "Mix Config wins over OTEL_PROPAGATORS" do
+      System.put_env("OTEL_PROPAGATORS", "tracecontext")
+      Application.put_env(:otel_sdk, :propagators, [:baggage])
+      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Baggage
+    end
+
+    test "OTEL_PROPAGATORS=tracecontext,baggage builds Composite" do
+      System.put_env("OTEL_PROPAGATORS", "tracecontext,baggage")
+
+      assert {Otel.API.Propagator.TextMap.Composite,
+              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
+               Otel.SDK.Config.propagator()
+    end
+
+    test "OTEL_PROPAGATORS=baggage builds single propagator" do
+      System.put_env("OTEL_PROPAGATORS", "baggage")
+      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Baggage
+    end
+
+    test "OTEL_PROPAGATORS=none yields Noop" do
+      System.put_env("OTEL_PROPAGATORS", "none")
+      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "OTEL_PROPAGATORS deduplicates per spec L118" do
+      System.put_env("OTEL_PROPAGATORS", "tracecontext,baggage,tracecontext")
+
+      assert {Otel.API.Propagator.TextMap.Composite,
+              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
+               Otel.SDK.Config.propagator()
+    end
+
+    test "OTEL_PROPAGATORS unknown value warns and is ignored (spec L107)" do
+      System.put_env("OTEL_PROPAGATORS", "tracecontext,mycustom")
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.TraceContext
+        end)
+
+      assert log =~ "unknown name"
+      assert log =~ "mycustom"
+    end
+
+    test "spec-known but unimplemented (b3) propagates the Selector raise" do
+      System.put_env("OTEL_PROPAGATORS", "b3")
+
+      assert_raise ArgumentError, ~r/not implemented in this SDK/, fn ->
+        Otel.SDK.Config.propagator()
+      end
     end
   end
 end
