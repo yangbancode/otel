@@ -131,7 +131,14 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   @spec handle_call(msg :: term(), from :: GenServer.from(), state :: map()) ::
           {:reply, term(), map()}
   def handle_call(:force_flush, _from, state) do
-    {:reply, :ok, export_batch(state)}
+    new_state = export_batch(state)
+
+    case new_state.exporter do
+      {module, exporter_state} -> module.force_flush(exporter_state)
+      nil -> :ok
+    end
+
+    {:reply, :ok, new_state}
   end
 
   def handle_call(:shutdown, _from, state) do

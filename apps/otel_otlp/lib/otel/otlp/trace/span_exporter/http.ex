@@ -81,6 +81,13 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
   @impl true
   def shutdown(_state), do: :ok
 
+  # No internal buffering — every `export/3` is a synchronous
+  # HTTP POST. Force-flush is a no-op contract for the
+  # processor → exporter chain.
+  @spec force_flush(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok
+  @impl true
+  def force_flush(_state), do: :ok
+
   # --- Env var resolution (signal-specific > general > code config > default) ---
 
   @spec resolve_endpoint(config :: map()) :: String.t()
