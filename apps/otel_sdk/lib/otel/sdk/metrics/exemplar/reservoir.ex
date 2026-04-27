@@ -6,6 +6,16 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
 
   Each reservoir instance is associated with a single timeseries
   (stream + attribute combination).
+
+  ## Concurrency
+
+  Spec `metrics/sdk.md` L1878 (Status: Stable) — *"all methods
+  MUST be safe to be called concurrently."* Implementing
+  modules MUST be safe for concurrent invocation of `offer/5`
+  and `collect/1`. Built-in implementations
+  (`SimpleFixedSize`, `AlignedHistogramBucket`) satisfy this
+  via `:counters` / `:atomics` / `:ets` with appropriate
+  concurrency options.
   """
 
   use Otel.API.Common.Types
