@@ -19,6 +19,16 @@ defmodule Otel.API.Trace.Span do
   same for the entire Span lifetime"* is satisfied
   automatically by the value-semantic `SpanContext`.
 
+  This same identity satisfies spec §"Wrapping a SpanContext in
+  a Span" (`trace/api.md` L720-L739) without a dedicated
+  constructor: a `SpanContext` received from any source
+  (propagator extraction, custom protocol bridge, manual
+  reconstruction) is already a usable Span handle. Hand it to
+  `Otel.API.Trace.set_current_span/1,2`, `make_current/1`, or
+  any function on this module — the registered SDK module
+  handles unknown spans as no-ops, satisfying the spec's
+  non-recording requirement (L731-L734).
+
   ## Dispatch shape
 
   Unlike `Tracer` / `Meter` / `Logger` — which receive a

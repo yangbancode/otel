@@ -1,6 +1,8 @@
 defmodule Otel.API.Trace.TracerProviderTest do
   use ExUnit.Case
 
+  import ExUnit.CaptureLog
+
   setup do
     :persistent_term.erase({Otel.API.Trace.TracerProvider, :global})
     :ok
@@ -94,6 +96,33 @@ defmodule Otel.API.Trace.TracerProviderTest do
 
       assert {Otel.API.Trace.Tracer.Noop, []} ==
                Otel.API.Trace.TracerProvider.get_tracer(scope_b)
+    end
+
+    test "returns a working Tracer for empty Tracer name (spec L125-L130)" do
+      tracer =
+        Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{name: ""})
+
+      assert {Otel.API.Trace.Tracer.Noop, []} == tracer
+    end
+
+    test "logs a warning when Tracer name is empty (spec L125-L130 SHOULD)" do
+      log =
+        capture_log(fn ->
+          Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{name: ""})
+        end)
+
+      assert log =~ "invalid Tracer name"
+    end
+
+    test "no warning for a valid Tracer name" do
+      log =
+        capture_log(fn ->
+          Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{
+            name: "my_lib"
+          })
+        end)
+
+      refute log =~ "invalid Tracer name"
     end
   end
 end
