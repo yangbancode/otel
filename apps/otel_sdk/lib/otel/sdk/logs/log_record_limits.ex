@@ -102,16 +102,6 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
     }
   end
 
-  @spec truncate(
-          attributes :: %{String.t() => primitive_any()},
-          limit :: non_neg_integer() | :infinity
-        ) :: %{String.t() => primitive_any()}
-  defp truncate(attributes, :infinity), do: attributes
-
-  defp truncate(attributes, limit) do
-    Map.new(attributes, fn {key, value} -> {key, do_truncate(value, limit)} end)
-  end
-
   @spec drop(
           attributes :: %{String.t() => primitive_any()},
           limit :: non_neg_integer()
@@ -122,23 +112,30 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
     attributes |> Enum.take(limit) |> Map.new()
   end
 
-  @spec do_truncate(value :: primitive_any(), limit :: non_neg_integer()) ::
+  # Recursive truncation walker. Handles the top-level
+  # `attributes` map (called from `apply/2`) and every nested
+  # value uniformly via the `is_map` clause — `do_truncate/2`
+  # used to be a separate function for that, but the map walk
+  # is identical so a single function covers both.
+  @spec truncate(value :: primitive_any(), limit :: non_neg_integer() | :infinity) ::
           primitive_any()
-  defp do_truncate({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
+  defp truncate(value, :infinity), do: value
+
+  defp truncate({:bytes, bin}, limit) when is_binary(bin) and byte_size(bin) > limit do
     {:bytes, binary_part(bin, 0, limit)}
   end
 
-  defp do_truncate(value, limit) when is_binary(value) do
+  defp truncate(value, limit) when is_binary(value) do
     if String.length(value) > limit, do: String.slice(value, 0, limit), else: value
   end
 
-  defp do_truncate(value, limit) when is_list(value) do
-    Enum.map(value, &do_truncate(&1, limit))
+  defp truncate(value, limit) when is_list(value) do
+    Enum.map(value, &truncate(&1, limit))
   end
 
-  defp do_truncate(value, limit) when is_map(value) do
-    Map.new(value, fn {k, v} -> {k, do_truncate(v, limit)} end)
+  defp truncate(value, limit) when is_map(value) do
+    Map.new(value, fn {k, v} -> {k, truncate(v, limit)} end)
   end
 
-  defp do_truncate(value, _limit), do: value
+  defp truncate(value, _limit), do: value
 end

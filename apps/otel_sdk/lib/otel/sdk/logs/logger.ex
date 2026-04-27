@@ -223,7 +223,12 @@ defmodule Otel.SDK.Logs.Logger do
         ) :: Otel.SDK.Logs.LogRecord.t()
   defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)
-    {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
+
+    %Otel.API.Trace.SpanContext{
+      trace_id: trace_id,
+      span_id: span_id,
+      trace_flags: trace_flags
+    } = Otel.API.Trace.current_span(ctx)
 
     {limited_record, dropped_attributes_count} =
       Otel.SDK.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
@@ -308,17 +313,4 @@ defmodule Otel.SDK.Logs.Logger do
   end
 
   defp apply_exception_attributes(%Otel.API.Logs.LogRecord{} = log_record), do: log_record
-
-  @spec extract_trace_context(ctx :: Otel.API.Ctx.t()) ::
-          {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(),
-           Otel.API.Trace.SpanContext.trace_flags()}
-  defp extract_trace_context(ctx) do
-    %Otel.API.Trace.SpanContext{
-      trace_id: trace_id,
-      span_id: span_id,
-      trace_flags: trace_flags
-    } = Otel.API.Trace.current_span(ctx)
-
-    {trace_id, span_id, trace_flags}
-  end
 end
