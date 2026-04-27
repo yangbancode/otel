@@ -89,12 +89,21 @@ defmodule Otel.SDK.Trace.Tracer do
     end
   end
 
+  # Spec `trace/sdk.md` L223-L227 (Status: Development) —
+  # *"Enabled MUST return false when either: there are no
+  # registered SpanProcessors, Tracer is disabled
+  # (TracerConfig.enabled is false). Otherwise, it SHOULD
+  # return true."* TracerConfig is itself Development and
+  # not yet implemented (see span_processor.ex `## Design
+  # notes`); we honour the no-processors leg only.
   @spec enabled?(
           tracer :: Otel.API.Trace.Tracer.t(),
           opts :: Otel.API.Trace.Tracer.enabled_opts()
         ) :: boolean()
   @impl true
-  def enabled?(_tracer, _opts \\ []), do: true
+  def enabled?({__MODULE__, config}, _opts \\ []) do
+    config.processors != []
+  end
 
   @spec run_on_start(
           ctx :: Otel.API.Ctx.t(),

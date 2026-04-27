@@ -41,13 +41,21 @@ defmodule Otel.SDK.Trace.TracerTest do
     end
   end
 
-  describe "enabled?/2" do
-    test "returns true", %{tracer: tracer} do
-      assert Otel.SDK.Trace.Tracer.enabled?(tracer) == true
+  describe "enabled?/2 (spec trace/sdk.md L223-L227 MUST)" do
+    test "returns false when no SpanProcessors are registered", %{tracer: tracer} do
+      # Default TracerProvider config has `processors: []`. Spec
+      # MUST: enabled? returns false when no SpanProcessors.
+      assert Otel.SDK.Trace.Tracer.enabled?(tracer) == false
     end
 
-    test "returns true with opts", %{tracer: tracer} do
-      assert Otel.SDK.Trace.Tracer.enabled?(tracer, span_name: "test") == true
+    test "returns false with opts when no processors", %{tracer: tracer} do
+      assert Otel.SDK.Trace.Tracer.enabled?(tracer, span_name: "test") == false
+    end
+
+    test "returns true when at least one SpanProcessor is registered" do
+      processors = [{Otel.SDK.Trace.SpanProcessor.Simple, %{exporter: nil}}]
+      tracer = {Otel.SDK.Trace.Tracer, %{processors: processors}}
+      assert Otel.SDK.Trace.Tracer.enabled?(tracer) == true
     end
   end
 end
