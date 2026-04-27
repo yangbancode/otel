@@ -51,8 +51,10 @@ defmodule Otel.SDK.Logs.Logger do
           log_record :: Otel.API.Logs.LogRecord.t()
         ) :: :ok
   def emit({_module, config}, ctx, log_record) do
-    # Spec L243-L252: before processing a log record, the
-    # implementation MUST apply LoggerConfig filters in this order:
+    # Spec L195-L196 (disabled MUST: *"If a Logger is disabled, it
+    # MUST behave equivalently to No-op Logger"*) and L243-L252
+    # (emit-time filter list — only severity + trace_based are
+    # enumerated there). We apply all three in order:
     # (1) Logger disabled → drop, (2) minimum_severity, (3) trace_based.
     if logger_config_drops_emit?(config.logger_config, log_record, ctx) do
       :ok
@@ -80,12 +82,12 @@ defmodule Otel.SDK.Logs.Logger do
     {ctx, processor_opts} = Keyword.pop_lazy(opts, :ctx, &Otel.API.Ctx.current/0)
 
     cond do
-      # Spec L256-L257: MUST return false when there are no
-      # registered LogRecordProcessors.
+      # Spec L256 + L258 (header + bullet): MUST return false when
+      # there are no registered LogRecordProcessors.
       processors == [] ->
         false
 
-      # Spec L258-L260: MUST return false when LoggerConfig.enabled
+      # Spec L259-L260: MUST return false when LoggerConfig.enabled
       # is false (Status: Development).
       not config.logger_config.enabled ->
         false

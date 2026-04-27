@@ -4,7 +4,8 @@ defmodule Otel.SDK.Trace.SpanLimits do
 
   Prevents unbounded growth of span attributes, events, and links.
   Excess items are silently discarded. A log message SHOULD be
-  emitted at most once per span when items are discarded (L873-875).
+  emitted at most once per span when items are discarded
+  (`trace/sdk.md` L873-L876).
   """
 
   @type t :: %__MODULE__{

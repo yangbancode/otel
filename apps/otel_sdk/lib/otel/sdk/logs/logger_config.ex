@@ -1,7 +1,7 @@
 defmodule Otel.SDK.Logs.LoggerConfig do
   @moduledoc """
   Per-Logger configuration computed by a `LoggerConfigurator`
-  (`logs/sdk.md` §LoggerConfig L183-L222, **Status: Development**).
+  (`logs/sdk.md` §LoggerConfig L183-L221, **Status: Development**).
 
   Three filter knobs the SDK applies before dispatching a
   `LogRecord` to processors:
@@ -56,7 +56,7 @@ defmodule Otel.SDK.Logs.LoggerConfig do
 
   ## References
 
-  - OTel Logs SDK §LoggerConfig: `opentelemetry-specification/specification/logs/sdk.md` L183-L222
+  - OTel Logs SDK §LoggerConfig: `opentelemetry-specification/specification/logs/sdk.md` L183-L221
   - OTel Logs SDK §Configuration / LoggerConfigurator: same file L83-L114
   - Filter rules at emit / Enabled: same file L243-L268
   """
@@ -81,7 +81,7 @@ defmodule Otel.SDK.Logs.LoggerConfig do
   created and returns the `LoggerConfig` it should use.
 
   The function MUST be cheap and side-effect free per spec
-  L121-L123 (*"it is important that it returns quickly"*).
+  L121-L124 (*"it is important that it returns / quickly."*).
   """
   @type configurator :: (Otel.API.InstrumentationScope.t() -> t())
 

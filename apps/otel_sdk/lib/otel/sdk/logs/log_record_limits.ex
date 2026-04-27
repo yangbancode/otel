@@ -20,7 +20,7 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
 
   Both fields accept any `t:non_neg_integer/0` (per the
   spec value-range definition in `sdk-environment-variables.md`
-  L181-204 *"Valid values are non-negative"*) — `0` is a
+  L197-L204 *"Valid values are non-negative"*) — `0` is a
   valid setting that drops every attribute or truncates every
   value to empty.
 
@@ -59,7 +59,7 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   - OTel Common §Attribute Limits: `opentelemetry-specification/specification/common/README.md` L249-299
   - OTel Common §Configurable Parameters: `opentelemetry-specification/specification/common/README.md` L303-306
   - Mapping to non-OTLP §Dropped Attributes Count: `opentelemetry-specification/specification/common/mapping-to-non-otlp.md` L73-79
-  - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L181-204
+  - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L197-L204
   """
 
   use Otel.API.Common.Types
