@@ -236,7 +236,10 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
 
     test "returns :ok when server responds 200" do
       {pid, port, listen} = start_test_server(200)
-      {:ok, state} = Otel.OTLP.Trace.SpanExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
+      {:ok, state} =
+        Otel.OTLP.Trace.SpanExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
       assert Otel.OTLP.Trace.SpanExporter.HTTP.export([@test_span], @test_resource, state) == :ok
       stop_test_server(pid, listen)
     end
@@ -256,7 +259,10 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
 
     test "returns :ok with ssl_options set" do
       {pid, port, listen} = start_test_server(200)
-      {:ok, state} = Otel.OTLP.Trace.SpanExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
+      {:ok, state} =
+        Otel.OTLP.Trace.SpanExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
       state = %{state | ssl_options: [verify: :verify_none]}
       assert Otel.OTLP.Trace.SpanExporter.HTTP.export([@test_span], @test_resource, state) == :ok
       stop_test_server(pid, listen)

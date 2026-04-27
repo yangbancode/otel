@@ -208,7 +208,9 @@ defmodule Otel.OTLP.Logs.LogRecordExporter.HTTPTest do
     end
 
     test "https endpoint gets default ssl_options" do
-      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "https://collector:4318"})
+      {:ok, state} =
+        Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "https://collector:4318"})
+
       assert state.ssl_options[:verify] == :verify_peer
     end
 
@@ -231,7 +233,10 @@ defmodule Otel.OTLP.Logs.LogRecordExporter.HTTPTest do
 
     test "returns :ok when server responds 200" do
       {pid, port, listen} = start_test_server(200)
-      {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
+      {:ok, state} =
+        Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
       assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.export([@test_log_record], state)
       stop_test_server(pid, listen)
     end
