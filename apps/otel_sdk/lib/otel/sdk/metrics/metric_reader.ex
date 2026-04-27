@@ -7,6 +7,16 @@ defmodule Otel.SDK.Metrics.MetricReader do
 
   Collection produces a list of metric maps, each containing the
   stream identity, resource, scope, and data points.
+
+  ## Concurrency
+
+  Spec `metrics/sdk.md` L1880-L1881 (Status: Stable) —
+  *"Collect, ForceFlush (for periodic exporting MetricReader)
+  and Shutdown MUST be safe to be called concurrently."*
+  Implementing modules MUST be safe for concurrent invocation
+  of these three callbacks. The built-in
+  `Otel.SDK.Metrics.PeriodicExportingMetricReader` serialises
+  via its GenServer mailbox, satisfying the MUST.
   """
 
   @type metric :: %{

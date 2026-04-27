@@ -52,6 +52,33 @@ defmodule Otel.SDK.Metrics.Meter do
   makes the instrument enabled. This matches `metrics/sdk.md` L1029
   and L1037 and lets user code skip measurement computation cheaply
   when the pipeline would discard the value anyway.
+
+  ### Async cardinality — last-observed, not first-observed
+
+  Spec `metrics/sdk.md` L864-L868 SHOULD —
+  *"Aggregators of asynchronous instruments SHOULD prefer the
+  first-observed attributes in the callback when limiting
+  cardinality, regardless of temporality."*
+
+  `maybe_overflow/3` is shared between sync `record/3` and
+  async `apply_observations/2`; both treat overflow as
+  *"new attribute set arrives → drop if cardinality limit
+  reached, keep if under."* In cumulative temporality this
+  coincides with first-observed semantics (the first set in
+  ETS stays). In **delta** temporality the metrics table is
+  cleared on each collect, so the next `apply_observations`
+  cycle treats every set as new — late-arriving sets can
+  replace earlier ones once the limit is hit again, deviating
+  from the SHOULD.
+
+  Implementing first-observed strictly requires a separate
+  per-stream memory of "first attribute sets ever observed"
+  that survives delta resets, which adds an ETS table or a
+  per-instrument struct field for an edge case (async +
+  delta + cardinality at limit + observed-set churn). Not
+  worth the complexity until a real consumer surfaces; the
+  hard MUST at L862 (no double-counting, no drops during
+  overflow) is honoured.
   """
 
   @behaviour Otel.API.Metrics.Meter

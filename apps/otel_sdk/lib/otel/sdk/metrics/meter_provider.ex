@@ -6,7 +6,10 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   readers) and creates meters. Registers itself as the global
   MeterProvider on start.
 
-  All public functions are safe for concurrent use.
+  All public functions are safe for concurrent use, satisfying
+  spec `metrics/sdk.md` L1875-L1876 (Status: Stable) —
+  *"MeterProvider — Meter creation, ForceFlush and Shutdown
+  MUST be safe to be called concurrently."*
   """
 
   use GenServer
