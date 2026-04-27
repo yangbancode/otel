@@ -16,10 +16,11 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   ## Design notes
 
-  Four places worth calling out — three intentional
+  Five places worth calling out — three intentional
   divergences from `opentelemetry-erlang`'s
-  `otel_propagator_baggage.erl` and one spec alignment that
-  Erlang has not yet made. Each is documented so future
+  `otel_propagator_baggage.erl`, one spec alignment that
+  Erlang has not yet made, and one acknowledged W3C-token
+  divergence on the wire. Each is documented so future
   readers can see where we stand.
 
   ### 1. Strict RFC 3986 percent-encoding with U+FFFD replacement
@@ -82,6 +83,36 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   (optional) requires defensive limits here; if limits become
   necessary they belong in `Otel.API.Baggage`'s mutation
   surface, not the wire-format propagator.
+
+  ### 5. Key encoding over-encodes RFC 7230 token characters
+
+  W3C `HTTP_HEADER_FORMAT.md` L52-L53 says baggage *names*
+  are RFC 7230 `token` values. RFC 7230 §3.2.6 `tchar`
+  permits sub-delim characters (`!`, `#`, `$`, `&`, `'`, `*`,
+  `+`, `-`, `.`, `^`, `_`, `` ` ``, `|`, `~`) in addition to
+  ALPHA/DIGIT — so a key like `user.id` or `user!id` is a
+  valid `token`.
+
+  `Otel.API.Baggage.Percent.encode/1` percent-encodes
+  everything outside `URI.char_unreserved?/1` (`A-Z`, `a-z`,
+  `0-9`, `-`, `.`, `_`, `~`). That is RFC 3986 strict — but
+  it over-encodes the token sub-delims. A key like
+  `user!id` injects as `user%21id`, which a strict W3C parser
+  reading the wire format may reject because `%21id` is not a
+  `token`. OTel peers (which decode percent escapes before
+  comparing) are unaffected — they recover the original
+  `user!id` and round-trip correctly.
+
+  We accept the over-encoding because it gives a single
+  encode pipeline shared with values (where RFC 3986 is the
+  right answer per W3C §value L64-L68) and because the
+  alternative — restricting to RFC 7230 token chars and
+  rejecting non-token keys — would either silently drop user
+  baggage or require a separate encoder. Strict W3C
+  interoperability for non-token keys can be added in a
+  follow-up; today the trade-off is "over-encoded keys
+  round-trip with OTel peers, may be rejected by strict
+  non-OTel parsers".
 
   ## Public API
 

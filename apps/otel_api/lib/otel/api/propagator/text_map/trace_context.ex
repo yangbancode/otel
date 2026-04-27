@@ -119,6 +119,14 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   @traceparent_header "traceparent"
   @tracestate_header "tracestate"
 
+  # W3C §trace-flags Level 2 currently defines two bits:
+  #   bit 0 (0x01) — sampled (L161-L168)
+  #   bit 1 (0x02) — random  (L171-L195)
+  # Higher bits (0x04..0x80) are reserved for future versions;
+  # spec L200-L202 — *"Vendors MUST set those to zero"* — so we
+  # AND with this mask before emitting traceparent on the wire.
+  @known_flags_mask 0x03
+
   @doc """
   **SDK** (OTel API MUST) — TextMap "Inject"
   (`api-propagators.md` L155-L182) for the W3C `traceparent`
@@ -236,6 +244,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
     # 2HEXDIGLC — downcase before padding.
     flags_hex =
       span_ctx.trace_flags
+      |> Bitwise.band(@known_flags_mask)
       |> Integer.to_string(16)
       |> String.downcase()
       |> String.pad_leading(2, "0")

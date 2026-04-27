@@ -247,13 +247,35 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       assert String.ends_with?(header, "-00")
     end
 
-    test "preserves full flag byte (does not mask reserved bits)" do
-      # W3C §Other Flags L202: outgoing vendors MUST zero unknown bits, but
-      # that's the span-context producer's responsibility — this serializer
-      # renders whatever byte it's given.
-      span_ctx = Otel.API.Trace.SpanContext.new(1, 1, 0xFF)
-      header = Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(span_ctx)
-      assert String.ends_with?(header, "-ff")
+    test "masks reserved bits to zero on encode (W3C §Other Flags L200-L202 MUST)" do
+      # W3C 20-http_request_header_format.md L200-L202 — *"The
+      # behavior of other flags ... is reserved for future use.
+      # Vendors MUST set those to zero."* The serializer enforces
+      # this regardless of what the in-memory `trace_flags` byte
+      # holds: defined bits (sampled = 0x01, random = 0x02) are
+      # preserved; bits 0x04..0x80 are zeroed.
+      assert "00-00000000000000000000000000000001-0000000000000001-03" ==
+               Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(
+                 Otel.API.Trace.SpanContext.new(1, 1, 0xFF)
+               )
+
+      # Specific reserved bits scenario — only bits 2-7 set
+      assert "00-00000000000000000000000000000001-0000000000000001-00" ==
+               Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(
+                 Otel.API.Trace.SpanContext.new(1, 1, 0xF0)
+               )
+
+      # Sampled bit alone preserved
+      assert "00-00000000000000000000000000000001-0000000000000001-01" ==
+               Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(
+                 Otel.API.Trace.SpanContext.new(1, 1, 0x01)
+               )
+
+      # Random bit alone preserved
+      assert "00-00000000000000000000000000000001-0000000000000001-02" ==
+               Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(
+                 Otel.API.Trace.SpanContext.new(1, 1, 0x02)
+               )
     end
   end
 
