@@ -119,6 +119,14 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   @traceparent_header "traceparent"
   @tracestate_header "tracestate"
 
+  # W3C §trace-flags Level 2 currently defines two bits:
+  #   bit 0 (0x01) — sampled (L161-L168)
+  #   bit 1 (0x02) — random  (L171-L195)
+  # Higher bits (0x04..0x80) are reserved for future versions;
+  # spec L200-L202 — *"Vendors MUST set those to zero"* — so we
+  # AND with this mask before emitting traceparent on the wire.
+  @known_flags_mask 0x03
+
   @doc """
   **SDK** (OTel API MUST) — TextMap "Inject"
   (`api-propagators.md` L155-L182) for the W3C `traceparent`
@@ -232,20 +240,11 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
     trace_id_hex = Otel.API.Trace.SpanContext.trace_id_hex(span_ctx)
     span_id_hex = Otel.API.Trace.SpanContext.span_id_hex(span_ctx)
 
-    # W3C §trace-flags L200-L202 — *"The behavior of other flags
-    # ... is not defined and is reserved for future use. Vendors
-    # MUST set those to zero."* Mask the byte to currently
-    # defined bits before serialising:
-    #   bit 0 (0x01) — sampled (§trace-flags L161-L168, Level 1)
-    #   bit 1 (0x02) — random  (§trace-flags L171-L195, Level 2)
-    # Higher bits (0x04..0x80) are reserved; emit them as zero
-    # regardless of what the in-memory `trace_flags` byte holds.
-    defined_flags = Bitwise.band(span_ctx.trace_flags, 0x03)
-
     # `Integer.to_string/2` emits uppercase hex; W3C §trace-flags L96 requires
     # 2HEXDIGLC — downcase before padding.
     flags_hex =
-      defined_flags
+      span_ctx.trace_flags
+      |> Bitwise.band(@known_flags_mask)
       |> Integer.to_string(16)
       |> String.downcase()
       |> String.pad_leading(2, "0")
