@@ -242,7 +242,8 @@ defmodule Otel.SDK.Trace.Span do
             | [{String.t(), primitive_any()}]
         ) :: :ok
   def set_attributes(%Otel.API.Trace.SpanContext{span_id: span_id}, new_attributes) do
-    new_attributes = to_map(new_attributes)
+    new_attributes =
+      if is_list(new_attributes), do: Map.new(new_attributes), else: new_attributes
 
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
@@ -591,14 +592,6 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   defp truncate_value(value, _limit), do: value
-
-  @spec to_map(
-          attributes ::
-            %{String.t() => primitive_any()}
-            | [{String.t(), primitive_any()}]
-        ) :: %{String.t() => primitive_any()}
-  defp to_map(attributes) when is_map(attributes), do: attributes
-  defp to_map(attributes) when is_list(attributes), do: Map.new(attributes)
 
   @spec exception_type(exception :: Exception.t()) :: String.t()
   defp exception_type(exception) do
