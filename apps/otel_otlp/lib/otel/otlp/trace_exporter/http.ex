@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Trace.Exporter.HTTP do
+defmodule Otel.OTLP.TraceExporter.HTTP do
   @moduledoc """
   OTLP HTTP Exporter for traces.
 

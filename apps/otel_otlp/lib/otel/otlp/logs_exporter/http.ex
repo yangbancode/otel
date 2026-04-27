@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Logs.Exporter.HTTP do
+defmodule Otel.OTLP.LogsExporter.HTTP do
   @moduledoc """
   OTLP HTTP Exporter for logs.
 

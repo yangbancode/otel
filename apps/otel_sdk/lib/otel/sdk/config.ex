@@ -27,12 +27,12 @@ defmodule Otel.SDK.Config do
   config :otel_sdk,
     trace: [
       sampler: :parentbased_always_on,
-      exporter: :otlp,                       # short form, blessed names
+      exporter: :otel_otlp,                  # application name shortcut
       processor: :batch,
       span_limits: %{attribute_count_limit: 256}
     ],
     metrics: [
-      exporter: :otlp,
+      exporter: :otel_otlp,
       export_interval_ms: 30_000
     ],
     logs: [
@@ -187,14 +187,21 @@ defmodule Otel.SDK.Config do
       explicit = Keyword.get(pillar, :exporter) ->
         Otel.SDK.Config.Selector.trace_exporter(explicit)
 
-      from_env =
-          Otel.SDK.Config.Env.enum("OTEL_TRACES_EXPORTER", [:otlp, :console, :none]) ->
-        Otel.SDK.Config.Selector.trace_exporter(from_env)
+      from_env = Otel.SDK.Config.Env.enum("OTEL_TRACES_EXPORTER", [:otlp, :console, :none]) ->
+        Otel.SDK.Config.Selector.trace_exporter(env_to_selector(from_env))
 
       true ->
-        Otel.SDK.Config.Selector.trace_exporter(:otlp)
+        Otel.SDK.Config.Selector.trace_exporter(:otel_otlp)
     end
   end
+
+  # Translates the spec env-var atom (`:otlp` from
+  # `OTEL_*_EXPORTER=otlp`, mandated by L243-L265) to the canonical
+  # application-name shortcut the Selector uses (`:otel_otlp`). Other
+  # spec atoms (`:console`, `:none`) match Selector keys verbatim.
+  @spec env_to_selector(atom()) :: atom()
+  defp env_to_selector(:otlp), do: :otel_otlp
+  defp env_to_selector(other), do: other
 
   @spec trace_processor_module(pillar :: keyword()) :: module()
   defp trace_processor_module(pillar) do
@@ -289,12 +296,11 @@ defmodule Otel.SDK.Config do
       explicit = Keyword.get(pillar, :exporter) ->
         Otel.SDK.Config.Selector.metrics_exporter(explicit)
 
-      from_env =
-          Otel.SDK.Config.Env.enum("OTEL_METRICS_EXPORTER", [:otlp, :console, :none]) ->
-        Otel.SDK.Config.Selector.metrics_exporter(from_env)
+      from_env = Otel.SDK.Config.Env.enum("OTEL_METRICS_EXPORTER", [:otlp, :console, :none]) ->
+        Otel.SDK.Config.Selector.metrics_exporter(env_to_selector(from_env))
 
       true ->
-        Otel.SDK.Config.Selector.metrics_exporter(:otlp)
+        Otel.SDK.Config.Selector.metrics_exporter(:otel_otlp)
     end
   end
 
@@ -372,10 +378,10 @@ defmodule Otel.SDK.Config do
         Otel.SDK.Config.Selector.logs_exporter(explicit)
 
       from_env = Otel.SDK.Config.Env.enum("OTEL_LOGS_EXPORTER", [:otlp, :console, :none]) ->
-        Otel.SDK.Config.Selector.logs_exporter(from_env)
+        Otel.SDK.Config.Selector.logs_exporter(env_to_selector(from_env))
 
       true ->
-        Otel.SDK.Config.Selector.logs_exporter(:otlp)
+        Otel.SDK.Config.Selector.logs_exporter(:otel_otlp)
     end
   end
 

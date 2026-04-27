@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
+defmodule Otel.OTLP.TraceExporter.HTTPTest do
   use ExUnit.Case
 
   @test_span %Otel.SDK.Trace.Span{
@@ -68,7 +68,7 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
 
   describe "init/1 defaults" do
     test "returns state with default values" do
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.endpoint == "http://localhost:4318/v1/traces"
       assert state.compression == :none
       assert state.timeout == 10_000
@@ -76,7 +76,7 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
 
     test "code config overrides defaults" do
       {:ok, state} =
-        Otel.OTLP.Trace.Exporter.HTTP.init(%{
+        Otel.OTLP.TraceExporter.HTTP.init(%{
           endpoint: "http://custom:4318",
           compression: :gzip,
           timeout: 5_000
@@ -91,32 +91,32 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
   describe "init/1 OTEL_EXPORTER_OTLP_ENDPOINT" do
     test "empty env var treated as unset" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.endpoint == "http://localhost:4318/v1/traces"
     end
 
     test "general endpoint env var appends /v1/traces" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env-collector:4318")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.endpoint == "http://env-collector:4318/v1/traces"
     end
 
     test "general env var overrides code config" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env:4318")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{endpoint: "http://code:4318"})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{endpoint: "http://code:4318"})
       assert state.endpoint == "http://env:4318/v1/traces"
     end
 
     test "signal-specific endpoint used as-is (no path appended)" do
       System.put_env("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://traces:4318/custom/path")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.endpoint == "http://traces:4318/custom/path"
     end
 
     test "signal-specific overrides general" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://general:4318")
       System.put_env("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://traces:4318/v1/traces")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.endpoint == "http://traces:4318/v1/traces"
     end
   end
@@ -124,7 +124,7 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
   describe "init/1 OTEL_EXPORTER_OTLP_HEADERS" do
     test "general headers env var" do
       System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "key1=val1,key2=val2")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert {~c"key1", ~c"val1"} in state.headers
       assert {~c"key2", ~c"val2"} in state.headers
     end
@@ -132,27 +132,27 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
     test "signal-specific headers override general" do
       System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "general=yes")
       System.put_env("OTEL_EXPORTER_OTLP_TRACES_HEADERS", "traces=yes")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert {~c"traces", ~c"yes"} in state.headers
       refute Enum.any?(state.headers, fn {k, _} -> k == ~c"general" end)
     end
 
     test "env headers override code config headers" do
       System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "env=yes")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{headers: %{"code" => "yes"}})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{headers: %{"code" => "yes"}})
       assert {~c"env", ~c"yes"} in state.headers
       refute Enum.any?(state.headers, fn {k, _} -> k == ~c"code" end)
     end
 
     test "always includes user-agent" do
       System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "custom=val")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert Enum.any?(state.headers, fn {k, _} -> k == ~c"user-agent" end)
     end
 
     test "skips invalid header pairs" do
       System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "valid=yes,=invalid,also=ok")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert {~c"valid", ~c"yes"} in state.headers
       assert {~c"also", ~c"ok"} in state.headers
     end
@@ -161,26 +161,26 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
   describe "init/1 OTEL_EXPORTER_OTLP_COMPRESSION" do
     test "general compression env var" do
       System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.compression == :gzip
     end
 
     test "signal-specific compression overrides general" do
       System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
       System.put_env("OTEL_EXPORTER_OTLP_TRACES_COMPRESSION", "none")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.compression == :none
     end
 
     test "unknown compression value defaults to none" do
       System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "unknown")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.compression == :none
     end
 
     test "env compression overrides code config" do
       System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{compression: :none})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{compression: :none})
       assert state.compression == :gzip
     end
   end
@@ -188,38 +188,38 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
   describe "init/1 OTEL_EXPORTER_OTLP_TIMEOUT" do
     test "general timeout env var" do
       System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "5000")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.timeout == 5000
     end
 
     test "signal-specific timeout overrides general" do
       System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "5000")
       System.put_env("OTEL_EXPORTER_OTLP_TRACES_TIMEOUT", "3000")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.timeout == 3000
     end
 
     test "unparseable timeout uses default" do
       System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "not_a_number")
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.timeout == 10_000
     end
   end
 
   describe "init/1 SSL" do
     test "http endpoint has empty ssl_options" do
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
       assert state.ssl_options == []
     end
 
     test "https endpoint gets default ssl_options" do
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{endpoint: "https://collector:4318"})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{endpoint: "https://collector:4318"})
       assert state.ssl_options[:verify] == :verify_peer
     end
 
     test "custom ssl_options override defaults" do
       {:ok, state} =
-        Otel.OTLP.Trace.Exporter.HTTP.init(%{
+        Otel.OTLP.TraceExporter.HTTP.init(%{
           endpoint: "https://collector:4318",
           ssl_options: [verify: :verify_none]
         })
@@ -230,14 +230,14 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
 
   describe "export/3 success" do
     test "returns :ok for empty span list" do
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
-      assert Otel.OTLP.Trace.Exporter.HTTP.export([], @test_resource, state) == :ok
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
+      assert Otel.OTLP.TraceExporter.HTTP.export([], @test_resource, state) == :ok
     end
 
     test "returns :ok when server responds 200" do
       {pid, port, listen} = start_test_server(200)
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
-      assert Otel.OTLP.Trace.Exporter.HTTP.export([@test_span], @test_resource, state) == :ok
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+      assert Otel.OTLP.TraceExporter.HTTP.export([@test_span], @test_resource, state) == :ok
       stop_test_server(pid, listen)
     end
 
@@ -245,28 +245,28 @@ defmodule Otel.OTLP.Trace.Exporter.HTTPTest do
       {pid, port, listen} = start_test_server(200)
 
       {:ok, state} =
-        Otel.OTLP.Trace.Exporter.HTTP.init(%{
+        Otel.OTLP.TraceExporter.HTTP.init(%{
           endpoint: "http://localhost:#{port}",
           compression: :gzip
         })
 
-      assert Otel.OTLP.Trace.Exporter.HTTP.export([@test_span], @test_resource, state) == :ok
+      assert Otel.OTLP.TraceExporter.HTTP.export([@test_span], @test_resource, state) == :ok
       stop_test_server(pid, listen)
     end
 
     test "returns :ok with ssl_options set" do
       {pid, port, listen} = start_test_server(200)
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
       state = %{state | ssl_options: [verify: :verify_none]}
-      assert Otel.OTLP.Trace.Exporter.HTTP.export([@test_span], @test_resource, state) == :ok
+      assert Otel.OTLP.TraceExporter.HTTP.export([@test_span], @test_resource, state) == :ok
       stop_test_server(pid, listen)
     end
   end
 
   describe "shutdown/1" do
     test "returns :ok" do
-      {:ok, state} = Otel.OTLP.Trace.Exporter.HTTP.init(%{})
-      assert Otel.OTLP.Trace.Exporter.HTTP.shutdown(state) == :ok
+      {:ok, state} = Otel.OTLP.TraceExporter.HTTP.init(%{})
+      assert Otel.OTLP.TraceExporter.HTTP.shutdown(state) == :ok
     end
   end
 end
