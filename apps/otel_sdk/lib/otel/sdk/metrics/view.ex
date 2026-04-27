@@ -64,27 +64,6 @@ defmodule Otel.SDK.Metrics.View do
     Map.get(config, :description, instrument.description)
   end
 
-  @spec filter_attributes(
-          view :: t(),
-          instrument :: Otel.API.Metrics.Instrument.t(),
-          attributes :: %{String.t() => primitive_any()}
-        ) :: %{String.t() => primitive_any()}
-  def filter_attributes(%__MODULE__{config: config}, instrument, attributes) do
-    case Map.get(config, :attribute_keys) do
-      {:include, keys} ->
-        Map.take(attributes, keys)
-
-      {:exclude, keys} ->
-        Map.drop(attributes, keys)
-
-      nil ->
-        case Keyword.get(instrument.advisory, :attributes) do
-          nil -> attributes
-          keys -> Map.take(attributes, keys)
-        end
-    end
-  end
-
   @spec validate_wildcard_name(criteria :: criteria(), config :: config()) ::
           :ok | {:error, String.t()}
   defp validate_wildcard_name(criteria, config) do

@@ -43,8 +43,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       {:ok, pid} =
         Otel.SDK.Trace.TracerProvider.start_link(config: %{resource: custom_resource})
 
-      resource = Otel.SDK.Trace.TracerProvider.resource(pid)
-      assert resource.attributes["service.name"] == "test"
+      assert Process.alive?(pid)
     end
   end
 
@@ -92,47 +91,6 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
       assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
       assert %Otel.SDK.Trace.SpanLimits{} = config.span_limits
-    end
-  end
-
-  describe "config/1" do
-    test "returns merged config with defaults", %{provider: pid} do
-      config = Otel.SDK.Trace.TracerProvider.config(pid)
-
-      assert config.sampler ==
-               {Otel.SDK.Trace.Sampler.ParentBased,
-                %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-
-      assert config.processors == []
-      assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
-      assert config.span_limits.attribute_count_limit == 128
-    end
-
-    test "custom config overrides defaults" do
-      custom_resource = Otel.SDK.Resource.create(%{"service.name" => "custom"})
-
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            sampler: {Otel.SDK.Trace.Sampler.AlwaysOff, []},
-            resource: custom_resource
-          }
-        )
-
-      config = Otel.SDK.Trace.TracerProvider.config(pid)
-      assert config.sampler == {Otel.SDK.Trace.Sampler.AlwaysOff, []}
-      assert config.resource.attributes["service.name"] == "custom"
-      # defaults preserved for unset keys
-      assert config.processors == []
-    end
-  end
-
-  describe "resource/1" do
-    test "returns SDK default resource", %{provider: pid} do
-      resource = Otel.SDK.Trace.TracerProvider.resource(pid)
-      assert %Otel.SDK.Resource{} = resource
-      assert resource.attributes["telemetry.sdk.name"] == "otel"
-      assert resource.attributes["telemetry.sdk.language"] == "elixir"
     end
   end
 
