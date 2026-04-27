@@ -50,8 +50,8 @@ defmodule Otel.SDK.Metrics.Stream do
     config = view.config
 
     %__MODULE__{
-      name: Otel.SDK.Metrics.View.stream_name(view, instrument),
-      description: Otel.SDK.Metrics.View.stream_description(view, instrument),
+      name: Otel.SDK.Metrics.View.name(view, instrument),
+      description: Otel.SDK.Metrics.View.description(view, instrument),
       instrument: instrument,
       attribute_keys: Map.get(config, :attribute_keys, advisory_attribute_keys(instrument)),
       aggregation: Map.get(config, :aggregation),
@@ -66,7 +66,7 @@ defmodule Otel.SDK.Metrics.Stream do
   @spec resolve(stream :: t()) :: t()
   def resolve(%__MODULE__{} = stream) do
     aggregation =
-      stream.aggregation || Otel.SDK.Metrics.Aggregation.default_module(stream.instrument.kind)
+      stream.aggregation || Otel.SDK.Metrics.Aggregation.default_for(stream.instrument.kind)
 
     aggregation_options =
       if stream.aggregation == nil do

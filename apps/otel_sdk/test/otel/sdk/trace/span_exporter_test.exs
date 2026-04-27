@@ -19,6 +19,10 @@ defmodule Otel.SDK.Trace.SpanExporterTest.TestExporter do
   @spec shutdown(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok
   @impl true
   def shutdown(_state), do: :ok
+
+  @spec force_flush(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok
+  @impl true
+  def force_flush(_state), do: :ok
 end
 
 defmodule Otel.SDK.Trace.SpanExporterTest do

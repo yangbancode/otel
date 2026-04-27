@@ -58,14 +58,13 @@ defmodule Otel.SDK.Metrics.View do
     Enum.all?(criteria, fn {key, value} -> matches_criterion?(key, value, instrument) end)
   end
 
-  @spec stream_name(view :: t(), instrument :: Otel.API.Metrics.Instrument.t()) :: String.t()
-  def stream_name(%__MODULE__{config: config}, instrument) do
+  @spec name(view :: t(), instrument :: Otel.API.Metrics.Instrument.t()) :: String.t()
+  def name(%__MODULE__{config: config}, instrument) do
     Map.get(config, :name, instrument.name)
   end
 
-  @spec stream_description(view :: t(), instrument :: Otel.API.Metrics.Instrument.t()) ::
-          String.t()
-  def stream_description(%__MODULE__{config: config}, instrument) do
+  @spec description(view :: t(), instrument :: Otel.API.Metrics.Instrument.t()) :: String.t()
+  def description(%__MODULE__{config: config}, instrument) do
     Map.get(config, :description, instrument.description)
   end
 

@@ -1,10 +1,10 @@
 defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
   use ExUnit.Case, async: true
 
-  describe "offer_to/6" do
+  describe "offer/6" do
     test "returns nil for nil reservoir" do
       assert nil ==
-               Otel.SDK.Metrics.Exemplar.Reservoir.offer_to(
+               Otel.SDK.Metrics.Exemplar.Reservoir.offer(
                  nil,
                  :always_on,
                  1,
@@ -20,7 +20,7 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
          Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize.new(%{size: 1})}
 
       result =
-        Otel.SDK.Metrics.Exemplar.Reservoir.offer_to(
+        Otel.SDK.Metrics.Exemplar.Reservoir.offer(
           reservoir,
           :always_on,
           42,
@@ -39,7 +39,7 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
          Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize.new(%{size: 1})}
 
       result =
-        Otel.SDK.Metrics.Exemplar.Reservoir.offer_to(
+        Otel.SDK.Metrics.Exemplar.Reservoir.offer(
           reservoir,
           :always_off,
           42,
@@ -53,9 +53,9 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
     end
   end
 
-  describe "collect_from/1" do
+  describe "collect/1" do
     test "returns empty for nil reservoir" do
-      assert {[], nil} == Otel.SDK.Metrics.Exemplar.Reservoir.collect_from(nil)
+      assert {[], nil} == Otel.SDK.Metrics.Exemplar.Reservoir.collect(nil)
     end
 
     test "returns exemplars and resets state" do
@@ -72,7 +72,7 @@ defmodule Otel.SDK.Metrics.Exemplar.ReservoirTest do
 
       reservoir = {Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize, state}
 
-      {exemplars, {_mod, new_state}} = Otel.SDK.Metrics.Exemplar.Reservoir.collect_from(reservoir)
+      {exemplars, {_mod, new_state}} = Otel.SDK.Metrics.Exemplar.Reservoir.collect(reservoir)
       assert length(exemplars) == 1
       assert hd(exemplars).value == 42
       assert new_state.count == 0

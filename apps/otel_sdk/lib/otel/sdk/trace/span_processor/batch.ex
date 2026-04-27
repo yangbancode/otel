@@ -120,7 +120,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
       new_state = %{state | queue: [span | state.queue], queue_size: state.queue_size + 1}
 
       if new_state.queue_size >= state.max_export_batch_size do
-        {:noreply, do_export(new_state)}
+        {:noreply, export_batch(new_state)}
       else
         {:noreply, new_state}
       end
@@ -131,11 +131,18 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   @spec handle_call(msg :: term(), from :: GenServer.from(), state :: map()) ::
           {:reply, term(), map()}
   def handle_call(:force_flush, _from, state) do
-    {:reply, :ok, do_export(state)}
+    new_state = export_batch(state)
+
+    case new_state.exporter do
+      {module, exporter_state} -> module.force_flush(exporter_state)
+      nil -> :ok
+    end
+
+    {:reply, :ok, new_state}
   end
 
   def handle_call(:shutdown, _from, state) do
-    new_state = do_export(state)
+    new_state = export_batch(state)
 
     case new_state.exporter do
       {module, exporter_state} -> module.shutdown(exporter_state)
@@ -148,7 +155,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   @impl GenServer
   @spec handle_info(msg :: term(), state :: map()) :: {:noreply, map()}
   def handle_info(:export_timer, state) do
-    new_state = do_export(state)
+    new_state = export_batch(state)
     schedule_export(state.scheduled_delay_ms)
     {:noreply, new_state}
   end
@@ -159,34 +166,34 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   # there MUST be a reasonable upper limit"*.
   #
   # We enforce the bound at *between-batch* granularity:
-  # `do_export/1` computes an absolute deadline at entry and
-  # `do_export_until/2` checks it before draining each batch.
+  # `export_batch/1` computes an absolute deadline at entry and
+  # `export_until/2` checks it before draining each batch.
   # When the deadline elapses partway through a multi-batch
   # drain, the remaining spans stay in the queue for the next
   # export trigger (timer, force_flush, shutdown). The
   # individual `exporter.export/3` call itself is synchronous
   # and not preempted — the spec MUST about indefinite blocking
   # is the exporter's contract to satisfy (L1156).
-  @spec do_export(state :: map()) :: map()
-  defp do_export(state) do
+  @spec export_batch(state :: map()) :: map()
+  defp export_batch(state) do
     deadline = System.monotonic_time(:millisecond) + state.export_timeout_ms
-    do_export_until(state, deadline)
+    export_until(state, deadline)
   end
 
-  @spec do_export_until(state :: map(), deadline :: integer()) :: map()
-  defp do_export_until(%{queue: [], queue_size: 0} = state, _deadline), do: state
+  @spec export_until(state :: map(), deadline :: integer()) :: map()
+  defp export_until(%{queue: [], queue_size: 0} = state, _deadline), do: state
 
-  defp do_export_until(%{exporter: nil} = state, _deadline) do
+  defp export_until(%{exporter: nil} = state, _deadline) do
     %{state | queue: [], queue_size: 0}
   end
 
-  defp do_export_until(state, deadline) do
+  defp export_until(state, deadline) do
     if System.monotonic_time(:millisecond) < deadline do
       {batch, remaining} = Enum.split(state.queue, state.max_export_batch_size)
       {exporter_module, exporter_state} = state.exporter
       exporter_module.export(Enum.reverse(batch), state.resource, exporter_state)
       new_state = %{state | queue: remaining, queue_size: length(remaining)}
-      do_export_until(new_state, deadline)
+      export_until(new_state, deadline)
     else
       state
     end

@@ -12,6 +12,15 @@ defmodule Otel.SDK.Trace.SpanExporter do
   L1146-L1147. `shutdown/1` is invoked once at provider
   shutdown.
 
+  Spec `trace/sdk.md` L1135 — *"The exporter MUST support three
+  functions: Export, Shutdown, and ForceFlush"*. All three are
+  required callbacks of this behaviour. Most exporters implement
+  `force_flush/1` as a no-op because they don't internally
+  buffer (the `Batch` SpanProcessor does the buffering and calls
+  `export/3` synchronously); the callback exists so the
+  TracerProvider's force-flush path can propagate cleanly through
+  the processor → exporter chain.
+
   ## Public API
 
   | Callback | Role |
@@ -19,6 +28,7 @@ defmodule Otel.SDK.Trace.SpanExporter do
   | `init/1` | **SDK** (lifecycle) |
   | `export/3` | **SDK** (OTel API MUST) — `trace/sdk.md` §Export L1139-L1164 |
   | `shutdown/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §Shutdown L1182-L1206 |
+  | `force_flush/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §ForceFlush L1167-L1180 |
 
   ## References
 
@@ -45,4 +55,10 @@ defmodule Otel.SDK.Trace.SpanExporter do
   Shuts down the exporter.
   """
   @callback shutdown(state :: state()) :: :ok
+
+  @doc """
+  Flushes any pending spans. For exporters that don't internally
+  buffer, this is a no-op returning `:ok`.
+  """
+  @callback force_flush(state :: state()) :: :ok | :error
 end

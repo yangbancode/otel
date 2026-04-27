@@ -144,7 +144,7 @@ defmodule Otel.SDK.Metrics.MetricReader do
   defp collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp) do
     case :ets.lookup(exemplars_tab, agg_key) do
       [{^agg_key, reservoir}] ->
-        {exemplars, updated} = Otel.SDK.Metrics.Exemplar.Reservoir.collect_from(reservoir)
+        {exemplars, updated} = Otel.SDK.Metrics.Exemplar.Reservoir.collect(reservoir)
         :ets.insert(exemplars_tab, {agg_key, updated})
         Map.put(dp, :exemplars, exemplars)
 

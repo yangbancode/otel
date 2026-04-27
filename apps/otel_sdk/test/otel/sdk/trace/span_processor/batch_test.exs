@@ -27,6 +27,10 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter do
     send(pid, :exporter_shutdown)
     :ok
   end
+
+  @spec force_flush(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok
+  @impl true
+  def force_flush(_state), do: :ok
 end
 
 defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
@@ -205,6 +209,8 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
         def export(_spans, _resource, _state), do: :ok
         @impl true
         def shutdown(_state), do: :ok
+        @impl true
+        def force_flush(_state), do: :ok
       end
 
       config = %{
