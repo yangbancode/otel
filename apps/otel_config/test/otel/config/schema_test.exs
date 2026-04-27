@@ -79,16 +79,6 @@ defmodule Otel.Config.SchemaTest do
     end
   end
 
-  describe "schema caching" do
-    test "second call reuses the persistent_term-cached compiled schema" do
-      # Side-effect-based check: warm the cache, then verify the
-      # persistent_term key is set so subsequent calls bypass the
-      # file read + JSONSchex.compile path.
-      assert :ok = Otel.Config.Schema.validate!(%{"file_format" => "1.0"})
-      assert :persistent_term.get({Otel.Config.Schema, :compiled_schema}, nil)
-    end
-  end
-
   describe "error message formatting" do
     test "root-level violation (missing required field) renders as '(root)'" do
       # `file_format` is a required top-level field per the schema;

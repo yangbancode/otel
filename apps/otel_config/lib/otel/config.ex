@@ -57,17 +57,12 @@ defmodule Otel.Config do
   - `PluginComponentProvider` extension mechanism
   - Programmatic customization of `Create` output
 
-  ## Implementation status
+  ## Public API
 
-  This module is currently a placeholder. The implementation lands
-  across follow-up PRs:
-
-  1. ~~app scaffold~~ ← *this PR*
-  2. YAML parser
-  3. JSON Schema validator (against v1.0.0 schema)
-  4. Env var substitution
-  5. Composer (in-memory model → provider configs)
-  6. End-to-end wiring in `Otel.SDK.Application`
+  | Function | Role |
+  |---|---|
+  | `config_file_set?/0` | **SDK** (wiring) — `OTEL_CONFIG_FILE` set + non-empty? |
+  | `load!/0` | **SDK** (wiring) — run the full Parse + Create pipeline |
 
   ## References
 
@@ -76,4 +71,53 @@ defmodule Otel.Config do
     (pinned at v1.0.0)
   - Examples: `references/opentelemetry-configuration/examples/`
   """
+
+  @env_var "OTEL_CONFIG_FILE"
+
+  @doc """
+  Returns `true` when `OTEL_CONFIG_FILE` is set and non-empty.
+
+  Used by `Otel.SDK.Application.start/2` to decide whether to route
+  through the declarative-config pipeline or fall back to the
+  env-var path (`Otel.SDK.Config`).
+  """
+  @spec config_file_set?() :: boolean()
+  def config_file_set? do
+    case System.get_env(@env_var) do
+      nil -> false
+      "" -> false
+      _ -> true
+    end
+  end
+
+  @doc """
+  Reads the file path in `OTEL_CONFIG_FILE` and runs the full
+  declarative-config pipeline:
+
+      File.read!(path)
+      |> Otel.Config.Substitution.substitute!()
+      |> Otel.Config.Parser.parse_string!()
+      |> Otel.Config.Schema.validate!()
+      |> Otel.Config.Composer.compose!()
+
+  Returns the per-pillar config map shape that
+  `Otel.SDK.Config.{trace,metrics,logs}/0` produces, so the wiring
+  layer can hand the result straight to provider `start_link/1`.
+
+  Raises if `OTEL_CONFIG_FILE` is unset, the file is missing /
+  unreadable, the YAML is malformed, the model fails schema
+  validation, or composition encounters an unsupported feature
+  (e.g. `pull` MetricReader, `otlp_grpc`).
+  """
+  @spec load!() :: %{trace: map(), metrics: map(), logs: map()}
+  def load! do
+    path =
+      System.get_env(@env_var) ||
+        raise ArgumentError, "#{@env_var} is not set"
+
+    raw = File.read!(path)
+    model = raw |> Otel.Config.Substitution.substitute!() |> Otel.Config.Parser.parse_string!()
+    Otel.Config.Schema.validate!(model)
+    Otel.Config.Composer.compose!(model)
+  end
 end
