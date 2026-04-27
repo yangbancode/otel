@@ -28,7 +28,6 @@ defmodule Otel.SDK.Metrics.StreamTest do
       assert stream.exemplar_reservoir == nil
       assert stream.aggregation_cardinality_limit == nil
     end
-
   end
 
   describe "from_view/2" do

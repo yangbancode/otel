@@ -107,5 +107,4 @@ defmodule Otel.SDK.Metrics.Stream do
         Map.put_new(opts, :boundaries, boundaries)
     end
   end
-
 end

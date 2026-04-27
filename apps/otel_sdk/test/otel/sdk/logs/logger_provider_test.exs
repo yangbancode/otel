@@ -92,7 +92,6 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       refute log =~ "invalid Logger name"
     end
-
   end
 
   describe "resource/1" do
