@@ -589,7 +589,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
             )
           end
 
+          # `:gen_statem.call({:shutdown, ...})` returns when the
+          # gen_statem replies, but `terminate/3` (where the drop
+          # warning is emitted) runs *after* the reply. Monitor + wait
+          # for `:DOWN` so `capture_log` doesn't tear down before the
+          # warning lands in the logger backend.
+          ref = Process.monitor(pid)
           Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
+          assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 1_000
         end)
 
       assert log =~ "queue full, dropped 2 log record(s) since last report"
