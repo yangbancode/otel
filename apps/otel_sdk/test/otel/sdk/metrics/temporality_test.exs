@@ -68,8 +68,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
         }
       )
 
-    config = Otel.SDK.Metrics.MeterProvider.config(pid)
-    [{_mod, reader_pid}] = config.readers
+    [{_mod, reader_pid}] = :sys.get_state(pid).readers
 
     {_mod, meter_config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
@@ -459,8 +458,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
           }
         )
 
-      config = Otel.SDK.Metrics.MeterProvider.config(pid)
-      [{_mod, cumulative_pid}, {_mod2, delta_pid}] = config.readers
+      [{_mod, cumulative_pid}, {_mod2, delta_pid}] = :sys.get_state(pid).readers
 
       {_mod, meter_config} =
         Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{

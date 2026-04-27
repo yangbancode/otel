@@ -1,12 +1,25 @@
 defmodule Otel.SDK.Metrics.Meter do
   @moduledoc """
-  SDK implementation of the Meter behaviour.
+  SDK implementation of the `Otel.API.Metrics.Meter`
+  behaviour (`metrics/sdk.md` §Meter L870-L943).
 
   Handles instrument creation with case-insensitive duplicate detection.
   Instruments are stored in a shared ETS table owned by the
   MeterProvider.
 
-  All functions are safe for concurrent use.
+  All functions are safe for concurrent use, satisfying spec
+  `metrics/sdk.md` L1351-L1352 — *"Instrument — synchronous and
+  asynchronous instrument operations MUST be safe to be called
+  concurrently."*
+
+  ## Public API
+
+  | Callback | Role |
+  |---|---|
+  | `create_*` (counter, histogram, gauge, updown_counter, observable_*) | **SDK** (OTel API MUST) — `metrics/api.md` §Instruments |
+  | `record/3` | **SDK** (OTel API MUST) — synchronous instrument measurement |
+  | `register_callback/5` | **SDK** (OTel API MUST) — async instrument registration |
+  | `enabled?/2` | **SDK** (OTel API MUST) — `metrics/api.md` §Enabled (Stable, #4787) |
 
   ## Design notes
 
@@ -90,6 +103,11 @@ defmodule Otel.SDK.Metrics.Meter do
     the meter today, so the disabled-Meter leg cannot be
     expressed. The Drop-aggregation leg of `enabled?/2` IS
     honoured (above). Waits for spec stabilisation.
+
+  ## References
+
+  - OTel Metrics SDK §Meter: `opentelemetry-specification/specification/metrics/sdk.md` L870-L943
+  - OTel Metrics API §Meter: `opentelemetry-specification/specification/metrics/api.md` L156-L499
   """
 
   @behaviour Otel.API.Metrics.Meter
@@ -232,6 +250,11 @@ defmodule Otel.SDK.Metrics.Meter do
           opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   defp register_instrument({_module, config} = meter, name, kind, opts) do
+    # `Keyword.get/3` covers absent keys; the `|| ""` covers
+    # `Keyword.get(opts, :unit, nil)` style callers that pass
+    # an explicit `nil` (test fixtures do this). Both fields
+    # are spec-typed `String.t()`, so empty string is the
+    # only sensible coercion of nil.
     unit = Keyword.get(opts, :unit, "") || ""
     description = Keyword.get(opts, :description, "") || ""
     advisory = Keyword.get(opts, :advisory, [])

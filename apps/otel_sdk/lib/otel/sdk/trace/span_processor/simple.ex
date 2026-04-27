@@ -1,9 +1,22 @@
 defmodule Otel.SDK.Trace.SpanProcessor.Simple do
   @moduledoc """
-  SimpleSpanProcessor that exports each span immediately on end.
+  SimpleSpanProcessor that exports each span immediately on
+  end (`trace/sdk.md` §Simple processor L1076-L1084).
 
-  Uses a GenServer to serialize export calls — the exporter is
-  never called concurrently (L1076).
+  Uses a GenServer to serialize export calls — the exporter
+  is never called concurrently (spec L1146-L1147).
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `start_link/1` | **SDK** (lifecycle) |
+  | `on_start/3`, `on_end/2`, `shutdown/1`, `force_flush/1` | **SDK** (Simple implementation) |
+
+  ## References
+
+  - OTel Trace SDK §Simple processor: `opentelemetry-specification/specification/trace/sdk.md` L1076-L1084
+  - Parent behaviour: `Otel.SDK.Trace.SpanProcessor`
   """
 
   use GenServer

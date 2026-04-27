@@ -1,6 +1,7 @@
 defmodule Otel.SDK.Metrics.MeterProvider do
   @moduledoc """
-  SDK implementation of the MeterProvider.
+  SDK implementation of the `Otel.API.Metrics.MeterProvider`
+  behaviour (`metrics/sdk.md` §MeterProvider L43-L155).
 
   A `GenServer` that owns metrics configuration (resource, views,
   readers) and creates meters. Registers itself as the global
@@ -10,6 +11,21 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   spec `metrics/sdk.md` L1875-L1876 (Status: Stable) —
   *"MeterProvider — Meter creation, ForceFlush and Shutdown
   MUST be safe to be called concurrently."*
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `start_link/1` | **SDK** (lifecycle) |
+  | `get_meter/2` | **SDK** (OTel API MUST) — `metrics/api.md` §Get a Meter |
+  | `shutdown/2` | **SDK** (OTel API MUST) — `metrics/sdk.md` §Shutdown |
+  | `force_flush/2` | **SDK** (OTel API MUST) — `metrics/sdk.md` §ForceFlush |
+  | `add_view/3` | **SDK** (OTel API MUST) — `metrics/sdk.md` §View L259-L327 |
+
+  ## References
+
+  - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
+  - OTel Metrics API §MeterProvider: `opentelemetry-specification/specification/metrics/api.md` L92-L156
   """
 
   use GenServer
@@ -25,7 +41,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   # --- Client API ---
 
   @doc """
-  Starts the MeterProvider with the given configuration.
+  **SDK** (lifecycle) — Starts the MeterProvider with the
+  given configuration.
   """
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -34,7 +51,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   @doc """
-  Returns a meter for the given instrumentation scope.
+  **SDK** (OTel API MUST) — Get a Meter
+  (`metrics/api.md` §Get a Meter).
 
   Falls back to the Noop meter if `server` is no longer alive.
   """
@@ -45,38 +63,20 @@ defmodule Otel.SDK.Metrics.MeterProvider do
           Otel.API.Metrics.Meter.t()
   @impl Otel.API.Metrics.MeterProvider
   def get_meter(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    if alive?(server) do
+    if GenServer.whereis(server) do
       GenServer.call(server, {:get_meter, instrumentation_scope})
     else
       {Otel.API.Metrics.Meter.Noop, []}
     end
   end
 
-  @spec alive?(server :: GenServer.server()) :: boolean()
-  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-  defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
-
   @doc """
-  Returns the resource associated with this provider.
-  """
-  @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
-  def resource(server) do
-    GenServer.call(server, :resource)
-  end
-
-  @doc """
-  Returns the current configuration.
-  """
-  @spec config(server :: GenServer.server()) :: config()
-  def config(server) do
-    GenServer.call(server, :config)
-  end
-
-  @doc """
-  Shuts down the MeterProvider.
+  **SDK** (OTel API MUST) — Shutdown
+  (`metrics/sdk.md` §Shutdown).
 
   Invokes shutdown on all registered readers. After shutdown,
-  get_meter returns the noop meter. Can only be called once.
+  `get_meter/2` returns the noop meter. Can only be called
+  once; subsequent calls reply `{:error, :already_shut_down}`.
   """
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ 5000) do
@@ -84,6 +84,9 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   @doc """
+  **SDK** (OTel API MUST) — ForceFlush
+  (`metrics/sdk.md` §ForceFlush).
+
   Forces all registered readers to collect and export metrics.
   """
   @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
@@ -92,10 +95,11 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   @doc """
-  Registers a View with the MeterProvider.
+  **SDK** (OTel API MUST) — Register a View
+  (`metrics/sdk.md` §View L259-L327).
 
-  Returns `{:error, reason}` if the View is invalid (e.g. wildcard
-  name with stream name override).
+  Returns `{:error, reason}` if the View is invalid (e.g.
+  wildcard name with stream name override).
   """
   @spec add_view(
           server :: GenServer.server(),
@@ -206,14 +210,6 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   def handle_call(:force_flush, _from, config) do
     result = invoke_all_readers(config.readers, :force_flush)
     {:reply, result, config}
-  end
-
-  def handle_call(:resource, _from, config) do
-    {:reply, config.resource, config}
-  end
-
-  def handle_call(:config, _from, config) do
-    {:reply, config, config}
   end
 
   def handle_call({:add_view, criteria, view_config}, _from, config) do

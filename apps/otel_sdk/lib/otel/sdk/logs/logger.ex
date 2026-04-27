@@ -1,12 +1,23 @@
 defmodule Otel.SDK.Logs.Logger do
   @moduledoc """
-  SDK implementation of the Logger behaviour.
+  SDK implementation of the `Otel.API.Logs.Logger` behaviour
+  (`logs/sdk.md` §Logger).
 
   Emits log records by dispatching to all registered processors.
   Populates trace context from the resolved Context and sets
   observed_timestamp when not provided.
 
-  All functions are safe for concurrent use.
+  All functions are safe for concurrent use, satisfying spec
+  `logs/api.md` L172-L176 (Status: Stable, #4885) — *"Logger —
+  all methods MUST be documented that implementations need to
+  be safe for concurrent use by default."*
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `emit/3` | **SDK** (OTel API MUST) — `logs/api.md` L111-L131 + `logs/sdk.md` §Emit |
+  | `enabled?/2` | **SDK** (OTel API SHOULD) — `logs/api.md` L133-L154 + `logs/sdk.md` §Enabled |
 
   ## LogRecord limits
 
@@ -38,12 +49,26 @@ defmodule Otel.SDK.Logs.Logger do
   `otel_exporter.erl` / `otel_configuration.erl` use
   `?LOG_WARNING` / `?LOG_INFO` throughout — none filter
   their own warnings out of the OTel bridge.
+
+  ## References
+
+  - OTel Logs SDK §Logger: `opentelemetry-specification/specification/logs/sdk.md`
+  - OTel Logs API §Logger: `opentelemetry-specification/specification/logs/api.md` L99-L155
+  - OTLP `mapping-to-non-otlp.md` §Dropped Attributes Count: L73-L79
   """
 
   require Logger
 
   @behaviour Otel.API.Logs.Logger
 
+  @doc """
+  **SDK** (OTel API MUST) — Emit a LogRecord
+  (`logs/api.md` L111-L131).
+
+  Applies LoggerConfig filters (disabled / minimum_severity /
+  trace_based) per `logs/sdk.md` L195-L196 + L243-L252, then
+  dispatches the limited record to every registered processor.
+  """
   @impl true
   @spec emit(
           logger :: Otel.API.Logs.Logger.t(),
@@ -68,6 +93,14 @@ defmodule Otel.SDK.Logs.Logger do
     end
   end
 
+  @doc """
+  **SDK** (OTel API SHOULD) — Enabled
+  (`logs/api.md` L133-L154 + `logs/sdk.md` §Enabled L256-L268).
+
+  Returns false when no processors are registered, when
+  LoggerConfig filters reject the call, or when every
+  processor implementing `enabled?/4` returns false.
+  """
   @impl true
   @spec enabled?(
           logger :: Otel.API.Logs.Logger.t(),
@@ -190,7 +223,12 @@ defmodule Otel.SDK.Logs.Logger do
         ) :: Otel.SDK.Logs.LogRecord.t()
   defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)
-    {trace_id, span_id, trace_flags} = extract_trace_context(ctx)
+
+    %Otel.API.Trace.SpanContext{
+      trace_id: trace_id,
+      span_id: span_id,
+      trace_flags: trace_flags
+    } = Otel.API.Trace.current_span(ctx)
 
     {limited_record, dropped_attributes_count} =
       Otel.SDK.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
@@ -275,17 +313,4 @@ defmodule Otel.SDK.Logs.Logger do
   end
 
   defp apply_exception_attributes(%Otel.API.Logs.LogRecord{} = log_record), do: log_record
-
-  @spec extract_trace_context(ctx :: Otel.API.Ctx.t()) ::
-          {Otel.API.Trace.TraceId.t(), Otel.API.Trace.SpanId.t(),
-           Otel.API.Trace.SpanContext.trace_flags()}
-  defp extract_trace_context(ctx) do
-    %Otel.API.Trace.SpanContext{
-      trace_id: trace_id,
-      span_id: span_id,
-      trace_flags: trace_flags
-    } = Otel.API.Trace.current_span(ctx)
-
-    {trace_id, span_id, trace_flags}
-  end
 end

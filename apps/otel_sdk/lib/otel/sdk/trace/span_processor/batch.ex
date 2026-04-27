@@ -1,9 +1,25 @@
 defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   @moduledoc """
-  BatchSpanProcessor that accumulates spans and exports in batches.
+  BatchSpanProcessor that accumulates spans and exports in
+  batches (`trace/sdk.md` §Batching processor L1086-L1118).
 
   Exports are triggered by a timer, queue size threshold, or
-  force_flush. Uses a GenServer to serialize export calls (L1089).
+  force_flush. Uses a GenServer to serialize export calls
+  (spec L1146-L1147 — *"Export() should not be called
+  concurrently with other Export calls for the same exporter
+  instance"*).
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `start_link/1` | **SDK** (lifecycle) |
+  | `on_start/3`, `on_end/2`, `shutdown/1`, `force_flush/1` | **SDK** (Batch implementation) |
+
+  ## References
+
+  - OTel Trace SDK §Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
+  - Parent behaviour: `Otel.SDK.Trace.SpanProcessor`
   """
 
   use GenServer

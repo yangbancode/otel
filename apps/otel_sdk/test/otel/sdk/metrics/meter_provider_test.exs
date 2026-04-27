@@ -59,7 +59,11 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
       {:ok, pid} =
         Otel.SDK.Metrics.MeterProvider.start_link(config: %{resource: custom_resource})
 
-      resource = Otel.SDK.Metrics.MeterProvider.resource(pid)
+      {_module, %{resource: resource}} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
+          name: "lib"
+        })
+
       assert resource.attributes["service.name"] == "test"
     end
   end
@@ -98,36 +102,6 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
       assert %Otel.SDK.Resource{} = resource
       assert resource.attributes["telemetry.sdk.name"] == "otel"
-    end
-  end
-
-  describe "config/1" do
-    test "returns merged config with defaults", %{provider: pid} do
-      config = Otel.SDK.Metrics.MeterProvider.config(pid)
-
-      assert config.views == []
-      assert config.readers == []
-      assert %Otel.SDK.Resource{} = config.resource
-    end
-
-    test "custom config overrides defaults" do
-      custom_resource = Otel.SDK.Resource.create(%{"service.name" => "custom"})
-
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(config: %{resource: custom_resource})
-
-      config = Otel.SDK.Metrics.MeterProvider.config(pid)
-      assert config.resource.attributes["service.name"] == "custom"
-      assert config.views == []
-    end
-  end
-
-  describe "resource/1" do
-    test "returns SDK default resource", %{provider: pid} do
-      resource = Otel.SDK.Metrics.MeterProvider.resource(pid)
-      assert %Otel.SDK.Resource{} = resource
-      assert resource.attributes["telemetry.sdk.name"] == "otel"
-      assert resource.attributes["telemetry.sdk.language"] == "elixir"
     end
   end
 
@@ -189,16 +163,14 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
                  name: "req_total"
                })
 
-      config = Otel.SDK.Metrics.MeterProvider.config(pid)
-      assert length(config.views) == 1
+      assert_view_count(pid, 1)
     end
 
     test "rejects invalid view", %{provider: pid} do
       assert {:error, _} =
                Otel.SDK.Metrics.MeterProvider.add_view(pid, %{name: "*"}, %{name: "override"})
 
-      config = Otel.SDK.Metrics.MeterProvider.config(pid)
-      assert config.views == []
+      assert_view_count(pid, 0)
     end
 
     test "views apply to already returned meters", %{provider: pid} do
@@ -218,14 +190,12 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     test "multiple views preserved in order", %{provider: pid} do
       :ok = Otel.SDK.Metrics.MeterProvider.add_view(pid, %{type: :counter}, %{})
       :ok = Otel.SDK.Metrics.MeterProvider.add_view(pid, %{type: :histogram}, %{})
-      config = Otel.SDK.Metrics.MeterProvider.config(pid)
-      assert length(config.views) == 2
+      assert_view_count(pid, 2)
     end
 
     test "registers view with default criteria and config", %{provider: pid} do
       assert :ok == Otel.SDK.Metrics.MeterProvider.add_view(pid)
-      config = Otel.SDK.Metrics.MeterProvider.config(pid)
-      assert length(config.views) == 1
+      assert_view_count(pid, 1)
     end
   end
 
@@ -261,5 +231,17 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
       Otel.SDK.Metrics.MeterProvider.shutdown(pid)
       assert Otel.SDK.Metrics.MeterProvider.force_flush(pid) == {:error, :shut_down}
     end
+  end
+
+  # The provider's view list is observable through the meter
+  # config returned by `get_meter/2` — the meter sees the
+  # view list at every dispatch.
+  defp assert_view_count(provider_pid, expected_count) do
+    {_module, %{views: views}} =
+      Otel.SDK.Metrics.MeterProvider.get_meter(provider_pid, %Otel.API.InstrumentationScope{
+        name: "view_count_probe"
+      })
+
+    assert length(views) == expected_count
   end
 end

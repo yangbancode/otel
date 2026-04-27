@@ -1,6 +1,7 @@
 defmodule Otel.SDK.Metrics.View do
   @moduledoc """
-  Defines instrument selection criteria and stream configuration.
+  Instrument selection criteria + stream configuration
+  (`metrics/sdk.md` §View L259-L327).
 
   A View maps matching instruments to metric streams by specifying
   which instruments to select and how the resulting stream should
@@ -9,6 +10,10 @@ defmodule Otel.SDK.Metrics.View do
 
   All selection criteria are optional and additive (AND). An
   instrument must match all provided criteria for the View to apply.
+
+  ## References
+
+  - OTel Metrics SDK §View: `opentelemetry-specification/specification/metrics/sdk.md` L259-L327
   """
 
   use Otel.API.Common.Types
@@ -64,27 +69,6 @@ defmodule Otel.SDK.Metrics.View do
     Map.get(config, :description, instrument.description)
   end
 
-  @spec filter_attributes(
-          view :: t(),
-          instrument :: Otel.API.Metrics.Instrument.t(),
-          attributes :: %{String.t() => primitive_any()}
-        ) :: %{String.t() => primitive_any()}
-  def filter_attributes(%__MODULE__{config: config}, instrument, attributes) do
-    case Map.get(config, :attribute_keys) do
-      {:include, keys} ->
-        Map.take(attributes, keys)
-
-      {:exclude, keys} ->
-        Map.drop(attributes, keys)
-
-      nil ->
-        case Keyword.get(instrument.advisory, :attributes) do
-          nil -> attributes
-          keys -> Map.take(attributes, keys)
-        end
-    end
-  end
-
   @spec validate_wildcard_name(criteria :: criteria(), config :: config()) ::
           :ok | {:error, String.t()}
   defp validate_wildcard_name(criteria, config) do
@@ -130,6 +114,4 @@ defmodule Otel.SDK.Metrics.View do
   defp matches_criterion?(:meter_schema_url, schema_url, instrument) do
     schema_url == instrument.scope.schema_url
   end
-
-  defp matches_criterion?(_key, _value, _instrument), do: true
 end

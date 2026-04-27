@@ -1,15 +1,32 @@
 defmodule Otel.SDK.Trace.Span do
   @moduledoc """
-  SDK span record — data + lifecycle operations.
+  SDK implementation of the `Otel.API.Trace.Span` behaviour
+  (`trace/sdk.md` §Span L692-L944) — data + lifecycle
+  operations.
 
   Holds all span data during its lifecycle. Creation is a pure
   operation; all mutating operations read/write the span in ETS via
   `SpanStorage` and are no-ops when the span is not in ETS (already
-  ended or dropped).
+  ended or dropped), satisfying spec `trace/api.md` L478-L481
+  (an ended span SHOULD become non-recording).
 
   Registered as the global span module on SDK application start;
   the API layer's `Otel.API.Trace.Span` dispatches to the functions
   defined here via the `Otel.API.Trace.Span` behaviour.
+
+  All functions are safe for concurrent use — every mutation
+  goes through `:ets.update_element` / `:ets.insert` against
+  the public `SpanStorage` table, satisfying spec L883
+  (*"Span — all methods MUST be documented that
+  implementations need to be safe for concurrent use by
+  default."*).
+
+  ## Public API
+
+  | Callback | Role |
+  |---|---|
+  | `start_span/6` | **SDK** (lifecycle) — sampler + id-generator + storage insert |
+  | `recording?/1`, `set_attribute/3`, `set_attributes/2`, `add_event/2`, `add_link/2`, `set_status/2`, `update_name/2`, `record_exception/4`, `end_span/2` | **SDK** (OTel API MUST/SHOULD) — `trace/api.md` §Span operations L449-L705 |
 
   ## Design notes
 
@@ -45,6 +62,12 @@ defmodule Otel.SDK.Trace.Span do
   implementation optimization not propagated to wire format,
   and `instrumentation_scope` is held on the span for
   grouping into `ScopeSpans` at export time.
+
+  ## References
+
+  - OTel Trace SDK §Span: `opentelemetry-specification/specification/trace/sdk.md` L692-L944
+  - OTel Trace API §Span: `opentelemetry-specification/specification/trace/api.md` L449-L705
+  - OTLP proto Span: `opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto`
   """
 
   use Otel.API.Common.Types
@@ -219,7 +242,8 @@ defmodule Otel.SDK.Trace.Span do
             | [{String.t(), primitive_any()}]
         ) :: :ok
   def set_attributes(%Otel.API.Trace.SpanContext{span_id: span_id}, new_attributes) do
-    new_attributes = to_map(new_attributes)
+    new_attributes =
+      if is_list(new_attributes), do: Map.new(new_attributes), else: new_attributes
 
     case Otel.SDK.Trace.SpanStorage.get(span_id) do
       nil ->
@@ -568,14 +592,6 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   defp truncate_value(value, _limit), do: value
-
-  @spec to_map(
-          attributes ::
-            %{String.t() => primitive_any()}
-            | [{String.t(), primitive_any()}]
-        ) :: %{String.t() => primitive_any()}
-  defp to_map(attributes) when is_map(attributes), do: attributes
-  defp to_map(attributes) when is_list(attributes), do: Map.new(attributes)
 
   @spec exception_type(exception :: Exception.t()) :: String.t()
   defp exception_type(exception) do

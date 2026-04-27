@@ -9,8 +9,10 @@ defmodule Otel.SDK.Trace.IdGenerator.Default do
 
   @behaviour Otel.SDK.Trace.IdGenerator
 
-  @trace_id_max Bitwise.bsl(2, 127) - 1
-  @span_id_max Bitwise.bsl(2, 63) - 1
+  # `bsl(1, n) - 1` reads as "n bits all set" — clearer than
+  # the equivalent `bsl(2, n - 1) - 1`.
+  @trace_id_max Bitwise.bsl(1, 128) - 1
+  @span_id_max Bitwise.bsl(1, 64) - 1
 
   @spec generate_trace_id() :: Otel.API.Trace.TraceId.t()
   @impl true

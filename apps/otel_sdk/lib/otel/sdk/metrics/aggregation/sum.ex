@@ -33,12 +33,7 @@ defmodule Otel.SDK.Metrics.Aggregation.Sum do
 
   def aggregate(metrics_tab, key, value, _opts) when is_float(value) do
     default = {key, 0, 0.0, System.system_time(:nanosecond)}
-
-    case :ets.insert_new(metrics_tab, default) do
-      true -> :ok
-      false -> :ok
-    end
-
+    :ets.insert_new(metrics_tab, default)
     cas_add_float(metrics_tab, key, value)
   end
 

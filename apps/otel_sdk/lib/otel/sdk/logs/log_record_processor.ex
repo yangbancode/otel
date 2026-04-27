@@ -12,6 +12,20 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   `on_emit/3` along with the resolved Context (spec L401-L404).
   Mutations made by one processor MUST be visible to the next
   registered processor in the chain (spec L408-L409).
+
+  ## Public API
+
+  | Callback | Role |
+  |---|---|
+  | `on_emit/3` | **SDK** (OTel API MUST) — `logs/sdk.md` L393-L416 |
+  | `enabled?/4` | **SDK** (OTel API MAY) — `logs/sdk.md` L418-L455 (optional) |
+  | `shutdown/2` | **SDK** (OTel API MUST) — `logs/sdk.md` L457-L474 |
+  | `force_flush/2` | **SDK** (OTel API MUST) — `logs/sdk.md` L476-L503 |
+
+  ## References
+
+  - OTel Logs SDK §LogRecordProcessor: `opentelemetry-specification/specification/logs/sdk.md` L350-L503
+  - Built-in implementations: `Otel.SDK.Logs.LogRecordProcessor.Simple`, `Otel.SDK.Logs.LogRecordProcessor.Batch`
   """
 
   @type config :: term()

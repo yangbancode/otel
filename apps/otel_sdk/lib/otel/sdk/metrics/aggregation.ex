@@ -1,6 +1,19 @@
 defmodule Otel.SDK.Metrics.Aggregation do
   @moduledoc """
-  Aggregation behaviour and default instrument-to-aggregation mapping.
+  Aggregation behaviour and default instrument-to-aggregation
+  mapping (`metrics/sdk.md` §Aggregation L612-L860).
+
+  ## Public API
+
+  | Callback | Role |
+  |---|---|
+  | `aggregate/4` | **SDK** (OTel API MUST) — record a measurement into an ETS-backed cell |
+  | `collect/3` | **SDK** (OTel API MUST) — emit datapoints for the configured temporality |
+
+  ## References
+
+  - OTel Metrics SDK §Aggregation: `opentelemetry-specification/specification/metrics/sdk.md` L612-L860
+  - Built-in implementations: `Otel.SDK.Metrics.Aggregation.{Drop,Sum,LastValue,ExplicitBucketHistogram}`
   """
 
   use Otel.API.Common.Types
