@@ -6,6 +6,8 @@
 - `references/opentelemetry-erlang/` — Erlang reference impl (cross-check)
 - `references/opentelemetry-proto/`, `references/w3c-trace-context/`,
   `references/w3c-baggage/`, `references/semantic-conventions/` — wire formats
+- `references/opentelemetry-configuration/` — JSON Schema for declarative
+  configuration (`OTEL_CONFIG_FILE`); pinned to a stable schema tag (v1.0.0+)
 - `references/otp/` — Erlang/OTP stdlib source (pinned to the
   runtime tag declared in `.mise.toml`; used when the correct behaviour
   of `:logger`, `:persistent_term`, `gen_statem`, etc. must be verified

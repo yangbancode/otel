@@ -22,3 +22,6 @@
 [submodule "references/otp"]
 	path = references/otp
 	url = https://github.com/erlang/otp.git
+[submodule "references/opentelemetry-configuration"]
+	path = references/opentelemetry-configuration
+	url = https://github.com/open-telemetry/opentelemetry-configuration.git
