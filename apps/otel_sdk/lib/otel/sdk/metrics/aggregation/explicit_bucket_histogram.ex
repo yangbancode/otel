@@ -12,6 +12,21 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
   Supports Cumulative and Delta temporality. For Delta, bucket
   counts, sum, and count are atomically read and subtracted;
   min and max are reset to `:unset`.
+
+  ## Configuration parameters
+
+  Pass via `opts` (typically through
+  `Otel.SDK.Metrics.View.config.aggregation_options`):
+
+  | Key | Default | Description |
+  |---|---|---|
+  | `:boundaries` | `@default_boundaries` (15 OTel-default buckets) | Bucket boundaries per `metrics/sdk.md` L660-L661 |
+  | `:record_min_max` | `true` | Whether to record `min` / `max` per `metrics/sdk.md` L662 |
+
+  When `:record_min_max` is `false`, the bucket counts, sum,
+  and count are still tracked, but min/max ETS slots remain
+  `:unset` and the collected datapoint emits `nil` for both
+  fields — matching the spec's "RecordMinMax = false" semantics.
   """
 
   @behaviour Otel.SDK.Metrics.Aggregation
@@ -33,6 +48,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
         ) :: :ok
   def aggregate(metrics_tab, key, value, opts) do
     boundaries = Map.get(opts, :boundaries, @default_boundaries)
+    record_min_max = Map.get(opts, :record_min_max, true)
 
     case :ets.lookup(metrics_tab, key) do
       [{^key, counters_ref, _min, _max, _sum, _count, _start}] ->
@@ -40,12 +56,11 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
         :counters.add(counters_ref, bucket_idx, 1)
         update_count(metrics_tab, key)
         update_sum(metrics_tab, key, value)
-        update_min(metrics_tab, key, value)
-        update_max(metrics_tab, key, value)
+        maybe_update_min_max(metrics_tab, key, value, record_min_max)
         :ok
 
       [] ->
-        init_and_aggregate(metrics_tab, key, value, boundaries)
+        init_and_aggregate(metrics_tab, key, value, boundaries, record_min_max)
     end
   end
 
@@ -196,9 +211,10 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
           metrics_tab :: :ets.table(),
           key :: term(),
           value :: number(),
-          boundaries :: [number()]
+          boundaries :: [number()],
+          record_min_max :: boolean()
         ) :: :ok
-  defp init_and_aggregate(metrics_tab, key, value, boundaries) do
+  defp init_and_aggregate(metrics_tab, key, value, boundaries, record_min_max) do
     num_buckets = length(boundaries) + 1
     counters_ref = :counters.new(num_buckets, [:write_concurrency])
     bucket_idx = find_bucket(value, boundaries)
@@ -209,13 +225,32 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
       true ->
         update_count(metrics_tab, key)
         update_sum_init(metrics_tab, key, value)
-        update_min(metrics_tab, key, value)
-        update_max(metrics_tab, key, value)
+        maybe_update_min_max(metrics_tab, key, value, record_min_max)
         :ok
 
       false ->
-        aggregate(metrics_tab, key, value, %{boundaries: boundaries})
+        aggregate(metrics_tab, key, value, %{
+          boundaries: boundaries,
+          record_min_max: record_min_max
+        })
     end
+  end
+
+  # Spec `metrics/sdk.md` L662 RecordMinMax option. When false,
+  # the ETS min/max slots stay `:unset` and `normalize_min/1` /
+  # `normalize_max/1` emit `nil` in collected datapoints.
+  @spec maybe_update_min_max(
+          metrics_tab :: :ets.table(),
+          key :: term(),
+          value :: number(),
+          record_min_max :: boolean()
+        ) :: :ok
+  defp maybe_update_min_max(_metrics_tab, _key, _value, false), do: :ok
+
+  defp maybe_update_min_max(metrics_tab, key, value, true) do
+    update_min(metrics_tab, key, value)
+    update_max(metrics_tab, key, value)
+    :ok
   end
 
   @spec find_bucket(value :: number(), boundaries :: [number()]) :: pos_integer()
