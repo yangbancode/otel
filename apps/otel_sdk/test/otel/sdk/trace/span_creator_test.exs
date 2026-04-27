@@ -321,7 +321,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
           attributes: attrs
         )
 
-      assert map_size(span.attributes) <= 2
+      assert map_size(span.attributes) == 2
+      assert span.dropped_attributes_count == 2
     end
 
     test "enforces attribute_value_length_limit" do
@@ -441,7 +442,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
       links = [
         %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(1, 1)},
-        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(2, 2)}
+        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(2, 2)},
+        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(3, 3)}
       ]
 
       {_span_ctx, span} =
@@ -455,6 +457,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
         )
 
       assert length(span.links) == 1
+      assert span.dropped_links_count == 2
     end
 
     test "enforces attribute_per_link_limit at creation" do
@@ -480,6 +483,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
       stored = hd(span.links)
       assert map_size(stored.attributes) == 1
+      assert stored.dropped_attributes_count == 2
     end
 
     test "truncates link attribute values at creation" do

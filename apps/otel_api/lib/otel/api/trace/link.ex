@@ -77,11 +77,20 @@ defmodule Otel.API.Trace.Link do
   - `attributes` — zero or more attributes describing the
     relationship. Values follow OTel attribute rules (primitives
     and homogeneous arrays; no maps, no heterogeneous arrays).
+  - `dropped_attributes_count` — number of attributes the SDK
+    discarded for this link because the per-link attribute
+    count limit was exceeded (proto `Span.Link` field 5).
+    Always `0` on Links constructed by application code; the
+    SDK populates it when applying limits at span creation or
+    `add_link`.
   """
   @type t :: %__MODULE__{
           context: Otel.API.Trace.SpanContext.t(),
-          attributes: %{String.t() => primitive_any()}
+          attributes: %{String.t() => primitive_any()},
+          dropped_attributes_count: non_neg_integer()
         }
 
-  defstruct context: %Otel.API.Trace.SpanContext{}, attributes: %{}
+  defstruct context: %Otel.API.Trace.SpanContext{},
+            attributes: %{},
+            dropped_attributes_count: 0
 end

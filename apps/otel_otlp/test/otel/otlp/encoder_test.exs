@@ -181,6 +181,40 @@ defmodule Otel.OTLP.EncoderTest do
       assert link.span_id == <<200::64>>
     end
 
+    test "encodes dropped counts (spec trace/sdk.md L260-L262, proto trace.proto fields 4/5/10/12/14)" do
+      span = %{
+        @span
+        | dropped_attributes_count: 7,
+          dropped_events_count: 3,
+          dropped_links_count: 5,
+          events: [
+            %Otel.API.Trace.Event{
+              name: "ev",
+              timestamp: 1_500_000_000,
+              dropped_attributes_count: 2
+            }
+          ],
+          links: [
+            %Otel.API.Trace.Link{
+              context: Otel.API.Trace.SpanContext.new(1, 2, 1),
+              dropped_attributes_count: 4
+            }
+          ]
+      }
+
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
+
+      decoded =
+        Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
+
+      proto_span = hd(hd(hd(decoded.resource_spans).scope_spans).spans)
+      assert proto_span.dropped_attributes_count == 7
+      assert proto_span.dropped_events_count == 3
+      assert proto_span.dropped_links_count == 5
+      assert hd(proto_span.events).dropped_attributes_count == 2
+      assert hd(proto_span.links).dropped_attributes_count == 4
+    end
+
     test "encodes various attribute types" do
       span =
         %{

@@ -109,11 +109,13 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       Otel.SDK.Trace.Span.set_attribute(span_ctx, "a", 1)
       Otel.SDK.Trace.Span.set_attribute(span_ctx, "b", 2)
       Otel.SDK.Trace.Span.set_attribute(span_ctx, "c", 3)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "d", 4)
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert map_size(span.attributes) == 2
       assert Map.has_key?(span.attributes, "a")
       assert Map.has_key?(span.attributes, "b")
+      assert span.dropped_attributes_count == 2
     end
 
     test "allows overwrite even when at limit" do
@@ -123,6 +125,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert span.attributes["a"] == 2
+      assert span.dropped_attributes_count == 0
     end
 
     test "truncates string value" do
@@ -204,10 +207,11 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "enforces attribute_count_limit" do
       span_ctx = start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2})
-      Otel.SDK.Trace.Span.set_attributes(span_ctx, %{"a" => 1, "b" => 2, "c" => 3})
+      Otel.SDK.Trace.Span.set_attributes(span_ctx, %{"a" => 1, "b" => 2, "c" => 3, "d" => 4})
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
-      assert map_size(span.attributes) <= 2
+      assert map_size(span.attributes) == 2
+      assert span.dropped_attributes_count == 2
     end
   end
 
@@ -248,9 +252,11 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span_ctx = start_span(span_limits: %Otel.SDK.Trace.SpanLimits{event_count_limit: 1})
       Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("first"))
       Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("second"))
+      Otel.SDK.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("third"))
 
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert length(span.events) == 1
+      assert span.dropped_events_count == 2
     end
 
     test "truncates event attribute values" do
@@ -275,6 +281,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       stored = hd(span.events)
       assert map_size(stored.attributes) == 1
+      assert stored.dropped_attributes_count == 2
     end
 
     test "no-op on ended span" do
@@ -312,8 +319,29 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
         %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(2, 2)}
       )
 
+      Otel.SDK.Trace.Span.add_link(
+        span_ctx,
+        %Otel.API.Trace.Link{context: Otel.API.Trace.SpanContext.new(3, 3)}
+      )
+
       span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
       assert length(span.links) == 1
+      assert span.dropped_links_count == 2
+    end
+
+    test "tracks per-link dropped attribute count when over per-link limit" do
+      span_ctx =
+        start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_per_link_limit: 1})
+
+      Otel.SDK.Trace.Span.add_link(span_ctx, %Otel.API.Trace.Link{
+        context: Otel.API.Trace.SpanContext.new(1, 1),
+        attributes: %{"a" => 1, "b" => 2, "c" => 3}
+      })
+
+      span = Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)
+      [stored] = span.links
+      assert map_size(stored.attributes) == 1
+      assert stored.dropped_attributes_count == 2
     end
 
     test "no-op on ended span" do

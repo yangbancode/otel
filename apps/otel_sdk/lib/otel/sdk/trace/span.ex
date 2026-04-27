@@ -52,15 +52,20 @@ defmodule Otel.SDK.Trace.Span do
   processors on the `span_ctx.span_sdk` tuple
   (`otel_span_ets.erl` L60, L77).
 
-  ### Dropped-count proto fields not tracked
+  ### Dropped-count tracking
 
   Proto `Span` fields 10 (`dropped_attributes_count`), 12
   (`dropped_events_count`), and 14 (`dropped_links_count`)
-  are absent from this struct. The current implementation
-  silently drops on overflow without counting; consistent
-  with `opentelemetry-erlang` which also omits the counters
-  (`otel_span.hrl`). A follow-up could add tracking for full
-  proto parity; this is a known divergence rather than a bug.
+  are tracked on this struct, plus the per-Event and per-Link
+  `dropped_attributes_count`. Spec `trace/sdk.md` L260-L262
+  *"Counts for attributes, events and links dropped due to
+  collection limits MUST be available for exporters to
+  report."* The counters are incremented by `start_span/6`,
+  `set_attribute/3`, `set_attributes/2`, `add_event/2`, and
+  `add_link/2` whenever the corresponding span_limits cap
+  causes a discard. Value-length truncation is **not**
+  counted as a drop (spec common L262-L274 — truncation
+  preserves the attribute, only its value shrinks).
 
   ### `is_recording`, `instrumentation_scope` on the span
 
@@ -93,8 +98,11 @@ defmodule Otel.SDK.Trace.Span do
           start_time: non_neg_integer(),
           end_time: non_neg_integer() | nil,
           attributes: %{String.t() => primitive_any()},
+          dropped_attributes_count: non_neg_integer(),
           events: [Otel.API.Trace.Event.t()],
+          dropped_events_count: non_neg_integer(),
           links: [Otel.API.Trace.Link.t()],
+          dropped_links_count: non_neg_integer(),
           status: Otel.API.Trace.Status.t(),
           trace_flags: Otel.API.Trace.SpanContext.trace_flags(),
           is_recording: boolean(),
@@ -116,8 +124,11 @@ defmodule Otel.SDK.Trace.Span do
     kind: :internal,
     start_time: 0,
     attributes: %{},
+    dropped_attributes_count: 0,
     events: [],
+    dropped_events_count: 0,
     links: [],
+    dropped_links_count: 0,
     status: %Otel.API.Trace.Status{},
     trace_flags: 0,
     is_recording: true,
@@ -160,7 +171,7 @@ defmodule Otel.SDK.Trace.Span do
     }
 
     if is_recording do
-      merged_attributes =
+      {merged_attributes, dropped_attributes_count} =
         attributes
         |> Map.merge(sampler_attributes)
         |> apply_attribute_limits(
@@ -172,16 +183,21 @@ defmodule Otel.SDK.Trace.Span do
         links
         |> Enum.take(span_limits.link_count_limit)
         |> Enum.map(fn %Otel.API.Trace.Link{} = link ->
+          {link_attrs, link_dropped} =
+            apply_attribute_limits(
+              link.attributes,
+              span_limits.attribute_per_link_limit,
+              span_limits.attribute_value_length_limit
+            )
+
           %{
             link
-            | attributes:
-                apply_attribute_limits(
-                  link.attributes,
-                  span_limits.attribute_per_link_limit,
-                  span_limits.attribute_value_length_limit
-                )
+            | attributes: link_attrs,
+              dropped_attributes_count: link.dropped_attributes_count + link_dropped
           }
         end)
+
+      dropped_links_count = max(length(links) - span_limits.link_count_limit, 0)
 
       span = %__MODULE__{
         trace_id: trace_id,
@@ -193,8 +209,11 @@ defmodule Otel.SDK.Trace.Span do
         kind: kind,
         start_time: start_time,
         attributes: merged_attributes,
+        dropped_attributes_count: dropped_attributes_count,
         events: [],
+        dropped_events_count: 0,
         links: limited_links,
+        dropped_links_count: dropped_links_count,
         trace_flags: trace_flags,
         is_recording: true
       }
@@ -233,8 +252,16 @@ defmodule Otel.SDK.Trace.Span do
       span ->
         limits = span.span_limits
         value = truncate_value(value, limits.attribute_value_length_limit)
-        attributes = put_attribute(span.attributes, key, value, limits.attribute_count_limit)
-        Otel.SDK.Trace.SpanStorage.insert(%{span | attributes: attributes})
+
+        {attributes, drop_inc} =
+          put_attribute(span.attributes, key, value, limits.attribute_count_limit)
+
+        Otel.SDK.Trace.SpanStorage.insert(%{
+          span
+          | attributes: attributes,
+            dropped_attributes_count: span.dropped_attributes_count + drop_inc
+        })
+
         :ok
     end
   end
@@ -258,8 +285,15 @@ defmodule Otel.SDK.Trace.Span do
         :ok
 
       span ->
-        attributes = merge_attributes(new_attributes, span.attributes, span.span_limits)
-        Otel.SDK.Trace.SpanStorage.insert(%{span | attributes: attributes})
+        {attributes, drop_inc} =
+          merge_attributes(new_attributes, span.attributes, span.span_limits)
+
+        Otel.SDK.Trace.SpanStorage.insert(%{
+          span
+          | attributes: attributes,
+            dropped_attributes_count: span.dropped_attributes_count + drop_inc
+        })
+
         :ok
     end
   end
@@ -284,15 +318,25 @@ defmodule Otel.SDK.Trace.Span do
         limits = span.span_limits
 
         if length(span.events) < limits.event_count_limit do
-          limited_attributes =
+          {limited_attributes, attr_drop_inc} =
             apply_attribute_limits(
               event.attributes,
               limits.attribute_per_event_limit,
               limits.attribute_value_length_limit
             )
 
-          limited_event = %{event | attributes: limited_attributes}
+          limited_event = %{
+            event
+            | attributes: limited_attributes,
+              dropped_attributes_count: event.dropped_attributes_count + attr_drop_inc
+          }
+
           Otel.SDK.Trace.SpanStorage.insert(%{span | events: span.events ++ [limited_event]})
+        else
+          Otel.SDK.Trace.SpanStorage.insert(%{
+            span
+            | dropped_events_count: span.dropped_events_count + 1
+          })
         end
 
         :ok
@@ -319,15 +363,25 @@ defmodule Otel.SDK.Trace.Span do
         limits = span.span_limits
 
         if length(span.links) < limits.link_count_limit do
-          limited_attributes =
+          {limited_attributes, attr_drop_inc} =
             apply_attribute_limits(
               link.attributes,
               limits.attribute_per_link_limit,
               limits.attribute_value_length_limit
             )
 
-          limited_link = %{link | attributes: limited_attributes}
+          limited_link = %{
+            link
+            | attributes: limited_attributes,
+              dropped_attributes_count: link.dropped_attributes_count + attr_drop_inc
+          }
+
           Otel.SDK.Trace.SpanStorage.insert(%{span | links: span.links ++ [limited_link]})
+        else
+          Otel.SDK.Trace.SpanStorage.insert(%{
+            span
+            | dropped_links_count: span.dropped_links_count + 1
+          })
         end
 
         :ok
@@ -516,15 +570,18 @@ defmodule Otel.SDK.Trace.Span do
           new_attributes :: %{String.t() => primitive_any()},
           existing :: %{String.t() => primitive_any()},
           limits :: Otel.SDK.Trace.SpanLimits.t()
-        ) :: %{String.t() => primitive_any()}
+        ) :: {%{String.t() => primitive_any()}, non_neg_integer()}
   defp merge_attributes(new_attributes, existing, limits) do
-    Enum.reduce(new_attributes, existing, fn {key, value}, acc ->
-      put_attribute(
-        acc,
-        key,
-        truncate_value(value, limits.attribute_value_length_limit),
-        limits.attribute_count_limit
-      )
+    Enum.reduce(new_attributes, {existing, 0}, fn {key, value}, {acc, dropped} ->
+      {acc, drop_inc} =
+        put_attribute(
+          acc,
+          key,
+          truncate_value(value, limits.attribute_value_length_limit),
+          limits.attribute_count_limit
+        )
+
+      {acc, dropped + drop_inc}
     end)
   end
 
@@ -533,12 +590,12 @@ defmodule Otel.SDK.Trace.Span do
           key :: String.t(),
           value :: primitive_any(),
           count_limit :: pos_integer()
-        ) :: %{String.t() => primitive_any()}
+        ) :: {%{String.t() => primitive_any()}, 0 | 1}
   defp put_attribute(attributes, key, value, count_limit) do
     cond do
-      Map.has_key?(attributes, key) -> Map.put(attributes, key, value)
-      map_size(attributes) < count_limit -> Map.put(attributes, key, value)
-      true -> attributes
+      Map.has_key?(attributes, key) -> {Map.put(attributes, key, value), 0}
+      map_size(attributes) < count_limit -> {Map.put(attributes, key, value), 0}
+      true -> {attributes, 1}
     end
   end
 
@@ -572,14 +629,17 @@ defmodule Otel.SDK.Trace.Span do
           attributes :: %{String.t() => primitive_any()},
           count_limit :: pos_integer(),
           value_length_limit :: pos_integer() | :infinity
-        ) :: %{String.t() => primitive_any()}
+        ) :: {%{String.t() => primitive_any()}, non_neg_integer()}
   defp apply_attribute_limits(attributes, count_limit, value_length_limit) do
-    attributes
-    |> Enum.take(count_limit)
-    |> Enum.map(fn {key, value} ->
-      {key, truncate_value(value, value_length_limit)}
-    end)
-    |> Map.new()
+    limited =
+      attributes
+      |> Enum.take(count_limit)
+      |> Enum.map(fn {key, value} ->
+        {key, truncate_value(value, value_length_limit)}
+      end)
+      |> Map.new()
+
+    {limited, max(map_size(attributes) - count_limit, 0)}
   end
 
   # Spec common/README.md L260-L274 truncation rules. Recurses

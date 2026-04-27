@@ -52,14 +52,20 @@ defmodule Otel.API.Trace.Event do
   - `attributes` — zero or more attributes describing the event.
     Values follow OTel attribute rules (primitives and
     homogeneous arrays; no maps, no heterogeneous arrays).
+  - `dropped_attributes_count` — number of attributes the SDK
+    discarded for this event because the per-event attribute
+    count limit was exceeded (proto `Span.Event` field 4).
+    Always `0` on Events constructed by application code; the
+    SDK populates it when applying limits at `add_event`.
   """
   @type t :: %__MODULE__{
           name: String.t(),
           timestamp: non_neg_integer(),
-          attributes: %{String.t() => primitive_any()}
+          attributes: %{String.t() => primitive_any()},
+          dropped_attributes_count: non_neg_integer()
         }
 
-  defstruct name: "", timestamp: 0, attributes: %{}
+  defstruct name: "", timestamp: 0, attributes: %{}, dropped_attributes_count: 0
 
   @doc """
   **Application** (Convenience) — Build an Event struct for
