@@ -163,6 +163,14 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     exemplars_tab =
       :ets.new(:otel_exemplars, [:set, :public, read_concurrency: true, write_concurrency: true])
 
+    observed_attrs_tab =
+      :ets.new(:otel_observed_attrs, [
+        :set,
+        :public,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
+
     config =
       default_config()
       |> Map.merge(user_config)
@@ -172,6 +180,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       |> Map.put(:metrics_tab, metrics_tab)
       |> Map.put(:callbacks_tab, callbacks_tab)
       |> Map.put(:exemplars_tab, exemplars_tab)
+      |> Map.put(:observed_attrs_tab, observed_attrs_tab)
 
     base_meter_config = %{
       resource: config.resource,
@@ -180,6 +189,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       metrics_tab: metrics_tab,
       callbacks_tab: callbacks_tab,
       exemplars_tab: exemplars_tab,
+      observed_attrs_tab: observed_attrs_tab,
       exemplar_filter: config.exemplar_filter
     }
 
@@ -221,6 +231,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       metrics_tab: config.metrics_tab,
       callbacks_tab: config.callbacks_tab,
       exemplars_tab: config.exemplars_tab,
+      observed_attrs_tab: config.observed_attrs_tab,
       views: config.views,
       exemplar_filter: config.exemplar_filter,
       reader_configs: reader_configs

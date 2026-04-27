@@ -529,6 +529,113 @@ defmodule Otel.SDK.Metrics.MeterTest do
       dp_a = Enum.find(dps, fn dp -> dp.attributes == %{"k" => "a"} end)
       assert dp_a.value == 6
     end
+
+    # Spec metrics/sdk.md §"Asynchronous instrument cardinality
+    # limits" L864-L866 SHOULD: prefer first-observed
+    # attributes regardless of temporality.
+    test "async first-observed attributes pinned across delta collect cycles" do
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+
+      Otel.SDK.Metrics.MeterProvider.add_view(
+        pid,
+        %{name: "async_card"},
+        %{aggregation_cardinality_limit: 2}
+      )
+
+      {_mod, cfg} =
+        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
+
+      m = {Otel.SDK.Metrics.Meter, cfg}
+
+      # Callback observes 4 distinct attribute sets every cycle —
+      # 2 always, plus 2 different "late" sets per cycle. The
+      # first 2 SHOULD remain pinned to their original keys; all
+      # later sets SHOULD route to the overflow attribute even
+      # after metrics_tab is cleared by delta collect.
+      cycle = :counters.new(1, [])
+
+      callback = fn _args ->
+        :counters.add(cycle, 1, 1)
+        n = :counters.get(cycle, 1)
+
+        [
+          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"k" => "a"}},
+          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"k" => "b"}},
+          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"late" => "x_#{n}"}},
+          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"late" => "y_#{n}"}}
+        ]
+      end
+
+      Otel.SDK.Metrics.Meter.create_observable_counter(m, "async_card", callback, nil, [])
+
+      # Cycle 1
+      Otel.SDK.Metrics.Meter.run_callbacks(cfg)
+
+      # Verify the observed_attrs_tab pinned the first two sets
+      pinned_keys =
+        :ets.foldl(
+          fn entry, acc ->
+            case elem(entry, 0) do
+              {"async_card", _scope, _reader, attrs} -> [attrs | acc]
+              _ -> acc
+            end
+          end,
+          [],
+          cfg.observed_attrs_tab
+        )
+
+      assert %{"k" => "a"} in pinned_keys
+      assert %{"k" => "b"} in pinned_keys
+      assert %{"otel.metric.overflow" => true} not in pinned_keys
+      assert length(pinned_keys) == 2
+
+      # Simulate a delta collect (clears metrics_tab) and run the
+      # callback again. The pinned set is unchanged; the late
+      # observations should still route to overflow.
+      :ets.delete_all_objects(cfg.metrics_tab)
+
+      Otel.SDK.Metrics.Meter.run_callbacks(cfg)
+
+      pinned_after =
+        :ets.foldl(
+          fn entry, acc ->
+            case elem(entry, 0) do
+              {"async_card", _scope, _reader, attrs} -> [attrs | acc]
+              _ -> acc
+            end
+          end,
+          [],
+          cfg.observed_attrs_tab
+        )
+
+      assert MapSet.new(pinned_after) == MapSet.new(pinned_keys)
+
+      # The late attribute sets (x_2, y_2) MUST route to the
+      # overflow attribute in metrics_tab. The original pinned
+      # sets keep their own keys.
+      metrics_keys =
+        :ets.foldl(
+          fn entry, acc ->
+            case elem(entry, 0) do
+              {"async_card", _scope, _reader, attrs} -> [attrs | acc]
+              _ -> acc
+            end
+          end,
+          [],
+          cfg.metrics_tab
+        )
+
+      assert %{"otel.metric.overflow" => true} in metrics_keys
+
+      late_attrs =
+        Enum.filter(metrics_keys, fn attrs ->
+          Map.has_key?(attrs, "late")
+        end)
+
+      assert late_attrs == []
+    end
   end
 
   describe "duplicate conflict resolution" do
