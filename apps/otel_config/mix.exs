@@ -25,7 +25,9 @@ defmodule Otel.Config.MixProject do
   defp deps do
     [
       {:otel_sdk, in_umbrella: true},
-      {:yaml_elixir, "~> 2.12"}
+      {:yaml_elixir, "~> 2.12"},
+      {:jsonschex, "~> 0.5.0"},
+      {:jason, "~> 1.4"}
     ]
   end
 end
