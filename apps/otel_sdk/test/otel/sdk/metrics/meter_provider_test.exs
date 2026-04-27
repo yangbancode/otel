@@ -233,6 +233,31 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     end
   end
 
+  describe "reader crash handling" do
+    test "removes a crashed reader and keeps serving the rest" do
+      {:ok, provider} =
+        Otel.SDK.Metrics.MeterProvider.start_link(
+          config: %{
+            readers: [
+              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
+              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}
+            ]
+          }
+        )
+
+      [{_, victim}, {_, survivor}] = :sys.get_state(provider).readers
+      ref = Process.monitor(victim)
+      Process.exit(victim, :kill)
+      assert_receive {:DOWN, ^ref, :process, ^victim, :killed}
+
+      # Provider stays alive; survivor keeps serving force_flush
+      # (the dead reader has been dropped from the active list).
+      assert Process.alive?(provider)
+      assert :ok = Otel.SDK.Metrics.MeterProvider.force_flush(provider)
+      assert [{_, ^survivor}] = :sys.get_state(provider).readers
+    end
+  end
+
   # The provider's view list is observable through the meter
   # config returned by `get_meter/2` — the meter sees the
   # view list at every dispatch.

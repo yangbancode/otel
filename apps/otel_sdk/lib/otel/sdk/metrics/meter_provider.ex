@@ -12,6 +12,18 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   *"MeterProvider — Meter creation, ForceFlush and Shutdown
   MUST be safe to be called concurrently."*
 
+  ## Crash handling
+
+  `init/1` enables `trap_exit` so a reader crash is delivered to
+  the MeterProvider as `{:EXIT, pid, reason}` rather than
+  propagating along the link. The dead reader is removed from
+  the active list — graceful degradation, the other readers keep
+  working. Once removed, the reader is **not** re-added; if its
+  module is supervised by us, the MeterProvider's own crash
+  takes its linked readers with it (no orphans). Mirrors the
+  pattern in `Otel.SDK.Logs.LoggerProvider` and
+  `Otel.SDK.Trace.TracerProvider`.
+
   ## Public API
 
   | Function | Role |
@@ -27,6 +39,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
   - OTel Metrics API §MeterProvider: `opentelemetry-specification/specification/metrics/api.md` L92-L156
   """
+
+  require Logger
 
   use GenServer
   @behaviour Otel.API.Metrics.MeterProvider
@@ -114,6 +128,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @impl true
   def init(user_config) do
+    Process.flag(:trap_exit, true)
+
     instruments_tab =
       :ets.new(:otel_instruments, [:set, :public, read_concurrency: true, write_concurrency: true])
 
@@ -219,6 +235,29 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
       {:error, reason} ->
         {:reply, {:error, reason}, config}
+    end
+  end
+
+  @impl true
+  def handle_info({:EXIT, _pid, _reason}, %{shut_down: true} = config) do
+    # Already shutting down — ignore late EXIT signals from
+    # readers we just terminated.
+    {:noreply, config}
+  end
+
+  def handle_info({:EXIT, pid, reason}, config) do
+    case Enum.find(config.readers, fn {_module, p} -> p == pid end) do
+      nil ->
+        # EXIT from a process we don't manage; ignore.
+        {:noreply, config}
+
+      {module, _pid} ->
+        Logger.warning(
+          "Otel.SDK.Metrics.MeterProvider: MetricReader #{inspect(module)} (#{inspect(pid)}) exited with #{inspect(reason)}; removing from active list."
+        )
+
+        new_readers = Enum.reject(config.readers, fn {_m, p} -> p == pid end)
+        {:noreply, %{config | readers: new_readers}}
     end
   end
 
