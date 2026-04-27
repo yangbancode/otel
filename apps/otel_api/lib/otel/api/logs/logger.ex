@@ -1,8 +1,9 @@
 defmodule Otel.API.Logs.Logger do
   @moduledoc """
   `Logger` behaviour and dispatch facade (OTel
-  `logs/api.md` §Logger L99-L155; Status: **Stable**; §Enabled
-  is **Development**).
+  `logs/api.md` §Logger L99-L155; Status: **Stable** —
+  inherits the file-level Stable from `logs/api.md` L9, no
+  per-section carve-out remaining at v1.55.0).
 
   A `Logger` emits `LogRecord`s. It is represented as a
   `{module, config}` tuple where `module` implements this
@@ -159,7 +160,8 @@ defmodule Otel.API.Logs.Logger do
 
   @doc """
   **SDK** (OTel API SHOULD) — "Enabled" (`logs/api.md`
-  L133-L154, Status: **Development**).
+  L133-L154; Status: **Stable** — inherits file-level
+  Stable from `logs/api.md` L9 at v1.55.0).
 
   Returns whether the logger is enabled for the supplied
   `opts`. Per L148-L153 the returned value is **not static**

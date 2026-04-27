@@ -185,13 +185,6 @@ defmodule Otel.API.Common.Types do
   - OTel Common §Attributes: `opentelemetry-specification/specification/common/README.md` L179-L187
   - OTel Common §Attribute Collections: `opentelemetry-specification/specification/common/README.md` L198-L209
   - OTLP `AnyValue` proto: `opentelemetry-proto/opentelemetry/proto/common/v1/common.proto` L25-L53
-
-  ## Spec verification
-
-  Verified against `opentelemetry-specification` v1.55.0
-  (commit `9e23700`) on 2026-04-27. Re-verify after any
-  submodule advance — see `.claude/rules/workflow.md`
-  § Spec submodule update.
   """
 
   @doc """
