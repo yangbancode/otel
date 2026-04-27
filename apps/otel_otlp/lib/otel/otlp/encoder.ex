@@ -262,6 +262,7 @@ defmodule Otel.OTLP.Encoder do
           {:sum, Opentelemetry.Proto.Metrics.V1.Sum.t()}
           | {:gauge, Opentelemetry.Proto.Metrics.V1.Gauge.t()}
           | {:histogram, Opentelemetry.Proto.Metrics.V1.Histogram.t()}
+          | {:exponential_histogram, Opentelemetry.Proto.Metrics.V1.ExponentialHistogram.t()}
   defp encode_metric_data(%{kind: kind} = metric)
        when kind in [:counter, :updown_counter, :observable_counter, :observable_updown_counter] do
     {:sum,
@@ -277,6 +278,14 @@ defmodule Otel.OTLP.Encoder do
     {:gauge,
      %Opentelemetry.Proto.Metrics.V1.Gauge{
        data_points: Enum.map(metric.datapoints, &encode_number_data_point/1)
+     }}
+  end
+
+  defp encode_metric_data(%{kind: :histogram, datapoints: [%{value: %{scale: _}} | _]} = metric) do
+    {:exponential_histogram,
+     %Opentelemetry.Proto.Metrics.V1.ExponentialHistogram{
+       data_points: Enum.map(metric.datapoints, &encode_exponential_histogram_data_point/1),
+       aggregation_temporality: encode_temporality(metric.temporality)
      }}
   end
 
@@ -316,6 +325,40 @@ defmodule Otel.OTLP.Encoder do
       min: encode_optional_double(histogram.min),
       max: encode_optional_double(histogram.max),
       exemplars: encode_metric_exemplars(Map.get(dp, :exemplars, []))
+    }
+  end
+
+  @spec encode_exponential_histogram_data_point(dp :: map()) ::
+          Opentelemetry.Proto.Metrics.V1.ExponentialHistogramDataPoint.t()
+  defp encode_exponential_histogram_data_point(dp) do
+    histogram = dp.value
+
+    %Opentelemetry.Proto.Metrics.V1.ExponentialHistogramDataPoint{
+      attributes: encode_attributes(dp.attributes),
+      start_time_unix_nano: dp.start_time,
+      time_unix_nano: dp.time,
+      count: histogram.count,
+      sum: histogram.sum + 0.0,
+      scale: histogram.scale,
+      zero_count: histogram.zero_count,
+      positive: encode_exponential_buckets(histogram.positive),
+      negative: encode_exponential_buckets(histogram.negative),
+      flags: 0,
+      min: encode_optional_double(histogram.min),
+      max: encode_optional_double(histogram.max),
+      zero_threshold: histogram.zero_threshold + 0.0,
+      exemplars: encode_metric_exemplars(Map.get(dp, :exemplars, []))
+    }
+  end
+
+  @spec encode_exponential_buckets(
+          buckets :: %{offset: integer(), bucket_counts: [non_neg_integer()]}
+        ) ::
+          Opentelemetry.Proto.Metrics.V1.ExponentialHistogramDataPoint.Buckets.t()
+  defp encode_exponential_buckets(%{offset: offset, bucket_counts: counts}) do
+    %Opentelemetry.Proto.Metrics.V1.ExponentialHistogramDataPoint.Buckets{
+      offset: offset,
+      bucket_counts: counts
     }
   end
 

@@ -515,6 +515,59 @@ defmodule Otel.OTLP.EncoderTest do
       assert dp.max == 120.0
     end
 
+    test "exponential histogram decoded as ExponentialHistogram" do
+      exp_metric = %{
+        name: "http.duration",
+        description: "Request duration",
+        unit: "ms",
+        scope: %Otel.API.InstrumentationScope{name: "test_lib"},
+        resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+        kind: :histogram,
+        temporality: :cumulative,
+        is_monotonic: nil,
+        datapoints: [
+          %{
+            attributes: %{},
+            value: %{
+              scale: 3,
+              positive: %{offset: -1, bucket_counts: [2, 5, 1]},
+              negative: %{offset: 0, bucket_counts: []},
+              zero_count: 4,
+              zero_threshold: 0.0,
+              sum: 12.5,
+              count: 12,
+              min: 0.5,
+              max: 8.0
+            },
+            start_time: 1_000_000,
+            time: 2_000_000,
+            exemplars: []
+          }
+        ]
+      }
+
+      binary = Otel.OTLP.Encoder.encode_metrics([exp_metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      assert {:exponential_histogram, exp_histogram} = metric.data
+      assert exp_histogram.aggregation_temporality == :AGGREGATION_TEMPORALITY_CUMULATIVE
+      dp = hd(exp_histogram.data_points)
+      assert dp.count == 12
+      assert dp.sum == 12.5
+      assert dp.scale == 3
+      assert dp.zero_count == 4
+      assert dp.zero_threshold == 0.0
+      assert dp.positive.offset == -1
+      assert dp.positive.bucket_counts == [2, 5, 1]
+      assert dp.negative.offset == 0
+      assert dp.negative.bucket_counts == []
+      assert dp.min == 0.5
+      assert dp.max == 8.0
+    end
+
     test "delta temporality encoded correctly" do
       metric = %{@counter_metric | temporality: :delta}
       binary = Otel.OTLP.Encoder.encode_metrics([metric])
