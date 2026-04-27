@@ -278,7 +278,7 @@ defmodule Otel.SDK.Config do
         []
 
       exporter ->
-        [{Otel.SDK.Metrics.PeriodicExportingMetricReader, reader_config(pillar, exporter)}]
+        [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, reader_config(pillar, exporter)}]
     end
   end
 

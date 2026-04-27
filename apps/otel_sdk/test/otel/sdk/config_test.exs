@@ -198,8 +198,8 @@ defmodule Otel.SDK.ConfigTest do
   end
 
   describe "metrics/0" do
-    test "defaults: PeriodicExportingMetricReader + OTLP" do
-      [{Otel.SDK.Metrics.PeriodicExportingMetricReader, reader_config}] =
+    test "defaults: MetricReader.PeriodicExporting + OTLP" do
+      [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, reader_config}] =
         Otel.SDK.Config.metrics().readers
 
       assert reader_config.exporter == {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}}

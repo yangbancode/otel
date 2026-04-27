@@ -15,7 +15,7 @@ defmodule Otel.SDK.Metrics.MetricReader do
   and Shutdown MUST be safe to be called concurrently."*
   Implementing modules MUST be safe for concurrent invocation
   of these three callbacks. The built-in
-  `Otel.SDK.Metrics.PeriodicExportingMetricReader` serialises
+  `Otel.SDK.Metrics.MetricReader.PeriodicExporting` serialises
   via its GenServer mailbox, satisfying the MUST.
 
   ## Deferred Development-status features
