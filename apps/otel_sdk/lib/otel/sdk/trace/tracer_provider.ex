@@ -143,8 +143,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
   """
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts) do
-    {config, server_opts} = Keyword.pop(opts, :config, %{})
-    GenServer.start_link(__MODULE__, config, server_opts)
+    config = Keyword.get(opts, :config, %{})
+    GenServer.start_link(__MODULE__, config, name: __MODULE__)
   end
 
   @doc """

@@ -83,27 +83,33 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     def force_flush(_config, _timeout \\ 5000), do: :ok
   end
 
-  setup do
+  defp restart_sdk(env) do
     Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
     Application.ensure_all_started(:otel_sdk)
+
+    on_exit(fn ->
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
+    end)
+
     :ok
+  end
+
+  defp logger_for(scope_name, version \\ "") do
+    {_mod, config} =
+      Otel.SDK.Logs.LoggerProvider.get_logger(
+        Otel.SDK.Logs.LoggerProvider,
+        %Otel.API.InstrumentationScope{name: scope_name, version: version}
+      )
+
+    {Otel.SDK.Logs.Logger, config}
   end
 
   describe "processor receives log records" do
     test "on_emit is called with log record" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{CollectorProcessor, %{test_pid: self()}}]
-          }
-        )
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
-
-      logger = {Otel.SDK.Logs.Logger, config}
+      restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
+      logger = logger_for("test_lib")
 
       Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{body: "hello"})
       assert_receive {:on_emit, record}
@@ -115,121 +121,59 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
 
   describe "processor lifecycle" do
     test "shutdown invokes processor shutdown" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{CollectorProcessor, %{test_pid: self()}}]
-          }
-        )
+      restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
 
-      Otel.SDK.Logs.LoggerProvider.shutdown(pid)
+      Otel.SDK.Logs.LoggerProvider.shutdown(Otel.SDK.Logs.LoggerProvider)
       assert_receive :shutdown
     end
 
     test "force_flush invokes processor force_flush" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{CollectorProcessor, %{test_pid: self()}}]
-          }
-        )
+      restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
 
-      Otel.SDK.Logs.LoggerProvider.force_flush(pid)
+      Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
       assert_receive :force_flush
     end
   end
 
   describe "enabled? with processor-level check" do
     test "returns true when processor enabled" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{CollectorProcessor, %{test_pid: self()}}]
-          }
-        )
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
-
-      logger = {Otel.SDK.Logs.Logger, config}
-      assert Otel.SDK.Logs.Logger.enabled?(logger, [])
+      restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
+      assert Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
     end
 
     test "returns false when all processors disabled" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{DisabledProcessor, %{}}]
-          }
-        )
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
-
-      logger = {Otel.SDK.Logs.Logger, config}
-      refute Otel.SDK.Logs.Logger.enabled?(logger, [])
+      restart_sdk(logs: [processors: [{DisabledProcessor, %{}}]])
+      refute Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
     end
 
     test "returns true when at least one processor is enabled" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [
-              {DisabledProcessor, %{}},
-              {CollectorProcessor, %{test_pid: self()}}
-            ]
-          }
-        )
+      restart_sdk(
+        logs: [
+          processors: [
+            {DisabledProcessor, %{}},
+            {CollectorProcessor, %{test_pid: self()}}
+          ]
+        ]
+      )
 
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
-
-      logger = {Otel.SDK.Logs.Logger, config}
-      assert Otel.SDK.Logs.Logger.enabled?(logger, [])
+      assert Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
     end
 
     test "returns false with no processors" do
-      {:ok, pid} = Otel.SDK.Logs.LoggerProvider.start_link(config: %{})
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
-
-      logger = {Otel.SDK.Logs.Logger, config}
-      refute Otel.SDK.Logs.Logger.enabled?(logger, [])
+      restart_sdk(logs: [exporter: :none])
+      refute Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
     end
 
     test "treats processor without enabled?/3 as indeterminate → enabled" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{MinimalProcessor, %{}}]
-          }
-        )
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
-
-      logger = {Otel.SDK.Logs.Logger, config}
-      assert Otel.SDK.Logs.Logger.enabled?(logger, [])
+      restart_sdk(logs: [processors: [{MinimalProcessor, %{}}]])
+      assert Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
     end
   end
 
   describe "ReadWriteLogRecord" do
     test "log record contains all required fields" do
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{CollectorProcessor, %{test_pid: self()}}]
-          }
-        )
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
-          name: "test_lib",
-          version: "1.0.0"
-        })
-
-      logger = {Otel.SDK.Logs.Logger, config}
+      restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
+      logger = logger_for("test_lib", "1.0.0")
 
       Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
         timestamp: 1_000_000,

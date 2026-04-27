@@ -14,48 +14,48 @@ defmodule Otel.SDK.Logs.LoggerTest do
     def force_flush(_config, _timeout \\ 5000), do: :ok
   end
 
-  defp start_logger_with_limits(limit_overrides) do
+  defp restart_sdk(env) do
     Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
     Application.ensure_all_started(:otel_sdk)
 
+    on_exit(fn ->
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
+    end)
+
+    :ok
+  end
+
+  defp start_logger_with_limits(limit_overrides) do
     limits = struct(Otel.SDK.Logs.LogRecordLimits, limit_overrides)
 
-    {:ok, pid} =
-      Otel.SDK.Logs.LoggerProvider.start_link(
-        config: %{
-          processors: [{CollectorProcessor, %{test_pid: self()}}],
-          log_record_limits: limits
-        }
-      )
+    restart_sdk(
+      logs: [
+        processors: [{CollectorProcessor, %{test_pid: self()}}],
+        log_record_limits: limits
+      ]
+    )
 
     {_mod, config} =
-      Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+      Otel.SDK.Logs.LoggerProvider.get_logger(
+        Otel.SDK.Logs.LoggerProvider,
+        %Otel.API.InstrumentationScope{name: "lib"}
+      )
 
     {Otel.SDK.Logs.Logger, config}
   end
 
   setup do
-    Application.stop(:otel_sdk)
-    Application.ensure_all_started(:otel_sdk)
-
-    {:ok, pid} =
-      Otel.SDK.Logs.LoggerProvider.start_link(
-        config: %{
-          processors: [{CollectorProcessor, %{test_pid: self()}}]
-        }
-      )
+    restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
 
     {_module, logger_config} =
-      Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{
-        name: "test_lib",
-        version: "1.0.0"
-      })
+      Otel.SDK.Logs.LoggerProvider.get_logger(
+        Otel.SDK.Logs.LoggerProvider,
+        %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"}
+      )
 
     logger = {Otel.SDK.Logs.Logger, logger_config}
-
-    on_exit(fn ->
-      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
-    end)
 
     %{logger: logger}
   end
@@ -147,13 +147,13 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "returns false when no processors" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-
-      {:ok, pid} = Otel.SDK.Logs.LoggerProvider.start_link(config: %{})
+      restart_sdk(logs: [exporter: :none])
 
       {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+        Otel.SDK.Logs.LoggerProvider.get_logger(
+          Otel.SDK.Logs.LoggerProvider,
+          %Otel.API.InstrumentationScope{name: "lib"}
+        )
 
       logger = {Otel.SDK.Logs.Logger, config}
 
@@ -201,21 +201,8 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
   describe "attribute limits" do
     test "truncates attribute values when limit set" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{CollectorProcessor, %{test_pid: self()}}],
-            log_record_limits: %Otel.SDK.Logs.LogRecordLimits{attribute_value_length_limit: 5}
-          }
-        )
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
-
-      logger = {Otel.SDK.Logs.Logger, config}
+      logger =
+        start_logger_with_limits(attribute_value_length_limit: 5)
 
       ctx = Otel.API.Ctx.current()
 
@@ -230,22 +217,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "drops excess attributes when count limit set" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-
-      {:ok, pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [{CollectorProcessor, %{test_pid: self()}}],
-            log_record_limits: %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 2}
-          }
-        )
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
-
-      logger = {Otel.SDK.Logs.Logger, config}
-
+      logger = start_logger_with_limits(attribute_count_limit: 2)
       ctx = Otel.API.Ctx.current()
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{

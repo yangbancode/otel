@@ -621,24 +621,31 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
 
   describe "integration with LoggerProvider" do
     test "end-to-end batch emit" do
-      {:ok, provider_pid} =
-        Otel.SDK.Logs.LoggerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Logs.LogRecordProcessor.Batch,
-               %{
-                 exporter: {TestExporter, %{test_pid: self()}},
-                 scheduled_delay_ms: 60_000,
-                 max_export_batch_size: 2
-               }}
-            ]
-          }
-        )
+      Application.stop(:otel_sdk)
+
+      Application.put_env(:otel_sdk, :logs,
+        processors: [
+          {Otel.SDK.Logs.LogRecordProcessor.Batch,
+           %{
+             exporter: {TestExporter, %{test_pid: self()}},
+             scheduled_delay_ms: 60_000,
+             max_export_batch_size: 2
+           }}
+        ]
+      )
+
+      Application.ensure_all_started(:otel_sdk)
+
+      on_exit(fn ->
+        Application.stop(:otel_sdk)
+        Application.delete_env(:otel_sdk, :logs)
+      end)
 
       {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(provider_pid, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
+        Otel.SDK.Logs.LoggerProvider.get_logger(
+          Otel.SDK.Logs.LoggerProvider,
+          %Otel.API.InstrumentationScope{name: "test_lib"}
+        )
 
       logger = {Otel.SDK.Logs.Logger, config}
 

@@ -12,38 +12,37 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
   use ExUnit.Case
 
   setup do
+    restart_sdk(trace: [exporter: :none])
+    %{provider: Otel.SDK.Trace.TracerProvider}
+  end
+
+  defp restart_sdk(env) do
     Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
     Application.ensure_all_started(:otel_sdk)
 
-    {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
-
     on_exit(fn ->
-      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
     end)
 
-    %{provider: pid}
+    :ok
   end
 
   describe "start_link/1" do
-    test "starts with default config" do
-      {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
-      assert Process.alive?(pid)
+    test "starts with default config", %{provider: provider} do
+      assert Process.alive?(Process.whereis(provider))
     end
 
-    test "registers as global provider on start" do
-      {:ok, pid} = Otel.SDK.Trace.TracerProvider.start_link(config: %{})
-
+    test "registers as global provider on start", %{provider: provider} do
       assert Otel.API.Trace.TracerProvider.get_provider() ==
-               {Otel.SDK.Trace.TracerProvider, pid}
+               {Otel.SDK.Trace.TracerProvider, provider}
     end
 
     test "starts with custom config" do
       custom_resource = Otel.SDK.Resource.create(%{"service.name" => "test"})
-
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(config: %{resource: custom_resource})
-
-      assert Process.alive?(pid)
+      restart_sdk(trace: [exporter: :none, resource: custom_resource])
+      assert Process.alive?(Process.whereis(Otel.SDK.Trace.TracerProvider))
     end
   end
 
@@ -120,32 +119,30 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "invokes shutdown on all processors" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}},
-              {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          processors: [
+            {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}},
+            {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}}
+          ]
+        ]
+      )
 
-      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == :ok
+      assert Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider) == :ok
     end
 
     test "collects errors from failing processors" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}},
-              {Otel.SDK.Trace.TracerProviderTest.FailProcessor, %{}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          processors: [
+            {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}},
+            {Otel.SDK.Trace.TracerProviderTest.FailProcessor, %{}}
+          ]
+        ]
+      )
 
       assert {:error, [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, :shutdown_failed}]} =
-               Otel.SDK.Trace.TracerProvider.shutdown(pid)
+               Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider)
     end
 
     test "returns noop tracer after shutdown", %{provider: pid} do
@@ -171,26 +168,16 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "invokes force_flush on all processors" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [{Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}}]
-          }
-        )
+      restart_sdk(trace: [processors: [{Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}}]])
 
-      assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == :ok
+      assert Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider) == :ok
     end
 
     test "collects errors from failing processors" do
-      {:ok, pid} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, %{}}]
-          }
-        )
+      restart_sdk(trace: [processors: [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, %{}}]])
 
       assert {:error, [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, :flush_failed}]} =
-               Otel.SDK.Trace.TracerProvider.force_flush(pid)
+               Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider)
     end
 
     test "returns error after shutdown", %{provider: pid} do
@@ -216,11 +203,9 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "removes a crashed processor and keeps serving the rest" do
-      {:ok, provider} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{processors: [{LinkableProcessor, %{}}, {LinkableProcessor, %{}}]}
-        )
+      restart_sdk(trace: [processors: [{LinkableProcessor, %{}}, {LinkableProcessor, %{}}]])
 
+      provider = Otel.SDK.Trace.TracerProvider
       [%{pid: victim} = _entry, %{pid: survivor}] = :sys.get_state(provider).processors
       key = :sys.get_state(provider).processors_key
       assert length(:persistent_term.get(key)) == 2
@@ -231,7 +216,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
       # Round-trip a call so the provider has finished its EXIT handler.
       _ = :sys.get_state(provider)
-      assert Process.alive?(provider)
+      assert Process.alive?(Process.whereis(provider))
       assert [%{pid: ^survivor}] = :sys.get_state(provider).processors
       assert [{LinkableProcessor, _}] = :persistent_term.get(key)
     end

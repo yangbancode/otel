@@ -44,12 +44,9 @@ defmodule Otel.SDK.Application do
       else
         [
           Otel.SDK.Trace.SpanStorage,
-          {Otel.SDK.Trace.TracerProvider,
-           [config: configs.trace, name: Otel.SDK.Trace.TracerProvider]},
-          {Otel.SDK.Metrics.MeterProvider,
-           [config: configs.metrics, name: Otel.SDK.Metrics.MeterProvider]},
-          {Otel.SDK.Logs.LoggerProvider,
-           [config: configs.logs, name: Otel.SDK.Logs.LoggerProvider]}
+          {Otel.SDK.Trace.TracerProvider, [config: configs.trace]},
+          {Otel.SDK.Metrics.MeterProvider, [config: configs.metrics]},
+          {Otel.SDK.Logs.LoggerProvider, [config: configs.logs]}
         ]
       end
 

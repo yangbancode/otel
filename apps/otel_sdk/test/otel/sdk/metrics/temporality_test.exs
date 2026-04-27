@@ -40,14 +40,22 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     observable_updown_counter: :delta
   }
 
-  setup do
+  defp restart_sdk(env) do
     Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
     Application.ensure_all_started(:otel_sdk)
+
+    on_exit(fn ->
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
+    end)
+
     :ok
   end
 
   defp setup_default_provider do
-    {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+    restart_sdk(metrics: [exporter: :none])
+    pid = Otel.SDK.Metrics.MeterProvider
 
     {_mod, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
@@ -59,15 +67,15 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
   end
 
   defp setup_delta_provider do
-    {:ok, pid} =
-      Otel.SDK.Metrics.MeterProvider.start_link(
-        config: %{
-          readers: [
-            {Otel.SDK.Metrics.TemporalityTest.DeltaReader, %{temporality_mapping: @delta_mapping}}
-          ]
-        }
-      )
+    restart_sdk(
+      metrics: [
+        readers: [
+          {Otel.SDK.Metrics.TemporalityTest.DeltaReader, %{temporality_mapping: @delta_mapping}}
+        ]
+      ]
+    )
 
+    pid = Otel.SDK.Metrics.MeterProvider
     [{_mod, reader_pid}] = :sys.get_state(pid).readers
 
     {_mod, meter_config} =
@@ -443,20 +451,17 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
 
   describe "multiple readers on same provider" do
     test "delta and cumulative readers do not interfere" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(
+        metrics: [
+          readers: [
+            {Otel.SDK.Metrics.TemporalityTest.DeltaReader,
+             %{temporality_mapping: Otel.API.Metrics.Instrument.default_temporality_mapping()}},
+            {Otel.SDK.Metrics.TemporalityTest.DeltaReader, %{temporality_mapping: @delta_mapping}}
+          ]
+        ]
+      )
 
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(
-          config: %{
-            readers: [
-              {Otel.SDK.Metrics.TemporalityTest.DeltaReader,
-               %{temporality_mapping: Otel.API.Metrics.Instrument.default_temporality_mapping()}},
-              {Otel.SDK.Metrics.TemporalityTest.DeltaReader,
-               %{temporality_mapping: @delta_mapping}}
-            ]
-          }
-        )
+      pid = Otel.SDK.Metrics.MeterProvider
 
       [{_mod, cumulative_pid}, {_mod2, delta_pid}] = :sys.get_state(pid).readers
 
