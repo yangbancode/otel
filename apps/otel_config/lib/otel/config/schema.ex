@@ -21,14 +21,21 @@ defmodule Otel.Config.Schema do
   `${VAR:-default}` is resolved and the YAML parser re-interprets
   the substituted text.
 
-  ## Schema source and stability
+  ## Schema source
 
   The schema is bundled at
-  `priv/schemas/v1.0.0/opentelemetry_configuration.json` (loaded
-  via `:code.priv_dir/1` at first use, then cached in
-  `:persistent_term`). Vendored to keep validation working without
-  CI / production submodule fetches; sync process is documented
-  alongside the file.
+  `priv/schemas/v1.0.0/opentelemetry_configuration.json` and
+  loaded + compiled on every `validate!/1` call. Vendored to
+  keep validation working without CI / production submodule
+  fetches; sync process documented alongside the file.
+
+  **No caching** by project policy. `JSONSchex` builds the
+  compiled schema as a tree containing anonymous-function
+  validators (closures), so it cannot be embedded as a
+  compile-time module attribute or pre-serialized to disk via
+  `:erlang.term_to_binary/1`. In practice this is fine —
+  `Otel.Config.load!/0` is called once at SDK boot, so the cost
+  is paid once per VM lifetime regardless.
 
   v1.0.0 is the **first stable** schema release per its
   [versioning policy](https://github.com/open-telemetry/opentelemetry-configuration/blob/v1.0.0/VERSIONING.md);
@@ -67,7 +74,6 @@ defmodule Otel.Config.Schema do
   - Spec Parse: `opentelemetry-specification/specification/configuration/sdk.md` §Parse
   """
 
-  @persistent_key {__MODULE__, :compiled_schema}
   @schema_relative_path "schemas/v1.0.0/opentelemetry_configuration.json"
 
   @doc """
@@ -84,21 +90,8 @@ defmodule Otel.Config.Schema do
     end
   end
 
-  # Lazy-compile the schema on first call and cache via
-  # persistent_term. The schema is ~80 KB of JSON and compiling it
-  # is non-trivial, but the compiled form is immutable and
-  # process-wide-shared, which is exactly the persistent_term
-  # access pattern (read-mostly, set-once).
   @spec compiled_schema() :: term()
   defp compiled_schema do
-    case :persistent_term.get(@persistent_key, nil) do
-      nil -> compile_and_cache()
-      compiled -> compiled
-    end
-  end
-
-  @spec compile_and_cache() :: term()
-  defp compile_and_cache do
     schema =
       :otel_config
       |> :code.priv_dir()
@@ -107,7 +100,6 @@ defmodule Otel.Config.Schema do
       |> Jason.decode!()
 
     {:ok, compiled} = JSONSchex.compile(schema)
-    :persistent_term.put(@persistent_key, compiled)
     compiled
   end
 

@@ -1,13 +1,6 @@
 defmodule Otel.Config.SchemaTest do
-  # async: false because the schema-cache tests below mutate
-  # `:persistent_term`, which is shared with every other suite that
-  # touches `Otel.Config.Schema` (notably `Otel.ConfigTest.load!/0`).
-  # Coverage runs surfaced this race: when ConfigTest happened to
-  # run first it warmed the cache, leaving the `compile_and_cache`
-  # cold-cache branch unhit by the schema-specific tests.
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
-  @cache_key {Otel.Config.Schema, :compiled_schema}
   @fixtures_dir Path.expand("../../fixtures/v1.0.0", __DIR__)
 
   describe "validate!/1 — valid models from v1.0.0 fixtures" do
@@ -83,28 +76,6 @@ defmodule Otel.Config.SchemaTest do
 
       assert message =~ "file_format"
       assert message =~ "always_on"
-    end
-  end
-
-  describe "schema caching" do
-    test "first call with cold persistent_term hits the compile_and_cache branch" do
-      # Coverage-driven: explicitly evict the cache so the
-      # `compile_and_cache/0` branch executes regardless of which
-      # other suite happened to populate the persistent_term key
-      # earlier in the test run.
-      :persistent_term.erase(@cache_key)
-      refute :persistent_term.get(@cache_key, nil)
-
-      assert :ok = Otel.Config.Schema.validate!(%{"file_format" => "1.0"})
-      assert :persistent_term.get(@cache_key, nil)
-    end
-
-    test "second call reuses the persistent_term-cached compiled schema" do
-      # Cache is already warm from the first test (or some other
-      # validate! caller); verify the warm-cache branch is hit
-      # without re-compiling.
-      assert :ok = Otel.Config.Schema.validate!(%{"file_format" => "1.0"})
-      assert :persistent_term.get(@cache_key, nil)
     end
   end
 
