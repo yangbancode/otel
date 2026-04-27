@@ -31,13 +31,6 @@ defmodule Otel.API.Logs.Logger do
   - OTel Logs API §Logger: `opentelemetry-specification/specification/logs/api.md` L99-L155
   - OTel Logs API §Concurrency: `opentelemetry-specification/specification/logs/api.md` L167-L176
   - OTel Logs API No-Op: `opentelemetry-specification/specification/logs/noop.md` (fallback when no SDK is installed)
-
-  ## Spec verification
-
-  Verified against `opentelemetry-specification` v1.55.0
-  (commit `9e23700`) on 2026-04-27. Re-verify after any
-  submodule advance — see `.claude/rules/workflow.md`
-  § Spec submodule update.
   """
 
   use Otel.API.Common.Types

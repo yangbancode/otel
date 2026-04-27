@@ -78,13 +78,6 @@ defmodule Otel.API.Propagator.TextMap do
   - OTel Context §TextMap Propagator: `opentelemetry-specification/specification/context/api-propagators.md` L114-L203
   - OTel Context §Global Propagators: same file L308-L346
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api/src/otel_propagator_text_map.erl`
-
-  ## Spec verification
-
-  Verified against `opentelemetry-specification` v1.55.0
-  (commit `9e23700`) on 2026-04-27. Re-verify after any
-  submodule advance — see `.claude/rules/workflow.md`
-  § Spec submodule update.
   """
 
   @global_key {__MODULE__, :global}
