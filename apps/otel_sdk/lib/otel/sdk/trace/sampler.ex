@@ -1,9 +1,25 @@
 defmodule Otel.SDK.Trace.Sampler do
   @moduledoc """
-  Sampler behaviour and dispatch.
+  Sampler behaviour and dispatch
+  (`trace/sdk.md` §Sampler L329-L460).
 
   A sampler decides whether a span should be recorded and/or sampled
   (propagated). Custom samplers implement this behaviour.
+
+  All sampler methods are safe for concurrent use, satisfying spec
+  `trace/sdk.md` L1284 — *"Sampler — ShouldSample and
+  GetDescription MUST be safe to be called concurrently."*
+
+  ## Public API
+
+  | Function / Callback | Role |
+  |---|---|
+  | `new/1` | **SDK** (lifecycle) — initialises a sampler from `{module, opts}` |
+  | `should_sample/7` | **SDK** (OTel API MUST) — `trace/sdk.md` §ShouldSample L342-L406 |
+  | `description/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §GetDescription L408-L417 |
+  | `@callback setup/1` | **SDK** (lifecycle) |
+  | `@callback should_sample/7` | **SDK** (OTel API MUST) |
+  | `@callback description/1` | **SDK** (OTel API MUST) |
 
   ## Built-in samplers
 
@@ -21,6 +37,10 @@ defmodule Otel.SDK.Trace.Sampler do
     propagation) when the inner sampler returns `drop`. Not
     implemented — no in-tree consumer. When stabilised it
     will live as `Otel.SDK.Trace.Sampler.AlwaysRecord`.
+
+  ## References
+
+  - OTel Trace SDK §Sampler: `opentelemetry-specification/specification/trace/sdk.md` L329-L460
   """
 
   use Otel.API.Common.Types

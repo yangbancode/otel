@@ -1,10 +1,20 @@
 defmodule Otel.SDK.Trace.SpanProcessor do
   @moduledoc """
-  Behaviour for span processors.
+  Behaviour for span processors
+  (`trace/sdk.md` §SpanProcessor L946-L1075).
 
   Span processors receive span lifecycle events (on_start, on_end)
   and are responsible for batching and passing spans to exporters.
   Called synchronously — implementations MUST NOT block or throw.
+
+  ## Public API
+
+  | Callback | Role |
+  |---|---|
+  | `on_start/3` | **SDK** (OTel API MUST) — `trace/sdk.md` L963-L982 |
+  | `on_end/2` | **SDK** (OTel API MUST) — `trace/sdk.md` L1005-L1027 |
+  | `shutdown/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §Shutdown |
+  | `force_flush/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §ForceFlush |
 
   ## Deferred Development-status features
 
@@ -19,6 +29,11 @@ defmodule Otel.SDK.Trace.SpanProcessor do
     transitions directly from end-time computation to
     `take/1` (storage removal) without invoking processors
     mid-flight. Waits for spec stabilisation.
+
+  ## References
+
+  - OTel Trace SDK §SpanProcessor: `opentelemetry-specification/specification/trace/sdk.md` L946-L1075
+  - Built-in implementations: `Otel.SDK.Trace.SpanProcessor.Simple`, `Otel.SDK.Trace.SpanProcessor.Batch`
   """
 
   @type config :: term()
