@@ -12,7 +12,7 @@ defmodule Otel.OTLP.EncoderTest do
     end_time: 2_000_000_000,
     attributes: %{"http.method" => "GET", "http.status_code" => 200},
     events: [
-      %Otel.API.Trace.Event{
+      %Otel.SDK.Trace.Event{
         name: "event1",
         timestamp: 1_500_000_000,
         attributes: %{"key" => "val"}
@@ -166,7 +166,7 @@ defmodule Otel.OTLP.EncoderTest do
       span_with_link = %{
         @span
         | links: [
-            %Otel.API.Trace.Link{context: linked_ctx, attributes: %{"link.key" => "val"}}
+            %Otel.SDK.Trace.Link{context: linked_ctx, attributes: %{"link.key" => "val"}}
           ]
       }
 
@@ -179,6 +179,40 @@ defmodule Otel.OTLP.EncoderTest do
       link = hd(span.links)
       assert link.trace_id == <<100::128>>
       assert link.span_id == <<200::64>>
+    end
+
+    test "encodes dropped counts (spec common/mapping-to-non-otlp.md L75-L77)" do
+      span = %{
+        @span
+        | dropped_attributes_count: 7,
+          dropped_events_count: 3,
+          dropped_links_count: 5,
+          events: [
+            %Otel.SDK.Trace.Event{
+              name: "ev",
+              timestamp: 1_500_000_000,
+              dropped_attributes_count: 2
+            }
+          ],
+          links: [
+            %Otel.SDK.Trace.Link{
+              context: Otel.API.Trace.SpanContext.new(1, 2, 1),
+              dropped_attributes_count: 4
+            }
+          ]
+      }
+
+      binary = Otel.OTLP.Encoder.encode_traces([span], @resource)
+
+      decoded =
+        Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
+
+      proto_span = hd(hd(hd(decoded.resource_spans).scope_spans).spans)
+      assert proto_span.dropped_attributes_count == 7
+      assert proto_span.dropped_events_count == 3
+      assert proto_span.dropped_links_count == 5
+      assert hd(proto_span.events).dropped_attributes_count == 2
+      assert hd(proto_span.links).dropped_attributes_count == 4
     end
 
     test "encodes various attribute types" do
