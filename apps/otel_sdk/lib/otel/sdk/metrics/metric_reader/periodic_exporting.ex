@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Metrics.PeriodicExportingMetricReader do
+defmodule Otel.SDK.Metrics.MetricReader.PeriodicExporting do
   @moduledoc """
   A MetricReader that periodically collects metrics and exports
   them via a configured exporter.
