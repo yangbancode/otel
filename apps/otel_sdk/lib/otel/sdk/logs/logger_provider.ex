@@ -39,7 +39,27 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   module is supervised by us, the LoggerProvider's own crash
   takes its linked processors with it (no orphans).
 
-  All public functions are safe for concurrent use.
+  All public functions are safe for concurrent use, satisfying
+  spec `logs/api.md` L172-L174 (Status: Stable, #4885) —
+  *"LoggerProvider — all methods MUST be documented that
+  implementations need to be safe for concurrent use by
+  default."*
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `start_link/1` | **SDK** (lifecycle) — start the provider GenServer |
+  | `get_logger/2` | **SDK** (OTel API MUST) — `logs/api.md` §Get a Logger L60-L97 |
+  | `shutdown/2` | **SDK** (OTel API MUST) — `logs/sdk.md` §Shutdown |
+  | `force_flush/2` | **SDK** (OTel API MUST) — `logs/sdk.md` §ForceFlush |
+  | `resource/1` | **SDK** (introspection) — read provider resource |
+  | `config/1` | **SDK** (introspection) — read full config snapshot |
+
+  ## References
+
+  - OTel Logs SDK §LoggerProvider: `opentelemetry-specification/specification/logs/sdk.md`
+  - OTel Logs API §LoggerProvider: `opentelemetry-specification/specification/logs/api.md` L36-L97
   """
 
   require Logger
@@ -91,7 +111,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   # --- Client API ---
 
   @doc """
-  Starts the LoggerProvider with the given configuration.
+  **SDK** (lifecycle) — Starts the LoggerProvider with the
+  given configuration.
   """
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts) do
@@ -100,7 +121,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   @doc """
-  Returns a logger for the given instrumentation scope.
+  **SDK** (OTel API MUST) — Get a Logger
+  (`logs/api.md` §Get a Logger L60-L97).
 
   Falls back to the Noop logger if `server` is no longer alive.
   """
@@ -123,7 +145,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 
   @doc """
-  Returns the resource associated with this provider.
+  **SDK** (introspection) — Returns the resource associated
+  with this provider.
   """
   @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
   def resource(server) do
@@ -131,7 +154,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   @doc """
-  Returns the current configuration.
+  **SDK** (introspection) — Returns the current configuration
+  snapshot.
   """
   @spec config(server :: GenServer.server()) :: config()
   def config(server) do
@@ -148,10 +172,12 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   @default_force_flush_timeout_ms 30_000
 
   @doc """
-  Shuts down the LoggerProvider.
+  **SDK** (OTel API MUST) — Shutdown
+  (`logs/sdk.md` §Shutdown).
 
   Invokes shutdown on all registered processors. After shutdown,
-  get_logger returns the noop logger. Can only be called once.
+  `get_logger/2` returns the noop logger. Can only be called
+  once; subsequent calls reply `{:error, :already_shutdown}`.
 
   `timeout` is forwarded to each processor's `shutdown/2` and
   also bounds the outer GenServer call. Default 30_000ms.
@@ -162,6 +188,9 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   @doc """
+  **SDK** (OTel API MUST) — ForceFlush
+  (`logs/sdk.md` §ForceFlush).
+
   Forces all registered processors to flush pending log records.
 
   `timeout` is forwarded to each processor's `force_flush/2` and

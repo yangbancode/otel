@@ -36,6 +36,12 @@ defmodule Otel.SDK.Logs.LogRecord do
      fields like `scope` / `resource` to it would push SDK
      concerns into the API surface.
   2. Spec L294-L296 prescribes the separation directly.
+
+  ## References
+
+  - OTel Logs SDK §ReadableLogRecord: `opentelemetry-specification/specification/logs/sdk.md` L277-L296
+  - OTel Logs SDK §ReadWriteLogRecord: same file L298-L319
+  - OTLP proto LogRecord: `opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto` L136-L226
   """
 
   use Otel.API.Common.Types
