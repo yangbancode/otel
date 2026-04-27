@@ -5,6 +5,21 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
   Stores at most one exemplar per bucket. When a new measurement
   falls into a bucket that already has an exemplar, the existing
   one is replaced.
+
+  ## Spec compliance
+
+  Spec `metrics/sdk.md` L1248-L1252 — *"This implementation
+  MUST store at most one measurement that falls within a
+  histogram bucket, and SHOULD use a uniformly-weighted
+  sampling algorithm based on the number of measurements the
+  bucket has seen so far ... Alternatively, the implementation
+  MAY instead keep the last seen measurement that falls within
+  a histogram bucket."*
+
+  We implement the **MAY alternative** (keep last-seen) — the
+  simpler of the two paths the spec offers. The MUST about at
+  most one exemplar per bucket is satisfied by the
+  `%{bucket_index => exemplar}` map shape.
   """
 
   @behaviour Otel.SDK.Metrics.Exemplar.Reservoir

@@ -15,9 +15,9 @@ defmodule Otel.SDK.Logs.LogRecord do
 
   | Field | Source | Spec |
   |---|---|---|
-  | `trace_id`, `span_id`, `trace_flags` | resolved `Otel.API.Ctx.t()` at emit time | L286-L287 *"trace context fields MUST be populated from the resolved Context"* |
-  | `scope` | `Otel.API.InstrumentationScope` of the originating Logger | L282-L283 *"Instrumentation Scope ... (implicitly) associated with the LogRecord"* |
-  | `resource` | `Otel.SDK.Resource` of the LoggerProvider | L283 *"Resource information (implicitly) associated"* |
+  | `trace_id`, `span_id`, `trace_flags` | resolved `Otel.API.Ctx.t()` at emit time | L285-L287 *"trace context fields MUST be populated from / the resolved Context (either the explicitly passed Context or the / current Context)"* |
+  | `scope` | `Otel.API.InstrumentationScope` of the originating Logger | L281 *"Instrumentation Scope (implicitly) associated with the LogRecord"* |
+  | `resource` | `Otel.SDK.Resource` of the LoggerProvider | L282-L283 *"Resource information (implicitly) associated"* |
   | `dropped_attributes_count` | size delta after `LogRecordLimits` application | L289-L292 *"Counts for attributes due to collection limits MUST be available for exporters"* |
 
   The `exception` sidecar from `Otel.API.Logs.LogRecord` is

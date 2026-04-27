@@ -19,7 +19,7 @@ defmodule Otel.SDK.Metrics.View do
           optional(:unit) => String.t(),
           optional(:meter_name) => String.t(),
           optional(:meter_version) => String.t(),
-          optional(:meter_schema_url) => String.t() | nil
+          optional(:meter_schema_url) => String.t()
         }
 
   @type config :: %{
@@ -102,6 +102,11 @@ defmodule Otel.SDK.Metrics.View do
         ) :: boolean()
   defp matches_criterion?(:name, "*", _instrument), do: true
 
+  # Spec `metrics/sdk.md` L276-L277 *"If the value of name is
+  # exactly the same as an Instrument, then the criterion
+  # matches that instrument."* — combined with L947 *"The name
+  # of an Instrument is defined to be case-insensitive"*,
+  # "exactly the same" resolves to case-insensitive equality.
   defp matches_criterion?(:name, name, instrument) do
     String.downcase(name) == String.downcase(instrument.name)
   end

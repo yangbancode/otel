@@ -82,10 +82,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   `:cast`) to surface the result back to the caller. Spec
   §LogRecordProcessor L466-L467 / L492-L493 SHOULD provide a
   way to let the caller know whether the call succeeded,
-  failed, or timed out. The erlang reference uses
-  `gen_statem:cast` for `force_flush` (`otel_batch_processor.erl`),
-  which silently drops the result and violates the SHOULD —
-  we follow spec.
+  failed, or timed out.
+
+  `opentelemetry-erlang` does not have a separate "batch log
+  processor"; the spec gap noted above refers to erlang's
+  *span* batch processor
+  (`apps/opentelemetry/src/otel_batch_processor.erl`), which
+  uses `gen_statem:cast` for force_flush and silently drops
+  the result. That's a span-side observation, not a logs
+  reference. Our logs implementation follows the Logs SDK
+  spec MUST/SHOULDs directly.
 
   ## Public API
 
@@ -97,7 +103,6 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   ## References
 
   - OTel Logs SDK Batching processor: `opentelemetry-specification/specification/logs/sdk.md` §Batching processor
-  - Erlang reference: `opentelemetry-erlang/apps/opentelemetry/src/otel_batch_processor.erl`
   - Parent behaviour: `Otel.SDK.Logs.LogRecordProcessor`
   """
 

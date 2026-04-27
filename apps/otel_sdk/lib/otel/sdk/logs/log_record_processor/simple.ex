@@ -1,7 +1,7 @@
 defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @moduledoc """
   Simple `LogRecordProcessor` (`logs/sdk.md` §Simple processor
-  L514-L527).
+  L514-L526).
 
   Spec L516-L519 — *"passes finished logs and passes the
   export-friendly `ReadableLogRecord` representation to the
@@ -40,11 +40,16 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   L521-L522 (*"MUST synchronize calls to LogRecordExporter's
   Export to make sure that they are not invoked concurrently"*).
 
-  Diverges from
-  `opentelemetry-erlang/apps/opentelemetry/src/otel_simple_processor.erl`,
-  which uses `gen_statem:call` (blocks the emit thread, violating
-  spec L394-L396). We follow spec per the project's
-  spec-over-erlang rule.
+  `opentelemetry-erlang` does not have a separate "simple log
+  processor"; logs flow through `otel_log_handler.erl` which
+  also uses `gen_statem:cast` for the emit path (matching
+  L394-L396). The earlier divergence-from-erlang note here
+  was citing the erlang *span* simple processor
+  (`apps/opentelemetry/src/otel_simple_processor.erl`),
+  which does block via `gen_statem:call` — that's a
+  span-side spec gap, not a logs reference. Our logs
+  implementation aligns with both spec L394-L396 and the
+  erlang logs path.
 
   ## State model and shutdown
 
