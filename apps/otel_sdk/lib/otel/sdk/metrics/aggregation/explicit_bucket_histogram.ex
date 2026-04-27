@@ -54,7 +54,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
       [{^key, counters_ref, _min, _max, _sum, _count, _start}] ->
         bucket_idx = find_bucket(value, boundaries)
         :counters.add(counters_ref, bucket_idx, 1)
-        update_count(metrics_tab, key)
+        :ets.update_counter(metrics_tab, key, [{@count_pos, 1}])
         update_sum(metrics_tab, key, value)
         maybe_update_min_max(metrics_tab, key, value, record_min_max)
         :ok
@@ -223,8 +223,8 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
 
     case :ets.insert_new(metrics_tab, {key, counters_ref, :unset, :unset, 0, 0, start_time}) do
       true ->
-        update_count(metrics_tab, key)
-        update_sum_init(metrics_tab, key, value)
+        :ets.update_counter(metrics_tab, key, [{@count_pos, 1}])
+        :ets.update_element(metrics_tab, key, [{@sum_pos, value}])
         maybe_update_min_max(metrics_tab, key, value, record_min_max)
         :ok
 
@@ -268,18 +268,6 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
     else
       find_bucket(value, rest, index + 1)
     end
-  end
-
-  @spec update_count(metrics_tab :: :ets.table(), key :: term()) :: :ok
-  defp update_count(metrics_tab, key) do
-    :ets.update_counter(metrics_tab, key, [{@count_pos, 1}])
-    :ok
-  end
-
-  @spec update_sum_init(metrics_tab :: :ets.table(), key :: term(), value :: number()) :: :ok
-  defp update_sum_init(metrics_tab, key, value) do
-    :ets.update_element(metrics_tab, key, [{@sum_pos, value}])
-    :ok
   end
 
   @spec update_sum(metrics_tab :: :ets.table(), key :: term(), value :: number()) :: :ok
