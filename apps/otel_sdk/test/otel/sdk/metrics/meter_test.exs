@@ -620,6 +620,31 @@ defmodule Otel.SDK.Metrics.MeterTest do
       second = Otel.SDK.Metrics.Meter.create_histogram(meter, "both_dup", unit: "ms")
       assert second == first
     end
+
+    test "logs warning on conflicting duplicate (spec metrics/sdk.md L917-L930)",
+         %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "warn_dup", unit: "1")
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          Otel.SDK.Metrics.Meter.create_counter(meter, "warn_dup", unit: "ms")
+        end)
+
+      assert log =~ "duplicate instrument registration"
+      assert log =~ "warn_dup"
+      assert log =~ ":unit"
+    end
+
+    test "no warning on identical re-registration", %{meter: meter} do
+      Otel.SDK.Metrics.Meter.create_counter(meter, "noop_dup", unit: "1", description: "x")
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          Otel.SDK.Metrics.Meter.create_counter(meter, "noop_dup", unit: "1", description: "x")
+        end)
+
+      refute log =~ "duplicate instrument registration"
+    end
   end
 
   describe "enabled?" do
