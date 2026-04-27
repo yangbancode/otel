@@ -66,7 +66,8 @@ defmodule Otel.OTLP.Encoder do
   defp encode_scope(scope) do
     %Opentelemetry.Proto.Common.V1.InstrumentationScope{
       name: scope.name,
-      version: scope.version
+      version: scope.version,
+      attributes: encode_attributes(scope.attributes || %{})
     }
   end
 

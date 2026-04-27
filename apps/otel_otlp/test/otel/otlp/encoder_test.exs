@@ -90,6 +90,27 @@ defmodule Otel.OTLP.EncoderTest do
       assert scope_spans.scope.version == "1.0.0"
     end
 
+    test "encodes instrumentation scope attributes (spec common/instrumentation-scope.md v1.13)" do
+      span_with_scope_attrs = %{
+        @span
+        | instrumentation_scope: %Otel.API.InstrumentationScope{
+            name: "scoped_lib",
+            version: "2.0.0",
+            attributes: %{"library.tag" => "v2", "build" => 42}
+          }
+      }
+
+      binary = Otel.OTLP.Encoder.encode_traces([span_with_scope_attrs], @resource)
+
+      decoded =
+        Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
+
+      scope = hd(hd(decoded.resource_spans).scope_spans).scope
+      attr_map = Map.new(scope.attributes, fn kv -> {kv.key, kv.value.value} end)
+      assert {:string_value, "v2"} = attr_map["library.tag"]
+      assert {:int_value, 42} = attr_map["build"]
+    end
+
     test "encodes events" do
       binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
 
