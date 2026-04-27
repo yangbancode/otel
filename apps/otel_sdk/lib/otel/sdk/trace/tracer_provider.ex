@@ -257,6 +257,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
         _from,
         config
       ) do
+    warn_on_invalid_scope_name(instrumentation_scope)
+
     sampler = Otel.SDK.Trace.Sampler.new(config.sampler)
 
     tracer_config = %{
@@ -327,6 +329,26 @@ defmodule Otel.SDK.Trace.TracerProvider do
   end
 
   # --- Private ---
+
+  # Spec `trace/api.md` L107-L119 / `trace/sdk.md` parallel —
+  # *"In the case where an invalid `name` (null or empty
+  # string) is specified, a working `Tracer` MUST be returned
+  # as a fallback rather than returning null or throwing an
+  # exception, its `name` SHOULD keep the original invalid
+  # value, and a message reporting that the specified value is
+  # invalid SHOULD be logged."* The MUST is satisfied
+  # structurally — we always return the SDK Tracer; the SHOULD
+  # log is enforced here.
+  @spec warn_on_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
+  defp warn_on_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+    Logger.warning(
+      "Otel.SDK.Trace.TracerProvider: invalid Tracer name (empty string) — returning a working Tracer as fallback"
+    )
+
+    :ok
+  end
+
+  defp warn_on_invalid_scope_name(_scope), do: :ok
 
   @spec default_config() :: %{atom() => term()}
   defp default_config do

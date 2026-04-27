@@ -112,6 +112,8 @@ defmodule Otel.SDK.Metrics.Meter do
 
   @behaviour Otel.API.Metrics.Meter
 
+  require Logger
+
   # --- Synchronous Instruments ---
 
   @impl true
@@ -278,7 +280,41 @@ defmodule Otel.SDK.Metrics.Meter do
 
       false ->
         [{^key, existing}] = :ets.lookup(config.instruments_tab, key)
+        warn_duplicate_if_conflict(existing, instrument)
         existing
+    end
+  end
+
+  # Spec `metrics/sdk.md` L917-L930 — *"a warning SHOULD be
+  # emitted... include information for the user on how to
+  # resolve the conflict, if possible."* The MUST is not on
+  # us (we always return the existing instrument); the SHOULD
+  # is the warning.
+  #
+  # Conflict criteria per spec L920-L928: same identity (name +
+  # case-insensitive comparison) but different `kind`, `unit`,
+  # `description`, or `advisory`. We compare structurally on the
+  # four user-visible fields and skip the warning when the new
+  # registration is identical (idempotent re-registration is
+  # common in tests and library reloads).
+  @spec warn_duplicate_if_conflict(
+          existing :: Otel.API.Metrics.Instrument.t(),
+          new :: Otel.API.Metrics.Instrument.t()
+        ) :: :ok
+  defp warn_duplicate_if_conflict(existing, new) do
+    fields = [:kind, :unit, :description, :advisory]
+    diffs = Enum.filter(fields, fn f -> Map.get(existing, f) != Map.get(new, f) end)
+
+    if diffs == [] do
+      :ok
+    else
+      Logger.warning(
+        "Otel.SDK.Metrics.Meter: duplicate instrument registration for #{inspect(new.name)} " <>
+          "differs in #{inspect(diffs)}; returning the existing instrument. " <>
+          "Resolve by giving the second instrument a distinct name, or by using a View to rename."
+      )
+
+      :ok
     end
   end
 
