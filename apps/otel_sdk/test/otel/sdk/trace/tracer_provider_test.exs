@@ -1,11 +1,11 @@
 defmodule Otel.SDK.Trace.TracerProviderTest.OkProcessor do
-  def shutdown(_config), do: :ok
-  def force_flush(_config), do: :ok
+  def shutdown(_config, _timeout \\ 5_000), do: :ok
+  def force_flush(_config, _timeout \\ 5_000), do: :ok
 end
 
 defmodule Otel.SDK.Trace.TracerProviderTest.FailProcessor do
-  def shutdown(_config), do: {:error, :shutdown_failed}
-  def force_flush(_config), do: {:error, :flush_failed}
+  def shutdown(_config, _timeout \\ 5_000), do: {:error, :shutdown_failed}
+  def force_flush(_config, _timeout \\ 5_000), do: {:error, :flush_failed}
 end
 
 defmodule Otel.SDK.Trace.TracerProviderTest do
@@ -141,7 +141,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
     test "second shutdown returns error", %{provider: pid} do
       assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == :ok
-      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == {:error, :already_shut_down}
+      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == {:error, :already_shutdown}
     end
   end
 
@@ -175,7 +175,45 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
     test "returns error after shutdown", %{provider: pid} do
       Otel.SDK.Trace.TracerProvider.shutdown(pid)
-      assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == {:error, :shut_down}
+      assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == {:error, :already_shutdown}
+    end
+  end
+
+  describe "processor crash handling" do
+    defmodule LinkableProcessor do
+      @moduledoc false
+      use GenServer
+
+      def start_link(config), do: GenServer.start_link(__MODULE__, config)
+
+      @impl true
+      def init(config), do: {:ok, config}
+
+      def on_start(_ctx, span, _config), do: span
+      def on_end(_span, _config), do: :ok
+      def shutdown(_config, _timeout \\ 5_000), do: :ok
+      def force_flush(_config, _timeout \\ 5_000), do: :ok
+    end
+
+    test "removes a crashed processor and keeps serving the rest" do
+      {:ok, provider} =
+        Otel.SDK.Trace.TracerProvider.start_link(
+          config: %{processors: [{LinkableProcessor, %{}}, {LinkableProcessor, %{}}]}
+        )
+
+      [%{pid: victim} = _entry, %{pid: survivor}] = :sys.get_state(provider).processors
+      key = :sys.get_state(provider).processors_key
+      assert length(:persistent_term.get(key)) == 2
+
+      ref = Process.monitor(victim)
+      Process.exit(victim, :kill)
+      assert_receive {:DOWN, ^ref, :process, ^victim, :killed}
+
+      # Round-trip a call so the provider has finished its EXIT handler.
+      _ = :sys.get_state(provider)
+      assert Process.alive?(provider)
+      assert [%{pid: ^survivor}] = :sys.get_state(provider).processors
+      assert [{LinkableProcessor, _}] = :persistent_term.get(key)
     end
   end
 end

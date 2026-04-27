@@ -53,8 +53,11 @@ defmodule Otel.SDK.Trace.TracerTest do
     end
 
     test "returns true when at least one SpanProcessor is registered" do
-      processors = [{Otel.SDK.Trace.SpanProcessor.Simple, %{exporter: nil}}]
-      tracer = {Otel.SDK.Trace.Tracer, %{processors: processors}}
+      key = {__MODULE__, :test_processors, make_ref()}
+      :persistent_term.put(key, [{Otel.SDK.Trace.SpanProcessor.Simple, %{pid: self()}}])
+      on_exit(fn -> :persistent_term.erase(key) end)
+
+      tracer = {Otel.SDK.Trace.Tracer, %{processors_key: key}}
       assert Otel.SDK.Trace.Tracer.enabled?(tracer) == true
     end
   end

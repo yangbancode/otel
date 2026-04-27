@@ -50,20 +50,16 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
 
   @spec start_processor(keyword()) :: map()
   defp start_processor(overrides \\ []) do
-    name = :"batch_#{System.unique_integer([:positive])}"
+    config = %{
+      exporter: {Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter, %{test_pid: self()}},
+      scheduled_delay_ms: Keyword.get(overrides, :scheduled_delay_ms, 100_000),
+      max_queue_size: Keyword.get(overrides, :max_queue_size, 2048),
+      max_export_batch_size: Keyword.get(overrides, :max_export_batch_size, 512),
+      export_timeout_ms: Keyword.get(overrides, :export_timeout_ms, 30_000)
+    }
 
-    config =
-      %{
-        exporter: {Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter, %{test_pid: self()}},
-        name: name,
-        scheduled_delay_ms: Keyword.get(overrides, :scheduled_delay_ms, 100_000),
-        max_queue_size: Keyword.get(overrides, :max_queue_size, 2048),
-        max_export_batch_size: Keyword.get(overrides, :max_export_batch_size, 512),
-        export_timeout_ms: Keyword.get(overrides, :export_timeout_ms, 30_000)
-      }
-
-    {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
-    %{reg_name: name}
+    {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
+    %{pid: pid}
   end
 
   describe "on_start/3" do
@@ -169,19 +165,16 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
       # so no batch is exported. The on_end auto-trigger
       # path runs through the same `do_export/1`, exercising
       # the deadline guard.
-      name = :"batch_zero_timeout_#{System.unique_integer([:positive])}"
-
       config = %{
         exporter: {Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter, %{test_pid: self()}},
-        name: name,
         scheduled_delay_ms: 100_000,
         max_queue_size: 2048,
         max_export_batch_size: 1,
         export_timeout_ms: 0
       }
 
-      {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
-      processor_config = %{reg_name: name}
+      {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
+      processor_config = %{pid: pid}
 
       Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, processor_config)
       Otel.SDK.Trace.SpanProcessor.Batch.force_flush(processor_config)
@@ -214,16 +207,13 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
         def shutdown(_state), do: :ok
       end
 
-      name = :"batch_ignore_#{System.unique_integer([:positive])}"
-
       config = %{
         exporter: {IgnoreExporter, %{}},
-        name: name,
         scheduled_delay_ms: 100_000
       }
 
-      {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
-      proc_config = %{reg_name: name}
+      {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
+      proc_config = %{pid: pid}
 
       Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, proc_config)
       assert :ok = Otel.SDK.Trace.SpanProcessor.Batch.force_flush(proc_config)

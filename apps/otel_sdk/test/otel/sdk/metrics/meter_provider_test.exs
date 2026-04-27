@@ -152,7 +152,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
     test "second shutdown returns error", %{provider: pid} do
       assert Otel.SDK.Metrics.MeterProvider.shutdown(pid) == :ok
-      assert Otel.SDK.Metrics.MeterProvider.shutdown(pid) == {:error, :already_shut_down}
+      assert Otel.SDK.Metrics.MeterProvider.shutdown(pid) == {:error, :already_shutdown}
     end
   end
 
@@ -229,7 +229,32 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
     test "returns error after shutdown", %{provider: pid} do
       Otel.SDK.Metrics.MeterProvider.shutdown(pid)
-      assert Otel.SDK.Metrics.MeterProvider.force_flush(pid) == {:error, :shut_down}
+      assert Otel.SDK.Metrics.MeterProvider.force_flush(pid) == {:error, :already_shutdown}
+    end
+  end
+
+  describe "reader crash handling" do
+    test "removes a crashed reader and keeps serving the rest" do
+      {:ok, provider} =
+        Otel.SDK.Metrics.MeterProvider.start_link(
+          config: %{
+            readers: [
+              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
+              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}
+            ]
+          }
+        )
+
+      [{_, victim}, {_, survivor}] = :sys.get_state(provider).readers
+      ref = Process.monitor(victim)
+      Process.exit(victim, :kill)
+      assert_receive {:DOWN, ^ref, :process, ^victim, :killed}
+
+      # Provider stays alive; survivor keeps serving force_flush
+      # (the dead reader has been dropped from the active list).
+      assert Process.alive?(provider)
+      assert :ok = Otel.SDK.Metrics.MeterProvider.force_flush(provider)
+      assert [{_, ^survivor}] = :sys.get_state(provider).readers
     end
   end
 

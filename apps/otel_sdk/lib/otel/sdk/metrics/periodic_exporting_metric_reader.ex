@@ -59,7 +59,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReader do
 
   @impl GenServer
   def handle_call(:shutdown, _from, %{shut_down: true} = state) do
-    {:reply, {:error, :already_shut_down}, state}
+    {:reply, {:error, :already_shutdown}, state}
   end
 
   def handle_call(:shutdown, _from, state) do
@@ -70,7 +70,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReader do
   end
 
   def handle_call(:force_flush, _from, %{shut_down: true} = state) do
-    {:reply, {:error, :shut_down}, state}
+    {:reply, {:error, :already_shutdown}, state}
   end
 
   def handle_call(:force_flush, _from, state) do
@@ -80,7 +80,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReader do
   end
 
   def handle_call(:collect, _from, %{shut_down: true} = state) do
-    {:reply, {:error, :shut_down}, state}
+    {:reply, {:error, :already_shutdown}, state}
   end
 
   def handle_call(:collect, _from, state) do

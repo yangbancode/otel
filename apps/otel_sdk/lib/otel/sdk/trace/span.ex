@@ -30,19 +30,27 @@ defmodule Otel.SDK.Trace.Span do
 
   ## Design notes
 
-  ### Span-resident SpanLimits and processors
+  ### Span-resident SpanLimits and processors_key
 
-  `span_limits` and `processors` are stored as fields on each
-  span (lines 36-37 of the typespec) rather than threaded
-  through call arguments or fetched from a global registry.
+  `span_limits` is stored as a field on each span rather than
+  threaded through call arguments or fetched from a global
+  registry, so `set_attribute/3`, `add_event/2`, etc. operate
+  on the span fetched from `SpanStorage` without a second
+  lookup.
+
+  `processors_key` is the `:persistent_term` key under which
+  the TracerProvider published the projected processor list.
+  `end_span/2` reads from that key fresh — so if a processor
+  crashed between start and end, the TracerProvider's EXIT
+  handler has already removed it from the persistent_term
+  list and `on_end/2` skips it. Mirrors the `Logger.emit`
+  pattern (`Otel.SDK.Logs.Logger`).
+
   This diverges from `opentelemetry-erlang`, which threads
   limits through `otel_span_utils` per call
   (`opentelemetry/src/otel_span_utils.erl`) and stores
   processors on the `span_ctx.span_sdk` tuple
-  (`otel_span_ets.erl` L60, L77). Our placement keeps every
-  ETS read self-contained — `set_attribute/3`, `add_event/2`,
-  etc. operate on the span fetched from `SpanStorage` without
-  needing a separate lookup for the limits/processors state.
+  (`otel_span_ets.erl` L60, L77).
 
   ### Dropped-count proto fields not tracked
 
@@ -92,7 +100,7 @@ defmodule Otel.SDK.Trace.Span do
           is_recording: boolean(),
           instrumentation_scope: Otel.API.InstrumentationScope.t() | nil,
           span_limits: Otel.SDK.Trace.SpanLimits.t(),
-          processors: [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
+          processors_key: term() | nil
         }
 
   defstruct [
@@ -103,6 +111,7 @@ defmodule Otel.SDK.Trace.Span do
     :name,
     :end_time,
     :instrumentation_scope,
+    :processors_key,
     tracestate: Otel.API.Trace.TraceState.new(),
     kind: :internal,
     start_time: 0,
@@ -112,8 +121,7 @@ defmodule Otel.SDK.Trace.Span do
     status: %Otel.API.Trace.Status{},
     trace_flags: 0,
     is_recording: true,
-    span_limits: %Otel.SDK.Trace.SpanLimits{},
-    processors: []
+    span_limits: %Otel.SDK.Trace.SpanLimits{}
   ]
 
   # --- Creation ---
@@ -385,7 +393,13 @@ defmodule Otel.SDK.Trace.Span do
       span ->
         end_time = timestamp || System.system_time(:nanosecond)
         ended_span = %{span | end_time: end_time, is_recording: false}
-        run_on_end(ended_span, span.processors)
+        # Read the processor list fresh from `:persistent_term`
+        # so a processor that crashed between start and end is
+        # skipped rather than receiving on_end on a dead pid.
+        processors =
+          if span.processors_key, do: :persistent_term.get(span.processors_key, []), else: []
+
+        run_on_end(ended_span, processors)
         :ok
     end
   end
