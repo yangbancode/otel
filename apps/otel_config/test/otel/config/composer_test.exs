@@ -113,7 +113,10 @@ defmodule Otel.Config.ComposerTest do
         ])
 
       assert module == Otel.SDK.Trace.SpanProcessor.Batch
-      assert config.exporter == {Otel.OTLP.Trace.SpanExporter.HTTP, %{endpoint: "http://x:4318/v1/traces"}}
+
+      assert config.exporter ==
+               {Otel.OTLP.Trace.SpanExporter.HTTP, %{endpoint: "http://x:4318/v1/traces"}}
+
       assert config.scheduled_delay_ms == 100
       assert config.max_queue_size == 50
       # Untouched fields take spec defaults
@@ -296,6 +299,7 @@ defmodule Otel.Config.ComposerTest do
 
     test "schema_url passes through" do
       model = %{"resource" => %{"schema_url" => "https://example.com/schema/v1"}}
+
       assert Otel.Config.Composer.compose!(model).trace.resource.schema_url ==
                "https://example.com/schema/v1"
     end

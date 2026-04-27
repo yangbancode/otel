@@ -136,10 +136,12 @@ defmodule Otel.Config.Composer do
     {Otel.SDK.Trace.Sampler.ParentBased,
      %{
        root: compose_sampler(opts["root"] || %{"always_on" => nil}),
-       remote_parent_sampled: compose_sampler(opts["remote_parent_sampled"] || %{"always_on" => nil}),
+       remote_parent_sampled:
+         compose_sampler(opts["remote_parent_sampled"] || %{"always_on" => nil}),
        remote_parent_not_sampled:
          compose_sampler(opts["remote_parent_not_sampled"] || %{"always_off" => nil}),
-       local_parent_sampled: compose_sampler(opts["local_parent_sampled"] || %{"always_on" => nil}),
+       local_parent_sampled:
+         compose_sampler(opts["local_parent_sampled"] || %{"always_on" => nil}),
        local_parent_not_sampled:
          compose_sampler(opts["local_parent_not_sampled"] || %{"always_off" => nil})
      }}
@@ -153,7 +155,8 @@ defmodule Otel.Config.Composer do
         {Otel.SDK.Trace.SpanProcessor.Batch, batch_processor_config(inner || %{}, :trace)}
 
       {"simple", inner} ->
-        {Otel.SDK.Trace.SpanProcessor.Simple, %{exporter: compose_trace_exporter(inner["exporter"])}}
+        {Otel.SDK.Trace.SpanProcessor.Simple,
+         %{exporter: compose_trace_exporter(inner["exporter"])}}
 
       {key, _} ->
         raise ArgumentError, "unsupported span processor: #{inspect(key)}"
@@ -305,7 +308,8 @@ defmodule Otel.Config.Composer do
         {Otel.SDK.Logs.LogRecordProcessor.Batch, batch_processor_config(inner || %{}, :logs)}
 
       {"simple", inner} ->
-        {Otel.SDK.Logs.LogRecordProcessor.Simple, %{exporter: compose_log_exporter(inner["exporter"])}}
+        {Otel.SDK.Logs.LogRecordProcessor.Simple,
+         %{exporter: compose_log_exporter(inner["exporter"])}}
 
       {key, _} ->
         raise ArgumentError, "unsupported log processor: #{inspect(key)}"
