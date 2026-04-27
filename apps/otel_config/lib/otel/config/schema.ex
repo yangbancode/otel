@@ -21,21 +21,30 @@ defmodule Otel.Config.Schema do
   `${VAR:-default}` is resolved and the YAML parser re-interprets
   the substituted text.
 
-  ## Schema source
+  ## Schema source — build-time compilation
 
   The schema is bundled at
-  `priv/schemas/v1.0.0/opentelemetry_configuration.json` and
-  loaded + compiled on every `validate!/1` call. Vendored to
-  keep validation working without CI / production submodule
-  fetches; sync process documented alongside the file.
+  `priv/schemas/v1.0.0/opentelemetry_configuration.json`,
+  compiled by `JSONSchex` **at this module's compile time**, and
+  the result is `:erlang.term_to_binary/1`-serialized into the
+  `@schema_binary` module attribute. `validate!/1` decodes the
+  binary on each call.
 
-  **No caching** by project policy. `JSONSchex` builds the
-  compiled schema as a tree containing anonymous-function
-  validators (closures), so it cannot be embedded as a
-  compile-time module attribute or pre-serialized to disk via
-  `:erlang.term_to_binary/1`. In practice this is fine —
-  `Otel.Config.load!/0` is called once at SDK boot, so the cost
-  is paid once per VM lifetime regardless.
+  No runtime caching — every call decodes the binary literal
+  fresh. Per-call cost ~2ms (binary_to_term on ~800 KB) vs
+  ~8ms for a full re-parse + re-compile, while keeping the
+  function pure (deterministic, no shared state, no race risk).
+
+  `JSONSchex`'s compiled schema contains anonymous-function
+  closures, so it cannot be embedded directly as a module
+  attribute literal (`Macro.escape/1` and `unquote/1` reject
+  function literals). Going through `term_to_binary/1` works
+  because binaries *are* valid attribute literals, and
+  `binary_to_term/1` reconstitutes the closures from the
+  embedded module references.
+
+  `@external_resource` registers the schema file so the module
+  recompiles automatically when it changes.
 
   v1.0.0 is the **first stable** schema release per its
   [versioning policy](https://github.com/open-telemetry/opentelemetry-configuration/blob/v1.0.0/VERSIONING.md);
@@ -74,7 +83,29 @@ defmodule Otel.Config.Schema do
   - Spec Parse: `opentelemetry-specification/specification/configuration/sdk.md` §Parse
   """
 
-  @schema_relative_path "schemas/v1.0.0/opentelemetry_configuration.json"
+  # Resolved relative to this source file (rather than via
+  # `:code.priv_dir/1`) so the path is valid during the
+  # compile-time `@external_resource` + `File.read!/1`
+  # expansion, before the app's priv dir exists in `_build`.
+  @schema_path Path.expand(
+                 "../../../priv/schemas/v1.0.0/opentelemetry_configuration.json",
+                 __DIR__
+               )
+
+  @external_resource @schema_path
+
+  # Compile + serialize at this module's compile time. The
+  # resulting binary is embedded as a module attribute literal
+  # in the BEAM file. Closures inside the compiled schema
+  # survive `term_to_binary`/`binary_to_term` round-trip
+  # because the runtime restores them by module reference.
+  {:ok, compiled_at_build} =
+    @schema_path
+    |> File.read!()
+    |> Jason.decode!()
+    |> JSONSchex.compile()
+
+  @schema_binary :erlang.term_to_binary(compiled_at_build)
 
   @doc """
   Validates `model` against the bundled v1.0.0 schema.
@@ -84,23 +115,10 @@ defmodule Otel.Config.Schema do
   """
   @spec validate!(model :: map()) :: :ok
   def validate!(model) when is_map(model) do
-    case JSONSchex.validate(compiled_schema(), model) do
+    case JSONSchex.validate(:erlang.binary_to_term(@schema_binary), model) do
       :ok -> :ok
       {:error, errors} -> raise ArgumentError, format_errors(errors)
     end
-  end
-
-  @spec compiled_schema() :: term()
-  defp compiled_schema do
-    schema =
-      :otel_config
-      |> :code.priv_dir()
-      |> Path.join(@schema_relative_path)
-      |> File.read!()
-      |> Jason.decode!()
-
-    {:ok, compiled} = JSONSchex.compile(schema)
-    compiled
   end
 
   # Formats the list of jsonschex error structs into a readable
