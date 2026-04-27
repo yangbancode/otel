@@ -89,6 +89,45 @@ defmodule Otel.Config.SchemaTest do
     end
   end
 
+  describe "error message formatting" do
+    test "many violations are truncated with a trailing '... (N more)' line" do
+      # Build a model that intentionally produces lots of `type`
+      # errors — at least 11 so the >10-cap suffix kicks in. Each
+      # processor entry violates batch.exporter.otlp_http.endpoint
+      # type (must be string).
+      bad_processors =
+        for i <- 1..15 do
+          %{
+            "batch" => %{
+              "exporter" => %{
+                "otlp_http" => %{
+                  "endpoint" => i,
+                  "headers" => i,
+                  "compression" => i,
+                  "timeout" => "not_a_number"
+                }
+              }
+            }
+          }
+        end
+
+      bad = %{
+        "file_format" => "1.0",
+        "tracer_provider" => %{"processors" => bad_processors}
+      }
+
+      message =
+        try do
+          Otel.Config.Schema.validate!(bad)
+          flunk("expected ArgumentError")
+        rescue
+          e in ArgumentError -> Exception.message(e)
+        end
+
+      assert message =~ "more)"
+    end
+  end
+
   @spec load_fixture(filename :: String.t()) :: binary()
   defp load_fixture(filename) do
     @fixtures_dir |> Path.join(filename) |> File.read!()

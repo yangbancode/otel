@@ -143,6 +143,12 @@ defmodule Otel.Config.ComposerTest do
         compose_processors([%{"simple" => %{"exporter" => %{"otlp_grpc" => %{}}}}])
       end
     end
+
+    test "raises on unsupported span processor type" do
+      assert_raise ArgumentError, ~r/unsupported span processor/, fn ->
+        compose_processors([%{"my_custom_processor" => %{}}])
+      end
+    end
   end
 
   describe "compose span_limits" do
@@ -191,6 +197,31 @@ defmodule Otel.Config.ComposerTest do
         compose_readers([%{"pull" => %{}}])
       end
     end
+
+    test "raises on unsupported metric reader type" do
+      assert_raise ArgumentError, ~r/unsupported metric reader/, fn ->
+        compose_readers([%{"my_custom_reader" => %{}}])
+      end
+    end
+
+    test "raises when periodic.exporter omitted" do
+      assert_raise ArgumentError, ~r/reader.exporter is required/, fn ->
+        compose_readers([%{"periodic" => %{"interval" => 1000}}])
+      end
+    end
+
+    test "console metric exporter" do
+      [{_, config}] =
+        compose_readers([%{"periodic" => %{"exporter" => %{"console" => nil}}}])
+
+      assert config.exporter == {Otel.SDK.Metrics.MetricExporter.Console, %{}}
+    end
+
+    test "raises on unsupported metric exporter" do
+      assert_raise ArgumentError, ~r/unsupported metrics exporter/, fn ->
+        compose_readers([%{"periodic" => %{"exporter" => %{"prometheus" => %{}}}}])
+      end
+    end
   end
 
   describe "compose exemplar_filter" do
@@ -202,6 +233,12 @@ defmodule Otel.Config.ComposerTest do
 
     test "absent → :trace_based default" do
       assert Otel.Config.Composer.compose!(%{}).metrics.exemplar_filter == :trace_based
+    end
+
+    test "raises on unsupported exemplar_filter" do
+      assert_raise ArgumentError, ~r/unsupported exemplar_filter/, fn ->
+        exemplar("custom")
+      end
     end
   end
 
@@ -236,6 +273,35 @@ defmodule Otel.Config.ComposerTest do
         compose_log_processors([%{"simple" => %{"exporter" => %{"console" => nil}}}])
 
       assert module == Otel.SDK.Logs.LogRecordProcessor.Simple
+    end
+
+    test "raises on unsupported log processor type" do
+      assert_raise ArgumentError, ~r/unsupported log processor/, fn ->
+        compose_log_processors([%{"my_custom" => %{}}])
+      end
+    end
+
+    test "raises when log processor exporter omitted" do
+      assert_raise ArgumentError, ~r/processor.exporter is required/, fn ->
+        compose_log_processors([%{"simple" => %{}}])
+      end
+    end
+
+    test "raises on unsupported log exporter" do
+      assert_raise ArgumentError, ~r/unsupported logs exporter/, fn ->
+        compose_log_processors([%{"simple" => %{"exporter" => %{"otlp_grpc" => %{}}}}])
+      end
+    end
+
+    test "log_record_limits pillar attribute_value_length_limit override" do
+      model = %{
+        "logger_provider" => %{
+          "limits" => %{"attribute_value_length_limit" => 64}
+        }
+      }
+
+      assert Otel.Config.Composer.compose!(model).logs.log_record_limits.attribute_value_length_limit ==
+               64
     end
   end
 
@@ -302,6 +368,25 @@ defmodule Otel.Config.ComposerTest do
 
       assert Otel.Config.Composer.compose!(model).trace.resource.schema_url ==
                "https://example.com/schema/v1"
+    end
+
+    test "empty attributes_list string yields no attributes beyond sdk baseline" do
+      model = %{"resource" => %{"attributes_list" => ""}}
+      attrs = Otel.Config.Composer.compose!(model).trace.resource.attributes
+
+      assert Map.keys(attrs) |> Enum.sort() ==
+               ["telemetry.sdk.language", "telemetry.sdk.name", "telemetry.sdk.version"]
+    end
+
+    test "span_limits pillar attribute_value_length_limit override" do
+      model = %{
+        "tracer_provider" => %{
+          "limits" => %{"attribute_value_length_limit" => 100}
+        }
+      }
+
+      assert Otel.Config.Composer.compose!(model).trace.span_limits.attribute_value_length_limit ==
+               100
     end
   end
 
