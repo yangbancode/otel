@@ -37,8 +37,7 @@ defmodule Otel.SDK.Metrics.Stream do
     %__MODULE__{
       name: instrument.name,
       description: instrument.description,
-      instrument: instrument,
-      attribute_keys: advisory_attribute_keys(instrument)
+      instrument: instrument
     }
   end
 
@@ -53,7 +52,7 @@ defmodule Otel.SDK.Metrics.Stream do
       name: Otel.SDK.Metrics.View.name(view, instrument),
       description: Otel.SDK.Metrics.View.description(view, instrument),
       instrument: instrument,
-      attribute_keys: Map.get(config, :attribute_keys, advisory_attribute_keys(instrument)),
+      attribute_keys: Map.get(config, :attribute_keys),
       aggregation: Map.get(config, :aggregation),
       aggregation_options: Map.get(config, :aggregation_options, %{}),
       exemplar_reservoir: Map.get(config, :exemplar_reservoir),
@@ -108,12 +107,4 @@ defmodule Otel.SDK.Metrics.Stream do
     end
   end
 
-  @spec advisory_attribute_keys(instrument :: Otel.API.Metrics.Instrument.t()) ::
-          {:include, [String.t()]} | nil
-  defp advisory_attribute_keys(instrument) do
-    case Keyword.get(instrument.advisory, :attributes) do
-      nil -> nil
-      keys -> {:include, keys}
-    end
-  end
 end

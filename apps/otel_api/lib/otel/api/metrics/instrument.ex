@@ -117,18 +117,19 @@ defmodule Otel.API.Metrics.Instrument do
   `metrics/api.md` §Instrument advisory parameters
   (L245-L277).
 
-  Spec-defined keys:
+  Spec-defined Stable keys:
 
   - `:explicit_bucket_boundaries` — `[number()]` sorted
     boundary list. Applies to `:histogram` (spec
     §ExplicitBucketBoundaries L260-L268, Status: Stable).
-  - `:attributes` — `[String.t()]` recommended attribute
-    keys. Applies to all kinds (spec §Attributes
-    L270-L277, Status: Development).
+
+  Deferred (per the project's Stable-only policy):
+
+  - `:attributes` — spec §Attributes L270-L277 is
+    Status: Development.
   """
   @type advisory :: [
           {:explicit_bucket_boundaries, [number()]}
-          | {:attributes, [String.t()]}
         ]
 
   @typedoc """
