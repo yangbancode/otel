@@ -50,6 +50,16 @@ defmodule Otel.SDK.ApplicationTest do
       logs_state = :sys.get_state(Otel.SDK.Logs.LoggerProvider)
       assert [%{module: Otel.SDK.Logs.LogRecordProcessor.Simple}] = logs_state.processors
     end
+
+    test "OTEL_CONFIG_FILE empty string treated as unset" do
+      System.put_env(@config_file_env, "")
+      Application.stop(:otel_sdk)
+      Application.ensure_all_started(:otel_sdk)
+
+      # Empty string falls through to env-var path — default sampler.
+      tracer_state = :sys.get_state(Otel.SDK.Trace.TracerProvider)
+      assert {Otel.SDK.Trace.Sampler.ParentBased, _} = tracer_state.sampler
+    end
   end
 
   describe "OTEL_PROPAGATORS wiring" do

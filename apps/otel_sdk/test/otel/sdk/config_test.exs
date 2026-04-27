@@ -114,6 +114,11 @@ defmodule Otel.SDK.ConfigTest do
       # untouched fields keep defaults
       assert Otel.SDK.Config.trace().span_limits.event_count_limit == 128
     end
+
+    test "span_limits accepts keyword form" do
+      Application.put_env(:otel_sdk, :trace, span_limits: [attribute_count_limit: 64])
+      assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
+    end
   end
 
   describe "trace/0 — OS env layer" do
@@ -131,6 +136,18 @@ defmodule Otel.SDK.ConfigTest do
 
     test "OTEL_TRACES_SAMPLER=traceidratio with no arg defaults to 1.0" do
       System.put_env("OTEL_TRACES_SAMPLER", "traceidratio")
+      assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0} = Otel.SDK.Config.trace().sampler
+    end
+
+    test "OTEL_TRACES_SAMPLER=traceidratio with unparseable arg defaults to 1.0" do
+      System.put_env("OTEL_TRACES_SAMPLER", "traceidratio")
+      System.put_env("OTEL_TRACES_SAMPLER_ARG", "bad-ratio")
+      assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0} = Otel.SDK.Config.trace().sampler
+    end
+
+    test "OTEL_TRACES_SAMPLER=traceidratio with out-of-range arg defaults to 1.0" do
+      System.put_env("OTEL_TRACES_SAMPLER", "traceidratio")
+      System.put_env("OTEL_TRACES_SAMPLER_ARG", "1.5")
       assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0} = Otel.SDK.Config.trace().sampler
     end
 
@@ -173,6 +190,11 @@ defmodule Otel.SDK.ConfigTest do
       System.put_env("OTEL_ATTRIBUTE_COUNT_LIMIT", "32")
       System.put_env("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", "64")
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
+    end
+
+    test "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT applies as global value-length fallback" do
+      System.put_env("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT", "200")
+      assert Otel.SDK.Config.trace().span_limits.attribute_value_length_limit == 200
     end
   end
 
@@ -270,6 +292,11 @@ defmodule Otel.SDK.ConfigTest do
       System.put_env("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", "16")
       assert Otel.SDK.Config.logs().log_record_limits.attribute_count_limit == 16
     end
+
+    test "OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT applies as global value-length fallback" do
+      System.put_env("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT", "200")
+      assert Otel.SDK.Config.logs().log_record_limits.attribute_value_length_limit == 200
+    end
   end
 
   describe "propagator/0" do
@@ -321,6 +348,12 @@ defmodule Otel.SDK.ConfigTest do
     test "OTEL_PROPAGATORS=none yields Noop" do
       System.put_env("OTEL_PROPAGATORS", "none")
       assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
+    end
+
+    test "OTEL_PROPAGATORS empty string falls through to default" do
+      System.put_env("OTEL_PROPAGATORS", "")
+
+      assert {Otel.API.Propagator.TextMap.Composite, _} = Otel.SDK.Config.propagator()
     end
 
     test "OTEL_PROPAGATORS deduplicates per spec L118" do

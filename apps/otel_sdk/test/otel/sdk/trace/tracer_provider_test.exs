@@ -220,6 +220,17 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       assert [%{pid: ^survivor}] = :sys.get_state(provider).processors
       assert [{LinkableProcessor, _}] = :persistent_term.get(key)
     end
+
+    test "ignores EXIT from unmanaged process", %{provider: provider} do
+      send(Process.whereis(provider), {:EXIT, self(), :unrelated})
+      assert is_map(:sys.get_state(provider))
+    end
+
+    test "ignores late EXIT after shutdown", %{provider: provider} do
+      :ok = Otel.SDK.Trace.TracerProvider.shutdown(provider)
+      send(Process.whereis(provider), {:EXIT, self(), :late})
+      assert match?(%{shut_down: true}, :sys.get_state(provider))
+    end
   end
 
   describe "introspection" do

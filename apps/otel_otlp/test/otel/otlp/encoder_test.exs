@@ -671,6 +671,63 @@ defmodule Otel.OTLP.EncoderTest do
       assert length(scope_metrics) == 2
     end
 
+    test "encodes nil scope with empty schema_url" do
+      metric = %{@counter_metric | scope: nil}
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      scope_metrics = hd(hd(decoded.resource_metrics).scope_metrics)
+      assert scope_metrics.schema_url == ""
+    end
+
+    test "encodes unset min/max as absent" do
+      histogram_metric = %{
+        @counter_metric
+        | kind: :histogram,
+          datapoints: [
+            %{
+              attributes: %{},
+              value: %{
+                bucket_counts: [1],
+                boundaries: [],
+                sum: 5,
+                count: 1,
+                min: :unset,
+                max: :unset
+              },
+              start_time: 1_000_000,
+              time: 2_000_000,
+              exemplars: []
+            }
+          ]
+      }
+
+      binary = Otel.OTLP.Encoder.encode_metrics([histogram_metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      {:histogram, h} = metric.data
+      dp = hd(h.data_points)
+      assert dp.min == nil
+      assert dp.max == nil
+    end
+
+    test "encodes unspecified temporality fallback" do
+      metric = %{@counter_metric | temporality: :unknown_value}
+      binary = Otel.OTLP.Encoder.encode_metrics([metric])
+
+      decoded =
+        Opentelemetry.Proto.Collector.Metrics.V1.ExportMetricsServiceRequest.decode(binary)
+
+      metric = hd(hd(hd(decoded.resource_metrics).scope_metrics).metrics)
+      {:sum, sum} = metric.data
+      assert sum.aggregation_temporality == :AGGREGATION_TEMPORALITY_UNSPECIFIED
+    end
+
     test "encodes exemplars with trace context" do
       exemplar = %Otel.SDK.Metrics.Exemplar{
         value: 42,

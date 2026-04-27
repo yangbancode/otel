@@ -713,5 +713,25 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       # Description must be a human-readable message, not the raw atom
       assert is_binary(ended_span.status.description)
     end
+
+    test "with_span records :throw with formatted description" do
+      restart_sdk(
+        trace: [
+          processors: [{Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}]
+        ]
+      )
+
+      tracer = with_processor_tracer()
+
+      catch_throw(
+        Otel.API.Trace.with_span(tracer, "throw_span", [], fn _span_ctx ->
+          throw(:something)
+        end)
+      )
+
+      assert_receive {:on_end, ended_span}
+      assert %Otel.API.Trace.Status{code: :error} = ended_span.status
+      assert is_binary(ended_span.status.description)
+    end
   end
 end

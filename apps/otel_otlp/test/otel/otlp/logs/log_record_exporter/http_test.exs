@@ -253,6 +253,38 @@ defmodule Otel.OTLP.Logs.LogRecordExporter.HTTPTest do
       assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.export([@test_log_record], state)
       stop_test_server(pid, listen)
     end
+
+    test "returns :error after exhausting retries on persistent 503" do
+      {pid, port, listen} = start_test_server(503)
+
+      {:ok, state} =
+        Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{
+          endpoint: "http://localhost:#{port}",
+          retry_opts: %{
+            max_attempts: 2,
+            initial_backoff_ms: 1,
+            max_backoff_ms: 5,
+            jitter_ratio: 0.0
+          }
+        })
+
+      assert :error ==
+               Otel.OTLP.Logs.LogRecordExporter.HTTP.export([@test_log_record], state)
+
+      stop_test_server(pid, listen)
+    end
+
+    test "returns :ok with ssl_options set on https-shaped endpoint" do
+      {pid, port, listen} = start_test_server(200)
+
+      {:ok, state} =
+        Otel.OTLP.Logs.LogRecordExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+
+      state = %{state | ssl_options: [verify: :verify_none]}
+
+      assert :ok == Otel.OTLP.Logs.LogRecordExporter.HTTP.export([@test_log_record], state)
+      stop_test_server(pid, listen)
+    end
   end
 
   describe "shutdown/1 and force_flush/1" do

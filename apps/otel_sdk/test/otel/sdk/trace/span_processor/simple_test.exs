@@ -28,6 +28,22 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest.TestExporter do
   def force_flush(_state), do: :ok
 end
 
+defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest.SlowShutdownExporter do
+  @behaviour Otel.SDK.Trace.SpanExporter
+  @impl true
+  def init(config), do: {:ok, config}
+  @impl true
+  def export(_spans, _resource, _state), do: :ok
+  @impl true
+  def shutdown(_state) do
+    Process.sleep(100)
+    :ok
+  end
+
+  @impl true
+  def force_flush(_state), do: :ok
+end
+
 defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest do
   use ExUnit.Case
 
@@ -84,6 +100,24 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest do
     test "drops spans after shutdown", %{config: config} do
       Otel.SDK.Trace.SpanProcessor.Simple.shutdown(config)
       assert :dropped = Otel.SDK.Trace.SpanProcessor.Simple.on_end(@sampled_span, config)
+    end
+
+    test "shutdown on stopped processor returns {:error, :already_shutdown}", %{config: config} do
+      GenServer.stop(config.pid)
+
+      assert {:error, :already_shutdown} =
+               Otel.SDK.Trace.SpanProcessor.Simple.shutdown(config)
+    end
+
+    test "shutdown returns {:error, :timeout} when GenServer.call exceeds timeout" do
+      slow_config = %{
+        exporter: {Otel.SDK.Trace.SpanProcessor.SimpleTest.SlowShutdownExporter, %{}}
+      }
+
+      {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Simple.start_link(slow_config)
+
+      assert {:error, :timeout} =
+               Otel.SDK.Trace.SpanProcessor.Simple.shutdown(%{pid: pid}, 1)
     end
   end
 

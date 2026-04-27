@@ -33,6 +33,25 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter do
   def force_flush(_state), do: :ok
 end
 
+defmodule Otel.SDK.Trace.SpanProcessor.BatchTest.SlowShutdownExporter do
+  @behaviour Otel.SDK.Trace.SpanExporter
+  @impl true
+  def init(config), do: {:ok, config}
+  @impl true
+  def export(_spans, _resource, _state), do: :ok
+  @impl true
+  def shutdown(_state) do
+    Process.sleep(100)
+    :ok
+  end
+
+  @impl true
+  def force_flush(_state) do
+    Process.sleep(100)
+    :ok
+  end
+end
+
 defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
   use ExUnit.Case
 
@@ -151,6 +170,53 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
 
       assert_receive {:exported, 1, ["sampled"]}
       assert_receive :exporter_shutdown
+    end
+
+    test "shutdown on stopped processor returns {:error, :already_shutdown}" do
+      config = start_processor()
+      GenServer.stop(config.pid)
+
+      assert {:error, :already_shutdown} =
+               Otel.SDK.Trace.SpanProcessor.Batch.shutdown(config)
+    end
+
+    test "force_flush on stopped processor returns {:error, :already_shutdown}" do
+      config = start_processor()
+      GenServer.stop(config.pid)
+
+      assert {:error, :already_shutdown} =
+               Otel.SDK.Trace.SpanProcessor.Batch.force_flush(config)
+    end
+
+    test "shutdown returns {:error, :timeout} when GenServer.call exceeds timeout" do
+      slow_config = %{
+        exporter: {Otel.SDK.Trace.SpanProcessor.BatchTest.SlowShutdownExporter, %{}},
+        scheduled_delay_ms: 100_000,
+        max_queue_size: 2048,
+        max_export_batch_size: 512,
+        export_timeout_ms: 30_000
+      }
+
+      {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(slow_config)
+
+      assert {:error, :timeout} =
+               Otel.SDK.Trace.SpanProcessor.Batch.shutdown(%{pid: pid}, 1)
+    end
+
+    test "force_flush returns {:error, :timeout} when GenServer.call exceeds timeout" do
+      slow_config = %{
+        exporter: {Otel.SDK.Trace.SpanProcessor.BatchTest.SlowShutdownExporter, %{}},
+        scheduled_delay_ms: 100_000,
+        max_queue_size: 2048,
+        max_export_batch_size: 512,
+        export_timeout_ms: 30_000
+      }
+
+      {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(slow_config)
+      Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, %{pid: pid})
+
+      assert {:error, :timeout} =
+               Otel.SDK.Trace.SpanProcessor.Batch.force_flush(%{pid: pid}, 1)
     end
   end
 

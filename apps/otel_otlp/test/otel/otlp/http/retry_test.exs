@@ -189,5 +189,36 @@ defmodule Otel.OTLP.HTTP.RetryTest do
       assert :counters.get(counter, 1) == 2
       stop_test_server(pid, listen)
     end
+
+    test "ignores zero/negative Retry-After (falls back to backoff)" do
+      {pid, port, listen, counter} =
+        start_test_server([
+          "HTTP/1.1 503 Service Unavailable\r\nretry-after: 0\r\ncontent-length: 0\r\n\r\n",
+          "HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n"
+        ])
+
+      retry_opts = %{initial_backoff_ms: 1, max_backoff_ms: 5, jitter_ratio: 0.0}
+      assert :ok = post("http://localhost:#{port}", retry_opts)
+      assert :counters.get(counter, 1) == 2
+      stop_test_server(pid, listen)
+    end
+  end
+
+  describe "request/4 default opts" do
+    test "request/3 with no retry_opts uses defaults (5 attempts)" do
+      {pid, port, listen, counter} =
+        start_test_server(["HTTP/1.1 200 OK\r\ncontent-length: 0\r\n\r\n"])
+
+      assert :ok =
+               Otel.OTLP.HTTP.Retry.request(
+                 {String.to_charlist("http://localhost:#{port}"), [], ~c"application/x-protobuf",
+                  "body"},
+                 [],
+                 []
+               )
+
+      assert :counters.get(counter, 1) == 1
+      stop_test_server(pid, listen)
+    end
   end
 end
