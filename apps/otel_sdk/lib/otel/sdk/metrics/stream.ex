@@ -5,7 +5,8 @@ defmodule Otel.SDK.Metrics.Stream do
   Streams are the unit of metric output: each stream has a name,
   description, attribute filter, and references to its source
   instrument. Aggregation, exemplar reservoir, and cardinality
-  limit fields are placeholders for subsequent Decisions.
+  limit fields are populated by `resolve/1` from view config or
+  spec defaults.
   """
 
   @type t :: %__MODULE__{
