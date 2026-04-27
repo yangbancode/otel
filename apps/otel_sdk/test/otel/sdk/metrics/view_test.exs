@@ -125,9 +125,12 @@ defmodule Otel.SDK.Metrics.ViewTest do
       refute Otel.SDK.Metrics.View.matches?(view2, instrument())
     end
 
-    test "unknown criteria key is ignored (matches)" do
+    test "unknown criteria key crashes (no silent catch-all)" do
       {:ok, view} = Otel.SDK.Metrics.View.new(%{unknown_key: "value"})
-      assert Otel.SDK.Metrics.View.matches?(view, instrument())
+
+      assert_raise FunctionClauseError, fn ->
+        Otel.SDK.Metrics.View.matches?(view, instrument())
+      end
     end
   end
 

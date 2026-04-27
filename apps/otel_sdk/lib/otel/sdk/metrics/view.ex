@@ -114,6 +114,4 @@ defmodule Otel.SDK.Metrics.View do
   defp matches_criterion?(:meter_schema_url, schema_url, instrument) do
     schema_url == instrument.scope.schema_url
   end
-
-  defp matches_criterion?(_key, _value, _instrument), do: true
 end

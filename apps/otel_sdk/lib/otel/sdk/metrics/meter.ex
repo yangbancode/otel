@@ -250,6 +250,11 @@ defmodule Otel.SDK.Metrics.Meter do
           opts :: Otel.API.Metrics.Instrument.create_opts()
         ) :: Otel.API.Metrics.Instrument.t()
   defp register_instrument({_module, config} = meter, name, kind, opts) do
+    # `Keyword.get/3` covers absent keys; the `|| ""` covers
+    # `Keyword.get(opts, :unit, nil)` style callers that pass
+    # an explicit `nil` (test fixtures do this). Both fields
+    # are spec-typed `String.t()`, so empty string is the
+    # only sensible coercion of nil.
     unit = Keyword.get(opts, :unit, "") || ""
     description = Keyword.get(opts, :description, "") || ""
     advisory = Keyword.get(opts, :advisory, [])

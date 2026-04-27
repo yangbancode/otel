@@ -63,16 +63,12 @@ defmodule Otel.SDK.Metrics.MeterProvider do
           Otel.API.Metrics.Meter.t()
   @impl Otel.API.Metrics.MeterProvider
   def get_meter(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    if alive?(server) do
+    if GenServer.whereis(server) do
       GenServer.call(server, {:get_meter, instrumentation_scope})
     else
       {Otel.API.Metrics.Meter.Noop, []}
     end
   end
-
-  @spec alive?(server :: GenServer.server()) :: boolean()
-  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-  defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 
   @doc """
   **SDK** (OTel API MUST) — Shutdown
