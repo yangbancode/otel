@@ -1,10 +1,10 @@
 defmodule Otel.Config.ParserTest do
   use ExUnit.Case, async: true
 
-  @examples_dir Path.expand(
-                  "../../../../../references/opentelemetry-configuration/examples",
-                  __DIR__
-                )
+  # Bundled copies of the v1.0.0 canonical examples. CI does not
+  # initialize submodules — see test/fixtures/v1.0.0/README.md for
+  # the sync process when the submodule pin advances.
+  @examples_dir Path.expand("../../fixtures/v1.0.0", __DIR__)
 
   describe "parse_string!/1" do
     test "returns a map for top-level mappings" do
