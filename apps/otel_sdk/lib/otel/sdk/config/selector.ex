@@ -30,6 +30,7 @@ defmodule Otel.SDK.Config.Selector do
   | `trace_processor/1` | `trace/sdk.md` §SpanProcessor (no env var) |
   | `logs_processor/1` | `logs/sdk.md` §LogRecordProcessor (no env var) |
   | `sampler/1` | L143-L152 |
+  | `propagator/1` | L122-L131 (`OTEL_PROPAGATORS`) |
 
   ## Out of scope (future PRs)
 
@@ -148,4 +149,32 @@ defmodule Otel.SDK.Config.Selector do
 
   def sampler({module, opts}) when is_atom(module), do: {module, opts}
   def sampler(module) when is_atom(module), do: {module, %{}}
+
+  # ====== Propagators ======
+
+  @doc """
+  Normalizes a single-propagator selector to a module reference.
+
+  Spec L122-L131 enumerates eight known values; this SDK
+  implements three: `:tracecontext`, `:baggage`, and `:none`.
+  Other spec-named propagators (`:b3`, `:b3multi`, `:jaeger`,
+  `:xray`, `:ottrace`) raise `ArgumentError` — their behaviours
+  are not bundled in `:otel_api`.
+
+  Custom propagator modules pass through unchanged so users can
+  plug their own implementations of
+  `Otel.API.Propagator.TextMap`.
+  """
+  @spec propagator(value :: atom() | module()) :: module()
+  def propagator(:tracecontext), do: Otel.API.Propagator.TextMap.TraceContext
+  def propagator(:baggage), do: Otel.API.Propagator.TextMap.Baggage
+  def propagator(:none), do: Otel.API.Propagator.TextMap.Noop
+
+  def propagator(name) when name in [:b3, :b3multi, :jaeger, :xray, :ottrace] do
+    raise ArgumentError,
+          "propagator #{inspect(name)} is not implemented in this SDK — " <>
+            "supported built-ins: :tracecontext, :baggage, :none"
+  end
+
+  def propagator(module) when is_atom(module), do: module
 end

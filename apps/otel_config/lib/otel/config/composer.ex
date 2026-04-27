@@ -69,9 +69,14 @@ defmodule Otel.Config.Composer do
 
   @doc """
   Composes a validated configuration model into per-pillar SDK
-  provider configs.
+  provider configs plus the global propagator value.
   """
-  @spec compose!(model :: map()) :: %{trace: map(), metrics: map(), logs: map()}
+  @spec compose!(model :: map()) :: %{
+          trace: map(),
+          metrics: map(),
+          logs: map(),
+          propagator: module() | {module(), [module()]}
+        }
   def compose!(model) when is_map(model) do
     resource = compose_resource(model)
     global_attribute_limits = Map.get(model, "attribute_limits") || %{}
@@ -79,9 +84,97 @@ defmodule Otel.Config.Composer do
     %{
       trace: compose_trace(model, resource, global_attribute_limits),
       metrics: compose_metrics(model, resource),
-      logs: compose_logs(model, resource, global_attribute_limits)
+      logs: compose_logs(model, resource, global_attribute_limits),
+      propagator: compose_propagator(model)
     }
   end
+
+  # ====== Propagator ======
+
+  # Schema (v1.0.0) shape:
+  #
+  #     propagator:
+  #       composite:                       # list of single-key maps
+  #         - tracecontext:
+  #         - baggage:
+  #       composite_list: "b3,xray"        # comma-separated string
+  #                                        # appended to .composite,
+  #                                        # duplicates filtered.
+  #
+  # Both keys may be present — schema docs L433: *"Entries from
+  # .composite_list are appended to the list here with duplicates
+  # filtered out."*
+  @spec compose_propagator(model :: map()) :: module() | {module(), [module()]}
+  defp compose_propagator(model) do
+    section = Map.get(model, "propagator") || %{}
+
+    selectors =
+      (composite_selectors(section["composite"]) ++
+         composite_list_selectors(section["composite_list"]))
+      |> Enum.uniq()
+
+    cond do
+      :none in selectors ->
+        Otel.API.Propagator.TextMap.Noop
+
+      selectors == [] ->
+        Otel.API.Propagator.TextMap.Noop
+
+      length(selectors) == 1 ->
+        map_propagator(hd(selectors))
+
+      true ->
+        selectors |> Enum.map(&map_propagator/1) |> Otel.API.Propagator.TextMap.Composite.new()
+    end
+  end
+
+  @spec composite_selectors(value :: list() | nil) :: [atom()]
+  defp composite_selectors(nil), do: []
+
+  defp composite_selectors(list) when is_list(list) do
+    list
+    |> Enum.map(fn entry -> entry |> sole_key() |> elem(0) |> parse_propagator_name() end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  @spec composite_list_selectors(value :: String.t() | nil) :: [atom()]
+  defp composite_list_selectors(nil), do: []
+  defp composite_list_selectors(""), do: []
+
+  defp composite_list_selectors(raw) when is_binary(raw) do
+    raw
+    |> String.split(",")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(&parse_propagator_name/1)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  # Spec L122-L131 enumerates 8 known propagator names. Limiting
+  # `String.to_atom/1` to those names keeps adversarial YAML
+  # input from polluting the atom table. Unknown names trigger
+  # spec L107's MUST: warn + ignore.
+  @known_propagator_names ~w(tracecontext baggage b3 b3multi jaeger xray ottrace none)
+
+  @spec parse_propagator_name(name :: String.t()) :: atom() | nil
+  defp parse_propagator_name(name) when name in @known_propagator_names,
+    do: String.to_atom(name)
+
+  defp parse_propagator_name(unknown) do
+    Logger.warning(
+      "Otel.Config.Composer: unknown propagator name #{inspect(unknown)}; " <>
+        "ignoring (spec L107 — unrecognized values MUST warn + be ignored)"
+    )
+
+    nil
+  end
+
+  # Routes through the SDK's selector — same atom-name → module
+  # mapping used by the env-var path. Centralises spec L122-L131
+  # propagator names + raises consistently for unimplemented
+  # built-ins.
+  @spec map_propagator(name :: atom()) :: module()
+  defp map_propagator(name), do: Otel.SDK.Config.Selector.propagator(name)
 
   # ====== Trace ======
 
