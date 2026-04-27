@@ -5,6 +5,18 @@ defmodule Otel.SDK.Trace.TracerProvider do
   A `GenServer` that owns trace configuration (sampler, processors,
   id_generator, resource, span_limits) and creates tracers. Registers
   itself as the global TracerProvider on start.
+
+  ## Deferred Development-status features
+
+  - **TracerConfig (`enabled` flag).** Spec
+    `trace/sdk.md` L197-L218 (Status: Development) defines a
+    per-Tracer config with `enabled: true | false`. When
+    `enabled=false`, the Tracer MUST behave equivalently to a
+    No-op Tracer. Not implemented — every Tracer obtained from
+    this provider is currently always active. The
+    no-SpanProcessors leg of `Tracer.enabled?/2` (spec L223-L227)
+    IS honoured (see `tracer.ex`); the disabled-Tracer leg waits
+    for spec stabilisation.
   """
 
   use GenServer

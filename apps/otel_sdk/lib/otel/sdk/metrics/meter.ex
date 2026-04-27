@@ -79,6 +79,17 @@ defmodule Otel.SDK.Metrics.Meter do
   worth the complexity until a real consumer surfaces; the
   hard MUST at L862 (no double-counting, no drops during
   overflow) is honoured.
+
+  ### Deferred Development-status features
+
+  - **MeterConfig (`enabled` flag).** Spec
+    `metrics/sdk.md` L1029-L1037 (Status: Development on the
+    `MeterConfig.enabled=false` bullet) — when set, the
+    Meter's instruments MUST report `enabled?/2` as `false`.
+    Not implemented — there is no `MeterConfig` analogue on
+    the meter today, so the disabled-Meter leg cannot be
+    expressed. The Drop-aggregation leg of `enabled?/2` IS
+    honoured (above). Waits for spec stabilisation.
   """
 
   @behaviour Otel.API.Metrics.Meter

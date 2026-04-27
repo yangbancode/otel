@@ -17,6 +17,15 @@ defmodule Otel.SDK.Metrics.MetricReader do
   of these three callbacks. The built-in
   `Otel.SDK.Metrics.PeriodicExportingMetricReader` serialises
   via its GenServer mailbox, satisfying the MUST.
+
+  ## Deferred Development-status features
+
+  - **MetricFilter.** Spec `metrics/sdk.md` L1308 (Status:
+    Development) describes a `MetricFilter` applied to metrics
+    and attributes during `MetricReader#Collect`. Not
+    implemented — no `:metric_filter` field on reader configs;
+    `MetricProducer.produce/1` callback has no filter
+    parameter. Waits for spec stabilisation.
   """
 
   @type metric :: %{

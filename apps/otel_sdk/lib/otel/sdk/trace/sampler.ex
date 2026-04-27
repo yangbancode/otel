@@ -4,6 +4,23 @@ defmodule Otel.SDK.Trace.Sampler do
 
   A sampler decides whether a span should be recorded and/or sampled
   (propagated). Custom samplers implement this behaviour.
+
+  ## Built-in samplers
+
+  - `Otel.SDK.Trace.Sampler.AlwaysOn` — every span sampled
+  - `Otel.SDK.Trace.Sampler.AlwaysOff` — every span dropped
+  - `Otel.SDK.Trace.Sampler.ParentBased` — defer to parent's sampled bit
+  - `Otel.SDK.Trace.Sampler.TraceIdRatioBased` — probabilistic by trace_id
+
+  ## Deferred Development-status features
+
+  - **AlwaysRecord sampler decorator.** Spec
+    `trace/sdk.md` L608-L630 (Status: Development, added
+    v1.51 #4699) defines a sampler decorator that wraps any
+    sampler and forces `record_only` (recording without
+    propagation) when the inner sampler returns `drop`. Not
+    implemented — no in-tree consumer. When stabilised it
+    will live as `Otel.SDK.Trace.Sampler.AlwaysRecord`.
   """
 
   use Otel.API.Common.Types
