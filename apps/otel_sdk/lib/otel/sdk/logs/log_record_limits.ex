@@ -24,17 +24,17 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   valid setting that drops every attribute or truncates every
   value to empty.
 
-  > #### TODO — env / config wiring deferred {: .info}
-  >
-  > Spec env vars `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` and
-  > `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` are not
-  > read in this module. Env / Application config handling
-  > was stripped from the SDK during the per-module review
-  > phase and will be reintroduced in the finalization pass
-  > as a distributed scheme (each module owns its keys with
-  > a thin shared helper). Until then, the only configuration
-  > paths are the struct defaults and explicit programmatic
-  > overrides via `Otel.SDK.Logs.LoggerProvider.start_link/1`.
+  ## Configuration sources
+
+  Spec env vars `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` and
+  `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` are not
+  read at this layer. Configuration flows through two
+  paths: the struct defaults shown above, and explicit
+  programmatic overrides via
+  `Otel.SDK.Logs.LoggerProvider.start_link/1`. A future
+  cross-cutting env-config helper may surface those env
+  vars uniformly across modules; the per-module API is
+  unchanged either way.
 
   ## Truncation rules
 
