@@ -66,32 +66,38 @@ defmodule Otel.SDK.Metrics.Meter do
   and L1037 and lets user code skip measurement computation cheaply
   when the pipeline would discard the value anyway.
 
-  ### Async cardinality — last-observed, not first-observed
+  ### Async cardinality — first-observed across temporalities
 
-  Spec `metrics/sdk.md` L864-L868 SHOULD —
+  Spec `metrics/sdk.md` §"Asynchronous instrument cardinality
+  limits" L864-L866 SHOULD —
   *"Aggregators of asynchronous instruments SHOULD prefer the
   first-observed attributes in the callback when limiting
   cardinality, regardless of temporality."*
 
-  `maybe_overflow/3` is shared between sync `record/3` and
-  async `apply_observations/2`; both treat overflow as
-  *"new attribute set arrives → drop if cardinality limit
-  reached, keep if under."* In cumulative temporality this
-  coincides with first-observed semantics (the first set in
-  ETS stays). In **delta** temporality the metrics table is
-  cleared on each collect, so the next `apply_observations`
-  cycle treats every set as new — late-arriving sets can
-  replace earlier ones once the limit is hit again, deviating
-  from the SHOULD.
+  Sync overflow (`maybe_overflow/3`) inspects `metrics_tab`,
+  which works as first-observed only under cumulative because
+  delta-temporality readers clear the table on each collect.
 
-  Implementing first-observed strictly requires a separate
-  per-stream memory of "first attribute sets ever observed"
-  that survives delta resets, which adds an ETS table or a
-  per-instrument struct field for an edge case (async +
-  delta + cardinality at limit + observed-set churn). Not
-  worth the complexity until a real consumer surfaces; the
-  hard MUST at L862 (no double-counting, no drops during
-  overflow) is honoured.
+  Async overflow (`maybe_overflow_async/3`) instead consults
+  the dedicated `observed_attrs_tab` ETS set, which records
+  every `(stream, reader, attrs)` triple ever observed for an
+  async stream. Entries survive delta resets, so the first N
+  attribute sets ever observed are pinned to the original
+  key forever; subsequent sets route to the overflow
+  attribute regardless of whether the metrics table has been
+  cleared.
+
+  The `:ets.member` + `count_stream_keys` + `:ets.insert`
+  sequence in `maybe_overflow_async/3` is non-atomic. Two
+  callbacks racing on different new attribute sets at the
+  boundary `current = limit - 1` could both pass the count
+  check and both insert, briefly exceeding the limit by one.
+  In practice `MetricReader.collect/1` serialises callbacks
+  per reader, so this race only fires across multiple readers
+  collecting simultaneously — a corner the spec MUST at L840
+  (no overflow when distinct sets ≤ limit) does not strictly
+  bind, since at the boundary the SHOULD is already best-
+  effort.
 
   ### Deferred Development-status features
 
@@ -396,13 +402,56 @@ defmodule Otel.SDK.Metrics.Meter do
     end
   end
 
+  # Spec `metrics/sdk.md` §"Asynchronous instrument cardinality
+  # limits" L864-L866 SHOULD: *"Aggregators of asynchronous
+  # instruments SHOULD prefer the first-observed attributes in
+  # the callback when limiting cardinality, regardless of
+  # temporality."*
+  #
+  # We separate async overflow tracking from sync because the
+  # sync path's `metrics_tab`-based "is this attribute set
+  # known?" check coincides with first-observed only under
+  # cumulative temporality. Async + delta clears `metrics_tab`
+  # on each collect, which would let late-arriving sets
+  # replace earlier ones — violating the SHOULD.
+  #
+  # The `observed_attrs_tab` records every (stream, reader,
+  # attrs) triple ever observed for an async stream. Entries
+  # survive delta collect resets, so the first N attribute
+  # sets ever observed remain pinned to the original key
+  # forever; subsequent sets route to the overflow attribute.
+  @spec maybe_overflow_async(
+          observed_attrs_tab :: :ets.table(),
+          stream :: Otel.SDK.Metrics.Stream.t(),
+          agg_key :: term()
+        ) :: term()
+  defp maybe_overflow_async(
+         observed_attrs_tab,
+         stream,
+         {stream_name, scope, reader_id, _attrs} = agg_key
+       ) do
+    if :ets.member(observed_attrs_tab, agg_key) do
+      agg_key
+    else
+      limit = stream.aggregation_cardinality_limit
+      current = count_stream_keys(observed_attrs_tab, stream_name, scope, reader_id)
+
+      if current >= limit do
+        {stream_name, scope, reader_id, @overflow_attributes}
+      else
+        :ets.insert(observed_attrs_tab, {agg_key, true})
+        agg_key
+      end
+    end
+  end
+
   @spec count_stream_keys(
-          metrics_tab :: :ets.table(),
+          tab :: :ets.table(),
           stream_name :: String.t(),
           scope :: Otel.API.InstrumentationScope.t(),
           reader_id :: reference() | nil
         ) :: non_neg_integer()
-  defp count_stream_keys(metrics_tab, stream_name, scope, reader_id) do
+  defp count_stream_keys(tab, stream_name, scope, reader_id) do
     :ets.foldl(
       fn entry, acc ->
         case elem(entry, 0) do
@@ -411,7 +460,7 @@ defmodule Otel.SDK.Metrics.Meter do
         end
       end,
       0,
-      metrics_tab
+      tab
     )
   end
 
@@ -524,7 +573,7 @@ defmodule Otel.SDK.Metrics.Meter do
       Enum.each(streams, fn stream ->
         filtered_attrs = filter_stream_attributes(stream, attributes)
         agg_key = {stream.name, stream.instrument.scope, stream.reader_id, filtered_attrs}
-        agg_key = maybe_overflow(config.metrics_tab, stream, agg_key)
+        agg_key = maybe_overflow_async(config.observed_attrs_tab, stream, agg_key)
 
         stream.aggregation.aggregate(
           config.metrics_tab,
