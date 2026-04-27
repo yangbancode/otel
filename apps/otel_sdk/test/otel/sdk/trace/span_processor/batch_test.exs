@@ -11,7 +11,12 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter do
           state :: Otel.SDK.Trace.SpanExporter.state()
         ) :: :ok | :error
   @impl true
-  def export(spans, _resource, %{test_pid: pid}) do
+  def export(spans, _resource, %{test_pid: pid} = state) do
+    case Map.get(state, :sleep_ms) do
+      nil -> :ok
+      ms -> Process.sleep(ms)
+    end
+
     send(pid, {:exported, length(spans), Enum.map(spans, & &1.name)})
     :ok
   end
@@ -53,7 +58,8 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
         name: name,
         scheduled_delay_ms: Keyword.get(overrides, :scheduled_delay_ms, 100_000),
         max_queue_size: Keyword.get(overrides, :max_queue_size, 2048),
-        max_export_batch_size: Keyword.get(overrides, :max_export_batch_size, 512)
+        max_export_batch_size: Keyword.get(overrides, :max_export_batch_size, 512),
+        export_timeout_ms: Keyword.get(overrides, :export_timeout_ms, 30_000)
       }
 
     {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
@@ -145,6 +151,54 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
 
       assert_receive {:exported, 1, ["sampled"]}
       assert_receive :exporter_shutdown
+    end
+  end
+
+  describe "export_timeout_ms enforcement (spec trace/sdk.md L1113)" do
+    # The drain deadline is applied between batches —
+    # `do_export/1` computes `now + export_timeout_ms` once at
+    # entry and `do_export_until/2` checks before each batch.
+    # Individual `exporter.export/3` calls are synchronous and
+    # not preempted (BEAM has no synchronous preemption); the
+    # spec MUST about indefinite blocking at L1156 remains the
+    # exporter's contract.
+
+    test "export_timeout_ms: 0 prevents any drain — spans stay queued" do
+      # With deadline = now + 0, the pre-batch check
+      # `now < deadline` is false on the first iteration
+      # so no batch is exported. The on_end auto-trigger
+      # path runs through the same `do_export/1`, exercising
+      # the deadline guard.
+      name = :"batch_zero_timeout_#{System.unique_integer([:positive])}"
+
+      config = %{
+        exporter: {Otel.SDK.Trace.SpanProcessor.BatchTest.TestExporter, %{test_pid: self()}},
+        name: name,
+        scheduled_delay_ms: 100_000,
+        max_queue_size: 2048,
+        max_export_batch_size: 1,
+        export_timeout_ms: 0
+      }
+
+      {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(config)
+      processor_config = %{reg_name: name}
+
+      Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, processor_config)
+      Otel.SDK.Trace.SpanProcessor.Batch.force_flush(processor_config)
+
+      refute_receive {:exported, _, _}, 100
+    end
+
+    test "default deadline (30s) drains queue normally" do
+      # Regression check: the deadline path doesn't break the
+      # happy path. Default export_timeout_ms = 30_000 leaves
+      # plenty of slack for a 1-span drain.
+      config = start_processor()
+
+      Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, config)
+      Otel.SDK.Trace.SpanProcessor.Batch.force_flush(config)
+
+      assert_receive {:exported, 1, ["sampled"]}
     end
   end
 
