@@ -1,0 +1,27 @@
+# Minimal OTEL_CONFIG_FILE fixture used by Otel.SDK.ApplicationTest.
+# Uses `console` exporters everywhere so the supervised SDK boot
+# during the test never opens a network socket to a missing OTLP
+# collector. Sampler is `always_off` so no spans are produced even
+# if the test accidentally creates one.
+file_format: "1.0"
+resource:
+  attributes:
+    - name: service.name
+      value: otel_config_wiring_test
+tracer_provider:
+  sampler:
+    always_off:
+  processors:
+    - simple:
+        exporter:
+          console:
+meter_provider:
+  readers:
+    - periodic:
+        exporter:
+          console:
+logger_provider:
+  processors:
+    - simple:
+        exporter:
+          console:
