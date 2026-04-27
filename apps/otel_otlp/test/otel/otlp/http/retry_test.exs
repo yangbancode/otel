@@ -211,8 +211,8 @@ defmodule Otel.OTLP.HTTP.RetryTest do
 
       assert :ok =
                Otel.OTLP.HTTP.Retry.request(
-                 {String.to_charlist("http://localhost:#{port}"), [],
-                  ~c"application/x-protobuf", "body"},
+                 {String.to_charlist("http://localhost:#{port}"), [], ~c"application/x-protobuf",
+                  "body"},
                  [],
                  []
                )

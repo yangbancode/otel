@@ -39,6 +39,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest.SlowShutdownExporter do
     Process.sleep(100)
     :ok
   end
+
   @impl true
   def force_flush(_state), do: :ok
 end
@@ -103,6 +104,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest do
 
     test "shutdown on stopped processor returns {:error, :already_shutdown}", %{config: config} do
       GenServer.stop(config.pid)
+
       assert {:error, :already_shutdown} =
                Otel.SDK.Trace.SpanProcessor.Simple.shutdown(config)
     end
@@ -113,6 +115,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest do
       }
 
       {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Simple.start_link(slow_config)
+
       assert {:error, :timeout} =
                Otel.SDK.Trace.SpanProcessor.Simple.shutdown(%{pid: pid}, 1)
     end

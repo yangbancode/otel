@@ -44,6 +44,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest.SlowShutdownExporter do
     Process.sleep(100)
     :ok
   end
+
   @impl true
   def force_flush(_state) do
     Process.sleep(100)
@@ -174,6 +175,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
     test "shutdown on stopped processor returns {:error, :already_shutdown}" do
       config = start_processor()
       GenServer.stop(config.pid)
+
       assert {:error, :already_shutdown} =
                Otel.SDK.Trace.SpanProcessor.Batch.shutdown(config)
     end
@@ -181,6 +183,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
     test "force_flush on stopped processor returns {:error, :already_shutdown}" do
       config = start_processor()
       GenServer.stop(config.pid)
+
       assert {:error, :already_shutdown} =
                Otel.SDK.Trace.SpanProcessor.Batch.force_flush(config)
     end
@@ -195,6 +198,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
       }
 
       {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(slow_config)
+
       assert {:error, :timeout} =
                Otel.SDK.Trace.SpanProcessor.Batch.shutdown(%{pid: pid}, 1)
     end
@@ -210,6 +214,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.BatchTest do
 
       {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Batch.start_link(slow_config)
       Otel.SDK.Trace.SpanProcessor.Batch.on_end(@sampled_span, %{pid: pid})
+
       assert {:error, :timeout} =
                Otel.SDK.Trace.SpanProcessor.Batch.force_flush(%{pid: pid}, 1)
     end

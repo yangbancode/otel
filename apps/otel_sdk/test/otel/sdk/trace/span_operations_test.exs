@@ -716,7 +716,9 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
     test "with_span records :throw with formatted description" do
       restart_sdk(
-        trace: [processors: [{Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}]]
+        trace: [
+          processors: [{Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}]
+        ]
       )
 
       tracer = with_processor_tracer()
