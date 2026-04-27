@@ -56,22 +56,18 @@ defmodule Otel.SDK.Trace.Tracer do
         opts
       )
 
-    case span do
-      nil ->
-        span_ctx
-
-      span ->
-        span = %{
-          span
-          | instrumentation_scope: config.scope,
-            span_limits: config.span_limits,
-            processors: config.processors
-        }
-
-        span = run_on_start(ctx, span, config.processors)
-        Otel.SDK.Trace.SpanStorage.insert(span)
-        span_ctx
+    if span do
+      span
+      |> Map.merge(%{
+        instrumentation_scope: config.scope,
+        span_limits: config.span_limits,
+        processors: config.processors
+      })
+      |> run_on_start(ctx, config.processors)
+      |> Otel.SDK.Trace.SpanStorage.insert()
     end
+
+    span_ctx
   end
 
   @doc """
@@ -149,11 +145,11 @@ defmodule Otel.SDK.Trace.Tracer do
   end
 
   @spec run_on_start(
-          ctx :: Otel.API.Ctx.t(),
           span :: Otel.SDK.Trace.Span.t(),
+          ctx :: Otel.API.Ctx.t(),
           processors :: [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
         ) :: Otel.SDK.Trace.Span.t()
-  defp run_on_start(ctx, span, processors) do
+  defp run_on_start(span, ctx, processors) do
     Enum.reduce(processors, span, fn {processor, processor_config}, acc ->
       processor.on_start(ctx, acc, processor_config)
     end)

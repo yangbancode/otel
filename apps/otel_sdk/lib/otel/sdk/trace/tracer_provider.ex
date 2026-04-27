@@ -77,16 +77,12 @@ defmodule Otel.SDK.Trace.TracerProvider do
           Otel.API.Trace.Tracer.t()
   @impl Otel.API.Trace.TracerProvider
   def get_tracer(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    if alive?(server) do
+    if GenServer.whereis(server) do
       GenServer.call(server, {:get_tracer, instrumentation_scope})
     else
       {Otel.API.Trace.Tracer.Noop, []}
     end
   end
-
-  @spec alive?(server :: GenServer.server()) :: boolean()
-  defp alive?(pid) when is_pid(pid), do: Process.alive?(pid)
-  defp alive?(name) when is_atom(name), do: Process.whereis(name) != nil
 
   @doc """
   **SDK** (OTel API MUST) — Shutdown
