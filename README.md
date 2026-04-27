@@ -30,3 +30,4 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/)
 | [`otel_semantic_conventions`](apps/otel_semantic_conventions) | Pure Elixir implementation of OpenTelemetry Semantic Conventions |
 | [`otel_otlp`](apps/otel_otlp) | Pure Elixir implementation of the OpenTelemetry Protocol (OTLP), currently with the HTTP transport exporter |
 | [`otel_logger_handler`](apps/otel_logger_handler) | Pure Elixir implementation of an OpenTelemetry Logs handler for `:logger` |
+| [`otel_config`](apps/otel_config) | Declarative configuration loader for `OTEL_CONFIG_FILE` (YAML) — opt-in |
