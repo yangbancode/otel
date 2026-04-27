@@ -200,7 +200,7 @@ defmodule Otel.API.Metrics.Instrument do
   identifying fields are exactly those four.
   """
   @type t :: %__MODULE__{
-          meter: Otel.API.Metrics.Meter.t() | nil,
+          meter: Otel.API.Metrics.Meter.t(),
           name: String.t(),
           kind: kind(),
           unit: String.t(),
@@ -209,7 +209,7 @@ defmodule Otel.API.Metrics.Instrument do
           scope: Otel.API.InstrumentationScope.t()
         }
 
-  defstruct meter: nil,
+  defstruct meter: {Otel.API.Metrics.Meter.Noop, []},
             name: "",
             kind: :counter,
             unit: "",

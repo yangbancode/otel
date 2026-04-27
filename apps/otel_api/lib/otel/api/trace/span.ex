@@ -82,9 +82,21 @@ defmodule Otel.API.Trace.Span do
   `start_span/4` and by facade `Otel.API.Trace.start_span/3,4`.
 
   Keys mirror the parameters required by spec L386-L414
-  (§Span Creation): `kind`, `attributes`, `links`, `start_time`,
-  and a language-local `is_root` flag used by the SDK to skip
-  parent resolution.
+  (§Span Creation):
+
+  - `:kind` — `t:Otel.API.Trace.SpanKind.t/0`. Spec L405-L406.
+  - `:attributes` — initial attributes. Spec L407-L409.
+  - `:links` — initial Links. Spec L410-L412.
+  - `:start_time` — explicit start timestamp (nanoseconds since
+    the Unix epoch). Spec L413-L414.
+  - `:is_root` — boolean indicator that this Span should be a
+    root Span, ignoring whatever current span the resolved
+    Context carries. Spec L390-L391 (*"a Span MAY be passed in
+    as a parent or be specified as the root Span"*) — the
+    *"specified as the root Span"* mechanism is what `:is_root`
+    expresses. Erlang exposes the same indication implicitly
+    by passing an empty Context; the explicit boolean is an
+    Elixir-level convenience over that SDK input.
   """
   @type start_opts :: [
           kind: Otel.API.Trace.SpanKind.t(),
