@@ -138,7 +138,7 @@ defmodule Otel.SDK.Metrics.MetricReader do
 
   @spec collect_exemplar_for_datapoint(
           exemplars_tab :: :ets.table(),
-          agg_key :: term(),
+          agg_key :: Otel.SDK.Metrics.Aggregation.agg_key(),
           dp :: Otel.SDK.Metrics.Aggregation.datapoint()
         ) :: map()
   defp collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp) do
