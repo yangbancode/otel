@@ -5,8 +5,11 @@ defmodule Otel.API.Trace.Event do
 
   An Event is structurally defined by a name, a timestamp, and
   zero or more attributes (spec L525-L531). Events are
-  immutable; an Elixir struct satisfies that naturally, and
-  concurrency-safety follows (spec L851).
+  immutable; an Elixir struct satisfies that naturally. All
+  functions on this module are safe for concurrent use (spec
+  L843-L853 *"all methods MUST be documented that
+  implementations need to be safe for concurrent use by
+  default"*).
 
   Per spec L540-L542 *"If no custom timestamp is provided by the
   user, the implementation automatically sets the time at which

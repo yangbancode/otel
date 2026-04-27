@@ -20,8 +20,9 @@ defmodule Otel.API.Trace.Link do
   (same rationale as `Otel.API.InstrumentationScope`).
 
   Per spec L853 Links are immutable; an Elixir struct satisfies
-  that naturally, and concurrency-safety (SHOULD) follows for the
-  same reason.
+  that naturally. All functions on this module are safe for
+  concurrent use (spec L843-L853 *"Link [SHOULD be] documented
+  ... safe for concurrent use by default"*).
 
   Note: spec `#### Specifying links` (L442-L447) is a separate
   concern — it describes how Link values are passed at Span
