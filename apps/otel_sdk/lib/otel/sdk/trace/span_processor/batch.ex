@@ -130,19 +130,43 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
     {:noreply, new_state}
   end
 
+  # Spec `trace/sdk.md` L1113 — *"exportTimeoutMillis: how long
+  # the export can run before it is cancelled. The default value
+  # is 30000."* and L1156 *"Export() MUST NOT block indefinitely,
+  # there MUST be a reasonable upper limit"*.
+  #
+  # We enforce the bound at *between-batch* granularity:
+  # `do_export/1` computes an absolute deadline at entry and
+  # `do_export_until/2` checks it before draining each batch.
+  # When the deadline elapses partway through a multi-batch
+  # drain, the remaining spans stay in the queue for the next
+  # export trigger (timer, force_flush, shutdown). The
+  # individual `exporter.export/3` call itself is synchronous
+  # and not preempted — the spec MUST about indefinite blocking
+  # is the exporter's contract to satisfy (L1156).
   @spec do_export(state :: map()) :: map()
-  defp do_export(%{queue: [], queue_size: 0} = state), do: state
+  defp do_export(state) do
+    deadline = System.monotonic_time(:millisecond) + state.export_timeout_ms
+    do_export_until(state, deadline)
+  end
 
-  defp do_export(%{exporter: nil} = state) do
+  @spec do_export_until(state :: map(), deadline :: integer()) :: map()
+  defp do_export_until(%{queue: [], queue_size: 0} = state, _deadline), do: state
+
+  defp do_export_until(%{exporter: nil} = state, _deadline) do
     %{state | queue: [], queue_size: 0}
   end
 
-  defp do_export(state) do
-    {batch, remaining} = Enum.split(state.queue, state.max_export_batch_size)
-    {exporter_module, exporter_state} = state.exporter
-    exporter_module.export(Enum.reverse(batch), state.resource, exporter_state)
-    new_state = %{state | queue: remaining, queue_size: length(remaining)}
-    do_export(new_state)
+  defp do_export_until(state, deadline) do
+    if System.monotonic_time(:millisecond) < deadline do
+      {batch, remaining} = Enum.split(state.queue, state.max_export_batch_size)
+      {exporter_module, exporter_state} = state.exporter
+      exporter_module.export(Enum.reverse(batch), state.resource, exporter_state)
+      new_state = %{state | queue: remaining, queue_size: length(remaining)}
+      do_export_until(new_state, deadline)
+    else
+      state
+    end
   end
 
   @spec schedule_export(delay_ms :: non_neg_integer()) :: reference()
