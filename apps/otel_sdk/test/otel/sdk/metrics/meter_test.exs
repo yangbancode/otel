@@ -2,23 +2,28 @@ defmodule Otel.SDK.Metrics.MeterTest do
   use ExUnit.Case
 
   setup do
-    Application.stop(:otel_sdk)
-    Application.ensure_all_started(:otel_sdk)
-
-    {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+    restart_sdk(metrics: [exporter: :none])
 
     {_module, meter_config} =
-      Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
-        name: "test_lib"
-      })
+      Otel.SDK.Metrics.MeterProvider.get_meter(
+        Otel.SDK.Metrics.MeterProvider,
+        %Otel.API.InstrumentationScope{name: "test_lib"}
+      )
 
-    meter = {Otel.SDK.Metrics.Meter, meter_config}
+    %{meter: {Otel.SDK.Metrics.Meter, meter_config}}
+  end
+
+  defp restart_sdk(env) do
+    Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
+    Application.ensure_all_started(:otel_sdk)
 
     on_exit(fn ->
-      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
     end)
 
-    %{meter: meter}
+    :ok
   end
 
   describe "instrument creation returns struct" do
@@ -182,10 +187,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "different scopes are independent namespaces" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(metrics: [exporter: :none])
 
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      pid = Otel.SDK.Metrics.MeterProvider
 
       {_, config_a} =
         Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
@@ -290,10 +294,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "record respects include attribute filter from view" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(metrics: [exporter: :none])
 
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -315,10 +318,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "record respects exclude attribute filter from view" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(metrics: [exporter: :none])
 
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -463,9 +465,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "overflow routes to overflow attribute set" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      restart_sdk(metrics: [exporter: :none])
+
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -502,9 +504,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "existing attribute set not affected by overflow" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      restart_sdk(metrics: [exporter: :none])
+
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -534,9 +536,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     # limits" L864-L866 SHOULD: prefer first-observed
     # attributes regardless of temporality.
     test "async first-observed attributes pinned across delta collect cycles" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      restart_sdk(metrics: [exporter: :none])
+
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -640,9 +642,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
   describe "duplicate conflict resolution" do
     test "description-only conflict with view override suppresses warning" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      restart_sdk(metrics: [exporter: :none])
+
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -766,9 +768,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "returns false when all views use Drop aggregation" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      restart_sdk(metrics: [exporter: :none])
+
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -786,9 +788,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "returns true when at least one view is not Drop" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      restart_sdk(metrics: [exporter: :none])
+
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,
@@ -812,9 +814,9 @@ defmodule Otel.SDK.Metrics.MeterTest do
     end
 
     test "returns false for unregistered instrument when all matching views Drop" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+      restart_sdk(metrics: [exporter: :none])
+
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,

@@ -2,23 +2,32 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
   use ExUnit.Case
 
   setup do
-    Application.stop(:otel_sdk)
-    Application.ensure_all_started(:otel_sdk)
-
-    {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+    restart_sdk(metrics: [exporter: :none])
 
     {_mod, config} =
-      Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
-        name: "test_lib"
-      })
+      Otel.SDK.Metrics.MeterProvider.get_meter(
+        Otel.SDK.Metrics.MeterProvider,
+        %Otel.API.InstrumentationScope{name: "test_lib"}
+      )
 
-    meter = {Otel.SDK.Metrics.Meter, config}
+    %{
+      meter: {Otel.SDK.Metrics.Meter, config},
+      config: config,
+      provider: Otel.SDK.Metrics.MeterProvider
+    }
+  end
+
+  defp restart_sdk(env) do
+    Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
+    Application.ensure_all_started(:otel_sdk)
 
     on_exit(fn ->
-      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
     end)
 
-    %{meter: meter, config: config, provider: pid}
+    :ok
   end
 
   describe "collect/1" do
@@ -107,11 +116,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     end
 
     test "exemplars collected with always_on filter" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(metrics: [exemplar_filter: :always_on, exporter: :none])
 
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
+      pid = Otel.SDK.Metrics.MeterProvider
 
       {_mod, config} =
         Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
@@ -128,11 +135,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     end
 
     test "no exemplars with always_off filter" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(metrics: [exemplar_filter: :always_off, exporter: :none])
 
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_off})
+      pid = Otel.SDK.Metrics.MeterProvider
 
       {_mod, config} =
         Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
@@ -148,11 +153,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     end
 
     test "exemplars reset after collect" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(metrics: [exemplar_filter: :always_on, exporter: :none])
 
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
+      pid = Otel.SDK.Metrics.MeterProvider
 
       {_mod, config} =
         Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: "lib"})
@@ -182,11 +185,9 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     end
 
     test "exemplar retains dropped attributes" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
+      restart_sdk(metrics: [exemplar_filter: :always_on, exporter: :none])
 
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(config: %{exemplar_filter: :always_on})
+      pid = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(
         pid,

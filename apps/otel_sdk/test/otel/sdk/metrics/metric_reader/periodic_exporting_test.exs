@@ -19,21 +19,28 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
   use ExUnit.Case
 
   setup do
-    Application.stop(:otel_sdk)
-    Application.ensure_all_started(:otel_sdk)
-
-    {:ok, provider} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
+    restart_sdk(metrics: [exporter: :none])
 
     {_mod, config} =
-      Otel.SDK.Metrics.MeterProvider.get_meter(provider, %Otel.API.InstrumentationScope{
-        name: "test_lib"
-      })
+      Otel.SDK.Metrics.MeterProvider.get_meter(
+        Otel.SDK.Metrics.MeterProvider,
+        %Otel.API.InstrumentationScope{name: "test_lib"}
+      )
+
+    %{config: config, provider: Otel.SDK.Metrics.MeterProvider}
+  end
+
+  defp restart_sdk(env) do
+    Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
+    Application.ensure_all_started(:otel_sdk)
 
     on_exit(fn ->
-      if Process.alive?(provider), do: Process.exit(provider, :shutdown)
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
     end)
 
-    %{config: config, provider: provider}
+    :ok
   end
 
   describe "start_link/1" do
@@ -202,21 +209,19 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
 
   describe "integration with MeterProvider" do
     test "provider starts and manages reader" do
-      Application.stop(:otel_sdk)
-      Application.ensure_all_started(:otel_sdk)
-
       exporter =
         {Otel.SDK.Metrics.MetricReader.PeriodicExportingTest.TestExporter, %{test_pid: self()}}
 
-      {:ok, provider} =
-        Otel.SDK.Metrics.MeterProvider.start_link(
-          config: %{
-            readers: [
-              {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
-               %{exporter: exporter, export_interval_ms: 60_000}}
-            ]
-          }
-        )
+      restart_sdk(
+        metrics: [
+          readers: [
+            {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
+             %{exporter: exporter, export_interval_ms: 60_000}}
+          ]
+        ]
+      )
+
+      provider = Otel.SDK.Metrics.MeterProvider
 
       {_mod, config} =
         Otel.SDK.Metrics.MeterProvider.get_meter(provider, %Otel.API.InstrumentationScope{

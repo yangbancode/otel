@@ -38,8 +38,22 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
   use ExUnit.Case
 
   setup do
-    Application.stop(:otel_sdk)
+    # Ensure SDK is running for tests that don't call start_span/restart_sdk
+    # (auxiliary services like SpanStorage need to be alive).
     Application.ensure_all_started(:otel_sdk)
+    :ok
+  end
+
+  defp restart_sdk(env) do
+    Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
+    Application.ensure_all_started(:otel_sdk)
+
+    on_exit(fn ->
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
+    end)
+
     :ok
   end
 
@@ -47,20 +61,21 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     processors = Keyword.get(opts, :processors, [])
     span_limits = Keyword.get(opts, :span_limits, %Otel.SDK.Trace.SpanLimits{})
 
-    {:ok, provider} =
-      Otel.SDK.Trace.TracerProvider.start_link(
-        config: %{processors: processors, span_limits: span_limits}
+    restart_sdk(trace: [processors: processors, span_limits: span_limits])
+
+    tracer = with_processor_tracer()
+    ctx = Otel.API.Ctx.new()
+    Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "test_span", opts)
+  end
+
+  defp with_processor_tracer do
+    {_module, tracer_config} =
+      Otel.SDK.Trace.TracerProvider.get_tracer(
+        Otel.SDK.Trace.TracerProvider,
+        %Otel.API.InstrumentationScope{name: "test_lib"}
       )
 
-    {_module, tracer_config} =
-      Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
-        name: "test_lib"
-      })
-
-    tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-    ctx = Otel.API.Ctx.new()
-    span_ctx = Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "test_span", opts)
-    span_ctx
+    {Otel.SDK.Trace.Tracer, tracer_config}
   end
 
   describe "recording?/1" do
@@ -631,21 +646,13 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     end
 
     test "with_span ends span and calls processors" do
-      {:ok, provider} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          processors: [{Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}]
+        ]
+      )
 
-      {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
-
-      tracer = {Otel.SDK.Trace.Tracer, tracer_config}
+      tracer = with_processor_tracer()
 
       result =
         Otel.API.Trace.with_span(tracer, "with_span_test", [], fn _span_ctx ->
@@ -660,21 +667,13 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     end
 
     test "with_span records exception on error" do
-      {:ok, provider} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          processors: [{Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}]
+        ]
+      )
 
-      {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
-
-      tracer = {Otel.SDK.Trace.Tracer, tracer_config}
+      tracer = with_processor_tracer()
 
       assert_raise RuntimeError, "boom", fn ->
         Otel.API.Trace.with_span(tracer, "error_span", [], fn _span_ctx ->
@@ -695,21 +694,13 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     end
 
     test "with_span normalizes non-exception raise to ErlangError" do
-      {:ok, provider} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          processors: [{Otel.SDK.Trace.SpanOperationsTest.TestProcessor, %{test_pid: self()}}]
+        ]
+      )
 
-      {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
-
-      tracer = {Otel.SDK.Trace.Tracer, tracer_config}
+      tracer = with_processor_tracer()
 
       assert_raise ErlangError, fn ->
         Otel.API.Trace.with_span(tracer, "error_span", [], fn _span_ctx ->

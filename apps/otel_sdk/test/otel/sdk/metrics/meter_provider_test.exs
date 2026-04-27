@@ -28,41 +28,42 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
   use ExUnit.Case
 
   setup do
+    restart_sdk(metrics: [exporter: :none])
+    %{provider: Otel.SDK.Metrics.MeterProvider}
+  end
+
+  defp restart_sdk(env) do
     Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
     Application.ensure_all_started(:otel_sdk)
 
-    {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-
     on_exit(fn ->
-      if Process.alive?(pid), do: Process.exit(pid, :shutdown)
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
     end)
 
-    %{provider: pid}
+    :ok
   end
 
   describe "start_link/1" do
-    test "starts with default config" do
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-      assert Process.alive?(pid)
+    test "starts with default config", %{provider: provider} do
+      assert Process.alive?(Process.whereis(provider))
     end
 
-    test "registers as global provider on start" do
-      {:ok, pid} = Otel.SDK.Metrics.MeterProvider.start_link(config: %{})
-
+    test "registers as global provider on start", %{provider: provider} do
       assert Otel.API.Metrics.MeterProvider.get_provider() ==
-               {Otel.SDK.Metrics.MeterProvider, pid}
+               {Otel.SDK.Metrics.MeterProvider, provider}
     end
 
     test "starts with custom config" do
       custom_resource = Otel.SDK.Resource.create(%{"service.name" => "test"})
-
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(config: %{resource: custom_resource})
+      restart_sdk(metrics: [exporter: :none, resource: custom_resource])
 
       {_module, %{resource: resource}} =
-        Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{
-          name: "lib"
-        })
+        Otel.SDK.Metrics.MeterProvider.get_meter(
+          Otel.SDK.Metrics.MeterProvider,
+          %Otel.API.InstrumentationScope{name: "lib"}
+        )
 
       assert resource.attributes["service.name"] == "test"
     end
@@ -131,32 +132,30 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     end
 
     test "invokes shutdown on all readers" do
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(
-          config: %{
-            readers: [
-              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
-              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}
-            ]
-          }
-        )
+      restart_sdk(
+        metrics: [
+          readers: [
+            {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
+            {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}
+          ]
+        ]
+      )
 
-      assert Otel.SDK.Metrics.MeterProvider.shutdown(pid) == :ok
+      assert Otel.SDK.Metrics.MeterProvider.shutdown(Otel.SDK.Metrics.MeterProvider) == :ok
     end
 
     test "collects errors from failing readers" do
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(
-          config: %{
-            readers: [
-              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
-              {Otel.SDK.Metrics.MeterProviderTest.FailReader, %{}}
-            ]
-          }
-        )
+      restart_sdk(
+        metrics: [
+          readers: [
+            {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
+            {Otel.SDK.Metrics.MeterProviderTest.FailReader, %{}}
+          ]
+        ]
+      )
 
       assert {:error, [{Otel.SDK.Metrics.MeterProviderTest.FailReader, :shutdown_failed}]} =
-               Otel.SDK.Metrics.MeterProvider.shutdown(pid)
+               Otel.SDK.Metrics.MeterProvider.shutdown(Otel.SDK.Metrics.MeterProvider)
     end
 
     test "returns noop meter after shutdown", %{provider: pid} do
@@ -225,26 +224,16 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     end
 
     test "invokes force_flush on all readers" do
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(
-          config: %{
-            readers: [{Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}]
-          }
-        )
+      restart_sdk(metrics: [readers: [{Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}]])
 
-      assert Otel.SDK.Metrics.MeterProvider.force_flush(pid) == :ok
+      assert Otel.SDK.Metrics.MeterProvider.force_flush(Otel.SDK.Metrics.MeterProvider) == :ok
     end
 
     test "collects errors from failing readers" do
-      {:ok, pid} =
-        Otel.SDK.Metrics.MeterProvider.start_link(
-          config: %{
-            readers: [{Otel.SDK.Metrics.MeterProviderTest.FailReader, %{}}]
-          }
-        )
+      restart_sdk(metrics: [readers: [{Otel.SDK.Metrics.MeterProviderTest.FailReader, %{}}]])
 
       assert {:error, [{Otel.SDK.Metrics.MeterProviderTest.FailReader, :flush_failed}]} =
-               Otel.SDK.Metrics.MeterProvider.force_flush(pid)
+               Otel.SDK.Metrics.MeterProvider.force_flush(Otel.SDK.Metrics.MeterProvider)
     end
 
     test "returns error after shutdown", %{provider: pid} do
@@ -255,16 +244,16 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
   describe "reader crash handling" do
     test "removes a crashed reader and keeps serving the rest" do
-      {:ok, provider} =
-        Otel.SDK.Metrics.MeterProvider.start_link(
-          config: %{
-            readers: [
-              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
-              {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}
-            ]
-          }
-        )
+      restart_sdk(
+        metrics: [
+          readers: [
+            {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}},
+            {Otel.SDK.Metrics.MeterProviderTest.OkReader, %{}}
+          ]
+        ]
+      )
 
+      provider = Otel.SDK.Metrics.MeterProvider
       [{_, victim}, {_, survivor}] = :sys.get_state(provider).readers
       ref = Process.monitor(victim)
       Process.exit(victim, :kill)
@@ -272,7 +261,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
       # Provider stays alive; survivor keeps serving force_flush
       # (the dead reader has been dropped from the active list).
-      assert Process.alive?(provider)
+      assert Process.alive?(Process.whereis(provider))
       assert :ok = Otel.SDK.Metrics.MeterProvider.force_flush(provider)
       assert [{_, ^survivor}] = :sys.get_state(provider).readers
     end

@@ -102,7 +102,7 @@ defmodule Otel.SDK.Config do
     pillar = Application.get_env(:otel_sdk, :trace, [])
 
     %{
-      resource: Otel.SDK.Resource.default(),
+      resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
       sampler: build_sampler(pillar),
       processors: build_trace_processors(pillar),
       span_limits: build_span_limits(pillar),
@@ -227,7 +227,7 @@ defmodule Otel.SDK.Config do
     overrides =
       pillar
       |> Keyword.get(:span_limits, %{})
-      |> Enum.into(%{})
+      |> normalize_struct_or_keyword()
 
     env_limits = %{
       attribute_count_limit:
@@ -257,7 +257,7 @@ defmodule Otel.SDK.Config do
     pillar = Application.get_env(:otel_sdk, :metrics, [])
 
     %{
-      resource: Otel.SDK.Resource.default(),
+      resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
       readers: build_metrics_readers(pillar),
       exemplar_filter: build_exemplar_filter(pillar),
       views: Keyword.get(pillar, :views, [])
@@ -342,7 +342,7 @@ defmodule Otel.SDK.Config do
     pillar = Application.get_env(:otel_sdk, :logs, [])
 
     %{
-      resource: Otel.SDK.Resource.default(),
+      resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
       processors: build_logs_processors(pillar),
       log_record_limits: build_log_record_limits(pillar)
     }
@@ -407,7 +407,7 @@ defmodule Otel.SDK.Config do
     overrides =
       pillar
       |> Keyword.get(:log_record_limits, %{})
-      |> Enum.into(%{})
+      |> normalize_struct_or_keyword()
 
     env_limits = %{
       attribute_count_limit:
@@ -419,6 +419,20 @@ defmodule Otel.SDK.Config do
     }
 
     struct(Otel.SDK.Logs.LogRecordLimits, Map.merge(env_limits, overrides))
+  end
+
+  # Accept both keyword (`[attribute_count_limit: 128]`) and
+  # struct (`%LogRecordLimits{...}`, `%SpanLimits{...}`) forms
+  # in pillar overrides. Strips the `:__struct__` key so it
+  # does not collide with `struct/2`'s default-application
+  # path. Plain maps pass through untouched.
+  @spec normalize_struct_or_keyword(value :: keyword() | map() | struct()) :: map()
+  defp normalize_struct_or_keyword(value) when is_map(value) do
+    Map.delete(value, :__struct__)
+  end
+
+  defp normalize_struct_or_keyword(value) when is_list(value) do
+    Enum.into(value, %{})
   end
 
   # ====== Propagator ======

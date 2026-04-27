@@ -40,81 +40,70 @@ end
 defmodule Otel.SDK.Trace.SpanProcessorTest do
   use ExUnit.Case
 
-  setup do
+  defp restart_sdk(env) do
     Application.stop(:otel_sdk)
+    for {pillar, opts} <- env, do: Application.put_env(:otel_sdk, pillar, opts)
     Application.ensure_all_started(:otel_sdk)
+
+    on_exit(fn ->
+      Application.stop(:otel_sdk)
+      for {pillar, _} <- env, do: Application.delete_env(:otel_sdk, pillar)
+    end)
+
     :ok
+  end
+
+  defp tracer_for(scope_name) do
+    {_module, tracer_config} =
+      Otel.SDK.Trace.TracerProvider.get_tracer(
+        Otel.SDK.Trace.TracerProvider,
+        %Otel.API.InstrumentationScope{name: scope_name}
+      )
+
+    {Otel.SDK.Trace.Tracer, tracer_config}
   end
 
   describe "on_start integration" do
     test "processor on_start is called when span is created" do
-      {:ok, provider} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          processors: [{Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}}]
+        ]
+      )
 
-      {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
-
-      tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-      ctx = Otel.API.Ctx.new()
-
-      Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "processor_test", [])
+      tracer = tracer_for("test_lib")
+      Otel.SDK.Trace.Tracer.start_span(Otel.API.Ctx.new(), tracer, "processor_test", [])
 
       assert_receive {:on_start, "processor_test"}
     end
 
     test "multiple processors are called in order" do
-      {:ok, provider} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            processors: [
-              {Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}},
-              {Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          processors: [
+            {Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}},
+            {Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}}
+          ]
+        ]
+      )
 
-      {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
-
-      tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-      ctx = Otel.API.Ctx.new()
-
-      Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "multi_processor", [])
+      tracer = tracer_for("test_lib")
+      Otel.SDK.Trace.Tracer.start_span(Otel.API.Ctx.new(), tracer, "multi_processor", [])
 
       assert_receive {:on_start, "multi_processor"}
       assert_receive {:on_start, "multi_processor"}
     end
 
     test "dropped spans do not trigger on_start" do
-      {:ok, provider} =
-        Otel.SDK.Trace.TracerProvider.start_link(
-          config: %{
-            sampler: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}},
-            processors: [
-              {Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}}
-            ]
-          }
-        )
+      restart_sdk(
+        trace: [
+          sampler: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}},
+          processors: [{Otel.SDK.Trace.SpanProcessorTest.TestProcessor, %{test_pid: self()}}]
+        ]
+      )
 
-      {_module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(provider, %Otel.API.InstrumentationScope{
-          name: "test_lib"
-        })
-
-      tracer = {Otel.SDK.Trace.Tracer, tracer_config}
-      ctx = Otel.API.Ctx.new()
-
-      Otel.SDK.Trace.Tracer.start_span(ctx, tracer, "dropped_span", [])
+      tracer = tracer_for("test_lib")
+      Otel.SDK.Trace.Tracer.start_span(Otel.API.Ctx.new(), tracer, "dropped_span", [])
 
       refute_receive {:on_start, _}
     end
