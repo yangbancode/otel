@@ -517,7 +517,7 @@ defmodule Otel.SDK.Metrics.Meter do
     reservoir = get_reservoir(config.exemplars_tab, stream, agg_key)
 
     updated =
-      Otel.SDK.Metrics.Exemplar.Reservoir.offer_to(
+      Otel.SDK.Metrics.Exemplar.Reservoir.offer(
         reservoir,
         filter,
         value,

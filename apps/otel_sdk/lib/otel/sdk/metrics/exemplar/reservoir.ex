@@ -32,7 +32,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
 
   @callback collect(state :: term()) :: {[Otel.SDK.Metrics.Exemplar.t()], state :: term()}
 
-  @spec offer_to(
+  @spec offer(
           reservoir :: {module(), term()} | nil,
           filter :: Otel.SDK.Metrics.Exemplar.Filter.t(),
           value :: number(),
@@ -40,9 +40,9 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
           filtered_attributes :: %{String.t() => primitive_any()},
           ctx :: Otel.API.Ctx.t()
         ) :: {module(), term()} | nil
-  def offer_to(nil, _filter, _value, _time, _attrs, _ctx), do: nil
+  def offer(nil, _filter, _value, _time, _attrs, _ctx), do: nil
 
-  def offer_to({module, state}, filter, value, time, filtered_attributes, ctx) do
+  def offer({module, state}, filter, value, time, filtered_attributes, ctx) do
     if Otel.SDK.Metrics.Exemplar.Filter.should_sample?(filter, ctx) do
       {module, module.offer(state, value, time, filtered_attributes, ctx)}
     else
@@ -50,11 +50,11 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
     end
   end
 
-  @spec collect_from(reservoir :: {module(), term()} | nil) ::
+  @spec collect(reservoir :: {module(), term()} | nil) ::
           {[Otel.SDK.Metrics.Exemplar.t()], {module(), term()} | nil}
-  def collect_from(nil), do: {[], nil}
+  def collect(nil), do: {[], nil}
 
-  def collect_from({module, state}) do
+  def collect({module, state}) do
     {exemplars, new_state} = module.collect(state)
     {exemplars, {module, new_state}}
   end
