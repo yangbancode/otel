@@ -463,7 +463,6 @@ defmodule Otel.Config.Composer do
 
   @spec development?(key :: String.t()) :: boolean()
   defp development?(key) when is_binary(key), do: String.contains?(key, "/development")
-  defp development?(_), do: false
 
   @spec warn_development(key :: String.t(), context :: String.t()) :: :ok
   defp warn_development(key, context) do

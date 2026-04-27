@@ -149,6 +149,32 @@ defmodule Otel.Config.ComposerTest do
         compose_processors([%{"my_custom_processor" => %{}}])
       end
     end
+
+    test "concrete key alongside */development sibling — picks the concrete one" do
+      # Schema's `additionalProperties: { type: ['object', 'null'] }`
+      # allows `*/development` keys to coexist with the standard
+      # one. `sole_key/1` MUST pick the concrete entry.
+      [{module, _config}] =
+        compose_processors([
+          %{
+            "batch" => %{"exporter" => %{"console" => nil}},
+            "experimental_xyz/development" => %{"some" => "data"}
+          }
+        ])
+
+      assert module == Otel.SDK.Trace.SpanProcessor.Batch
+    end
+
+    test "all-development keys map raises (no concrete key to pick)" do
+      assert_raise ArgumentError, ~r/no concrete \(non-development\) key/, fn ->
+        compose_processors([
+          %{
+            "experimental_a/development" => nil,
+            "experimental_b/development" => nil
+          }
+        ])
+      end
+    end
   end
 
   describe "compose span_limits" do
