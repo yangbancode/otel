@@ -76,7 +76,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   Invokes shutdown on all registered readers. After shutdown,
   `get_meter/2` returns the noop meter. Can only be called
-  once; subsequent calls reply `{:error, :already_shut_down}`.
+  once; subsequent calls reply `{:error, :already_shutdown}`.
   """
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ 5000) do
@@ -195,7 +195,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   def handle_call(:shutdown, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :already_shut_down}, config}
+    {:reply, {:error, :already_shutdown}, config}
   end
 
   def handle_call(:shutdown, _from, config) do
@@ -204,7 +204,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   def handle_call(:force_flush, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :shut_down}, config}
+    {:reply, {:error, :already_shutdown}, config}
   end
 
   def handle_call(:force_flush, _from, config) do

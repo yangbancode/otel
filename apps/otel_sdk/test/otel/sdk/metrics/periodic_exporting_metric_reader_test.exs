@@ -84,7 +84,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
 
       Otel.SDK.Metrics.PeriodicExportingMetricReader.shutdown(reader)
 
-      assert {:error, :shut_down} ==
+      assert {:error, :already_shutdown} ==
                Otel.SDK.Metrics.PeriodicExportingMetricReader.force_flush(reader)
 
       GenServer.stop(reader)
@@ -123,7 +123,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
 
       assert :ok == Otel.SDK.Metrics.PeriodicExportingMetricReader.shutdown(reader)
 
-      assert {:error, :already_shut_down} ==
+      assert {:error, :already_shutdown} ==
                Otel.SDK.Metrics.PeriodicExportingMetricReader.shutdown(reader)
 
       GenServer.stop(reader)
@@ -158,7 +158,7 @@ defmodule Otel.SDK.Metrics.PeriodicExportingMetricReaderTest do
         })
 
       Otel.SDK.Metrics.PeriodicExportingMetricReader.shutdown(reader)
-      assert {:error, :shut_down} = GenServer.call(reader, :collect)
+      assert {:error, :already_shutdown} = GenServer.call(reader, :collect)
       GenServer.stop(reader)
     end
   end

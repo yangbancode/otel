@@ -152,7 +152,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
     test "second shutdown returns error", %{provider: pid} do
       assert Otel.SDK.Metrics.MeterProvider.shutdown(pid) == :ok
-      assert Otel.SDK.Metrics.MeterProvider.shutdown(pid) == {:error, :already_shut_down}
+      assert Otel.SDK.Metrics.MeterProvider.shutdown(pid) == {:error, :already_shutdown}
     end
   end
 
@@ -229,7 +229,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
     test "returns error after shutdown", %{provider: pid} do
       Otel.SDK.Metrics.MeterProvider.shutdown(pid)
-      assert Otel.SDK.Metrics.MeterProvider.force_flush(pid) == {:error, :shut_down}
+      assert Otel.SDK.Metrics.MeterProvider.force_flush(pid) == {:error, :already_shutdown}
     end
   end
 
