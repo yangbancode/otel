@@ -5,23 +5,15 @@ defmodule Otel.SDK.Config.Selector do
 
   Three input forms are accepted everywhere a module is selected:
 
-  - **shortcut atom** — application name for OTLP exporters
-    (`:otel_otlp`), spec-blessed enum names for the rest (`:console`,
-    `:none`, `:batch`, `:always_on`, ...). The shortcut set is closed;
-    only project applications and spec values defined in
+  - **shortcut atom** (`:otlp`, `:console`, `:batch`, `:always_on`, ...) —
+    spec-blessed enum names mapped through built-in tables to project
+    modules. The shortcut set is closed; only spec values defined in
     `configuration/sdk-environment-variables.md` L122-L131, L243-L265,
     and L143-L152 are accepted.
   - **module atom** (e.g. `Otel.OTLP.TraceExporter.HTTP`) — direct
     module reference, normalized to `{Module, %{}}`.
   - **{module, config} tuple** — passed through unchanged. Always the
     canonical form a provider expects at its `start_link/1` boundary.
-
-  Note on env var compatibility: the spec mandates string `"otlp"` for
-  `OTEL_TRACES_EXPORTER` / `OTEL_METRICS_EXPORTER` / `OTEL_LOGS_EXPORTER`
-  (sdk-environment-variables.md L243-L265). `Otel.SDK.Config` translates
-  the env-var atom `:otlp` to the canonical `:otel_otlp` before calling
-  the selectors below, so this module sees a single name per
-  implementation.
 
   Same normalizers serve both code paths — Mix Config (`config :otel_sdk,
   trace: [exporter: :otlp | Module | {Module, %{}}]`) and `OTEL_*` env
@@ -56,7 +48,7 @@ defmodule Otel.SDK.Config.Selector do
   """
   @spec trace_exporter(value :: atom() | module() | {module(), map()}) ::
           {module(), map()} | :none
-  def trace_exporter(:otel_otlp), do: {Otel.OTLP.TraceExporter.HTTP, %{}}
+  def trace_exporter(:otlp), do: {Otel.OTLP.TraceExporter.HTTP, %{}}
   def trace_exporter(:console), do: {Otel.SDK.Trace.SpanExporter.Console, %{}}
   def trace_exporter(:none), do: :none
 
@@ -72,7 +64,7 @@ defmodule Otel.SDK.Config.Selector do
   """
   @spec metrics_exporter(value :: atom() | module() | {module(), map()}) ::
           {module(), map()} | :none
-  def metrics_exporter(:otel_otlp), do: {Otel.OTLP.MetricsExporter.HTTP, %{}}
+  def metrics_exporter(:otlp), do: {Otel.OTLP.MetricsExporter.HTTP, %{}}
   def metrics_exporter(:console), do: {Otel.SDK.Metrics.MetricExporter.Console, %{}}
   def metrics_exporter(:none), do: :none
 
@@ -88,7 +80,7 @@ defmodule Otel.SDK.Config.Selector do
   """
   @spec logs_exporter(value :: atom() | module() | {module(), map()}) ::
           {module(), map()} | :none
-  def logs_exporter(:otel_otlp), do: {Otel.OTLP.LogsExporter.HTTP, %{}}
+  def logs_exporter(:otlp), do: {Otel.OTLP.LogsExporter.HTTP, %{}}
   def logs_exporter(:console), do: {Otel.SDK.Logs.LogRecordExporter.Console, %{}}
   def logs_exporter(:none), do: :none
 
