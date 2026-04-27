@@ -137,26 +137,26 @@ defmodule Otel.SDK.Metrics.ViewTest do
   describe "stream_name/2" do
     test "returns view name when configured" do
       {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{name: "custom_name"})
-      assert "custom_name" == Otel.SDK.Metrics.View.stream_name(view, instrument())
+      assert "custom_name" == Otel.SDK.Metrics.View.name(view, instrument())
     end
 
     test "falls back to instrument name" do
       {:ok, view} = Otel.SDK.Metrics.View.new()
-      assert "http.request.duration" == Otel.SDK.Metrics.View.stream_name(view, instrument())
+      assert "http.request.duration" == Otel.SDK.Metrics.View.name(view, instrument())
     end
   end
 
   describe "stream_description/2" do
     test "returns view description when configured" do
       {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{description: "Custom desc"})
-      assert "Custom desc" == Otel.SDK.Metrics.View.stream_description(view, instrument())
+      assert "Custom desc" == Otel.SDK.Metrics.View.description(view, instrument())
     end
 
     test "falls back to instrument description" do
       {:ok, view} = Otel.SDK.Metrics.View.new()
 
       assert "Request duration" ==
-               Otel.SDK.Metrics.View.stream_description(view, instrument())
+               Otel.SDK.Metrics.View.description(view, instrument())
     end
   end
 end
