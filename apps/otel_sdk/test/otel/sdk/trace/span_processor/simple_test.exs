@@ -45,12 +45,11 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest do
 
   setup do
     config = %{
-      exporter: {Otel.SDK.Trace.SpanProcessor.SimpleTest.TestExporter, %{test_pid: self()}},
-      name: :"simple_processor_#{System.unique_integer([:positive])}"
+      exporter: {Otel.SDK.Trace.SpanProcessor.SimpleTest.TestExporter, %{test_pid: self()}}
     }
 
-    {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Simple.start_link(config)
-    %{config: %{reg_name: config.name}}
+    {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Simple.start_link(config)
+    %{config: %{pid: pid}}
   end
 
   describe "on_start/3" do
@@ -92,11 +91,6 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest do
 
   describe "exporter :ignore" do
     test "drops all spans when exporter returns :ignore" do
-      config = %{
-        exporter: {Otel.SDK.Trace.SpanProcessor.SimpleTest.IgnoreExporter, %{}},
-        name: :"ignore_processor_#{System.unique_integer([:positive])}"
-      }
-
       defmodule IgnoreExporter do
         @behaviour Otel.SDK.Trace.SpanExporter
         @impl true
@@ -107,12 +101,14 @@ defmodule Otel.SDK.Trace.SpanProcessor.SimpleTest do
         def shutdown(_state), do: :ok
       end
 
-      {:ok, _pid} = Otel.SDK.Trace.SpanProcessor.Simple.start_link(config)
+      config = %{exporter: {IgnoreExporter, %{}}}
+      {:ok, pid} = Otel.SDK.Trace.SpanProcessor.Simple.start_link(config)
+      callback_config = %{pid: pid}
 
       assert :dropped =
-               Otel.SDK.Trace.SpanProcessor.Simple.on_end(@sampled_span, %{reg_name: config.name})
+               Otel.SDK.Trace.SpanProcessor.Simple.on_end(@sampled_span, callback_config)
 
-      assert :ok = Otel.SDK.Trace.SpanProcessor.Simple.shutdown(%{reg_name: config.name})
+      assert :ok = Otel.SDK.Trace.SpanProcessor.Simple.shutdown(callback_config)
     end
   end
 end

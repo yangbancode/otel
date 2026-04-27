@@ -20,12 +20,18 @@ defmodule Otel.SDK.Trace.SpanOperationsTest.TestProcessor do
   end
 
   @impl true
-  @spec shutdown(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok
-  def shutdown(_config), do: :ok
+  @spec shutdown(
+          config :: Otel.SDK.Trace.SpanProcessor.config(),
+          timeout :: timeout()
+        ) :: :ok
+  def shutdown(_config, _timeout \\ 5_000), do: :ok
 
   @impl true
-  @spec force_flush(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok
-  def force_flush(_config), do: :ok
+  @spec force_flush(
+          config :: Otel.SDK.Trace.SpanProcessor.config(),
+          timeout :: timeout()
+        ) :: :ok
+  def force_flush(_config, _timeout \\ 5_000), do: :ok
 end
 
 defmodule Otel.SDK.Trace.SpanOperationsTest do

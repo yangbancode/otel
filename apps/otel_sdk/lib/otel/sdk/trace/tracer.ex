@@ -57,13 +57,15 @@ defmodule Otel.SDK.Trace.Tracer do
       )
 
     if span do
+      processors = :persistent_term.get(config.processors_key, [])
+
       span
       |> Map.merge(%{
         instrumentation_scope: config.scope,
         span_limits: config.span_limits,
-        processors: config.processors
+        processors_key: config.processors_key
       })
-      |> run_on_start(ctx, config.processors)
+      |> run_on_start(ctx, processors)
       |> Otel.SDK.Trace.SpanStorage.insert()
     end
 
@@ -141,7 +143,7 @@ defmodule Otel.SDK.Trace.Tracer do
         ) :: boolean()
   @impl true
   def enabled?({__MODULE__, config}, _opts \\ []) do
-    config.processors != []
+    :persistent_term.get(config.processors_key, []) != []
   end
 
   @spec run_on_start(

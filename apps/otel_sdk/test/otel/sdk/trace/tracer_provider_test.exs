@@ -1,11 +1,11 @@
 defmodule Otel.SDK.Trace.TracerProviderTest.OkProcessor do
-  def shutdown(_config), do: :ok
-  def force_flush(_config), do: :ok
+  def shutdown(_config, _timeout \\ 5_000), do: :ok
+  def force_flush(_config, _timeout \\ 5_000), do: :ok
 end
 
 defmodule Otel.SDK.Trace.TracerProviderTest.FailProcessor do
-  def shutdown(_config), do: {:error, :shutdown_failed}
-  def force_flush(_config), do: {:error, :flush_failed}
+  def shutdown(_config, _timeout \\ 5_000), do: {:error, :shutdown_failed}
+  def force_flush(_config, _timeout \\ 5_000), do: {:error, :flush_failed}
 end
 
 defmodule Otel.SDK.Trace.TracerProviderTest do
@@ -141,7 +141,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
     test "second shutdown returns error", %{provider: pid} do
       assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == :ok
-      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == {:error, :already_shut_down}
+      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == {:error, :already_shutdown}
     end
   end
 
@@ -175,7 +175,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
     test "returns error after shutdown", %{provider: pid} do
       Otel.SDK.Trace.TracerProvider.shutdown(pid)
-      assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == {:error, :shut_down}
+      assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == {:error, :already_shutdown}
     end
   end
 end

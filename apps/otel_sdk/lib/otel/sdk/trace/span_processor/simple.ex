@@ -11,7 +11,7 @@ defmodule Otel.SDK.Trace.SpanProcessor.Simple do
   | Function | Role |
   |---|---|
   | `start_link/1` | **SDK** (lifecycle) |
-  | `on_start/3`, `on_end/2`, `shutdown/1`, `force_flush/1` | **SDK** (Simple implementation) |
+  | `on_start/3`, `on_end/2`, `shutdown/2`, `force_flush/2` | **SDK** (Simple implementation) |
 
   ## References
 
@@ -33,35 +33,41 @@ defmodule Otel.SDK.Trace.SpanProcessor.Simple do
   @impl Otel.SDK.Trace.SpanProcessor
   def on_start(_ctx, span, _config), do: span
 
+  @default_timeout_ms 30_000
+
   @spec on_end(
           span :: Otel.SDK.Trace.Span.t(),
           config :: Otel.SDK.Trace.SpanProcessor.config()
         ) :: :ok | :dropped | {:error, term()}
   @impl Otel.SDK.Trace.SpanProcessor
-  def on_end(span, %{reg_name: reg_name}) do
+  def on_end(span, %{pid: pid}) do
     if Bitwise.band(span.trace_flags, 1) != 0 do
-      GenServer.call(reg_name, {:export, span})
+      GenServer.call(pid, {:export, span})
     else
       :dropped
     end
   end
 
-  @spec shutdown(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok | {:error, term()}
+  @spec shutdown(config :: Otel.SDK.Trace.SpanProcessor.config(), timeout :: timeout()) ::
+          :ok | {:error, term()}
   @impl Otel.SDK.Trace.SpanProcessor
-  def shutdown(%{reg_name: reg_name}) do
-    GenServer.call(reg_name, :shutdown)
+  def shutdown(%{pid: pid}, timeout \\ @default_timeout_ms) do
+    GenServer.call(pid, :shutdown, timeout)
+  catch
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
+    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
-  @spec force_flush(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok | {:error, term()}
+  @spec force_flush(config :: Otel.SDK.Trace.SpanProcessor.config(), timeout :: timeout()) ::
+          :ok | {:error, term()}
   @impl Otel.SDK.Trace.SpanProcessor
-  def force_flush(_config), do: :ok
+  def force_flush(_config, _timeout \\ @default_timeout_ms), do: :ok
 
   # --- GenServer ---
 
   @spec start_link(config :: Otel.SDK.Trace.SpanProcessor.config()) :: GenServer.on_start()
   def start_link(config) do
-    name = Map.get(config, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, config, name: name)
+    GenServer.start_link(__MODULE__, config)
   end
 
   @impl GenServer
@@ -74,12 +80,11 @@ defmodule Otel.SDK.Trace.SpanProcessor.Simple do
         {:ok,
          %{
            exporter: {exporter_module, exporter_state},
-           resource: Map.get(config, :resource, %{}),
-           name: Map.get(config, :name, __MODULE__)
+           resource: Map.get(config, :resource, %{})
          }}
 
       :ignore ->
-        {:ok, %{exporter: nil, resource: %{}, name: Map.get(config, :name, __MODULE__)}}
+        {:ok, %{exporter: nil, resource: %{}}}
     end
   end
 

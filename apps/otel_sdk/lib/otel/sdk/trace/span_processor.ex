@@ -13,8 +13,8 @@ defmodule Otel.SDK.Trace.SpanProcessor do
   |---|---|
   | `on_start/3` | **SDK** (OTel API MUST) — `trace/sdk.md` L963-L982 |
   | `on_end/2` | **SDK** (OTel API MUST) — `trace/sdk.md` L1005-L1027 |
-  | `shutdown/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §Shutdown |
-  | `force_flush/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §ForceFlush |
+  | `shutdown/2` | **SDK** (OTel API MUST) — `trace/sdk.md` §Shutdown |
+  | `force_flush/2` | **SDK** (OTel API MUST) — `trace/sdk.md` §ForceFlush |
 
   ## Deferred Development-status features
 
@@ -55,12 +55,16 @@ defmodule Otel.SDK.Trace.SpanProcessor do
               :ok | :dropped | {:error, term()}
 
   @doc """
-  Shuts down the processor. Must include the effects of force_flush.
+  Shuts down the processor. Must include the effects of
+  force_flush. `timeout` is the upper bound the processor
+  SHOULD honour for the whole shutdown sequence per
+  `trace/sdk.md` §Shutdown.
   """
-  @callback shutdown(config :: config()) :: :ok | {:error, term()}
+  @callback shutdown(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
 
   @doc """
   Forces the processor to export all pending spans immediately.
+  `timeout` bounds the wait per `trace/sdk.md` §ForceFlush.
   """
-  @callback force_flush(config :: config()) :: :ok | {:error, term()}
+  @callback force_flush(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
 end

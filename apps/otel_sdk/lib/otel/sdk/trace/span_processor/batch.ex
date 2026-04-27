@@ -46,33 +46,40 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
           config :: Otel.SDK.Trace.SpanProcessor.config()
         ) :: :ok | :dropped | {:error, term()}
   @impl Otel.SDK.Trace.SpanProcessor
-  def on_end(span, %{reg_name: reg_name}) do
+  def on_end(span, %{pid: pid}) do
     if Bitwise.band(span.trace_flags, 1) != 0 do
-      GenServer.cast(reg_name, {:add_span, span})
+      GenServer.cast(pid, {:add_span, span})
       :ok
     else
       :dropped
     end
   end
 
-  @spec shutdown(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok | {:error, term()}
+  @spec shutdown(config :: Otel.SDK.Trace.SpanProcessor.config(), timeout :: timeout()) ::
+          :ok | {:error, term()}
   @impl Otel.SDK.Trace.SpanProcessor
-  def shutdown(%{reg_name: reg_name}) do
-    GenServer.call(reg_name, :shutdown)
+  def shutdown(%{pid: pid}, timeout \\ @default_export_timeout_ms) do
+    GenServer.call(pid, :shutdown, timeout)
+  catch
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
+    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
-  @spec force_flush(config :: Otel.SDK.Trace.SpanProcessor.config()) :: :ok | {:error, term()}
+  @spec force_flush(config :: Otel.SDK.Trace.SpanProcessor.config(), timeout :: timeout()) ::
+          :ok | {:error, term()}
   @impl Otel.SDK.Trace.SpanProcessor
-  def force_flush(%{reg_name: reg_name}) do
-    GenServer.call(reg_name, :force_flush)
+  def force_flush(%{pid: pid}, timeout \\ @default_export_timeout_ms) do
+    GenServer.call(pid, :force_flush, timeout)
+  catch
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
+    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
   # --- GenServer ---
 
   @spec start_link(config :: Otel.SDK.Trace.SpanProcessor.config()) :: GenServer.on_start()
   def start_link(config) do
-    name = Map.get(config, :name, __MODULE__)
-    GenServer.start_link(__MODULE__, config, name: name)
+    GenServer.start_link(__MODULE__, config)
   end
 
   @impl GenServer
