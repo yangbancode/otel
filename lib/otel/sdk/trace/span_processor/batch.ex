@@ -85,18 +85,10 @@ defmodule Otel.SDK.Trace.SpanProcessor.Batch do
   @impl GenServer
   @spec init(config :: Otel.SDK.Trace.SpanProcessor.config()) :: {:ok, map()}
   def init(config) do
-    {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
-
     scheduled_delay = Map.get(config, :scheduled_delay_ms, @default_scheduled_delay_ms)
 
-    exporter =
-      case exporter_module.init(exporter_opts) do
-        {:ok, state} -> {exporter_module, state}
-        :ignore -> nil
-      end
-
     state = %{
-      exporter: exporter,
+      exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter)),
       resource: Map.get(config, :resource, %{}),
       queue: [],
       queue_size: 0,
