@@ -8,19 +8,24 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 
 ## Features
 
-- **Specification**
+- **Signals**
   - Traces
   - Metrics
   - Logs
   - Baggage
-  - W3C TraceContext Propagator
-  - W3C Baggage Propagator
+- **Propagators**
+  - W3C TraceContext
+  - W3C Baggage
 - **Exporters**
   - Console (stdout)
   - OTLP HTTP
+- **Configuration**
+  - Declarative YAML (`OTEL_CONFIG_FILE`)
+  - Environment variables (`OTEL_*`)
+  - Programmatic (`Application` env)
 - **Semantic Conventions**
-  - Attributes
-  - Metrics
+  - Attribute registry
+  - Metric registry
 - **Integrations**
   - `:logger` bridge
 
