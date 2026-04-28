@@ -1,25 +1,18 @@
 # Configuration
 
-Configuration sources, highest precedence first:
+Pick whichever fits your deployment — all four reach the same provider config:
 
-1. **`OTEL_CONFIG_FILE`** (declarative YAML) — when set, short-circuits everything below.
-2. **Application env** — `Application.get_env(:otel, …)`.
-3. **`OTEL_*` environment variables.**
-4. **Built-in defaults** — match the OpenTelemetry spec defaults.
+| Source | Wins over |
+|---|---|
+| `OTEL_CONFIG_FILE` (YAML) | everything else |
+| `config :otel, ...` in `config/*.exs` | env vars + defaults |
+| `OTEL_*` environment variables | defaults |
+| Built-in defaults | — |
 
-When `OTEL_CONFIG_FILE` is set, sources 2–4 are ignored entirely (spec
-mandate). When unset, sources 2–4 compose freely — any missing value falls
-through to the next layer.
-
-## via Application env
-
-`Application.get_env(:otel, …)` reads from any `config/*.exs` file. Most
-deployments use `config/runtime.exs` so endpoints / tokens can be resolved
-from the live environment, but `config/config.exs`,
-`config/dev.exs` etc. work the same way.
+## Application env
 
 ```elixir
-# config/runtime.exs
+# config/runtime.exs (or any config/*.exs)
 import Config
 
 config :otel,
@@ -40,7 +33,7 @@ config :otel,
   propagators: [:tracecontext, :baggage]
 ```
 
-## via OS environment
+## OS environment
 
 ```bash
 export OTEL_TRACES_SAMPLER=parentbased_always_on
@@ -51,11 +44,10 @@ export OTEL_LOGS_EXPORTER=otlp
 export OTEL_PROPAGATORS=tracecontext,baggage
 ```
 
-## via `OTEL_CONFIG_FILE` (declarative YAML)
+## Declarative YAML (`OTEL_CONFIG_FILE`)
 
-When `OTEL_CONFIG_FILE` is set, the SDK loads the entire configuration
-from the referenced file and ignores every other source. The schema is
-OpenTelemetry Configuration `v1.0.0`.
+Point `OTEL_CONFIG_FILE` at a YAML file. Schema: OpenTelemetry Configuration
+`v1.0.0`. When set, every other source is ignored.
 
 ```yaml
 # /etc/otel/config.yaml
@@ -99,25 +91,21 @@ logger_provider:
 export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 ```
 
-`${VAR}` and `${VAR:-default}` substitution work for any value, so the
-YAML can stay static while endpoints / tokens vary by environment. See
-`test/fixtures/v1.0.0/` for canonical examples.
+`${VAR}` and `${VAR:-default}` substitution works anywhere. More examples in
+`test/fixtures/v1.0.0/`.
 
-## Disabling the SDK
+## Disable the SDK
 
-| Option | `OTEL_*` | Accepted values | Default |
-|---|---|---|---|
-| Skip provider registration | `OTEL_SDK_DISABLED` | `true` / `false` | `false` |
+Set `OTEL_SDK_DISABLED=true`. Telemetry calls become no-ops; the propagator
+stays active.
 
-When `true`, all telemetry calls become no-ops; the propagator stays active.
+## Selectors
 
-## Selectors — accepted forms
+`exporter:` / `processor:` / `sampler:` / propagator entries accept:
 
-Every `exporter:` / `processor:` / `sampler:` / propagator entry accepts:
-
-- a built-in **shortcut atom** from the tables below,
-- a direct **module atom** (e.g. `MyApp.CustomExporter`) — normalized to `{Module, %{}}`, or
-- a **`{module, %{...}}` tuple** for a custom config.
+- a **shortcut atom** (`:otlp`, `:batch`, `:always_on`, …) — see the tables below
+- a **module atom** — same as `{Module, %{}}`
+- a **`{module, %{...}}` tuple**
 
 ## Trace pillar
 
@@ -132,8 +120,8 @@ Every `exporter:` / `processor:` / `sampler:` / propagator entry accepts:
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BSP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BSP_MAX_QUEUE_SIZE` | integer | `2048` |
 | Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | integer | `512` |
-| Span attribute count | `span_limits: %{attribute_count_limit: _}` | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` (fallback `OTEL_ATTRIBUTE_COUNT_LIMIT`) | integer | `128` |
-| Span attribute value length | `span_limits: %{attribute_value_length_limit: _}` | `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` (fallback `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | integer or `:infinity` | `:infinity` |
+| Span attribute count | `span_limits: %{attribute_count_limit: _}` | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | integer | `128` |
+| Span attribute value length | `span_limits: %{attribute_value_length_limit: _}` | `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | integer or `:infinity` | `:infinity` |
 | Event count | `span_limits: %{event_count_limit: _}` | `OTEL_SPAN_EVENT_COUNT_LIMIT` | integer | `128` |
 | Link count | `span_limits: %{link_count_limit: _}` | `OTEL_SPAN_LINK_COUNT_LIMIT` | integer | `128` |
 | Per-event attribute count | `span_limits: %{attribute_per_event_limit: _}` | `OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT` | integer | `128` |
@@ -164,8 +152,8 @@ Every `exporter:` / `processor:` / `sampler:` / propagator entry accepts:
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BLRP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BLRP_MAX_QUEUE_SIZE` | integer | `2048` |
 | Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` | integer | `512` |
-| LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (fallback `OTEL_ATTRIBUTE_COUNT_LIMIT`) | integer | `128` |
-| LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (fallback `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | integer or `:infinity` | `:infinity` |
+| LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | integer | `128` |
+| LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | integer or `:infinity` | `:infinity` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | SDK identity attributes |
 
 ## Propagators
@@ -174,7 +162,6 @@ Every `exporter:` / `processor:` / `sampler:` / propagator entry accepts:
 |---|---|---|---|---|
 | Propagators | `propagators:` | `OTEL_PROPAGATORS` | list of `:tracecontext` / `:baggage` / `:none` (or custom modules) | `[:tracecontext, :baggage]` |
 
-The list is deduplicated. `[:none]` or an empty list installs the Noop
-propagator. Spec-named propagators not bundled in this package
-(`:b3`, `:b3multi`, `:jaeger`, `:xray`, `:ottrace`) raise — supply a
-custom `{MyPropagator, opts}` instead.
+The list is deduplicated. `[:none]` or `[]` installs Noop. Spec-named
+propagators not bundled here (`:b3`, `:b3multi`, `:jaeger`, `:xray`,
+`:ottrace`) raise — supply a custom `{MyPropagator, opts}` instead.

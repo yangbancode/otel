@@ -59,15 +59,11 @@ end
 
 ## Configuration
 
-The SDK resolves configuration in three layers (highest precedence first):
-**Application env** (`config/runtime.exs`) → **OS environment** (`OTEL_*`) →
-**built-in defaults**. See:
+Configure via `config :otel, ...` in `config/*.exs`, `OTEL_*` env vars, or
+an `OTEL_CONFIG_FILE` YAML. Defaults match the OpenTelemetry spec.
 
-- [Configuration](docs/configuration.md) — every option for the Trace,
-  Metrics, Logs, and Propagator pillars, with shortcut atoms, env var
-  names, and defaults laid out per-pillar.
-- [Logger Handler](docs/logger-handler.md) — attaching the `:logger`
-  bridge and its handler config keys.
+- [Configuration](docs/configuration.md) — full options per pillar.
+- [Logger Handler](docs/logger-handler.md) — `:logger` bridge setup.
 
 ## Example
 
