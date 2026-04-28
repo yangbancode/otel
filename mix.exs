@@ -49,8 +49,7 @@ defmodule Otel.MixProject do
   end
 
   defp description do
-    "OpenTelemetry implementation for Elixir — API, SDK, OTLP exporters, " <>
-      "declarative config, semantic conventions, and Logger bridge in a single package."
+    "Pure Elixir implementation of OpenTelemetry"
   end
 
   defp package do
