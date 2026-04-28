@@ -165,6 +165,112 @@ defmodule Otel.E2E.TraceTest do
     end
   end
 
+  describe "kinds" do
+    test "16: each of the 5 SpanKind variants round-trips through Tempo", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+
+      kinds_to_otlp = [
+        {:internal, [1, "SPAN_KIND_INTERNAL"]},
+        {:server, [2, "SPAN_KIND_SERVER"]},
+        {:client, [3, "SPAN_KIND_CLIENT"]},
+        {:producer, [4, "SPAN_KIND_PRODUCER"]},
+        {:consumer, [5, "SPAN_KIND_CONSUMER"]}
+      ]
+
+      for {kind, _} <- kinds_to_otlp do
+        Otel.API.Trace.with_span(
+          tracer,
+          "scenario-16-#{kind}-#{e2e_id}",
+          [kind: kind, attributes: %{"e2e.id" => e2e_id}],
+          fn _ -> :ok end
+        )
+      end
+
+      flush()
+
+      spans = trace_spans(e2e_id)
+
+      for {kind, accepted} <- kinds_to_otlp do
+        span = Enum.find(spans, &(&1["name"] == "scenario-16-#{kind}-#{e2e_id}"))
+        assert span, "missing span for kind #{kind}"
+        assert span["kind"] in accepted, "kind #{kind} got #{inspect(span["kind"])}"
+      end
+    end
+  end
+
+  describe "exception" do
+    test "17: with_span auto-records a raised exception + Error status", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-17-#{e2e_id}"
+
+      assert_raise RuntimeError, "boom-17", fn ->
+        Otel.API.Trace.with_span(
+          tracer,
+          name,
+          [attributes: %{"e2e.id" => e2e_id}],
+          fn _ -> raise "boom-17" end
+        )
+      end
+
+      flush()
+
+      assert [span] = trace_spans(e2e_id)
+      assert span["status"]["code"] in [2, "STATUS_CODE_ERROR"]
+      assert [%{"name" => "exception"} = event] = span["events"]
+      assert Tempo.attribute(event, "exception.type") =~ "RuntimeError"
+      assert Tempo.attribute(event, "exception.message") == "boom-17"
+    end
+
+    test "18: record_exception/3 records a manually-built exception event", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-18-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          exception = ArgumentError.exception("manual-18")
+          Otel.API.Trace.Span.record_exception(span_ctx, exception, [])
+        end
+      )
+
+      flush()
+
+      assert [span] = trace_spans(e2e_id)
+      assert [%{"name" => "exception"} = event] = span["events"]
+      assert Tempo.attribute(event, "exception.type") =~ "ArgumentError"
+      assert Tempo.attribute(event, "exception.message") == "manual-18"
+    end
+
+    test "19: record_exception/4 caller-supplied attrs override exception.* defaults",
+         %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-19-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          exception = ArgumentError.exception("default-msg-19")
+
+          Otel.API.Trace.Span.record_exception(span_ctx, exception, [], %{
+            "exception.message" => "override-19",
+            "extra" => "x"
+          })
+        end
+      )
+
+      flush()
+
+      assert [span] = trace_spans(e2e_id)
+      assert [%{"name" => "exception"} = event] = span["events"]
+      assert Tempo.attribute(event, "exception.message") == "override-19"
+      assert Tempo.attribute(event, "extra") == "x"
+    end
+  end
+
   # ---- helpers ----
 
   # `/api/search` returns ids in lower hex; `/api/traces/{id}`

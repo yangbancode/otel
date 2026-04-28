@@ -30,10 +30,10 @@ mix test --only e2e test/e2e/
 | `[ ]` | 13 | Status `:ok` | `set_status/2` | Tempo: status.code = OK |
 | `[ ]` | 14 | Status `:error` | `set_status/2` | Tempo: status.code = ERROR + message |
 | `[ ]` | 15 | Update name | `update_name/2` | Tempo: updated name |
-| `[ ]` | 16 | Span kinds — 5 variants iterated | `kind: :internal/:server/:client/:producer/:consumer` | Tempo: each kind matches |
-| `[ ]` | 17 | Exception (`with_span` auto-records) | raise inside `with_span` | Tempo: exception event + Error status |
-| `[ ]` | 18 | `record_exception/3` (manual) | `record_exception/3` | Tempo: exception event |
-| `[ ]` | 19 | `record_exception/4` with override attrs | extra attrs override `exception.*` | Tempo: caller-supplied attrs win |
+| `[x]` | 16 | Span kinds — 5 variants iterated | `kind: :internal/:server/:client/:producer/:consumer` | Tempo: each kind matches |
+| `[x]` | 17 | Exception (`with_span` auto-records) | raise inside `with_span` | Tempo: exception event + Error status |
+| `[x]` | 18 | `record_exception/3` (manual) | `record_exception/3` | Tempo: exception event |
+| `[x]` | 19 | `record_exception/4` with override attrs | extra attrs override `exception.*` | Tempo: caller-supplied attrs win |
 | `[ ]` | 20 | **Nested (parent-child)** | `with_span` inside `with_span` | Tempo: `parent_span_id` link |
 | `[ ]` | 21 | **Sibling spans** | 2× `with_span` under one parent | Tempo: same `parent_span_id` |
 | `[ ]` | 22 | **Deep nesting (5 levels)** | recursive `with_span` | Tempo: parent chain |
