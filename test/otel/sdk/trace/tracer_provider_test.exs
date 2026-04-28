@@ -165,4 +165,39 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
     for field <- [:sampler, :processors, :resource], do: assert(Map.has_key?(config, field))
   end
+
+  describe "boot-time processor wiring" do
+    defmodule FakeExporter do
+      @moduledoc false
+      @behaviour Otel.SDK.Trace.SpanExporter
+      @impl true
+      def init(_), do: {:ok, %{}}
+      @impl true
+      def export(_, _, _), do: :ok
+      @impl true
+      def force_flush(_), do: :ok
+      @impl true
+      def shutdown(_), do: :ok
+    end
+
+    # Regression: `function_exported?(module, :start_link, 1)` returns
+    # false for an unloaded module, which silently demotes
+    # `SpanProcessor.Batch` to module-only. Code.ensure_loaded/1 in
+    # `start_processor/2` prevents this. Resource must reach the
+    # processor's init config so OTLP encoding finds non-empty
+    # `attributes` at export time.
+    test "Batch processor receives a pid and the provider resource via init config" do
+      :code.purge(Otel.SDK.Trace.SpanProcessor.Batch)
+      :code.delete(Otel.SDK.Trace.SpanProcessor.Batch)
+
+      restart_sdk(trace: [processor: :batch, exporter: {FakeExporter, %{}}])
+
+      [%{module: Otel.SDK.Trace.SpanProcessor.Batch, pid: pid, callback_config: cb}] =
+        :sys.get_state(Otel.SDK.Trace.TracerProvider).processors
+
+      assert is_pid(pid) and Process.alive?(pid)
+      assert cb == %{pid: pid}
+      assert %Otel.SDK.Resource{} = :sys.get_state(pid).resource
+    end
+  end
 end
