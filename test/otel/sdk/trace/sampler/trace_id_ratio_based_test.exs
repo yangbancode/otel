@@ -2,97 +2,64 @@ defmodule Otel.SDK.Trace.Sampler.TraceIdRatioBasedTest do
   use ExUnit.Case, async: true
 
   @sampler_module Otel.SDK.Trace.Sampler.TraceIdRatioBased
+  @random_trace_id_max Bitwise.bsl(2, 127) - 1
 
-  describe "setup/1" do
-    test "accepts probability 0.0" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.0})
-      assert {_, _, %{probability: +0.0}} = sampler
-    end
+  defp sampler(probability), do: Otel.SDK.Trace.Sampler.new({@sampler_module, probability})
 
-    test "accepts probability 1.0" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 1.0})
-      assert {_, _, %{probability: 1.0}} = sampler
-    end
+  defp decision(sampler, trace_id),
+    do:
+      elem(
+        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, trace_id, [], "n", :internal, %{}),
+        0
+      )
 
-    test "accepts probability 0.5" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.5})
-      assert {_, _, %{probability: 0.5}} = sampler
+  describe "setup/1 — accepts probabilities in [0.0, 1.0]" do
+    test "round-trips at the boundaries and a midpoint" do
+      assert {_, _, %{probability: +0.0}} = sampler(0.0)
+      assert {_, _, %{probability: 1.0}} = sampler(1.0)
+      assert {_, _, %{probability: 0.5}} = sampler(0.5)
     end
   end
 
-  describe "description/1" do
-    test "returns TraceIdRatioBased{ratio} format" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.0001})
-      desc = Otel.SDK.Trace.Sampler.description(sampler)
-      assert desc =~ "TraceIdRatioBased{"
-      assert desc =~ "0.000100"
-    end
+  test ~s|description/1 returns "TraceIdRatioBased{<formatted ratio>}"| do
+    desc = Otel.SDK.Trace.Sampler.description(sampler(0.0001))
+
+    assert desc =~ "TraceIdRatioBased{"
+    assert desc =~ "0.000100"
   end
 
   describe "should_sample/7" do
-    test "probability 1.0 always samples" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 1.0})
+    test "probability 1.0 samples every trace_id; 0.0 drops every trace_id" do
+      always = sampler(1.0)
+      never = sampler(0.0)
 
-      for _ <- 1..100 do
-        trace_id = :rand.uniform(Bitwise.bsl(2, 127) - 1)
-
-        {decision, _, _} =
-          Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, trace_id, [], "span", :internal, %{})
-
-        assert decision == :record_and_sample
+      for _ <- 1..50 do
+        trace_id = :rand.uniform(@random_trace_id_max)
+        assert decision(always, trace_id) == :record_and_sample
+        assert decision(never, trace_id) == :drop
       end
     end
 
-    test "probability 0.0 always drops" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.0})
-
-      for _ <- 1..100 do
-        trace_id = :rand.uniform(Bitwise.bsl(2, 127) - 1)
-
-        {decision, _, _} =
-          Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, trace_id, [], "span", :internal, %{})
-
-        assert decision == :drop
-      end
+    test "trace_id 0 always drops (cannot derive a valid hash)" do
+      assert decision(sampler(1.0), 0) == :drop
     end
 
-    test "drops when trace_id is 0" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 1.0})
+    test "deterministic: same trace_id yields the same decision" do
+      s = sampler(0.5)
+      trace_id = :rand.uniform(@random_trace_id_max)
 
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, 0, [], "span", :internal, %{})
-
-      assert decision == :drop
+      assert decision(s, trace_id) == decision(s, trace_id)
     end
 
-    test "deterministic: same trace_id gives same decision" do
-      sampler = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.5})
-      trace_id = :rand.uniform(Bitwise.bsl(2, 127) - 1)
-
-      {decision1, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, trace_id, [], "span", :internal, %{})
-
-      {decision2, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, trace_id, [], "span", :internal, %{})
-
-      assert decision1 == decision2
-    end
-
-    test "higher ratio samples all traces that lower ratio would" do
-      low = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.1})
-      high = Otel.SDK.Trace.Sampler.new({@sampler_module, 0.5})
+    test "monotonicity: a higher ratio samples every trace_id a lower ratio would" do
+      low = sampler(0.1)
+      high = sampler(0.5)
 
       for _ <- 1..200 do
-        trace_id = :rand.uniform(Bitwise.bsl(2, 127) - 1)
+        trace_id = :rand.uniform(@random_trace_id_max)
 
-        {low_decision, _, _} =
-          Otel.SDK.Trace.Sampler.should_sample(low, %{}, trace_id, [], "span", :internal, %{})
-
-        {high_decision, _, _} =
-          Otel.SDK.Trace.Sampler.should_sample(high, %{}, trace_id, [], "span", :internal, %{})
-
-        if low_decision == :record_and_sample do
-          assert high_decision == :record_and_sample
+        if decision(low, trace_id) == :record_and_sample do
+          assert decision(high, trace_id) == :record_and_sample
         end
       end
     end
