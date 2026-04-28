@@ -29,7 +29,10 @@ defmodule Otel.E2E.TraceSamplersTest do
 
     test "31: always_off drops the span", %{e2e_id: e2e_id} do
       emit("scenario-31-#{e2e_id}", e2e_id)
-      assert {:error, :timeout} = poll(Tempo.search(e2e_id))
+      # `:always_off` drops the span at sampling time, so no
+      # traffic ever reaches the exporter — `fetch/1` is the
+      # right shape, not `poll/1`.
+      assert {:ok, []} = fetch(Tempo.search(e2e_id))
     end
   end
 
