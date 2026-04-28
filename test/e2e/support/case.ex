@@ -3,7 +3,7 @@ defmodule Otel.E2E.Case do
   ExUnit case template for end-to-end tests against the local
   Grafana LGTM stack.
 
-  Each test gets a unique `:marker` (timestamp + random) in its
+  Each test gets a unique `:e2e_id` (timestamp + random) in its
   context so test data can be located in Tempo / Loki / Mimir
   without colliding with other concurrent or recent runs.
 
@@ -26,10 +26,10 @@ defmodule Otel.E2E.Case do
   end
 
   setup do
-    {:ok, marker: marker()}
+    {:ok, e2e_id: e2e_id()}
   end
 
-  defp marker do
-    "e2e-#{:os.system_time(:millisecond)}-#{:rand.uniform(1_000_000)}"
+  defp e2e_id do
+    "e2e-#{:os.system_time(:millisecond)}-#{System.unique_integer([:positive, :monotonic])}"
   end
 end

@@ -1,7 +1,7 @@
 defmodule Otel.E2E.Emitter do
   @moduledoc """
   Helpers for emitting telemetry from e2e tests. Each helper tags
-  the emitted record with the supplied `marker` (under attribute
+  the emitted record with the supplied `e2e_id` (under attribute
   `e2e.id`) and force-flushes the corresponding pillar so the data
   is on its way to the collector by return.
   """
@@ -29,13 +29,13 @@ defmodule Otel.E2E.Emitter do
   span attributes (beyond `e2e.id`) can be passed via `attributes:`.
   Other `start_opts()` keys (`kind:`, `links:`, …) pass through.
   """
-  @spec emit_span(name :: String.t(), marker :: String.t(), opts :: keyword()) :: term()
-  def emit_span(name, marker, opts \\ []) do
+  @spec emit_span(name :: String.t(), e2e_id :: String.t(), opts :: keyword()) :: term()
+  def emit_span(name, e2e_id, opts \\ []) do
     {extra_attrs, opts} = Keyword.pop(opts, :attributes, %{})
     {fun, opts} = Keyword.pop(opts, :run, fn _ -> :ok end)
 
     tracer = Otel.API.Trace.TracerProvider.get_tracer(@scope)
-    attrs = Map.put(extra_attrs, "e2e.id", marker)
+    attrs = Map.put(extra_attrs, "e2e.id", e2e_id)
 
     result = Otel.API.Trace.with_span(tracer, name, [attributes: attrs] ++ opts, fun)
 
@@ -46,14 +46,14 @@ defmodule Otel.E2E.Emitter do
   @doc """
   Emits a log record via the SDK API and force-flushes logs.
   """
-  @spec emit_log(body :: term(), marker :: String.t(), opts :: keyword()) :: :ok
-  def emit_log(body, marker, opts \\ []) do
+  @spec emit_log(body :: term(), e2e_id :: String.t(), opts :: keyword()) :: :ok
+  def emit_log(body, e2e_id, opts \\ []) do
     {extra_attrs, opts} = Keyword.pop(opts, :attributes, %{})
     severity_number = Keyword.get(opts, :severity_number, 9)
     severity_text = Keyword.get(opts, :severity_text, "info")
 
     logger = Otel.API.Logs.LoggerProvider.get_logger(@scope)
-    attrs = Map.put(extra_attrs, "e2e.id", marker)
+    attrs = Map.put(extra_attrs, "e2e.id", e2e_id)
 
     Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
       body: body,
@@ -69,16 +69,16 @@ defmodule Otel.E2E.Emitter do
   @doc """
   Increments a counter by 1 (or `value`) and force-flushes metrics.
   Counter creation opts (`unit:`, `description:`, …) pass through;
-  emit-time `attributes:` are merged with the marker.
+  emit-time `attributes:` are merged with the e2e_id.
   """
-  @spec emit_counter(name :: String.t(), marker :: String.t(), opts :: keyword()) :: :ok
-  def emit_counter(name, marker, opts \\ []) do
+  @spec emit_counter(name :: String.t(), e2e_id :: String.t(), opts :: keyword()) :: :ok
+  def emit_counter(name, e2e_id, opts \\ []) do
     {extra_attrs, opts} = Keyword.pop(opts, :attributes, %{})
     {value, create_opts} = Keyword.pop(opts, :value, 1)
 
     meter = Otel.API.Metrics.MeterProvider.get_meter(@scope)
     counter = Otel.API.Metrics.Meter.create_counter(meter, name, create_opts)
-    attrs = Map.put(extra_attrs, "e2e.id", marker)
+    attrs = Map.put(extra_attrs, "e2e.id", e2e_id)
 
     Otel.API.Metrics.Counter.add(counter, value, attrs)
 

@@ -12,20 +12,20 @@ defmodule Otel.E2E.Mimir do
   @base "http://localhost:9090"
 
   @doc """
-  Polls Mimir's `/api/v1/query` for `metric{e2e_id="<marker>"}`
+  Polls Mimir's `/api/v1/query` for `metric{e2e_id="<e2e_id>"}`
   until a matching series is returned.
   """
-  @spec find_metric(metric :: String.t(), marker :: String.t(), opts :: keyword()) ::
+  @spec find_metric(metric :: String.t(), e2e_id :: String.t(), opts :: keyword()) ::
           Otel.E2E.Polling.result()
-  def find_metric(metric, marker, opts \\ []) do
+  def find_metric(metric, e2e_id, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 15_000)
 
     Otel.E2E.Polling.until(timeout, fn ->
-      query = ~s(#{metric}{e2e_id="#{marker}"})
+      query = ~s(#{metric}{e2e_id="#{e2e_id}"})
       url = "#{@base}/api/v1/query?query=#{URI.encode_www_form(query)}"
 
       with {:ok, body} <- Otel.E2E.HTTP.get(url),
-           true <- String.contains?(body, marker) do
+           true <- String.contains?(body, e2e_id) do
         {:ok, body}
       else
         _ -> :retry
