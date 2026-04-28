@@ -118,20 +118,29 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @doc """
   **SDK** (introspection) — Returns the resource associated with
-  this provider.
+  this provider, or `Otel.SDK.Resource.default/0` when the
+  provider isn't running.
   """
   @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
   def resource(server) do
-    GenServer.call(server, :resource)
+    if GenServer.whereis(server) do
+      GenServer.call(server, :resource)
+    else
+      Otel.SDK.Resource.default()
+    end
   end
 
   @doc """
   **SDK** (introspection) — Returns the current configuration
-  snapshot.
+  snapshot, or an empty map when the provider isn't running.
   """
-  @spec config(server :: GenServer.server()) :: config()
+  @spec config(server :: GenServer.server()) :: config() | %{}
   def config(server) do
-    GenServer.call(server, :config)
+    if GenServer.whereis(server) do
+      GenServer.call(server, :config)
+    else
+      %{}
+    end
   end
 
   @doc """
@@ -139,7 +148,9 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   (`metrics/sdk.md` §View L259-L327).
 
   Returns `{:error, reason}` if the View is invalid (e.g.
-  wildcard name with stream name override).
+  wildcard name with stream name override). Returns `:ok` when
+  the provider isn't running — there's no aggregation pipeline
+  to install the View on, so the call is a silent no-op.
   """
   @spec add_view(
           server :: GenServer.server(),
@@ -147,7 +158,11 @@ defmodule Otel.SDK.Metrics.MeterProvider do
           config :: Otel.SDK.Metrics.View.config()
         ) :: :ok | {:error, String.t()}
   def add_view(server, criteria \\ %{}, config \\ %{}) do
-    GenServer.call(server, {:add_view, criteria, config})
+    if GenServer.whereis(server) do
+      GenServer.call(server, {:add_view, criteria, config})
+    else
+      :ok
+    end
   end
 
   # --- Server Callbacks ---

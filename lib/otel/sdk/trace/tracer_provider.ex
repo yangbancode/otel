@@ -207,20 +207,29 @@ defmodule Otel.SDK.Trace.TracerProvider do
 
   @doc """
   **SDK** (introspection) — Returns the resource associated with
-  this provider.
+  this provider, or `Otel.SDK.Resource.default/0` when the
+  provider isn't running.
   """
   @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
   def resource(server) do
-    GenServer.call(server, :resource)
+    if GenServer.whereis(server) do
+      GenServer.call(server, :resource)
+    else
+      Otel.SDK.Resource.default()
+    end
   end
 
   @doc """
   **SDK** (introspection) — Returns the current configuration
-  snapshot.
+  snapshot, or an empty map when the provider isn't running.
   """
-  @spec config(server :: GenServer.server()) :: config()
+  @spec config(server :: GenServer.server()) :: config() | %{}
   def config(server) do
-    GenServer.call(server, :config)
+    if GenServer.whereis(server) do
+      GenServer.call(server, :config)
+    else
+      %{}
+    end
   end
 
   # --- Server Callbacks ---
