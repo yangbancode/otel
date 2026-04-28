@@ -126,8 +126,8 @@ defmodule Otel.E2E.TraceTest do
       span = trace_spans(e2e_id) |> Enum.find(&(&1["name"] == main_name))
       assert span
       assert [%{"traceId" => linked_trace_id, "spanId" => linked_span_id}] = span["links"]
-      assert linked_trace_id == linked_ctx.trace_id |> integer_hex(32)
-      assert linked_span_id == linked_ctx.span_id |> integer_hex(16)
+      assert linked_trace_id == otlp_id(linked_ctx.trace_id, 128)
+      assert linked_span_id == otlp_id(linked_ctx.span_id, 64)
     end
 
     test "6: is_root: true creates a new root span ignoring the active parent",
@@ -177,27 +177,29 @@ defmodule Otel.E2E.TraceTest do
     end)
   end
 
-  # OTLP/JSON encodes ids as lowercase hex with no separators.
-  # The SDK SpanContext stores them as plain integers, so tests
-  # that cross-reference the carrier and the persisted record
-  # need this conversion.
-  @spec integer_hex(integer :: non_neg_integer(), bits :: pos_integer()) :: String.t()
-  defp integer_hex(integer, bits) do
-    integer
-    |> Integer.to_string(16)
-    |> String.downcase()
-    |> String.pad_leading(div(bits, 4), "0")
-  end
+  # `Tempo.trace/1` returns spans whose `traceId` / `spanId` /
+  # `parentSpanId` follow the protobuf-JSON convention for
+  # `bytes` fields: standard base64 encoding of the raw byte
+  # string. The SDK `SpanContext` stores those ids as plain
+  # integers, so tests that cross-reference an SDK ctx against
+  # the persisted Tempo record need this conversion.
+  #
+  # (Note: `Tempo.query/1`'s `/api/search` response uses lower
+  # hex for the top-level `traceID` field — that path doesn't
+  # need this helper because the test simply forwards the hex
+  # back into `/api/traces/{id}` URL building.)
+  @spec otlp_id(integer :: non_neg_integer(), bits :: pos_integer()) :: String.t()
+  defp otlp_id(integer, bits), do: Base.encode64(<<integer::size(bits)>>)
 
-  # Tempo renders a missing parentSpanId either as `nil` or as a
-  # zero-filled hex string depending on encoder version; treat
-  # both as "no parent".
+  # Tempo renders a missing parentSpanId as `nil`, the empty
+  # string, or an all-zero byte field (which encodes to
+  # `"AAAAAAAAAAA="` in base64). Treat all three as "no parent".
   @spec blank_parent?(span :: map()) :: boolean()
   defp blank_parent?(span) do
     case span["parentSpanId"] do
       nil -> true
       "" -> true
-      hex -> String.match?(hex, ~r/^0+$/)
+      str -> str =~ ~r/^A+={0,2}$/
     end
   end
 end
