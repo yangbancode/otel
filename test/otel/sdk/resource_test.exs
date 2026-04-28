@@ -1,162 +1,133 @@
 defmodule Otel.SDK.ResourceTest do
-  # async: false because `default/0` reads OTEL_RESOURCE_ATTRIBUTES
-  # and OTEL_SERVICE_NAME from the process-global environment;
-  # parallel tests would race on `System.put_env/delete_env`.
+  # async: false — `default/0` reads OTEL_RESOURCE_ATTRIBUTES /
+  # OTEL_SERVICE_NAME from the process-global environment.
   use ExUnit.Case, async: false
 
   describe "create/2" do
-    test "creates from map" do
-      resource = Otel.SDK.Resource.create(%{"key" => "value"})
-      assert resource.attributes["key"] == "value"
-      assert resource.schema_url == ""
-    end
+    test "accepts attributes as a map or keyword list; schema_url defaults to \"\"" do
+      assert Otel.SDK.Resource.create(%{"key" => "value"}).attributes == %{"key" => "value"}
+      assert Otel.SDK.Resource.create([{"key", "value"}]).attributes == %{"key" => "value"}
+      assert Otel.SDK.Resource.create(%{}).schema_url == ""
 
-    test "creates from keyword list" do
-      resource = Otel.SDK.Resource.create([{"key", "value"}])
-      assert resource.attributes["key"] == "value"
-    end
-
-    test "creates with schema_url" do
-      resource = Otel.SDK.Resource.create(%{}, "https://example.com/schema")
-      assert resource.schema_url == "https://example.com/schema"
+      assert Otel.SDK.Resource.create(%{}, "https://example.com/schema").schema_url ==
+               "https://example.com/schema"
     end
   end
 
   describe "merge/2" do
-    test "merges attributes, updating takes precedence" do
+    test "updating attributes overwrite same keys; old keys without conflict survive" do
       old = Otel.SDK.Resource.create(%{"a" => "1", "b" => "old"})
       updating = Otel.SDK.Resource.create(%{"b" => "new", "c" => "3"})
       merged = Otel.SDK.Resource.merge(old, updating)
 
-      assert merged.attributes["a"] == "1"
-      assert merged.attributes["b"] == "new"
-      assert merged.attributes["c"] == "3"
+      assert merged.attributes == %{"a" => "1", "b" => "new", "c" => "3"}
     end
 
-    test "empty old schema_url uses updating's" do
-      old = Otel.SDK.Resource.create(%{}, "")
-      updating = Otel.SDK.Resource.create(%{}, "https://new.com")
-      assert Otel.SDK.Resource.merge(old, updating).schema_url == "https://new.com"
-    end
+    # Spec resource/sdk.md L153-L160 — schema_url merge:
+    # one empty + one set → use the set one;
+    # both equal → keep that;
+    # different non-empty → empty.
+    test "schema_url merge: one-empty / matching / conflicting" do
+      assert Otel.SDK.Resource.merge(
+               Otel.SDK.Resource.create(%{}, ""),
+               Otel.SDK.Resource.create(%{}, "https://new.com")
+             ).schema_url == "https://new.com"
 
-    test "empty updating schema_url uses old's" do
-      old = Otel.SDK.Resource.create(%{}, "https://old.com")
-      updating = Otel.SDK.Resource.create(%{}, "")
-      assert Otel.SDK.Resource.merge(old, updating).schema_url == "https://old.com"
-    end
+      assert Otel.SDK.Resource.merge(
+               Otel.SDK.Resource.create(%{}, "https://old.com"),
+               Otel.SDK.Resource.create(%{}, "")
+             ).schema_url == "https://old.com"
 
-    test "matching schema_urls preserved" do
-      old = Otel.SDK.Resource.create(%{}, "https://same.com")
-      updating = Otel.SDK.Resource.create(%{}, "https://same.com")
-      assert Otel.SDK.Resource.merge(old, updating).schema_url == "https://same.com"
-    end
+      assert Otel.SDK.Resource.merge(
+               Otel.SDK.Resource.create(%{}, "https://same.com"),
+               Otel.SDK.Resource.create(%{}, "https://same.com")
+             ).schema_url == "https://same.com"
 
-    test "conflicting schema_urls result in empty" do
-      old = Otel.SDK.Resource.create(%{}, "https://old.com")
-      updating = Otel.SDK.Resource.create(%{}, "https://new.com")
-      assert Otel.SDK.Resource.merge(old, updating).schema_url == ""
+      assert Otel.SDK.Resource.merge(
+               Otel.SDK.Resource.create(%{}, "https://old.com"),
+               Otel.SDK.Resource.create(%{}, "https://new.com")
+             ).schema_url == ""
     end
   end
 
   describe "default/0" do
     setup do
-      original_otel_resource_attrs = System.get_env("OTEL_RESOURCE_ATTRIBUTES")
-      original_otel_service_name = System.get_env("OTEL_SERVICE_NAME")
+      saved_attrs = System.get_env("OTEL_RESOURCE_ATTRIBUTES")
+      saved_service = System.get_env("OTEL_SERVICE_NAME")
 
       System.delete_env("OTEL_RESOURCE_ATTRIBUTES")
       System.delete_env("OTEL_SERVICE_NAME")
 
       on_exit(fn ->
-        restore_env("OTEL_RESOURCE_ATTRIBUTES", original_otel_resource_attrs)
-        restore_env("OTEL_SERVICE_NAME", original_otel_service_name)
+        restore_env("OTEL_RESOURCE_ATTRIBUTES", saved_attrs)
+        restore_env("OTEL_SERVICE_NAME", saved_service)
       end)
-
-      :ok
     end
 
-    test "includes SDK attributes (no env vars)" do
-      resource = Otel.SDK.Resource.default()
-      assert resource.attributes["telemetry.sdk.name"] == "otel"
-      assert resource.attributes["telemetry.sdk.language"] == "elixir"
-      assert is_binary(resource.attributes["telemetry.sdk.version"])
-      assert resource.attributes["telemetry.sdk.version"] != ""
-      assert resource.attributes["service.name"] == "unknown_service"
+    test "no env vars → SDK identity attributes + service.name=\"unknown_service\"" do
+      attrs = Otel.SDK.Resource.default().attributes
+
+      assert attrs["telemetry.sdk.name"] == "otel"
+      assert attrs["telemetry.sdk.language"] == "elixir"
+      assert is_binary(attrs["telemetry.sdk.version"]) and attrs["telemetry.sdk.version"] != ""
+      assert attrs["service.name"] == "unknown_service"
     end
 
-    test "OTEL_SERVICE_NAME populates service.name (spec L116)" do
-      System.put_env("OTEL_SERVICE_NAME", "my_service")
-      resource = Otel.SDK.Resource.default()
-      assert resource.attributes["service.name"] == "my_service"
-    end
-
-    test "OTEL_RESOURCE_ATTRIBUTES populates attributes (spec L179-L182)" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "k1=v1,k2=v2,host.name=worker-7")
-      resource = Otel.SDK.Resource.default()
-
-      assert resource.attributes["k1"] == "v1"
-      assert resource.attributes["k2"] == "v2"
-      assert resource.attributes["host.name"] == "worker-7"
-    end
-
-    test "OTEL_RESOURCE_ATTRIBUTES service.name used when OTEL_SERVICE_NAME unset" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "service.name=from_attrs")
-      resource = Otel.SDK.Resource.default()
-      assert resource.attributes["service.name"] == "from_attrs"
-    end
-
-    test "OTEL_SERVICE_NAME takes precedence over OTEL_RESOURCE_ATTRIBUTES service.name (spec L116)" do
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "service.name=from_attrs")
+    # Spec sdk-environment-variables.md L116 — OTEL_SERVICE_NAME
+    # always wins over the OTEL_RESOURCE_ATTRIBUTES service.name entry.
+    test "OTEL_SERVICE_NAME wins over OTEL_RESOURCE_ATTRIBUTES service.name" do
       System.put_env("OTEL_SERVICE_NAME", "from_env")
+      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "service.name=from_attrs,k1=v1")
 
-      resource = Otel.SDK.Resource.default()
-      assert resource.attributes["service.name"] == "from_env"
+      attrs = Otel.SDK.Resource.default().attributes
+      assert attrs["service.name"] == "from_env"
+      assert attrs["k1"] == "v1"
     end
 
-    test "percent-encoded `,` and `=` are decoded (spec L186-L187)" do
-      # comma in value: `%2C`. Equals in value: `%3D`.
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "csv=a%2Cb%2Cc,kv=k%3Dv")
-      resource = Otel.SDK.Resource.default()
-
-      assert resource.attributes["csv"] == "a,b,c"
-      assert resource.attributes["kv"] == "k=v"
+    test "without OTEL_SERVICE_NAME, OTEL_RESOURCE_ATTRIBUTES service.name applies" do
+      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "service.name=from_attrs")
+      assert Otel.SDK.Resource.default().attributes["service.name"] == "from_attrs"
     end
 
-    test "percent-encoded UTF-8 values decode correctly (spec L188-L189)" do
-      # `한글` UTF-8 bytes percent-encoded
-      System.put_env("OTEL_RESOURCE_ATTRIBUTES", "label=%ED%95%9C%EA%B8%80")
-      resource = Otel.SDK.Resource.default()
-      assert resource.attributes["label"] == "한글"
+    # Spec L186-L189 — values are RFC 3986 percent-decoded; commas
+    # and equals inside values are %2C and %3D.
+    test "percent-decodes commas, equals, and UTF-8 bytes in values" do
+      System.put_env(
+        "OTEL_RESOURCE_ATTRIBUTES",
+        "csv=a%2Cb%2Cc,kv=k%3Dv,label=%ED%95%9C%EA%B8%80"
+      )
+
+      attrs = Otel.SDK.Resource.default().attributes
+      assert attrs["csv"] == "a,b,c"
+      assert attrs["kv"] == "k=v"
+      assert attrs["label"] == "한글"
     end
 
-    test "malformed pair discards entire OTEL_RESOURCE_ATTRIBUTES (spec L191-L193)" do
-      # second pair lacks `=` — whole value discarded
+    # Spec L191-L193: a malformed pair (missing `=`) discards the
+    # ENTIRE value, not just the bad pair.
+    test "malformed pair discards the whole OTEL_RESOURCE_ATTRIBUTES" do
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "good=ok,malformed,also=fine")
-      resource = Otel.SDK.Resource.default()
+      attrs = Otel.SDK.Resource.default().attributes
 
-      refute Map.has_key?(resource.attributes, "good")
-      refute Map.has_key?(resource.attributes, "also")
+      refute Map.has_key?(attrs, "good")
+      refute Map.has_key?(attrs, "also")
     end
 
-    test "empty OTEL_RESOURCE_ATTRIBUTES treated as unset" do
+    test "empty env-var values are treated as unset" do
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "")
-      resource = Otel.SDK.Resource.default()
+      attrs = Otel.SDK.Resource.default().attributes
+      assert attrs["service.name"] == "unknown_service"
 
-      assert resource.attributes["service.name"] == "unknown_service"
+      assert Map.keys(attrs) |> Enum.sort() == [
+               "service.name",
+               "telemetry.sdk.language",
+               "telemetry.sdk.name",
+               "telemetry.sdk.version"
+             ]
 
-      assert Map.keys(resource.attributes) |> Enum.sort() ==
-               [
-                 "service.name",
-                 "telemetry.sdk.language",
-                 "telemetry.sdk.name",
-                 "telemetry.sdk.version"
-               ]
-    end
-
-    test "empty OTEL_SERVICE_NAME treated as unset" do
       System.put_env("OTEL_SERVICE_NAME", "")
       System.put_env("OTEL_RESOURCE_ATTRIBUTES", "service.name=from_attrs")
-      resource = Otel.SDK.Resource.default()
-      assert resource.attributes["service.name"] == "from_attrs"
+      assert Otel.SDK.Resource.default().attributes["service.name"] == "from_attrs"
     end
   end
 
