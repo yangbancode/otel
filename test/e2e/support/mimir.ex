@@ -15,19 +15,14 @@ defmodule Otel.E2E.Mimir do
   Polls Mimir's `/api/v1/query` for `metric{e2e_id="<e2e_id>"}` until
   at least one series matches.
   """
-  @spec find_metric(metric :: String.t(), e2e_id :: String.t(), opts :: keyword()) ::
-          Otel.E2E.HTTP.result()
-  def find_metric(metric, e2e_id, opts \\ []) do
+  @spec find_metric(metric :: String.t(), e2e_id :: String.t()) :: Otel.E2E.HTTP.result()
+  def find_metric(metric, e2e_id) do
     query = ~s(#{metric}{e2e_id="#{e2e_id}"})
     url = "#{@base}/api/v1/query?query=#{URI.encode_www_form(query)}"
 
-    Otel.E2E.HTTP.poll(
-      url,
-      fn
-        %{"data" => %{"result" => [_ | _] = series}} -> {:ok, series}
-        _ -> :empty
-      end,
-      Keyword.put_new(opts, :timeout, 15_000)
-    )
+    Otel.E2E.HTTP.poll(url, fn
+      %{"data" => %{"result" => [_ | _] = series}} -> {:ok, series}
+      _ -> :empty
+    end)
   end
 end

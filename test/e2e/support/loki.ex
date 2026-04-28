@@ -14,8 +14,8 @@ defmodule Otel.E2E.Loki do
   requirement (every query must carry at least one stream matcher)
   and accepts any service name.
   """
-  @spec find(e2e_id :: String.t(), opts :: keyword()) :: Otel.E2E.HTTP.result()
-  def find(e2e_id, opts \\ []) do
+  @spec find(e2e_id :: String.t()) :: Otel.E2E.HTTP.result()
+  def find(e2e_id) do
     query = ~s({service_name=~".+"} |= "#{e2e_id}")
     now = System.system_time(:nanosecond)
     start = now - 60 * 1_000_000_000
@@ -27,13 +27,9 @@ defmodule Otel.E2E.Loki do
         "&end=#{now}" <>
         "&limit=10"
 
-    Otel.E2E.HTTP.poll(
-      url,
-      fn
-        %{"data" => %{"result" => [_ | _] = streams}} -> {:ok, streams}
-        _ -> :empty
-      end,
-      opts
-    )
+    Otel.E2E.HTTP.poll(url, fn
+      %{"data" => %{"result" => [_ | _] = streams}} -> {:ok, streams}
+      _ -> :empty
+    end)
   end
 end
