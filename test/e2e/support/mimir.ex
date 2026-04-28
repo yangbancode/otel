@@ -1,6 +1,6 @@
 defmodule Otel.E2E.Mimir do
   @moduledoc """
-  Mimir / Prometheus (metric backend) query helpers.
+  Mimir / Prometheus (metric backend) URL builders.
 
   OTel → Prometheus naming reminder:
 
@@ -11,14 +11,10 @@ defmodule Otel.E2E.Mimir do
 
   @base "http://localhost:9090"
 
-  @doc """
-  Polls Mimir's `/api/v1/query` for `metric{e2e_id="<e2e_id>"}` until
-  at least one series matches.
-  """
-  @spec find_metric(metric :: String.t(), e2e_id :: String.t()) :: Otel.E2E.HTTP.result()
+  @doc "Mimir `/api/v1/query` URL for the given metric + e2e_id."
+  @spec find_metric(metric :: String.t(), e2e_id :: String.t()) :: String.t()
   def find_metric(metric, e2e_id) do
     query = ~s(#{metric}{e2e_id="#{e2e_id}"})
-
-    Otel.E2E.HTTP.poll("#{@base}/api/v1/query?query=#{URI.encode_www_form(query)}")
+    "#{@base}/api/v1/query?query=#{URI.encode_www_form(query)}"
   end
 end
