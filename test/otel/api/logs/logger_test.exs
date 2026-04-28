@@ -1,17 +1,33 @@
 defmodule Otel.API.Logs.LoggerTest do
   use ExUnit.Case, async: true
 
-  @noop_logger {Otel.API.Logs.Logger.Noop, []}
+  # Verifies the facade dispatches to the registered Logger
+  # module. Behaviour of the Noop fallback itself is covered in
+  # `Otel.API.Logs.Logger.NoopTest`.
 
-  describe "emit/2 with implicit context" do
-    test "accepts empty log record" do
-      assert :ok == Otel.API.Logs.Logger.emit(@noop_logger)
+  @logger {Otel.API.Logs.Logger.Noop, []}
+
+  describe "emit/1,2,3 — dispatches to the Logger module" do
+    test "with implicit context, all arities" do
+      record = %Otel.API.Logs.LogRecord{body: "msg"}
+
+      assert :ok = Otel.API.Logs.Logger.emit(@logger)
+      assert :ok = Otel.API.Logs.Logger.emit(@logger, record)
     end
 
-    test "accepts log record with all fields" do
-      log_record = %Otel.API.Logs.LogRecord{
-        timestamp: System.system_time(:nanosecond),
-        observed_timestamp: System.system_time(:nanosecond),
+    test "with explicit context" do
+      ctx = Otel.API.Ctx.current()
+      record = %Otel.API.Logs.LogRecord{body: "with context"}
+
+      assert :ok = Otel.API.Logs.Logger.emit(@logger, ctx, record)
+    end
+
+    test "forwards a fully-populated record" do
+      now = System.system_time(:nanosecond)
+
+      record = %Otel.API.Logs.LogRecord{
+        timestamp: now,
+        observed_timestamp: now,
         severity_number: 9,
         severity_text: "INFO",
         body: "Hello, world!",
@@ -19,56 +35,18 @@ defmodule Otel.API.Logs.LoggerTest do
         event_name: "my.event"
       }
 
-      assert :ok == Otel.API.Logs.Logger.emit(@noop_logger, log_record)
-    end
-
-    test "accepts log record with partial fields" do
-      assert :ok ==
-               Otel.API.Logs.Logger.emit(@noop_logger, %Otel.API.Logs.LogRecord{
-                 severity_number: 17,
-                 body: "Error occurred"
-               })
+      assert :ok = Otel.API.Logs.Logger.emit(@logger, record)
     end
   end
 
-  describe "emit/3 with explicit context" do
-    test "accepts explicit context" do
-      ctx = Otel.API.Ctx.current()
-
-      assert :ok ==
-               Otel.API.Logs.Logger.emit(@noop_logger, ctx, %Otel.API.Logs.LogRecord{
-                 body: "with context"
-               })
-    end
-  end
-
-  describe "enabled?/2" do
-    test "noop returns false" do
-      refute Otel.API.Logs.Logger.enabled?(@noop_logger)
-    end
-
-    test "accepts opts with severity_number" do
-      refute Otel.API.Logs.Logger.enabled?(@noop_logger, severity_number: 9)
-    end
-
-    test "accepts opts with event_name" do
-      refute Otel.API.Logs.Logger.enabled?(@noop_logger, event_name: "my.event")
-    end
-
-    test "accepts opts with severity_number and event_name" do
-      refute Otel.API.Logs.Logger.enabled?(@noop_logger,
-               severity_number: 9,
-               event_name: "my.event"
-             )
-    end
-
-    test "accepts explicit context" do
-      ctx = Otel.API.Ctx.current()
-      refute Otel.API.Logs.Logger.enabled?(@noop_logger, ctx: ctx)
-    end
-
-    test "injects current context when not provided" do
-      refute Otel.API.Logs.Logger.enabled?(@noop_logger, severity_number: 9)
-    end
+  # Spec logs/api.md L133-L154: Enabled accepts severity_number,
+  # event_name, and ctx in opts. The Noop returns false regardless;
+  # this test asserts the facade forwards each opt shape to dispatch.
+  test "enabled?/2 dispatches with each documented opt shape" do
+    refute Otel.API.Logs.Logger.enabled?(@logger)
+    refute Otel.API.Logs.Logger.enabled?(@logger, severity_number: 9)
+    refute Otel.API.Logs.Logger.enabled?(@logger, event_name: "my.event")
+    refute Otel.API.Logs.Logger.enabled?(@logger, severity_number: 9, event_name: "my.event")
+    refute Otel.API.Logs.Logger.enabled?(@logger, ctx: Otel.API.Ctx.current())
   end
 end
