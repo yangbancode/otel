@@ -31,7 +31,7 @@ defmodule Otel.E2E.Case do
   end
 
   using do
-    quote do
+    quote location: :keep do
       import Otel.E2E.Case, only: [scope: 0, flush: 0]
       alias Otel.E2E.{Loki, Mimir, Tempo}
 
