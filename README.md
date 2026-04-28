@@ -1,6 +1,6 @@
 [![CI](https://github.com/yangbancode/otel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yangbancode/otel/actions/workflows/ci.yml)
 [![Coverage Status](https://coveralls.io/repos/github/yangbancode/otel/badge.svg?branch=main)](https://coveralls.io/github/yangbancode/otel?branch=main)
-[![License](https://img.shields.io/badge/license-Unlicense-blue.svg)](https://unlicense.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 # Otel
 
@@ -113,4 +113,4 @@ Logger.info("checkout completed", user_id: 42, total: 99.95)
 
 ## License
 
-Released into the public domain under [The Unlicense](https://unlicense.org/).
+Released under the [MIT License](LICENSE).
