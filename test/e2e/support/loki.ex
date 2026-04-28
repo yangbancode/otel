@@ -7,8 +7,12 @@ defmodule Otel.E2E.Loki do
 
   @doc """
   Polls Loki's `/loki/api/v1/query_range` for log lines containing
-  `e2e_id`. The stream selector `{service_name=~".+"}` matches any
-  service so the test does not need to pin `OTEL_SERVICE_NAME`.
+  `e2e_id`.
+
+  The actual match is the `|= "<e2e_id>"` line filter; the
+  `{service_name=~".+"}` stream selector is purely a LogQL
+  requirement (every query must carry at least one stream matcher)
+  and accepts any service name.
   """
   @spec find(e2e_id :: String.t(), opts :: keyword()) :: Otel.E2E.Polling.result()
   def find(e2e_id, opts \\ []) do
