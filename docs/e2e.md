@@ -34,10 +34,10 @@ mix test --only e2e test/e2e/
 | `[x]` | 17 | Exception (`with_span` auto-records) | raise inside `with_span` | Tempo: exception event + Error status |
 | `[x]` | 18 | `record_exception/3` (manual) | `record_exception/3` | Tempo: exception event |
 | `[x]` | 19 | `record_exception/4` with override attrs | extra attrs override `exception.*` | Tempo: caller-supplied attrs win |
-| `[ ]` | 20 | **Nested (parent-child)** | `with_span` inside `with_span` | Tempo: `parent_span_id` link |
-| `[ ]` | 21 | **Sibling spans** | 2× `with_span` under one parent | Tempo: same `parent_span_id` |
-| `[ ]` | 22 | **Deep nesting (5 levels)** | recursive `with_span` | Tempo: parent chain |
-| `[ ]` | 23 | Tracestate propagates across nested spans | nested under parent w/ tracestate | Tempo: child carries parent tracestate |
+| `[x]` | 20 | **Nested (parent-child)** | `with_span` inside `with_span` | Tempo: `parent_span_id` link |
+| `[x]` | 21 | **Sibling spans** | 2× `with_span` under one parent | Tempo: same `parent_span_id` |
+| `[x]` | 22 | **Deep nesting (5 levels)** | recursive `with_span` | Tempo: parent chain |
+| `[x]` | 23 | Tracestate propagates across nested spans | nested under parent w/ tracestate | Tempo: child carries parent tracestate |
 | `[x]` | 24 | Span limits — `attribute_count_limit` | exceed limit | Tempo: `dropped_attributes_count > 0` |
 | `[x]` | 25 | Span limits — `attribute_value_length_limit` truncation | long string attribute | Tempo: value truncated |
 | `[x]` | 26 | Span limits — `event_count_limit` | exceed via `add_event` | Tempo: `dropped_events_count > 0` |

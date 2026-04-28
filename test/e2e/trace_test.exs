@@ -472,6 +472,128 @@ defmodule Otel.E2E.TraceTest do
     end
   end
 
+  describe "nesting" do
+    test "20: with_span inside with_span links child to parent", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      parent_name = "parent-20-#{e2e_id}"
+      child_name = "child-20-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        parent_name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn _ ->
+          Otel.API.Trace.with_span(
+            tracer,
+            child_name,
+            [attributes: %{"e2e.id" => e2e_id}],
+            fn _ -> :ok end
+          )
+        end
+      )
+
+      flush()
+
+      spans = trace_spans(e2e_id)
+      parent = Enum.find(spans, &(&1["name"] == parent_name))
+      child = Enum.find(spans, &(&1["name"] == child_name))
+      assert parent && child
+      assert child["traceId"] == parent["traceId"]
+      assert child["parentSpanId"] == parent["spanId"]
+    end
+
+    test "21: two siblings under one parent share parentSpanId", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      parent_name = "parent-21-#{e2e_id}"
+      sib_a = "sib-a-21-#{e2e_id}"
+      sib_b = "sib-b-21-#{e2e_id}"
+
+      Otel.API.Trace.with_span(tracer, parent_name, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
+        Otel.API.Trace.with_span(tracer, sib_a, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
+          :ok
+        end)
+
+        Otel.API.Trace.with_span(tracer, sib_b, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
+          :ok
+        end)
+      end)
+
+      flush()
+
+      spans = trace_spans(e2e_id)
+      parent = Enum.find(spans, &(&1["name"] == parent_name))
+      a = Enum.find(spans, &(&1["name"] == sib_a))
+      b = Enum.find(spans, &(&1["name"] == sib_b))
+      assert parent && a && b
+      assert a["parentSpanId"] == parent["spanId"]
+      assert b["parentSpanId"] == parent["spanId"]
+    end
+
+    test "22: deep nesting (5 levels) preserves the full parent chain", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+
+      nest = fn nest, depth ->
+        Otel.API.Trace.with_span(
+          tracer,
+          "level-#{depth}-22-#{e2e_id}",
+          [attributes: %{"e2e.id" => e2e_id}],
+          fn _ ->
+            if depth < 5, do: nest.(nest, depth + 1), else: :ok
+          end
+        )
+      end
+
+      nest.(nest, 1)
+
+      flush()
+
+      spans = trace_spans(e2e_id)
+      by_name = Map.new(spans, &{&1["name"], &1})
+
+      for d <- 2..5 do
+        child = by_name["level-#{d}-22-#{e2e_id}"]
+        parent = by_name["level-#{d - 1}-22-#{e2e_id}"]
+        assert child && parent, "missing level pair #{d - 1}/#{d}"
+        assert child["parentSpanId"] == parent["spanId"]
+      end
+    end
+
+    test "23: child span carries parent's tracestate to Tempo", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+
+      ts =
+        Otel.API.Trace.TraceState.new()
+        |> Otel.API.Trace.TraceState.add("vendor", "abc-#{e2e_id}")
+
+      <<trace_id::128>> = :crypto.strong_rand_bytes(16)
+      <<span_id::64>> = :crypto.strong_rand_bytes(8)
+
+      remote_parent = %Otel.API.Trace.SpanContext{
+        trace_id: trace_id,
+        span_id: span_id,
+        # 0x01 = sampled
+        trace_flags: 1,
+        tracestate: ts,
+        is_remote: true
+      }
+
+      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), remote_parent)
+
+      Otel.API.Trace.with_span(
+        ctx,
+        tracer,
+        "child-23-#{e2e_id}",
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn _ -> :ok end
+      )
+
+      flush()
+
+      assert [span] = trace_spans(e2e_id)
+      assert span["traceState"] =~ "vendor=abc-#{e2e_id}"
+    end
+  end
+
   # ---- helpers ----
 
   # `/api/search` returns ids in lower hex; `/api/traces/{id}`
