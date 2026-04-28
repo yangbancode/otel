@@ -11,11 +11,12 @@ defmodule Otel.MixProject do
       elixir: "~> 1.18",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
-      test_coverage: [
-        summary: [threshold: 95],
-        ignore_modules: [
-          ~r/^Opentelemetry\.Proto\./
-        ]
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.html": :test,
+        "coveralls.json": :test,
+        "coveralls.github": :test
       ],
       elixirc_options: [warnings_as_errors: true],
       description: description(),
@@ -42,7 +43,8 @@ defmodule Otel.MixProject do
       # Dev / test only
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:ex_doc, "~> 0.34", only: :dev, runtime: false}
+      {:ex_doc, "~> 0.34", only: :dev, runtime: false},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 
