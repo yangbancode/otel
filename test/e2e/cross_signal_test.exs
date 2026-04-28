@@ -81,20 +81,17 @@ defmodule Otel.E2E.CrossSignalTest do
       assert {:ok, [%{"traceID" => trace_id_hex} | _]} = poll(Tempo.search(e2e_id))
 
       assert {:ok, mimir_results} = poll(Mimir.query(e2e_id, "#{metric}_total"))
+      {:ok, exemplar_body} = HTTP.get(Mimir.query_exemplars(e2e_id, "#{metric}_total"))
 
       # The exemplar attached to the metric MUST carry the
       # active span's trace_id. Inline exemplars on the regular
       # `/api/v1/query` envelope are not guaranteed across LGTM
-      # versions, so we accept either form: trace_id appears in
-      # the inline series response OR in the dedicated
-      # `/api/v1/query_exemplars` body.
-      mimir_payload = Jason.encode!(mimir_results)
-
-      ok =
-        text_contains_id?(mimir_payload, trace_id_hex) or
-          exemplar_carries?(e2e_id, "#{metric}_total", trace_id_hex)
-
-      assert ok, "Mimir didn't carry the span's trace_id (#{trace_id_hex})"
+      # versions, so accept either: trace_id in the inline
+      # series response OR in the dedicated `/api/v1/query_exemplars`
+      # body.
+      assert text_contains_id?(Jason.encode!(mimir_results), trace_id_hex) or
+               text_contains_id?(exemplar_body, trace_id_hex),
+             "Mimir didn't carry the span's trace_id (#{trace_id_hex})"
     end
 
     test "3: service.name is consistent across all 3 pillars", %{e2e_id: e2e_id} do
@@ -127,8 +124,19 @@ defmodule Otel.E2E.CrossSignalTest do
       # signals.
       service_name = "unknown_service"
 
-      assert backend_carries?(e2e_id, service_name, metric: metric),
-             "service.name=#{service_name} missing from one of the backends"
+      assert {:ok, [%{"traceID" => trace_id_hex}]} = poll(Tempo.search(e2e_id))
+      {:ok, tempo_body} = HTTP.get(Tempo.get_trace(trace_id_hex))
+      assert tempo_body =~ service_name, "Tempo missing #{service_name}"
+
+      assert {:ok, loki_results} = poll(Loki.query(e2e_id))
+
+      assert text_contains_id?(Jason.encode!(loki_results), service_name),
+             "Loki missing #{service_name}"
+
+      assert {:ok, mimir_results} = poll(Mimir.query(e2e_id, "#{metric}_total"))
+
+      assert text_contains_id?(Jason.encode!(mimir_results), service_name),
+             "Mimir missing #{service_name}"
     end
 
     test "4: InstrumentationScope name is consistent across Trace + Log",
@@ -187,40 +195,5 @@ defmodule Otel.E2E.CrossSignalTest do
   @spec text_contains_id?(text :: String.t(), id :: String.t()) :: boolean()
   defp text_contains_id?(text, id) do
     text =~ id or text =~ String.upcase(id)
-  end
-
-  # Common search across all three backend envelopes for a
-  # value that should appear identically on every pillar
-  # (used by scenario 3 for `service.name`).
-  @spec backend_carries?(
-          e2e_id :: String.t(),
-          value :: String.t(),
-          opts :: [metric: String.t()]
-        ) :: boolean()
-  defp backend_carries?(e2e_id, value, opts) do
-    metric = Keyword.fetch!(opts, :metric)
-
-    {:ok, [%{"traceID" => trace_id_hex}]} = poll(Tempo.search(e2e_id))
-    {:ok, tempo_body} = HTTP.get(Tempo.get_trace(trace_id_hex))
-    {:ok, loki_results} = poll(Loki.query(e2e_id))
-    {:ok, mimir_results} = poll(Mimir.query(e2e_id, "#{metric}_total"))
-
-    tempo_body =~ value and
-      text_contains_id?(Jason.encode!(loki_results), value) and
-      text_contains_id?(Jason.encode!(mimir_results), value)
-  end
-
-  # `/api/v1/query_exemplars` lookup, used as a fallback when
-  # exemplars don't ride along with the inline series response.
-  @spec exemplar_carries?(
-          e2e_id :: String.t(),
-          metric :: String.t(),
-          trace_id_hex :: String.t()
-        ) :: boolean()
-  defp exemplar_carries?(e2e_id, metric, trace_id_hex) do
-    case HTTP.get(Mimir.query_exemplars(e2e_id, metric)) do
-      {:ok, body} -> text_contains_id?(body, trace_id_hex)
-      _ -> false
-    end
   end
 end
