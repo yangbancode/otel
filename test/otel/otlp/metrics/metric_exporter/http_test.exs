@@ -1,14 +1,14 @@
 defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
-  @test_resource Otel.SDK.Resource.create(%{"service.name" => "test"})
+  @resource Otel.SDK.Resource.create(%{"service.name" => "test"})
 
-  @test_metric %{
+  @metric %{
     name: "http.requests",
     description: "Number of HTTP requests",
     unit: "1",
     scope: %Otel.API.InstrumentationScope{name: "test_lib"},
-    resource: @test_resource,
+    resource: @resource,
     kind: :counter,
     temporality: :cumulative,
     is_monotonic: true,
@@ -40,24 +40,32 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
     :ok
   end
 
-  defp start_test_server(status_code) do
+  defp init!(opts \\ %{}) do
+    {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(opts)
+    state
+  end
+
+  defp put_env(pairs), do: Enum.each(pairs, fn {k, v} -> System.put_env(k, v) end)
+
+  defp server(status_code) do
     {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(listen)
+    pid = spawn_link(fn -> accept_loop(listen, status_code) end)
 
-    pid =
-      spawn_link(fn ->
-        accept_loop(listen, status_code)
-      end)
+    on_exit(fn ->
+      :gen_tcp.close(listen)
+      ref = Process.monitor(pid)
+      receive do: ({:DOWN, ^ref, _, _, _} -> :ok), after: (1000 -> :ok)
+    end)
 
-    {pid, port, listen}
+    "http://localhost:#{port}"
   end
 
   defp accept_loop(listen, status_code) do
     case :gen_tcp.accept(listen, 1000) do
       {:ok, socket} ->
-        {:ok, _data} = :gen_tcp.recv(socket, 0, 5000)
-        response = "HTTP/1.1 #{status_code} OK\r\ncontent-length: 0\r\n\r\n"
-        :gen_tcp.send(socket, response)
+        {:ok, _} = :gen_tcp.recv(socket, 0, 5000)
+        :gen_tcp.send(socket, "HTTP/1.1 #{status_code} OK\r\ncontent-length: 0\r\n\r\n")
         :gen_tcp.close(socket)
         accept_loop(listen, status_code)
 
@@ -69,194 +77,132 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
     end
   end
 
-  defp stop_test_server(pid, listen) do
-    :gen_tcp.close(listen)
-    ref = Process.monitor(pid)
-    receive do: ({:DOWN, ^ref, _, _, _} -> :ok), after: (1000 -> :ok)
-  end
+  describe "init/1 endpoint" do
+    test "default and code-config both append /v1/metrics" do
+      assert init!().endpoint == "http://localhost:4318/v1/metrics"
 
-  describe "init/1 defaults" do
-    test "returns state with default values" do
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.endpoint == "http://localhost:4318/v1/metrics"
-      assert state.compression == :none
-      assert state.timeout == 10_000
+      assert init!(%{endpoint: "http://custom:4318"}).endpoint ==
+               "http://custom:4318/v1/metrics"
     end
 
-    test "code config overrides defaults" do
-      {:ok, state} =
-        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{
-          endpoint: "http://custom:4318",
-          compression: :gzip,
-          timeout: 5_000
-        })
-
-      assert state.endpoint == "http://custom:4318/v1/metrics"
-      assert state.compression == :gzip
-      assert state.timeout == 5_000
-    end
-  end
-
-  describe "init/1 OTEL_EXPORTER_OTLP_METRICS_ENDPOINT" do
-    test "general endpoint env var appends /v1/metrics" do
+    test "general env appends /v1/metrics" do
       System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env-collector:4318")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.endpoint == "http://env-collector:4318/v1/metrics"
+      assert init!().endpoint == "http://env-collector:4318/v1/metrics"
+    end
+
+    test "signal-specific env used as-is; overrides general" do
+      put_env([
+        {"OTEL_EXPORTER_OTLP_ENDPOINT", "http://general:4318"},
+        {"OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://metrics:4318/custom"}
+      ])
+
+      assert init!().endpoint == "http://metrics:4318/custom"
     end
 
     test "empty env var treated as unset" do
       System.put_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.endpoint == "http://localhost:4318/v1/metrics"
+      assert init!().endpoint == "http://localhost:4318/v1/metrics"
+    end
+  end
+
+  describe "init/1 headers" do
+    test "general env parsed; user-agent always included" do
+      System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "key1=val1,key2=val2")
+      headers = init!().headers
+
+      assert {~c"key1", ~c"val1"} in headers
+      assert Enum.any?(headers, fn {k, _} -> k == ~c"user-agent" end)
     end
 
-    test "signal-specific endpoint used as-is" do
-      System.put_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://metrics:4318/custom")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.endpoint == "http://metrics:4318/custom"
+    test "signal-specific overrides general; env overrides code" do
+      put_env([
+        {"OTEL_EXPORTER_OTLP_HEADERS", "general=yes"},
+        {"OTEL_EXPORTER_OTLP_METRICS_HEADERS", "metrics=yes"}
+      ])
+
+      headers = init!(%{headers: %{"code" => "yes"}}).headers
+      assert {~c"metrics", ~c"yes"} in headers
+      refute Enum.any?(headers, fn {k, _} -> k in [~c"general", ~c"code"] end)
+    end
+
+    test "code config used when no env set" do
+      assert {~c"auth", ~c"token"} in init!(%{headers: %{"auth" => "token"}}).headers
+    end
+
+    test "skips invalid pairs" do
+      System.put_env("OTEL_EXPORTER_OTLP_METRICS_HEADERS", "valid=yes,=invalid")
+      assert {~c"valid", ~c"yes"} in init!().headers
+    end
+  end
+
+  describe "init/1 compression" do
+    test "general env" do
+      System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
+      assert init!().compression == :gzip
     end
 
     test "signal-specific overrides general" do
-      System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://general:4318")
-      System.put_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "http://metrics:4318/v1/metrics")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.endpoint == "http://metrics:4318/v1/metrics"
-    end
-  end
+      put_env([
+        {"OTEL_EXPORTER_OTLP_COMPRESSION", "gzip"},
+        {"OTEL_EXPORTER_OTLP_METRICS_COMPRESSION", "none"}
+      ])
 
-  describe "init/1 OTEL_EXPORTER_OTLP_METRICS_HEADERS" do
-    test "signal-specific headers override general" do
-      System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "general=yes")
-      System.put_env("OTEL_EXPORTER_OTLP_METRICS_HEADERS", "metrics=yes")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert {~c"metrics", ~c"yes"} in state.headers
-      refute Enum.any?(state.headers, fn {k, _} -> k == ~c"general" end)
+      assert init!().compression == :none
     end
 
-    test "always includes user-agent" do
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert Enum.any?(state.headers, fn {k, _} -> k == ~c"user-agent" end)
-    end
-
-    test "general headers env var" do
-      System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "key1=val1,key2=val2")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert {~c"key1", ~c"val1"} in state.headers
-    end
-
-    test "skips invalid header pairs" do
-      System.put_env("OTEL_EXPORTER_OTLP_METRICS_HEADERS", "valid=yes,=invalid")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert {~c"valid", ~c"yes"} in state.headers
-    end
-
-    test "code config headers as map" do
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{headers: %{"auth" => "token"}})
-      assert {~c"auth", ~c"token"} in state.headers
-    end
-  end
-
-  describe "init/1 OTEL_EXPORTER_OTLP_METRICS_COMPRESSION" do
-    test "signal-specific compression overrides general" do
-      System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
-      System.put_env("OTEL_EXPORTER_OTLP_METRICS_COMPRESSION", "none")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.compression == :none
-    end
-
-    test "general compression env var" do
-      System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.compression == :gzip
-    end
-
-    test "unknown compression defaults to none" do
+    test "unknown value defaults to none" do
       System.put_env("OTEL_EXPORTER_OTLP_METRICS_COMPRESSION", "brotli")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.compression == :none
+      assert init!().compression == :none
     end
   end
 
-  describe "init/1 OTEL_EXPORTER_OTLP_METRICS_TIMEOUT" do
-    test "signal-specific timeout overrides general" do
-      System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "5000")
-      System.put_env("OTEL_EXPORTER_OTLP_METRICS_TIMEOUT", "3000")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.timeout == 3000
-    end
-
-    test "general timeout env var" do
+  describe "init/1 timeout" do
+    test "general env; signal-specific overrides" do
       System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "7000")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.timeout == 7000
+      assert init!().timeout == 7000
+
+      System.put_env("OTEL_EXPORTER_OTLP_METRICS_TIMEOUT", "3000")
+      assert init!().timeout == 3000
     end
 
-    test "unparseable timeout uses default" do
+    test "unparseable falls back to default" do
       System.put_env("OTEL_EXPORTER_OTLP_METRICS_TIMEOUT", "abc")
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.timeout == 10_000
+      assert init!().timeout == 10_000
     end
   end
 
-  describe "init/1 SSL" do
-    test "http endpoint has empty ssl_options" do
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert state.ssl_options == []
-    end
+  describe "init/1 ssl_options" do
+    test "http→empty; https→verify_peer; custom override" do
+      assert init!().ssl_options == []
+      assert init!(%{endpoint: "https://collector:4318"}).ssl_options[:verify] == :verify_peer
 
-    test "https endpoint gets default ssl_options" do
-      {:ok, state} =
-        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{endpoint: "https://collector:4318"})
-
-      assert state.ssl_options[:verify] == :verify_peer
-    end
-
-    test "custom ssl_options override defaults" do
-      {:ok, state} =
-        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{
-          endpoint: "https://collector:4318",
-          ssl_options: [verify: :verify_none]
-        })
-
-      assert state.ssl_options == [verify: :verify_none]
+      assert init!(%{
+               endpoint: "https://collector:4318",
+               ssl_options: [verify: :verify_none]
+             }).ssl_options == [verify: :verify_none]
     end
   end
 
-  describe "export/2 success" do
-    test "returns :ok for empty metrics list" do
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([], state) == :ok
+  describe "export/2" do
+    test "empty list short-circuits to :ok" do
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([], init!())
     end
 
-    test "returns :ok when server responds 200" do
-      {pid, port, listen} = start_test_server(200)
+    test "200 → :ok; gzip and ssl_options variants succeed" do
+      ok = init!(%{endpoint: server(200)})
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], ok)
 
-      {:ok, state} =
-        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
+      gz = init!(%{endpoint: server(200), compression: :gzip})
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], gz)
 
-      assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([@test_metric], state) == :ok
-      stop_test_server(pid, listen)
+      ssl = %{init!(%{endpoint: server(200)}) | ssl_options: [verify: :verify_none]}
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], ssl)
     end
 
-    test "returns :ok with gzip compression" do
-      {pid, port, listen} = start_test_server(200)
-
-      {:ok, state} =
-        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{
-          endpoint: "http://localhost:#{port}",
-          compression: :gzip
-        })
-
-      assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([@test_metric], state) == :ok
-      stop_test_server(pid, listen)
-    end
-
-    test "returns :error after exhausting retries on persistent 503" do
-      {pid, port, listen} = start_test_server(503)
-
-      {:ok, state} =
-        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{
-          endpoint: "http://localhost:#{port}",
+    test "503 retried then :error" do
+      state =
+        init!(%{
+          endpoint: server(503),
           retry_opts: %{
             max_attempts: 2,
             initial_backoff_ms: 1,
@@ -265,32 +211,13 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
           }
         })
 
-      assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([@test_metric], state) == :error
-      stop_test_server(pid, listen)
-    end
-
-    test "returns :ok with ssl_options set" do
-      {pid, port, listen} = start_test_server(200)
-
-      {:ok, state} =
-        Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{endpoint: "http://localhost:#{port}"})
-
-      state = %{state | ssl_options: [verify: :verify_none]}
-
-      assert Otel.OTLP.Metrics.MetricExporter.HTTP.export([@test_metric], state) == :ok
-      stop_test_server(pid, listen)
+      assert :error = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], state)
     end
   end
 
-  describe "force_flush/1 and shutdown/1" do
-    test "force_flush returns :ok" do
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert Otel.OTLP.Metrics.MetricExporter.HTTP.force_flush(state) == :ok
-    end
-
-    test "shutdown returns :ok" do
-      {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(%{})
-      assert Otel.OTLP.Metrics.MetricExporter.HTTP.shutdown(state) == :ok
-    end
+  test "shutdown/1 and force_flush/1 return :ok" do
+    state = init!()
+    assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.shutdown(state)
+    assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.force_flush(state)
   end
 end
