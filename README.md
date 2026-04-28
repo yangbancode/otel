@@ -68,6 +68,10 @@ end
 - [Log](docs/log.md) — `:logger` bridge and SDK API.
 - [Metrics](docs/metrics.md) — synchronous and observable instruments.
 
+## E2E
+
+- [E2E Test Scenarios](docs/e2e.md) — tracking matrix for end-to-end coverage against Grafana LGTM.
+
 ## License
 
 Released under the [MIT License](LICENSE).
