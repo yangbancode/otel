@@ -11,8 +11,8 @@ defmodule Otel.E2E.Loki do
   requirement (every query must carry at least one stream matcher)
   and accepts any service name.
   """
-  @spec find(e2e_id :: String.t()) :: String.t()
-  def find(e2e_id) do
+  @spec query(e2e_id :: String.t()) :: String.t()
+  def query(e2e_id) do
     now = System.system_time(:nanosecond)
     start = now - 60 * 1_000_000_000
 

@@ -9,9 +9,9 @@ defmodule Otel.E2E.Mimir do
   - attribute keys become labels (`http.method` → `http_method`)
   """
 
-  @doc "Mimir `/api/v1/query` URL for the given metric + e2e_id."
-  @spec find_metric(metric :: String.t(), e2e_id :: String.t()) :: String.t()
-  def find_metric(metric, e2e_id) do
+  @doc "Mimir `/api/v1/query` URL for the given e2e_id + metric."
+  @spec query(e2e_id :: String.t(), metric :: String.t()) :: String.t()
+  def query(e2e_id, metric) do
     %URI{
       scheme: "http",
       host: "localhost",

@@ -4,8 +4,8 @@ defmodule Otel.E2E.Tempo do
   """
 
   @doc "Tempo `/api/search` URL for the given e2e_id."
-  @spec find(e2e_id :: String.t()) :: String.t()
-  def find(e2e_id) do
+  @spec query(e2e_id :: String.t()) :: String.t()
+  def query(e2e_id) do
     %URI{
       scheme: "http",
       host: "localhost",
