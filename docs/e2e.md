@@ -144,10 +144,10 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | `OTEL_SERVICE_NAME` env var | set then SDK restart | All 3 backends: `service.name` matches env value |
-| `[ ]` | 2 | `OTEL_RESOURCE_ATTRIBUTES` env var | set `deployment.environment=test,…` | Tempo / Loki / Mimir: resource carries those attrs |
-| `[ ]` | 3 | `OTEL_SERVICE_NAME` precedence | both env vars set with conflicting `service.name` | `service.name` matches `OTEL_SERVICE_NAME` (spec MUST) |
-| `[ ]` | 4 | Mix Config `:resource` | `config :otel, trace: [resource: …]` | Tempo: resource overridden by Mix value |
+| `[x]` | 1 | `OTEL_SERVICE_NAME` env var | set then SDK restart | All 3 backends: `service.name` matches env value |
+| `[x]` | 2 | `OTEL_RESOURCE_ATTRIBUTES` env var | set `deployment.environment=test,…` | Tempo / Loki / Mimir: resource carries those attrs |
+| `[x]` | 3 | `OTEL_SERVICE_NAME` precedence | both env vars set with conflicting `service.name` | `service.name` matches `OTEL_SERVICE_NAME` (spec MUST) |
+| `[x]` | 4 | Mix Config `:resource` | `config :otel, trace: [resource: …]` | Tempo: resource overridden by Mix value |
 
 ## Global SDK control
 
