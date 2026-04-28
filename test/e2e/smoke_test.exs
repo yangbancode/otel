@@ -20,7 +20,7 @@ defmodule Otel.E2E.SmokeTest do
     logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
 
     Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
-      body: "e2e smoke log",
+      body: "e2e smoke log #{e2e_id}",
       severity_number: 9,
       severity_text: "info",
       attributes: %{"e2e.id" => e2e_id}
