@@ -44,7 +44,7 @@ no `nil`-fallbacks on malformed external data, no silent filtering of
 invalid entries.
 
 A unified error-handling pass will be applied in the Finalization phase
-(see `docs/architecture/error-handling.md`).
+(see `.claude/docs/architecture/error-handling.md`).
 
 ```elixir
 # Bad — handles the failure case

@@ -390,7 +390,7 @@ See `.claude/rules/code-conventions.md`. Remove:
 
 Use direct pattern match (`[k, v] = split(...)`) and trust the caller.
 Malformed input raises `MatchError`; the finalization phase (see
-`docs/architecture/error-handling.md`) will decide how to surface these.
+`.claude/docs/architecture/error-handling.md`) will decide how to surface these.
 
 **Not error handling** (keep these):
 - Spec-mandated fallbacks (e.g. Noop dispatcher when no SDK registered)
@@ -531,7 +531,7 @@ Placement:
 - A **single-module trade-off** goes in the module's `@moduledoc`
   as a short `## Design notes` subsection.
 - An **architectural choice** affecting multiple modules or a
-  cross-cutting pattern goes in `docs/architecture/` as its own
+  cross-cutting pattern goes in `.claude/docs/architecture/` as its own
   doc, linked from the relevant `@moduledoc`. The bar is high —
   only add a new file when the rationale spans enough modules
   that repeating it in each moduledoc would be painful and the
@@ -547,7 +547,7 @@ Documentation format (both placements):
   the alternative and why ours serves users better.
 
 **Real example — architecture doc**:
-`docs/architecture/with-span-lifecycle-ownership.md` captures why
+`.claude/docs/architecture/with-span-lifecycle-ownership.md` captures why
 `Trace.with_span/5` delegates to a Tracer callback (matching
 erlang's `otel_tracer.erl` + `otel_tracer_default.erl` split)
 and names the architectural invariant — *"whichever layer
@@ -620,7 +620,7 @@ identifies changes, the standard flow applies:
    mix dialyzer
    ```
 6. **Update docs** — if the change affects an architectural decision,
-   update or add a doc under `docs/architecture/`. Otherwise update
+   update or add a doc under `.claude/docs/architecture/`. Otherwise update
    the relevant module's `@moduledoc` to reflect the new behaviour.
 7. **Pin the spec version in commit + moduledoc** — every spec-review
    PR MUST record which spec submodule pin the verification was
@@ -667,8 +667,8 @@ identifies changes, the standard flow applies:
 - `.claude/rules/code-conventions.md` — happy-path, `@spec`, no-alias
 - `.claude/rules/documentation.md` — `@doc` role markers
 - `.claude/rules/git-conventions.md` — commit/PR format
-- `docs/architecture/` — BEAM-specific design decisions not
+- `.claude/docs/architecture/` — BEAM-specific design decisions not
   recoverable from code alone (read before proposing changes that
   might conflict)
-- `docs/architecture/error-handling.md` — policy for malformed input
+- `.claude/docs/architecture/error-handling.md` — policy for malformed input
 - `references/` — spec submodules (verify here, always)
