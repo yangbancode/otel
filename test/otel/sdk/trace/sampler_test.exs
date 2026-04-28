@@ -1,57 +1,31 @@
-defmodule Otel.SDK.Trace.SamplerTest.TestSampler do
-  @behaviour Otel.SDK.Trace.Sampler
-
-  @impl true
-  def setup(opts), do: opts
-
-  @impl true
-  def description(_config), do: "TestSampler"
-
-  @impl true
-  def should_sample(_ctx, _trace_id, _links, _name, _kind, _attributes, _config) do
-    {:record_and_sample, %{}, Otel.API.Trace.TraceState.new()}
-  end
-end
-
 defmodule Otel.SDK.Trace.SamplerTest do
   use ExUnit.Case, async: true
 
-  describe "new/1" do
-    test "creates sampler from module and opts" do
-      sampler =
-        Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.SamplerTest.TestSampler, %{}})
+  defmodule TestSampler do
+    @moduledoc false
+    @behaviour Otel.SDK.Trace.Sampler
 
-      assert {Otel.SDK.Trace.SamplerTest.TestSampler, "TestSampler", %{}} = sampler
-    end
+    @impl true
+    def setup(opts), do: opts
+    @impl true
+    def description(_config), do: "TestSampler"
+    @impl true
+    def should_sample(_ctx, _trace_id, _links, _name, _kind, _attributes, _config),
+      do: {:record_and_sample, %{}, Otel.API.Trace.TraceState.new()}
   end
 
-  describe "should_sample/7" do
-    test "delegates to sampler module" do
-      sampler =
-        Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.SamplerTest.TestSampler, %{}})
+  @sampler Otel.SDK.Trace.Sampler.new({TestSampler, %{}})
 
-      result =
-        Otel.SDK.Trace.Sampler.should_sample(
-          sampler,
-          %{},
-          123,
-          [],
-          "test_span",
-          :internal,
-          %{}
-        )
-
-      assert {:record_and_sample, %{}, ts} = result
-      assert ts == Otel.API.Trace.TraceState.new()
-    end
+  test "new/1 returns {module, description, config} tuple" do
+    assert @sampler == {TestSampler, "TestSampler", %{}}
   end
 
-  describe "description/1" do
-    test "returns sampler description" do
-      sampler =
-        Otel.SDK.Trace.Sampler.new({Otel.SDK.Trace.SamplerTest.TestSampler, %{}})
+  test "should_sample/7 delegates to the sampler module" do
+    assert {:record_and_sample, %{}, %Otel.API.Trace.TraceState{}} =
+             Otel.SDK.Trace.Sampler.should_sample(@sampler, %{}, 123, [], "n", :internal, %{})
+  end
 
-      assert Otel.SDK.Trace.Sampler.description(sampler) == "TestSampler"
-    end
+  test "description/1 returns the sampler module's description" do
+    assert Otel.SDK.Trace.Sampler.description(@sampler) == "TestSampler"
   end
 end
