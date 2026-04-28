@@ -242,7 +242,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
         _from,
         config
       ) do
-    warn_on_invalid_scope_name(instrumentation_scope)
+    warn_invalid_scope_name(instrumentation_scope)
 
     logger_config = %{
       scope: instrumentation_scope,
@@ -288,14 +288,22 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     {:noreply, config}
   end
 
-  def handle_info({:EXIT, pid, _reason}, config) do
-    new_processors = Enum.reject(config.processors, &(&1.pid == pid))
+  def handle_info({:EXIT, pid, reason}, config) do
+    case Enum.find(config.processors, &(&1.pid == pid)) do
+      nil ->
+        # EXIT from a process we don't manage; ignore.
+        {:noreply, config}
 
-    # Update the persistent_term fast path so `Logger.emit` stops
-    # dispatching to the dead processor immediately.
-    :persistent_term.put(config.processors_key, project_processors(new_processors))
+      %{module: module} ->
+        warn_processor_exited(module, pid, reason)
+        new_processors = Enum.reject(config.processors, &(&1.pid == pid))
 
-    {:noreply, %{config | processors: new_processors}}
+        # Update the persistent_term fast path so `Logger.emit` stops
+        # dispatching to the dead processor immediately.
+        :persistent_term.put(config.processors_key, project_processors(new_processors))
+
+        {:noreply, %{config | processors: new_processors}}
+    end
   end
 
   # --- Private ---
@@ -357,8 +365,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   # logger) and the original-value SHOULD are satisfied
   # structurally — we always return the SDK Logger and never
   # rewrite the scope name. The warning SHOULD is enforced here.
-  @spec warn_on_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
-  defp warn_on_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+  @spec warn_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
+  defp warn_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
     Logger.warning(
       "Otel.SDK.Logs.LoggerProvider: invalid Logger name (empty string) — returning a working Logger as fallback per spec L78-L81"
     )
@@ -366,5 +374,17 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     :ok
   end
 
-  defp warn_on_invalid_scope_name(_scope), do: :ok
+  defp warn_invalid_scope_name(_scope), do: :ok
+
+  # Emitted from `handle_info({:EXIT, ...})` when a managed
+  # LogRecordProcessor crashes. Not in spec — operational signal.
+  @spec warn_processor_exited(module :: module(), pid :: pid(), reason :: term()) :: :ok
+  defp warn_processor_exited(module, pid, reason) do
+    Logger.warning(
+      "Otel.SDK.Logs.LoggerProvider: LogRecordProcessor #{inspect(module)} " <>
+        "(#{inspect(pid)}) exited with #{inspect(reason)} — removed from active list"
+    )
+
+    :ok
+  end
 end

@@ -107,6 +107,8 @@ defmodule Otel.SDK.Trace.Span do
 
   use Otel.API.Common.Types
 
+  require Logger
+
   @behaviour Otel.API.Trace.Span
 
   @type t :: %__MODULE__{
@@ -432,6 +434,7 @@ defmodule Otel.SDK.Trace.Span do
       span ->
         end_time = timestamp || System.system_time(:nanosecond)
         ended_span = %{span | end_time: end_time, is_recording: false}
+        warn_span_limits_applied(ended_span)
         # Read the processor list fresh from `:persistent_term`
         # so a processor that crashed between start and end is
         # skipped rather than receiving on_end on a dead pid.
@@ -694,5 +697,33 @@ defmodule Otel.SDK.Trace.Span do
   @spec exception_type(exception :: Exception.t()) :: String.t()
   defp exception_type(exception) do
     exception.__struct__ |> Atom.to_string() |> String.trim_leading("Elixir.")
+  end
+
+  # Spec `trace/sdk.md` L873-L876 SHOULD: *"There SHOULD be a
+  # message printed in the SDK's log to indicate to the user
+  # that an attribute, event, or link was discarded due to such
+  # a limit. To prevent excessive logging, the message MUST be
+  # printed at most once per span."*
+  #
+  # Called once from `end_span/2`, structurally satisfying the
+  # MUST-once-per-span constraint without per-span state.
+  @spec warn_span_limits_applied(span :: t()) :: :ok
+  defp warn_span_limits_applied(span) do
+    parts =
+      [
+        {span.dropped_attributes_count, "attribute"},
+        {span.dropped_events_count, "event"},
+        {span.dropped_links_count, "link"}
+      ]
+      |> Enum.filter(fn {n, _} -> n > 0 end)
+      |> Enum.map(fn {n, label} -> "#{n} #{label}#{if n == 1, do: "", else: "s"}" end)
+
+    if parts != [] do
+      Logger.warning(
+        "Otel.SDK.Trace.Span: span limits applied — dropped #{Enum.join(parts, ", ")}"
+      )
+    end
+
+    :ok
   end
 end

@@ -105,21 +105,13 @@ defmodule Otel.API.Trace.TracerProviderTest do
       assert {Otel.API.Trace.Tracer.Noop, []} == tracer
     end
 
-    test "logs a warning when Tracer name is empty (spec L125-L130 SHOULD)" do
+    test "no warning at API layer for empty Tracer name (consolidated to SDK)" do
+      # The spec L125-L130 SHOULD-log is enforced once at the SDK
+      # provider; the API layer only handles the Noop fallback to
+      # avoid double-warning when both API and SDK are loaded.
       log =
         capture_log(fn ->
           Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{name: ""})
-        end)
-
-      assert log =~ "invalid Tracer name"
-    end
-
-    test "no warning for a valid Tracer name" do
-      log =
-        capture_log(fn ->
-          Otel.API.Trace.TracerProvider.get_tracer(%Otel.API.InstrumentationScope{
-            name: "my_lib"
-          })
         end)
 
       refute log =~ "invalid Tracer name"

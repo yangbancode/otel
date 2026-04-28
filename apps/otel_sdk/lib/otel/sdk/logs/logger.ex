@@ -146,7 +146,7 @@ defmodule Otel.SDK.Logs.Logger do
     {limited_record, dropped_attributes_count} =
       Otel.SDK.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
 
-    log_limits_applied(
+    warn_log_record_limits_applied(
       dropped_attributes_count,
       log_record.attributes != limited_record.attributes
     )
@@ -179,16 +179,23 @@ defmodule Otel.SDK.Logs.Logger do
   # apply/2's black-box signature does not let the caller
   # distinguish the two effects independently. The
   # truncate-only branch fires only when no drop happened.
-  @spec log_limits_applied(dropped :: non_neg_integer(), changed? :: boolean()) :: :ok
-  defp log_limits_applied(0, false), do: :ok
+  @spec warn_log_record_limits_applied(dropped :: non_neg_integer(), changed? :: boolean()) :: :ok
+  defp warn_log_record_limits_applied(0, false), do: :ok
 
-  defp log_limits_applied(dropped, _changed?) when dropped > 0 do
-    Logger.warning("LogRecord limits applied: dropped #{dropped} attribute(s)")
+  defp warn_log_record_limits_applied(dropped, _changed?) when dropped > 0 do
+    Logger.warning(
+      "Otel.SDK.Logs.Logger: log record limits applied — dropped #{dropped} " <>
+        "attribute#{if dropped == 1, do: "", else: "s"}"
+    )
+
     :ok
   end
 
-  defp log_limits_applied(_dropped, true) do
-    Logger.warning("LogRecord limits applied: truncated value(s) exceeding length limit")
+  defp warn_log_record_limits_applied(_dropped, true) do
+    Logger.warning(
+      "Otel.SDK.Logs.Logger: log record limits applied — truncated value(s) exceeding length limit"
+    )
+
     :ok
   end
 
