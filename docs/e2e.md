@@ -112,12 +112,12 @@ mix test --only e2e test/e2e/
 | `[x]` | 12 | `register_callback/5` (multi-instrument) | shared callback for several instruments | Mimir: each instrument fed |
 | `[x]` | 13 | `unregister_callback/1` | unregister; collect again | Mimir: no further values |
 | `[ ]` | 14 | Drop aggregation | View w/ `aggregation: :drop` | Mimir: no series for that instrument |
-| `[ ]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
+| `[x]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
 | `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
 | `[ ]` | 17 | Delta temporality | reader configured `:delta` | Mimir: per-window delta values |
 | `[ ]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
-| `[ ]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
-| `[ ]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
+| `[x]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
+| `[x]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
 | `[x]` | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
 | `[ ]` | 22 | View — rename instrument | `criteria: %{name: ...}, config: %{name: "renamed"}` | Mimir: series under new name |
 | `[ ]` | 23 | View — attribute include filter | `config: %{attribute_keys: [...]}` | Mimir: only listed labels |
