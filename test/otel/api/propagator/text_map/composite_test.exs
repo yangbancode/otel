@@ -1,50 +1,36 @@
-defmodule Otel.API.Propagator.TextMap.CompositeTest.FakePropagator do
-  @behaviour Otel.API.Propagator.TextMap
-
-  @impl true
-  @spec inject(
-          ctx :: Otel.API.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          setter :: Otel.API.Propagator.TextMap.setter()
-        ) :: Otel.API.Propagator.TextMap.carrier()
-  def inject(_ctx, carrier, setter) do
-    setter.("x-fake", "injected", carrier)
-  end
-
-  @impl true
-  @spec extract(
-          ctx :: Otel.API.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          getter :: Otel.API.Propagator.TextMap.getter()
-        ) :: Otel.API.Ctx.t()
-  def extract(ctx, carrier, getter) do
-    case getter.(carrier, "x-fake") do
-      nil -> ctx
-      value -> Otel.API.Ctx.set_value(ctx, :fake_value, value)
-    end
-  end
-
-  @impl true
-  @spec fields() :: [String.t()]
-  def fields, do: ["x-fake"]
-end
-
 defmodule Otel.API.Propagator.TextMap.CompositeTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
-  @fake Otel.API.Propagator.TextMap.CompositeTest.FakePropagator
-  @trace_context Otel.API.Propagator.TextMap.TraceContext
+  defmodule FakePropagator do
+    @moduledoc false
+    @behaviour Otel.API.Propagator.TextMap
 
-  describe "new/1" do
-    test "creates composite propagator tuple" do
-      {module, propagators} = Otel.API.Propagator.TextMap.Composite.new([@trace_context, @fake])
-      assert module == Otel.API.Propagator.TextMap.Composite
-      assert propagators == [@trace_context, @fake]
+    @impl true
+    def inject(_ctx, carrier, setter), do: setter.("x-fake", "injected", carrier)
+
+    @impl true
+    def extract(ctx, carrier, getter) do
+      case getter.(carrier, "x-fake") do
+        nil -> ctx
+        value -> Otel.API.Ctx.set_value(ctx, :fake_value, value)
+      end
     end
+
+    @impl true
+    def fields, do: ["x-fake"]
   end
 
-  describe "inject/4" do
-    test "injects from all propagators in order" do
+  @trace_context Otel.API.Propagator.TextMap.TraceContext
+  @fake FakePropagator
+  @valid_traceparent "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
+
+  test "new/1 wraps the propagator list as a {Composite, list} tuple" do
+    assert Otel.API.Propagator.TextMap.Composite.new([@trace_context, @fake]) ==
+             {Otel.API.Propagator.TextMap.Composite, [@trace_context, @fake]}
+  end
+
+  describe "inject/4 + extract/4 — dispatches through every propagator" do
+    test "inject runs each propagator in order; extract threads context through them" do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
@@ -59,89 +45,69 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
       keys = Enum.map(carrier, fn {k, _v} -> k end)
       assert "traceparent" in keys
       assert "x-fake" in keys
-    end
-  end
 
-  describe "extract/4" do
-    test "extracts from all propagators, threading context" do
-      carrier = [
-        {"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"},
-        {"x-fake", "hello"}
-      ]
-
-      ctx =
+      extracted =
         Otel.API.Propagator.TextMap.Composite.extract(
           [@trace_context, @fake],
           Otel.API.Ctx.new(),
-          carrier,
+          [{"traceparent", @valid_traceparent}, {"x-fake", "hello"}],
           &Otel.API.Propagator.TextMap.default_getter/2
         )
 
-      span_ctx = Otel.API.Trace.current_span(ctx)
-      assert Otel.API.Trace.SpanContext.valid?(span_ctx)
-      assert Otel.API.Ctx.get_value(ctx, :fake_value) == "hello"
+      assert Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.current_span(extracted))
+      assert Otel.API.Ctx.get_value(extracted, :fake_value) == "hello"
     end
   end
 
-  describe "dispatch via global registration" do
+  describe "global registration as {Composite, list} dispatches via the facade" do
     setup do
-      composite =
-        Otel.API.Propagator.TextMap.Composite.new([@trace_context, @fake])
+      saved = :persistent_term.get({Otel.API.Propagator.TextMap, :global}, nil)
 
-      Otel.API.Propagator.TextMap.set_propagator(composite)
+      Otel.API.Propagator.TextMap.set_propagator(
+        Otel.API.Propagator.TextMap.Composite.new([@trace_context, @fake])
+      )
 
       on_exit(fn ->
-        :persistent_term.erase({Otel.API.Propagator.TextMap, :global})
+        if saved,
+          do: :persistent_term.put({Otel.API.Propagator.TextMap, :global}, saved),
+          else: :persistent_term.erase({Otel.API.Propagator.TextMap, :global})
       end)
-
-      :ok
     end
 
-    test "inject dispatches through composite tuple" do
+    test "inject + extract round-trip through the facade reach every propagator" do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
       ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.inject(ctx, [])
-
       keys = Enum.map(carrier, fn {k, _v} -> k end)
       assert "traceparent" in keys
       assert "x-fake" in keys
-    end
 
-    test "extract dispatches through composite tuple" do
-      carrier = [
-        {"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"},
-        {"x-fake", "hello"}
-      ]
+      extracted =
+        Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), [
+          {"traceparent", @valid_traceparent},
+          {"x-fake", "hello"}
+        ])
 
-      ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), carrier)
-
-      span_ctx = Otel.API.Trace.current_span(ctx)
-      assert Otel.API.Trace.SpanContext.valid?(span_ctx)
-      assert Otel.API.Ctx.get_value(ctx, :fake_value) == "hello"
+      assert Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.current_span(extracted))
+      assert Otel.API.Ctx.get_value(extracted, :fake_value) == "hello"
     end
   end
 
   describe "fields/1" do
-    test "returns union of all propagator fields" do
+    test "returns the union of all propagators' fields, deduplicated" do
       fields = Otel.API.Propagator.TextMap.Composite.fields([@trace_context, @fake])
       assert "traceparent" in fields
       assert "tracestate" in fields
       assert "x-fake" in fields
+
+      # Repeated propagators do not yield duplicate field names.
+      dup_fields = Otel.API.Propagator.TextMap.Composite.fields([@trace_context, @trace_context])
+      assert Enum.count(dup_fields, &(&1 == "traceparent")) == 1
     end
 
-    test "handles tuple propagators in fields" do
-      fields =
-        Otel.API.Propagator.TextMap.Composite.fields([{@fake, %{}}])
-
-      assert "x-fake" in fields
-    end
-
-    test "deduplicates fields" do
-      fields =
-        Otel.API.Propagator.TextMap.Composite.fields([@trace_context, @trace_context])
-
-      assert Enum.count(fields, &(&1 == "traceparent")) == 1
+    test "accepts {module, opts} tuple entries alongside bare modules" do
+      assert "x-fake" in Otel.API.Propagator.TextMap.Composite.fields([{@fake, %{}}])
     end
   end
 end

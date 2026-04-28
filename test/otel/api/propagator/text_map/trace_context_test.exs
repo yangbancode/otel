@@ -8,7 +8,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
   @valid_span_id 0xB7AD6B7169203331
   @canonical_traceparent "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"
 
-  test "fields/0 returns [\"traceparent\", \"tracestate\"]" do
+  test ~s|fields/0 returns ["traceparent", "tracestate"]| do
     assert Otel.API.Propagator.TextMap.TraceContext.fields() == ["traceparent", "tracestate"]
   end
 
