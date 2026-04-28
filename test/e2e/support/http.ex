@@ -30,6 +30,18 @@ defmodule Otel.E2E.HTTP do
     loop(url, @max_attempts)
   end
 
+  @doc """
+  Single-shot GET + JSON decode. Use for follow-up fetches once
+  `poll/1` has confirmed something landed (e.g. retrieving a full
+  Tempo trace by id after the search response yields the id).
+  """
+  @spec fetch_json(url :: String.t()) :: {:ok, term()} | {:error, term()}
+  def fetch_json(url) do
+    with {:ok, body} <- get(url) do
+      Jason.decode(body)
+    end
+  end
+
   @spec loop(url :: String.t(), attempts_left :: non_neg_integer()) :: result()
   defp loop(_url, 0), do: {:error, :timeout}
 
