@@ -1,72 +1,57 @@
 defmodule Otel.API.Metrics.UpDownCounterTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   setup do
+    saved = :persistent_term.get({Otel.API.Metrics.MeterProvider, :global}, nil)
     :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
 
-    meter =
-      Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test_lib"})
+    on_exit(fn ->
+      if saved,
+        do: :persistent_term.put({Otel.API.Metrics.MeterProvider, :global}, saved),
+        else: :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
+    end)
 
-    %{meter: meter}
+    %{
+      meter:
+        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test"})
+    }
   end
 
-  describe "create/2,3" do
-    test "creates updown_counter via meter", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :updown_counter, name: "active_requests"} =
-               Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
+  describe "create/3 — delegates to Meter.create_up_down_counter" do
+    test "with name only", %{meter: meter} do
+      assert %Otel.API.Metrics.Instrument{kind: :updown_counter, name: "n"} =
+               Otel.API.Metrics.UpDownCounter.create(meter, "n")
     end
 
-    test "accepts opts", %{meter: meter} do
+    test "forwards unit and description opts", %{meter: meter} do
       assert %Otel.API.Metrics.Instrument{
                kind: :updown_counter,
+               name: "n",
                unit: "1",
-               description: "Number of active requests"
+               description: "active requests"
              } =
-               Otel.API.Metrics.UpDownCounter.create(meter, "active_requests",
+               Otel.API.Metrics.UpDownCounter.create(meter, "n",
                  unit: "1",
-                 description: "Number of active requests"
+                 description: "active requests"
                )
     end
   end
 
-  describe "enabled?/1,2" do
-    test "returns false for noop", %{meter: meter} do
-      instrument = Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
-      assert false == Otel.API.Metrics.UpDownCounter.enabled?(instrument)
-    end
-
-    test "accepts opts", %{meter: meter} do
-      instrument = Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
-      assert false == Otel.API.Metrics.UpDownCounter.enabled?(instrument, [])
-    end
+  test "enabled?/2 returns false under the Noop Meter", %{meter: meter} do
+    inst = Otel.API.Metrics.UpDownCounter.create(meter, "n")
+    refute Otel.API.Metrics.UpDownCounter.enabled?(inst)
+    refute Otel.API.Metrics.UpDownCounter.enabled?(inst, [])
   end
 
-  describe "add/2,3" do
-    test "records a positive value", %{meter: meter} do
-      instrument = Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
-      assert :ok == Otel.API.Metrics.UpDownCounter.add(instrument, 1)
-    end
+  # Spec L632-L634: UpDownCounter accepts negative values (the
+  # bidirectional sibling of Counter).
+  test "add/3 returns :ok across positive, negative, zero, float, and attrs", %{meter: meter} do
+    inst = Otel.API.Metrics.UpDownCounter.create(meter, "n")
 
-    test "records a negative value", %{meter: meter} do
-      instrument = Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
-      assert :ok == Otel.API.Metrics.UpDownCounter.add(instrument, -1)
-    end
-
-    test "records with attributes", %{meter: meter} do
-      instrument = Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
-
-      assert :ok ==
-               Otel.API.Metrics.UpDownCounter.add(instrument, 3, %{"http.method" => "GET"})
-    end
-
-    test "accepts zero", %{meter: meter} do
-      instrument = Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
-      assert :ok == Otel.API.Metrics.UpDownCounter.add(instrument, 0)
-    end
-
-    test "accepts float", %{meter: meter} do
-      instrument = Otel.API.Metrics.UpDownCounter.create(meter, "active_requests")
-      assert :ok == Otel.API.Metrics.UpDownCounter.add(instrument, -0.5)
-    end
+    assert :ok = Otel.API.Metrics.UpDownCounter.add(inst, 1)
+    assert :ok = Otel.API.Metrics.UpDownCounter.add(inst, -1)
+    assert :ok = Otel.API.Metrics.UpDownCounter.add(inst, 0)
+    assert :ok = Otel.API.Metrics.UpDownCounter.add(inst, -0.5)
+    assert :ok = Otel.API.Metrics.UpDownCounter.add(inst, 3, %{"http.method" => "GET"})
   end
 end
