@@ -1,113 +1,75 @@
 defmodule Otel.API.BaggageTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
-  describe "get_value/2" do
-    test "returns value for existing name" do
-      baggage = %{"key" => {"value", ""}}
-      assert Otel.API.Baggage.get_value(baggage, "key") == "value"
-    end
-
-    test "returns nil for missing name" do
-      assert Otel.API.Baggage.get_value(%{}, "key") == nil
-    end
-  end
-
-  describe "get_all/1" do
-    test "returns all entries" do
+  describe "get_value/2 + get_all/1" do
+    test "get_value returns the value or nil; get_all returns the whole map" do
       baggage = %{"a" => {"1", ""}, "b" => {"2", "meta"}}
-      assert Otel.API.Baggage.get_all(baggage) == baggage
-    end
 
-    test "returns empty map for empty baggage" do
+      assert Otel.API.Baggage.get_value(baggage, "a") == "1"
+      assert Otel.API.Baggage.get_value(baggage, "missing") == nil
+      assert Otel.API.Baggage.get_all(baggage) == baggage
       assert Otel.API.Baggage.get_all(%{}) == %{}
     end
   end
 
   describe "set_value/4" do
-    test "adds new entry" do
-      baggage = Otel.API.Baggage.set_value(%{}, "key", "value")
-      assert baggage == %{"key" => {"value", ""}}
+    test "adds, overwrites, and carries metadata in one shape" do
+      empty = %{}
+
+      assert Otel.API.Baggage.set_value(empty, "k", "v") == %{"k" => {"v", ""}}
+
+      assert Otel.API.Baggage.set_value(empty, "k", "v", "meta=data") ==
+               %{"k" => {"v", "meta=data"}}
+
+      assert Otel.API.Baggage.set_value(%{"k" => {"old", ""}}, "k", "new") ==
+               %{"k" => {"new", ""}}
     end
 
-    test "adds entry with metadata" do
-      baggage = Otel.API.Baggage.set_value(%{}, "key", "value", "meta=data")
-      assert baggage == %{"key" => {"value", "meta=data"}}
-    end
-
-    test "overwrites existing entry" do
-      baggage = %{"key" => {"old", ""}}
-      updated = Otel.API.Baggage.set_value(baggage, "key", "new")
-      assert updated == %{"key" => {"new", ""}}
-    end
-
-    test "names are case-sensitive" do
+    # Spec baggage/api.md L62-L67: names and values are case-sensitive.
+    test "names and values are case-sensitive (verbatim UTF-8)" do
       baggage =
         %{}
-        |> Otel.API.Baggage.set_value("Key", "upper")
+        |> Otel.API.Baggage.set_value("Key", "Value")
         |> Otel.API.Baggage.set_value("key", "lower")
+        |> Otel.API.Baggage.set_value("utf8", "B% 💼 café Δ")
 
-      assert Otel.API.Baggage.get_value(baggage, "Key") == "upper"
+      assert Otel.API.Baggage.get_value(baggage, "Key") == "Value"
       assert Otel.API.Baggage.get_value(baggage, "key") == "lower"
-    end
-
-    test "values are case-sensitive" do
-      baggage = Otel.API.Baggage.set_value(%{}, "key", "Value")
-      assert Otel.API.Baggage.get_value(baggage, "key") == "Value"
-      refute Otel.API.Baggage.get_value(baggage, "key") == "value"
-    end
-
-    test "accepts UTF-8 value and roundtrips verbatim" do
-      utf8_value = "B% 💼 café Δ"
-      baggage = Otel.API.Baggage.set_value(%{}, "key", utf8_value)
-      assert Otel.API.Baggage.get_value(baggage, "key") == utf8_value
+      assert Otel.API.Baggage.get_value(baggage, "utf8") == "B% 💼 café Δ"
     end
   end
 
   describe "remove_value/2" do
-    test "removes existing entry" do
-      baggage = %{"key" => {"value", ""}}
-      assert Otel.API.Baggage.remove_value(baggage, "key") == %{}
-    end
+    test "removes existing entry; no-op for missing key" do
+      assert Otel.API.Baggage.remove_value(%{"k" => {"v", ""}}, "k") == %{}
 
-    test "no-op for missing name" do
-      baggage = %{"other" => {"value", ""}}
-      assert Otel.API.Baggage.remove_value(baggage, "key") == baggage
+      assert Otel.API.Baggage.remove_value(%{"other" => {"v", ""}}, "k") == %{
+               "other" => {"v", ""}
+             }
     end
   end
 
-  describe "context interaction (explicit)" do
-    test "current/1 returns empty map by default" do
+  describe "Context integration" do
+    test "current/1 + set_current/2 round-trip on an explicit context" do
       ctx = Otel.API.Ctx.new()
+      baggage = %{"k" => {"v", ""}}
+
+      assert Otel.API.Baggage.current(ctx) == %{}
+
+      ctx = Otel.API.Baggage.set_current(ctx, baggage)
+      assert Otel.API.Baggage.current(ctx) == baggage
+
+      ctx = Otel.API.Baggage.set_current(ctx, %{})
       assert Otel.API.Baggage.current(ctx) == %{}
     end
 
-    test "set_current/2 and current/1 roundtrip" do
-      baggage = %{"key" => {"value", ""}}
-      ctx = Otel.API.Baggage.set_current(Otel.API.Ctx.new(), baggage)
-      assert Otel.API.Baggage.current(ctx) == baggage
-    end
-
-    test "set_current/2 with empty map clears entries from context" do
-      baggage = %{"a" => {"1", ""}, "b" => {"2", ""}}
-      ctx = Otel.API.Baggage.set_current(Otel.API.Ctx.new(), baggage)
-      cleared = Otel.API.Baggage.set_current(ctx, %{})
-      assert Otel.API.Baggage.current(cleared) == %{}
-    end
-  end
-
-  describe "context interaction (implicit)" do
-    test "current/0 returns empty map by default" do
+    test "current/0 + set_current/1 round-trip on the implicit context" do
+      Otel.API.Baggage.set_current(%{})
       assert Otel.API.Baggage.current() == %{}
-    end
 
-    test "set_current/1 and current/0 roundtrip" do
-      baggage = %{"key" => {"value", ""}}
-      Otel.API.Baggage.set_current(baggage)
-      assert Otel.API.Baggage.current() == baggage
-    end
+      Otel.API.Baggage.set_current(%{"k" => {"v", ""}})
+      assert Otel.API.Baggage.current() == %{"k" => {"v", ""}}
 
-    test "set_current/1 with empty map clears all entries" do
-      Otel.API.Baggage.set_current(%{"key" => {"value", ""}})
       Otel.API.Baggage.set_current(%{})
       assert Otel.API.Baggage.current() == %{}
     end

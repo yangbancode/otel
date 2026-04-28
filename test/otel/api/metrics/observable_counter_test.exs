@@ -1,51 +1,54 @@
 defmodule Otel.API.Metrics.ObservableCounterTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   setup do
+    saved = :persistent_term.get({Otel.API.Metrics.MeterProvider, :global}, nil)
     :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
 
-    meter =
-      Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test_lib"})
+    on_exit(fn ->
+      if saved,
+        do: :persistent_term.put({Otel.API.Metrics.MeterProvider, :global}, saved),
+        else: :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
+    end)
 
-    %{meter: meter}
+    %{
+      meter:
+        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test"})
+    }
   end
 
-  describe "create/2,3 (without callback)" do
-    test "creates observable counter via meter", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :observable_counter, name: "cpu_time"} =
-               Otel.API.Metrics.ObservableCounter.create(meter, "cpu_time")
+  describe "create/3 — without callback" do
+    test "with name only", %{meter: meter} do
+      assert %Otel.API.Metrics.Instrument{kind: :observable_counter, name: "n"} =
+               Otel.API.Metrics.ObservableCounter.create(meter, "n")
     end
 
-    test "accepts opts", %{meter: meter} do
+    test "forwards unit and description opts", %{meter: meter} do
       assert %Otel.API.Metrics.Instrument{
                kind: :observable_counter,
+               name: "n",
                unit: "s",
                description: "CPU time per thread"
              } =
-               Otel.API.Metrics.ObservableCounter.create(meter, "cpu_time",
+               Otel.API.Metrics.ObservableCounter.create(meter, "n",
                  unit: "s",
                  description: "CPU time per thread"
                )
     end
   end
 
-  describe "create/5 (with inline callback)" do
-    test "creates observable counter with callback", %{meter: meter} do
+  describe "create/5 — with inline callback (spec L446-L447 MUST)" do
+    test "attaches callback at creation time", %{meter: meter} do
       callback = fn _args -> [%Otel.API.Metrics.Measurement{value: 100, attributes: %{}}] end
 
-      assert %Otel.API.Metrics.Instrument{kind: :observable_counter} =
-               Otel.API.Metrics.ObservableCounter.create(
-                 meter,
-                 "cpu_time",
-                 callback,
-                 nil,
-                 []
-               )
+      assert %Otel.API.Metrics.Instrument{kind: :observable_counter, name: "n"} =
+               Otel.API.Metrics.ObservableCounter.create(meter, "n", callback, nil, [])
     end
 
-    test "passes callback_args for state", %{meter: meter} do
+    test "forwards callback_args (spec L655-L658 SHOULD opaque state)", %{meter: meter} do
       callback = fn pid ->
-        [%Otel.API.Metrics.Measurement{value: Process.info(pid, :reductions) |> elem(1)}]
+        {:reductions, n} = Process.info(pid, :reductions)
+        [%Otel.API.Metrics.Measurement{value: n, attributes: %{}}]
       end
 
       assert %Otel.API.Metrics.Instrument{

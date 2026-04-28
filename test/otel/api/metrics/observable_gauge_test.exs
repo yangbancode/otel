@@ -1,49 +1,51 @@
 defmodule Otel.API.Metrics.ObservableGaugeTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   setup do
+    saved = :persistent_term.get({Otel.API.Metrics.MeterProvider, :global}, nil)
     :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
 
-    meter =
-      Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test_lib"})
+    on_exit(fn ->
+      if saved,
+        do: :persistent_term.put({Otel.API.Metrics.MeterProvider, :global}, saved),
+        else: :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
+    end)
 
-    %{meter: meter}
+    %{
+      meter:
+        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test"})
+    }
   end
 
-  describe "create/2,3 (without callback)" do
-    test "creates observable gauge via meter", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :observable_gauge, name: "room_temperature"} =
-               Otel.API.Metrics.ObservableGauge.create(meter, "room_temperature")
+  describe "create/3 — without callback" do
+    test "with name only", %{meter: meter} do
+      assert %Otel.API.Metrics.Instrument{kind: :observable_gauge, name: "n"} =
+               Otel.API.Metrics.ObservableGauge.create(meter, "n")
     end
 
-    test "accepts opts", %{meter: meter} do
+    test "forwards unit and description opts", %{meter: meter} do
       assert %Otel.API.Metrics.Instrument{
                kind: :observable_gauge,
+               name: "n",
                unit: "celsius",
-               description: "Room temperature reading"
+               description: "Room temperature"
              } =
-               Otel.API.Metrics.ObservableGauge.create(meter, "room_temperature",
+               Otel.API.Metrics.ObservableGauge.create(meter, "n",
                  unit: "celsius",
-                 description: "Room temperature reading"
+                 description: "Room temperature"
                )
     end
   end
 
-  describe "create/5 (with inline callback)" do
-    test "creates observable gauge with callback", %{meter: meter} do
+  describe "create/5 — with inline callback (spec L446-L447 MUST)" do
+    test "attaches callback at creation time", %{meter: meter} do
       callback = fn _args -> [%Otel.API.Metrics.Measurement{value: 22.5, attributes: %{}}] end
 
-      assert %Otel.API.Metrics.Instrument{kind: :observable_gauge} =
-               Otel.API.Metrics.ObservableGauge.create(
-                 meter,
-                 "room_temperature",
-                 callback,
-                 nil,
-                 []
-               )
+      assert %Otel.API.Metrics.Instrument{kind: :observable_gauge, name: "n"} =
+               Otel.API.Metrics.ObservableGauge.create(meter, "n", callback, nil, [])
     end
 
-    test "passes callback_args for state", %{meter: meter} do
+    test "forwards callback_args (spec L655-L658 SHOULD opaque state)", %{meter: meter} do
       callback = fn sensor_id ->
         [%Otel.API.Metrics.Measurement{value: 21.0, attributes: %{"sensor.id" => sensor_id}}]
       end
