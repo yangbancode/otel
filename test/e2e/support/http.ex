@@ -30,15 +30,18 @@ defmodule Otel.E2E.HTTP do
     loop(url, @max_attempts)
   end
 
-  @doc """
-  Single-shot GET + JSON decode. Use for follow-up fetches once
-  `poll/1` has confirmed something landed (e.g. retrieving a full
-  Tempo trace by id after the search response yields the id).
-  """
-  @spec fetch_json(url :: String.t()) :: {:ok, term()} | {:error, term()}
-  def fetch_json(url) do
-    with {:ok, body} <- get(url) do
-      Jason.decode(body)
+  @doc "Single-shot GET. Returns the raw body; tests decode as needed."
+  @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
+  def get(url) do
+    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @timeout_ms}], []) do
+      {:ok, {{_, 200, _}, _, body}} ->
+        {:ok, to_string(body)}
+
+      {:ok, {{_, status, _}, _, body}} ->
+        {:error, {:status, status, to_string(body)}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -63,20 +66,6 @@ defmodule Otel.E2E.HTTP do
   defp fetch(url) do
     with {:ok, body} <- get(url) do
       Jason.decode(body)
-    end
-  end
-
-  @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
-  defp get(url) do
-    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @timeout_ms}], []) do
-      {:ok, {{_, 200, _}, _, body}} ->
-        {:ok, to_string(body)}
-
-      {:ok, {{_, status, _}, _, body}} ->
-        {:error, {:status, status, to_string(body)}}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 end

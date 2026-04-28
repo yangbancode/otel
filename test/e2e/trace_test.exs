@@ -167,33 +167,31 @@ defmodule Otel.E2E.TraceTest do
 
   # ---- helpers ----
 
+  # `/api/search` returns ids in lower hex; `/api/traces/{id}`
+  # returns the full OTLP-shaped JSON whose `traceId`/`spanId`/
+  # `parentSpanId` are base64 (the protobuf JSON convention for
+  # `bytes` fields). Tests that cross-reference the SDK
+  # `SpanContext` (which stores ids as plain integers) against
+  # those persisted records need `otlp_id/2`.
   @spec trace_spans(e2e_id :: String.t()) :: [map()]
   defp trace_spans(e2e_id) do
-    {:ok, traces} = poll(Tempo.query(e2e_id))
+    {:ok, traces} = poll(Tempo.search(e2e_id))
 
     Enum.flat_map(traces, fn %{"traceID" => trace_id} ->
-      {:ok, trace} = fetch_json(Tempo.trace(trace_id))
-      Tempo.spans_of(trace)
+      {:ok, body} = HTTP.get(Tempo.get_trace(trace_id))
+      {:ok, %{"batches" => batches}} = Jason.decode(body)
+
+      Enum.flat_map(batches, fn b ->
+        Enum.flat_map(b["scopeSpans"] || [], &(&1["spans"] || []))
+      end)
     end)
   end
 
-  # `Tempo.trace/1` returns spans whose `traceId` / `spanId` /
-  # `parentSpanId` follow the protobuf-JSON convention for
-  # `bytes` fields: standard base64 encoding of the raw byte
-  # string. The SDK `SpanContext` stores those ids as plain
-  # integers, so tests that cross-reference an SDK ctx against
-  # the persisted Tempo record need this conversion.
-  #
-  # (Note: `Tempo.query/1`'s `/api/search` response uses lower
-  # hex for the top-level `traceID` field — that path doesn't
-  # need this helper because the test simply forwards the hex
-  # back into `/api/traces/{id}` URL building.)
   @spec otlp_id(integer :: non_neg_integer(), bits :: pos_integer()) :: String.t()
   defp otlp_id(integer, bits), do: Base.encode64(<<integer::size(bits)>>)
 
-  # Tempo renders a missing parentSpanId as `nil`, the empty
-  # string, or an all-zero byte field (which encodes to
-  # `"AAAAAAAAAAA="` in base64). Treat all three as "no parent".
+  # `parentSpanId` for a root span comes back as `nil`, `""`, or
+  # an all-zero byte field (base64 `"AAAAAAAAAAA="`).
   @spec blank_parent?(span :: map()) :: boolean()
   defp blank_parent?(span) do
     case span["parentSpanId"] do

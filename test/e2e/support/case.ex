@@ -35,8 +35,8 @@ defmodule Otel.E2E.Case do
   using do
     quote location: :keep do
       import Otel.E2E.Case, only: [scope: 0, flush: 0]
-      import Otel.E2E.HTTP, only: [poll: 1, fetch_json: 1]
-      alias Otel.E2E.{Loki, Mimir, Tempo}
+      import Otel.E2E.HTTP, only: [poll: 1]
+      alias Otel.E2E.{HTTP, Loki, Mimir, Tempo}
 
       @moduletag :e2e
     end
