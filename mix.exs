@@ -41,11 +41,13 @@ defmodule Otel.MixProject do
         "docs/log.md",
         "docs/metrics.md",
         "docs/configuration.md",
-        "docs/logger-handler.md"
+        "docs/logger-handler.md",
+        "docs/e2e.md"
       ],
       groups_for_extras: [
         "How-to": ["docs/trace.md", "docs/log.md", "docs/metrics.md"],
-        Configuration: ["docs/configuration.md", "docs/logger-handler.md"]
+        Configuration: ["docs/configuration.md", "docs/logger-handler.md"],
+        Testing: ["docs/e2e.md"]
       ]
     ]
   end
