@@ -25,3 +25,9 @@
 [submodule "references/opentelemetry-configuration"]
 	path = references/opentelemetry-configuration
 	url = https://github.com/open-telemetry/opentelemetry-configuration.git
+[submodule "references/protobuf"]
+	path = references/protobuf
+	url = https://github.com/protocolbuffers/protobuf.git
+[submodule "references/elixir"]
+	path = references/elixir
+	url = https://github.com/elixir-lang/elixir.git

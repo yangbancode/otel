@@ -12,6 +12,13 @@
   runtime tag declared in `.mise.toml`; used when the correct behaviour
   of `:logger`, `:persistent_term`, `gen_statem`, etc. must be verified
   against what the runtime actually does rather than what docs claim)
+- `references/elixir/` — Elixir source (pinned to the runtime tag
+  declared in `.mise.toml`; used when the correct behaviour of
+  `Logger`, `GenServer`, etc. must be verified against the Elixir
+  runtime rather than what docs claim)
+- `references/protobuf/` — Google protobuf source (pinned to the
+  `protoc` version declared in `.mise.toml`; used to verify wire-format
+  decisions against the canonical reference)
 
 ## Architecture docs
 
