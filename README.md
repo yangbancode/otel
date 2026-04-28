@@ -59,40 +59,12 @@ end
 
 ## Configuration
 
-Configure the three signal pillars and the propagator in `config/runtime.exs`:
+Two independent pieces:
 
-```elixir
-import Config
-
-config :otel,
-  trace: [
-    sampler: :parentbased_always_on,
-    exporter: :otlp,
-    processor: :batch,
-    span_limits: %{attribute_count_limit: 256}
-  ],
-  metrics: [
-    exporter: :otlp,
-    export_interval_ms: 30_000
-  ],
-  logs: [
-    exporter: :otlp,
-    processor: :batch
-  ],
-  propagators: [:tracecontext, :baggage]
-```
-
-The SDK reads OS env vars (`OTEL_*`) too — see
-[`Otel.SDK.Config`](lib/otel/sdk/config.ex) for the precedence rules
-(programmatic > OS env > Application env > built-in defaults).
-
-To bridge Elixir's `:logger` into OTel Logs, attach the handler:
-
-```elixir
-:logger.add_handler(:otel, Otel.LoggerHandler, %{
-  config: %{scope_name: "my_app"}
-})
-```
+- **Otel SDK** — pillars, exporters, processors, propagators.
+  See [Configuration](docs/configuration.md).
+- **`:logger` bridge** — Elixir log events → OTel Logs.
+  See [Logger Handler](docs/logger-handler.md).
 
 ## Example
 
