@@ -59,11 +59,12 @@ end
 
 ## Configuration
 
-Configure via `config :otel, ...` in `config/*.exs`, `OTEL_*` env vars, or
-an `OTEL_CONFIG_FILE` YAML. Defaults match the OpenTelemetry spec.
+Two independent pieces:
 
-- [Configuration](docs/configuration.md) — full options per pillar.
-- [Logger Handler](docs/logger-handler.md) — `:logger` bridge setup.
+- **Otel SDK** — pillars, exporters, processors, propagators.
+  See [Configuration](docs/configuration.md).
+- **`:logger` bridge** — Elixir log events → OTel Logs.
+  See [Logger Handler](docs/logger-handler.md).
 
 ## Example
 
