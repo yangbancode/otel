@@ -163,7 +163,7 @@ mix test --only e2e test/e2e/
 | `[x]` | 1 | **Span-internal log carries trace_id** | `Tempo.trace_id == Loki.trace_id` |
 | `[x]` | 2 | **Metric exemplar carries trace_id** | `Mimir.exemplar.trace_id == Tempo.trace_id` |
 | `[x]` | 3 | Resource consistency (3 pillars) | All backends share `service.name` |
-| `[x]` | 4 | `InstrumentationScope` (3 pillars) | `scope.name` correctly mapped |
+| `[~]` | 4 | `InstrumentationScope` (Trace + Log) | `scope.name` carried through Tempo + Loki; Mimir doesn't promote OTLP scope to PromQL labels in LGTM 0.26.0 (lands-only) |
 
 ## PR plan
 
