@@ -7,22 +7,19 @@ defmodule Otel.E2E.Tempo do
 
   @doc """
   Polls Tempo's `/api/search?tags=e2e.id=<e2e_id>` until at least one
-  trace matches. Empty results (`{"traces": []}`) trigger a retry;
-  any other shape is returned as-is.
+  trace matches.
   """
-  @spec find(e2e_id :: String.t(), opts :: keyword()) :: Otel.E2E.Polling.result()
+  @spec find(e2e_id :: String.t(), opts :: keyword()) :: Otel.E2E.HTTP.result()
   def find(e2e_id, opts \\ []) do
-    timeout = Keyword.get(opts, :timeout, 10_000)
+    url = "#{@base}/api/search?tags=#{URI.encode_www_form("e2e.id=#{e2e_id}")}&limit=1"
 
-    Otel.E2E.Polling.until(timeout, fn ->
-      url = "#{@base}/api/search?tags=#{URI.encode_www_form("e2e.id=#{e2e_id}")}&limit=1"
-
-      with {:ok, body} <- Otel.E2E.HTTP.get(url),
-           {:ok, %{"traces" => [_ | _] = traces}} <- Jason.decode(body) do
-        {:ok, traces}
-      else
-        _ -> :retry
-      end
-    end)
+    Otel.E2E.HTTP.poll(
+      url,
+      fn
+        %{"traces" => [_ | _] = traces} -> {:ok, traces}
+        _ -> :empty
+      end,
+      opts
+    )
   end
 end
