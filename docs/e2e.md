@@ -160,10 +160,10 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | Backend assertion |
 |---|---|---|---|
-| `[ ]` | 1 | **Span-internal log carries trace_id** | `Tempo.trace_id == Loki.trace_id` |
-| `[ ]` | 2 | **Metric exemplar carries trace_id** | `Mimir.exemplar.trace_id == Tempo.trace_id` |
-| `[ ]` | 3 | Resource consistency (3 pillars) | All backends share `service.name` |
-| `[ ]` | 4 | `InstrumentationScope` (3 pillars) | `scope.name` correctly mapped |
+| `[x]` | 1 | **Span-internal log carries trace_id** | `Tempo.trace_id == Loki.trace_id` |
+| `[x]` | 2 | **Metric exemplar carries trace_id** | `Mimir.exemplar.trace_id == Tempo.trace_id` |
+| `[x]` | 3 | Resource consistency (3 pillars) | All backends share `service.name` |
+| `[x]` | 4 | `InstrumentationScope` (3 pillars) | `scope.name` correctly mapped |
 
 ## PR plan
 
