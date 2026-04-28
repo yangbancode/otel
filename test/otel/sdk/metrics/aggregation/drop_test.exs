@@ -1,21 +1,13 @@
 defmodule Otel.SDK.Metrics.Aggregation.DropTest do
   use ExUnit.Case, async: true
 
-  setup do
-    tab = :ets.new(:test_metrics, [:set, :public])
-    %{tab: tab}
-  end
+  # Spec metrics/sdk.md L1287-L1289 — Drop discards every measurement
+  # and yields nothing on collect.
+  test "aggregate/4 stores nothing; collect/3 always returns []" do
+    tab = :ets.new(:drop_test, [:set, :public])
 
-  describe "aggregate/4" do
-    test "returns :ok and stores nothing", %{tab: tab} do
-      assert :ok == Otel.SDK.Metrics.Aggregation.Drop.aggregate(tab, {:k, :s, %{}}, 42, %{})
-      assert :ets.tab2list(tab) == []
-    end
-  end
-
-  describe "collect/3" do
-    test "always returns empty list", %{tab: tab} do
-      assert [] == Otel.SDK.Metrics.Aggregation.Drop.collect(tab, {"name", :scope}, %{})
-    end
+    assert :ok = Otel.SDK.Metrics.Aggregation.Drop.aggregate(tab, {:k, :s, %{}}, 42, %{})
+    assert :ets.tab2list(tab) == []
+    assert [] = Otel.SDK.Metrics.Aggregation.Drop.collect(tab, {"name", :scope}, %{})
   end
 end
