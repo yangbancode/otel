@@ -2,9 +2,7 @@
 
 Bridges Erlang's `:logger` to OpenTelemetry Logs.
 
-## Attach the handler
-
-In `config/*.exs`:
+## Application env
 
 ```elixir
 import Config
@@ -20,7 +18,7 @@ config :kernel,
   ]
 ```
 
-Or imperatively in `Application.start/2`:
+## At runtime
 
 ```elixir
 :logger.add_handler(:otel, Otel.LoggerHandler, %{
