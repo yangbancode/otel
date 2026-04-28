@@ -38,13 +38,13 @@ defmodule Otel.E2E.DisabledTest do
       flush()
 
       # SDK_DISABLED=true makes every signal a no-op at the API
-      # layer, so no traffic ever reaches the backends. There's
-      # nothing to wait for — `empty?/1` does a single fetch
-      # and asserts the result list is empty, instead of polling
-      # for ~30s per backend like the positive scenarios do.
-      assert empty?(Tempo.search(e2e_id))
-      assert empty?(Loki.query(e2e_id))
-      assert empty?(Mimir.query(e2e_id, "e2e_disabled_1_#{e2e_id}_total"))
+      # layer, so no traffic ever reaches the backends. A single
+      # `fetch/1` is the right shape — `poll/1` would burn ~30s
+      # per backend waiting for records that are never going to
+      # arrive.
+      assert {:ok, []} = fetch(Tempo.search(e2e_id))
+      assert {:ok, []} = fetch(Loki.query(e2e_id))
+      assert {:ok, []} = fetch(Mimir.query(e2e_id, "e2e_disabled_1_#{e2e_id}_total"))
     end
   end
 
@@ -70,7 +70,7 @@ defmodule Otel.E2E.DisabledTest do
       )
 
       flush()
-      assert empty?(Tempo.search(e2e_id))
+      assert {:ok, []} = fetch(Tempo.search(e2e_id))
     end
   end
 
