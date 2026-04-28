@@ -1,5 +1,4 @@
 defmodule Otel.SDK.ConfigTest do
-  # async: false because env vars + Application env are global state.
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
@@ -25,17 +24,14 @@ defmodule Otel.SDK.ConfigTest do
   setup do
     on_exit(fn ->
       Enum.each(@env_vars, &System.delete_env/1)
-      Application.delete_env(:otel, :trace)
-      Application.delete_env(:otel, :metrics)
-      Application.delete_env(:otel, :logs)
-      Application.delete_env(:otel, :propagators)
+      for k <- [:trace, :metrics, :logs, :propagators], do: Application.delete_env(:otel, k)
     end)
 
     :ok
   end
 
   describe "disabled?/0" do
-    test "OTEL_SDK_DISABLED — false by default; true only when set to \"true\"" do
+    test "default false; env var \"true\" → true" do
       assert Otel.SDK.Config.disabled?() == false
 
       System.put_env("OTEL_SDK_DISABLED", "false")
@@ -46,8 +42,8 @@ defmodule Otel.SDK.ConfigTest do
     end
   end
 
-  describe "trace/0 — defaults" do
-    test "ParentBased sampler + Batch processor + OTLP exporter + default SpanLimits + Default IdGenerator" do
+  describe "trace/0" do
+    test "defaults: ParentBased + Batch(OTLP HTTP) + SpanLimits + Default IdGenerator" do
       config = Otel.SDK.Config.trace()
 
       assert {Otel.SDK.Trace.Sampler.ParentBased, _} = config.sampler
@@ -60,19 +56,14 @@ defmodule Otel.SDK.ConfigTest do
       assert %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 128} = config.span_limits
       assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
     end
-  end
 
-  describe "trace/0 — Application env layer" do
-    test "sampler / exporter / processor selectors swap the underlying module" do
+    test "Application env: sampler / exporter / processor selectors swap underlying module" do
       Application.put_env(:otel, :trace, sampler: :always_off)
       assert {Otel.SDK.Trace.Sampler.AlwaysOff, %{}} = Otel.SDK.Config.trace().sampler
 
       Application.put_env(:otel, :trace, exporter: :console)
 
-      assert [
-               {Otel.SDK.Trace.SpanProcessor.Batch,
-                %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}
-             ] =
+      assert [{_, %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}] =
                Otel.SDK.Config.trace().processors
 
       Application.put_env(:otel, :trace, processor: :simple, exporter: :console)
@@ -82,13 +73,13 @@ defmodule Otel.SDK.ConfigTest do
       assert Otel.SDK.Config.trace().processors == []
     end
 
-    test "explicit :processors list bypasses the implicit single-processor build" do
+    test "Application env: explicit :processors list bypasses implicit build" do
       processors = [{MyApp.CustomProcessor, %{x: 1}}]
       Application.put_env(:otel, :trace, processors: processors)
       assert Otel.SDK.Config.trace().processors == processors
     end
 
-    test "span_limits accepts both map and keyword forms; merges into struct (untouched fields keep defaults)" do
+    test "span_limits accepts map and keyword forms; untouched fields keep defaults" do
       Application.put_env(:otel, :trace, span_limits: %{attribute_count_limit: 256})
       limits = Otel.SDK.Config.trace().span_limits
       assert limits.attribute_count_limit == 256
@@ -97,10 +88,8 @@ defmodule Otel.SDK.ConfigTest do
       Application.put_env(:otel, :trace, span_limits: [attribute_count_limit: 64])
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
     end
-  end
 
-  describe "trace/0 — OS env layer" do
-    test "OTEL_TRACES_SAMPLER selects sampler module; SAMPLER_ARG drives traceidratio probability" do
+    test "OTEL_TRACES_SAMPLER + SAMPLER_ARG; missing/bad/out-of-range → 1.0" do
       System.put_env("OTEL_TRACES_SAMPLER", "always_off")
       assert {Otel.SDK.Trace.Sampler.AlwaysOff, _} = Otel.SDK.Config.trace().sampler
 
@@ -108,18 +97,16 @@ defmodule Otel.SDK.ConfigTest do
       System.put_env("OTEL_TRACES_SAMPLER_ARG", "0.25")
       assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 0.25} = Otel.SDK.Config.trace().sampler
 
-      # Missing / unparseable / out-of-range arg → fallback to 1.0.
       for arg <- [nil, "bad-ratio", "1.5"] do
         if arg,
           do: System.put_env("OTEL_TRACES_SAMPLER_ARG", arg),
           else: System.delete_env("OTEL_TRACES_SAMPLER_ARG")
 
-        assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0} =
-                 Otel.SDK.Config.trace().sampler
+        assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0} = Otel.SDK.Config.trace().sampler
       end
     end
 
-    test "OTEL_TRACES_EXPORTER selects span exporter (:none disables processors)" do
+    test "OTEL_TRACES_EXPORTER + OTEL_BSP_* knobs flow into Batch" do
       System.put_env("OTEL_TRACES_EXPORTER", "console")
 
       assert [{_, %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}] =
@@ -127,25 +114,22 @@ defmodule Otel.SDK.ConfigTest do
 
       System.put_env("OTEL_TRACES_EXPORTER", "none")
       assert Otel.SDK.Config.trace().processors == []
-    end
 
-    test "OTEL_BSP_* knobs flow into the Batch processor config" do
+      System.delete_env("OTEL_TRACES_EXPORTER")
       System.put_env("OTEL_BSP_SCHEDULE_DELAY", "100")
       System.put_env("OTEL_BSP_EXPORT_TIMEOUT", "0")
       System.put_env("OTEL_BSP_MAX_QUEUE_SIZE", "999")
       System.put_env("OTEL_BSP_MAX_EXPORT_BATCH_SIZE", "111")
 
       [{_, config}] = Otel.SDK.Config.trace().processors
-
       assert config.scheduled_delay_ms == 100
       assert config.export_timeout_ms == :infinity
       assert config.max_queue_size == 999
       assert config.max_export_batch_size == 111
     end
 
-    # Spec sdk-environment-variables.md L389-L395: OTEL_SPAN_*
-    # specific limit overrides the OTEL_ATTRIBUTE_* global fallback.
-    test "OTEL_*_LIMIT env vars: SPAN-specific overrides the ATTRIBUTE-* global fallback" do
+    # Spec sdk-environment-variables.md L389-L395.
+    test "OTEL_SPAN_*_LIMIT overrides OTEL_ATTRIBUTE_*_LIMIT global fallback" do
       System.put_env("OTEL_ATTRIBUTE_COUNT_LIMIT", "32")
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 32
 
@@ -155,9 +139,7 @@ defmodule Otel.SDK.ConfigTest do
       System.put_env("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT", "200")
       assert Otel.SDK.Config.trace().span_limits.attribute_value_length_limit == 200
     end
-  end
 
-  describe "trace/0 — precedence (Application env > OS env > defaults)" do
     test "Application env wins over OS env" do
       System.put_env("OTEL_TRACES_SAMPLER", "always_off")
       Application.put_env(:otel, :trace, sampler: :always_on)
@@ -170,7 +152,7 @@ defmodule Otel.SDK.ConfigTest do
   end
 
   describe "metrics/0" do
-    test "defaults: PeriodicExporting reader + OTLP exporter + :trace_based exemplar filter" do
+    test "defaults: PeriodicExporting(OTLP HTTP) + :trace_based exemplar" do
       [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, reader}] =
         Otel.SDK.Config.metrics().readers
 
@@ -198,7 +180,7 @@ defmodule Otel.SDK.ConfigTest do
   end
 
   describe "logs/0" do
-    test "defaults: Batch processor + OTLP exporter + default LogRecordLimits" do
+    test "defaults: Batch(OTLP HTTP) + LogRecordLimits" do
       [{Otel.SDK.Logs.LogRecordProcessor.Batch, config}] = Otel.SDK.Config.logs().processors
 
       assert config.exporter == {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}
@@ -208,7 +190,7 @@ defmodule Otel.SDK.ConfigTest do
                Otel.SDK.Config.logs().log_record_limits
     end
 
-    test "OTEL_LOGS_EXPORTER (console / none) + OTEL_BLRP_* + OTEL_LOGRECORD_* + OTEL_ATTRIBUTE_* fallbacks" do
+    test "OTEL_LOGS_EXPORTER (console / none) + OTEL_BLRP_* + LOGRECORD/ATTRIBUTE fallbacks" do
       System.put_env("OTEL_LOGS_EXPORTER", "console")
 
       assert [{_, %{exporter: {Otel.SDK.Logs.LogRecordExporter.Console, %{}}}}] =
@@ -233,13 +215,13 @@ defmodule Otel.SDK.ConfigTest do
   end
 
   describe "propagator/0" do
-    test "default — Composite of TraceContext + Baggage (spec L116)" do
+    test "default: Composite of TraceContext + Baggage" do
       assert {Otel.API.Propagator.TextMap.Composite,
               [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
                Otel.SDK.Config.propagator()
     end
 
-    test "Application env :propagators — single, :none, list-with-:none, empty list" do
+    test "Application env :propagators — single, :none, list with :none, empty list" do
       Application.put_env(:otel, :propagators, [:tracecontext])
       assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.TraceContext
 
@@ -259,10 +241,8 @@ defmodule Otel.SDK.ConfigTest do
       assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Baggage
     end
 
-    # Spec api-propagators.md L107-L118 — accepts comma-separated
-    # names, dedupes, falls back to default on empty, warns on
-    # unknown values.
-    test "OTEL_PROPAGATORS — comma list / deduped / single / :none / empty / unknown" do
+    # Spec api-propagators.md L107-L118.
+    test "OTEL_PROPAGATORS — comma list / dedup / single / :none / empty / unknown / b3 raises" do
       System.put_env("OTEL_PROPAGATORS", "tracecontext,baggage")
 
       assert {Otel.API.Propagator.TextMap.Composite,
@@ -292,9 +272,7 @@ defmodule Otel.SDK.ConfigTest do
 
       assert log =~ "unknown name"
       assert log =~ "mycustom"
-    end
 
-    test "spec-known but unimplemented (b3) propagates the Selector raise" do
       System.put_env("OTEL_PROPAGATORS", "b3")
 
       assert_raise ArgumentError, ~r/not implemented in this SDK/, fn ->
