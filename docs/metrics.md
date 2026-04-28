@@ -81,7 +81,8 @@ Otel.API.Metrics.Meter.create_observable_counter(
   meter,
   "process.runtime.uptime",
   fn _args ->
-    [%Otel.API.Metrics.Measurement{value: System.system_time(:second), attributes: %{}}]
+    {wall_clock_ms, _} = :erlang.statistics(:wall_clock)
+    [%Otel.API.Metrics.Measurement{value: div(wall_clock_ms, 1000), attributes: %{}}]
   end,
   nil,
   unit: "s"
