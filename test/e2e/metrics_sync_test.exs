@@ -108,11 +108,14 @@ defmodule Otel.E2E.MetricsSyncTest do
     test "31: case-insensitive duplicate registration returns the first instrument",
          %{e2e_id: e2e_id} do
       meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
-      first = Otel.API.Metrics.Meter.create_counter(meter, "E2E_Scenario_31_#{e2e_id}")
-      second = Otel.API.Metrics.Meter.create_counter(meter, "e2e_scenario_31_#{e2e_id}")
-      # Duplicate (case-insensitive) registration warns and
-      # returns the original instrument; both adds land on the
-      # same series.
+      # First registration sets the canonical (lowercase) name —
+      # Mimir stores series under that exact name. The second
+      # call uses uppercase to exercise the case-insensitive
+      # duplicate-name contract; the SDK warns and returns the
+      # first instrument, so both `add/3` calls feed the same
+      # series and the lowercase PromQL query finds it.
+      first = Otel.API.Metrics.Meter.create_counter(meter, "e2e_scenario_31_#{e2e_id}")
+      second = Otel.API.Metrics.Meter.create_counter(meter, "E2E_SCENARIO_31_#{e2e_id}")
       Otel.API.Metrics.Counter.add(first, 1, %{"e2e.id" => e2e_id})
       Otel.API.Metrics.Counter.add(second, 1, %{"e2e.id" => e2e_id})
       flush()
