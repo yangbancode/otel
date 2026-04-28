@@ -1,6 +1,6 @@
 # Configuration
 
-Pick whichever fits your deployment — all four reach the same provider config:
+Sources, by priority:
 
 | Source | Wins over |
 |---|---|
@@ -12,7 +12,7 @@ Pick whichever fits your deployment — all four reach the same provider config:
 ## Application env
 
 ```elixir
-# config/runtime.exs (or any config/*.exs)
+# config/runtime.exs
 import Config
 
 config :otel,
@@ -46,8 +46,7 @@ export OTEL_PROPAGATORS=tracecontext,baggage
 
 ## Declarative YAML (`OTEL_CONFIG_FILE`)
 
-Point `OTEL_CONFIG_FILE` at a YAML file. Schema: OpenTelemetry Configuration
-`v1.0.0`. When set, every other source is ignored.
+Schema: OpenTelemetry Configuration `v1.0.0`. When set, overrides everything else.
 
 ```yaml
 # /etc/otel/config.yaml
@@ -91,21 +90,20 @@ logger_provider:
 export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 ```
 
-`${VAR}` and `${VAR:-default}` substitution works anywhere. More examples in
+`${VAR}` / `${VAR:-default}` substitution works anywhere. More examples in
 `test/fixtures/v1.0.0/`.
 
 ## Disable the SDK
 
-Set `OTEL_SDK_DISABLED=true`. Telemetry calls become no-ops; the propagator
-stays active.
+`OTEL_SDK_DISABLED=true` makes telemetry calls no-ops. Propagator stays active.
 
 ## Selectors
 
 `exporter:` / `processor:` / `sampler:` / propagator entries accept:
 
-- a **shortcut atom** (`:otlp`, `:batch`, `:always_on`, …) — see the tables below
-- a **module atom** — same as `{Module, %{}}`
-- a **`{module, %{...}}` tuple**
+- a shortcut atom (see tables below)
+- a module — same as `{Module, %{}}`
+- a `{module, %{...}}` tuple
 
 ## Trace pillar
 
@@ -162,6 +160,5 @@ stays active.
 |---|---|---|---|---|
 | Propagators | `propagators:` | `OTEL_PROPAGATORS` | list of `:tracecontext` / `:baggage` / `:none` (or custom modules) | `[:tracecontext, :baggage]` |
 
-The list is deduplicated. `[:none]` or `[]` installs Noop. Spec-named
-propagators not bundled here (`:b3`, `:b3multi`, `:jaeger`, `:xray`,
-`:ottrace`) raise — supply a custom `{MyPropagator, opts}` instead.
+Deduplicated. `[:none]` or `[]` → Noop. `:b3` / `:b3multi` / `:jaeger` /
+`:xray` / `:ottrace` raise; supply a custom module instead.

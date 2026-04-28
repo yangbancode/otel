@@ -1,9 +1,6 @@
 # Logger Handler
 
-Bridges Erlang's `:logger` to OpenTelemetry Logs. Every `Logger.info/2`
-call becomes a `LogRecord` emitted via the configured `LoggerProvider`.
-With the SDK installed, records flow to exporters; without one, they
-drop silently.
+Bridges Erlang's `:logger` to OpenTelemetry Logs.
 
 ## Attach the handler
 
@@ -16,15 +13,13 @@ drop silently.
 })
 ```
 
-Attach once at application start, alongside any other handlers you use.
-
 ## Config keys
 
-All under the handler's `:config` key. Every key is optional.
+All under `:config`. Optional.
 
 | Key | Default | Description |
 |---|---|---|
-| `scope_name` | `""` | InstrumentationScope name — set to your app/library name |
+| `scope_name` | `""` | InstrumentationScope name — your app/library name |
 | `scope_version` | `""` | typically `Application.spec(:my_app, :vsn) \|> to_string()` |
 | `scope_schema_url` | `""` | InstrumentationScope schema URL |
 | `scope_attributes` | `%{}` | InstrumentationScope attributes (primitives + homogeneous arrays) |
@@ -44,12 +39,10 @@ Reserved meta keys (never emitted as attributes): `:time`, `:gl`,
 
 ## Pairing with the SDK
 
-The handler does no batching — that's `LogRecordProcessor`'s job. The
-default config (Batch + OTLP) is fine for production:
+Pair with the SDK's processor pipeline (default `:batch`):
 
 ```elixir
 config :otel, logs: [exporter: :otlp, processor: :batch]
 ```
 
-See [Configuration](configuration.md) for Logs-pillar knobs (`OTEL_BLRP_*`,
-`processor_config:`, log-record limits).
+See [Configuration](configuration.md) for Logs-pillar knobs.
