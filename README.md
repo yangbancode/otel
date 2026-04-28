@@ -66,29 +66,11 @@ Two independent pieces:
 - **`:logger` bridge** — Elixir log events → OTel Logs.
   See [Logger Handler](docs/logger-handler.md).
 
-## Example
+## How-to
 
-```elixir
-scope = %Otel.API.InstrumentationScope{name: "my_app", version: "1.0.0"}
-
-# Trace — Span with auto-managed lifecycle (start, end, exception recording).
-tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
-
-Otel.API.Trace.with_span(tracer, "checkout", [kind: :server], fn span_ctx ->
-  Otel.API.Trace.Span.set_attribute(span_ctx, "user.id", 42)
-  Otel.API.Trace.Span.add_event(span_ctx, "cart.validated")
-  process_order()
-end)
-
-# Metrics — Counter.
-meter = Otel.API.Metrics.MeterProvider.get_meter(scope)
-counter = Otel.API.Metrics.Meter.create_counter(meter, "http.requests")
-Otel.API.Metrics.Counter.add(counter, 1, %{"http.method" => "GET"})
-
-# Logs — structured via the :logger bridge.
-require Logger
-Logger.info("checkout completed", user_id: 42, total: 99.95)
-```
+- [Trace](docs/trace.md) — span lifecycle, attributes, events, status, exceptions.
+- [Log](docs/log.md) — `:logger` bridge and SDK API.
+- [Metrics](docs/metrics.md) — synchronous and observable instruments.
 
 ## License
 
