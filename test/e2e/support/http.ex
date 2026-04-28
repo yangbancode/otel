@@ -36,6 +36,25 @@ defmodule Otel.E2E.HTTP do
     loop(url, @max_attempts)
   end
 
+  @doc """
+  Single-shot absence check. Returns `true` iff the backend's
+  result list is empty (no `traces` / `data.result` entries).
+
+  For absence assertions where `poll/1` would burn wall time
+  waiting for data that's never going to arrive (SDK disabled,
+  provider shut down, sampler dropped). The caller is
+  responsible for any grace period before calling — by the time
+  this returns, the test concludes the record didn't land.
+  """
+  @spec empty?(url :: String.t()) :: boolean()
+  def empty?(url) do
+    case fetch(url) do
+      {:ok, %{"traces" => list}} -> list == []
+      {:ok, %{"data" => %{"result" => list}}} -> list == []
+      _ -> true
+    end
+  end
+
   @doc "Single-shot GET. Returns the raw body; tests decode as needed."
   @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
   def get(url) do
