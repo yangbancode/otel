@@ -1,72 +1,57 @@
 defmodule Otel.API.Metrics.GaugeTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   setup do
+    saved = :persistent_term.get({Otel.API.Metrics.MeterProvider, :global}, nil)
     :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
 
-    meter =
-      Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test_lib"})
+    on_exit(fn ->
+      if saved,
+        do: :persistent_term.put({Otel.API.Metrics.MeterProvider, :global}, saved),
+        else: :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
+    end)
 
-    %{meter: meter}
+    %{
+      meter:
+        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test"})
+    }
   end
 
-  describe "create/2,3" do
-    test "creates gauge via meter", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :gauge, name: "cpu_temperature"} =
-               Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
+  describe "create/3 — delegates to Meter.create_gauge" do
+    test "with name only", %{meter: meter} do
+      assert %Otel.API.Metrics.Instrument{kind: :gauge, name: "n"} =
+               Otel.API.Metrics.Gauge.create(meter, "n")
     end
 
-    test "accepts opts", %{meter: meter} do
+    test "forwards unit and description opts", %{meter: meter} do
       assert %Otel.API.Metrics.Instrument{
                kind: :gauge,
+               name: "n",
                unit: "celsius",
                description: "CPU temperature"
              } =
-               Otel.API.Metrics.Gauge.create(meter, "cpu_temperature",
+               Otel.API.Metrics.Gauge.create(meter, "n",
                  unit: "celsius",
                  description: "CPU temperature"
                )
     end
   end
 
-  describe "enabled?/1,2" do
-    test "returns false for noop", %{meter: meter} do
-      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
-      assert false == Otel.API.Metrics.Gauge.enabled?(instrument)
-    end
-
-    test "accepts opts", %{meter: meter} do
-      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
-      assert false == Otel.API.Metrics.Gauge.enabled?(instrument, [])
-    end
+  test "enabled?/2 returns false under the Noop Meter", %{meter: meter} do
+    inst = Otel.API.Metrics.Gauge.create(meter, "n")
+    refute Otel.API.Metrics.Gauge.enabled?(inst)
+    refute Otel.API.Metrics.Gauge.enabled?(inst, [])
   end
 
-  describe "record/2,3" do
-    test "records a value", %{meter: meter} do
-      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
-      assert :ok == Otel.API.Metrics.Gauge.record(instrument, 65)
-    end
+  # Spec L666-L668: Gauge value MAY be negative (point-in-time
+  # measurements are bidirectional, unlike Counter).
+  test "record/3 returns :ok across value shapes (incl. negative)", %{meter: meter} do
+    inst = Otel.API.Metrics.Gauge.create(meter, "n")
 
-    test "records with attributes", %{meter: meter} do
-      instrument = Otel.API.Metrics.Gauge.create(meter, "cpu_temperature")
-
-      assert :ok ==
-               Otel.API.Metrics.Gauge.record(instrument, 72.5, %{"cpu.id" => 0})
-    end
-
-    test "accepts negative value", %{meter: meter} do
-      instrument = Otel.API.Metrics.Gauge.create(meter, "temperature")
-      assert :ok == Otel.API.Metrics.Gauge.record(instrument, -10)
-    end
-
-    test "accepts zero", %{meter: meter} do
-      instrument = Otel.API.Metrics.Gauge.create(meter, "temperature")
-      assert :ok == Otel.API.Metrics.Gauge.record(instrument, 0)
-    end
-
-    test "accepts float", %{meter: meter} do
-      instrument = Otel.API.Metrics.Gauge.create(meter, "temperature")
-      assert :ok == Otel.API.Metrics.Gauge.record(instrument, 36.6)
-    end
+    assert :ok = Otel.API.Metrics.Gauge.record(inst, 65)
+    assert :ok = Otel.API.Metrics.Gauge.record(inst, 0)
+    assert :ok = Otel.API.Metrics.Gauge.record(inst, -10)
+    assert :ok = Otel.API.Metrics.Gauge.record(inst, 36.6)
+    assert :ok = Otel.API.Metrics.Gauge.record(inst, 72.5, %{"cpu.id" => 0})
   end
 end
