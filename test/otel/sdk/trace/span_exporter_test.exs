@@ -1,50 +1,35 @@
-defmodule Otel.SDK.Trace.SpanExporterTest.TestExporter do
-  @behaviour Otel.SDK.Trace.SpanExporter
-
-  @spec init(config :: term()) :: {:ok, Otel.SDK.Trace.SpanExporter.state()} | :ignore
-  @impl true
-  def init(config), do: {:ok, config}
-
-  @spec export(
-          spans :: [Otel.SDK.Trace.Span.t()],
-          resource :: map(),
-          state :: Otel.SDK.Trace.SpanExporter.state()
-        ) :: :ok | :error
-  @impl true
-  def export(spans, _resource, %{test_pid: pid}) do
-    send(pid, {:exported, length(spans)})
-    :ok
-  end
-
-  @spec shutdown(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok
-  @impl true
-  def shutdown(_state), do: :ok
-
-  @spec force_flush(state :: Otel.SDK.Trace.SpanExporter.state()) :: :ok
-  @impl true
-  def force_flush(_state), do: :ok
-end
-
 defmodule Otel.SDK.Trace.SpanExporterTest do
   use ExUnit.Case, async: true
 
-  describe "behaviour" do
-    test "TestExporter implements all callbacks" do
-      assert {:ok, state} =
-               Otel.SDK.Trace.SpanExporterTest.TestExporter.init(%{test_pid: self()})
+  defmodule TestExporter do
+    @moduledoc false
+    @behaviour Otel.SDK.Trace.SpanExporter
 
-      span = %Otel.SDK.Trace.Span{
-        trace_id: 1,
-        span_id: 1,
-        name: "test"
-      }
-
-      assert :ok =
-               Otel.SDK.Trace.SpanExporterTest.TestExporter.export([span], %{}, state)
-
-      assert_receive {:exported, 1}
-
-      assert :ok = Otel.SDK.Trace.SpanExporterTest.TestExporter.shutdown(state)
+    @impl true
+    def init(config), do: {:ok, config}
+    @impl true
+    def export(spans, _resource, %{test_pid: pid}) do
+      send(pid, {:exported, length(spans)})
+      :ok
     end
+
+    @impl true
+    def shutdown(_state), do: :ok
+    @impl true
+    def force_flush(_state), do: :ok
+  end
+
+  # Smoke-test the behaviour contract: every callback is callable
+  # and returns the documented success shape. Concrete exporters
+  # (Console, OTLP HTTP) carry their own behaviour-driven tests.
+  test "init/1 + export/3 + shutdown/1 + force_flush/1 round-trip" do
+    assert {:ok, state} = TestExporter.init(%{test_pid: self()})
+
+    span = %Otel.SDK.Trace.Span{trace_id: 1, span_id: 1, name: "test"}
+    assert :ok = TestExporter.export([span], %{}, state)
+    assert_receive {:exported, 1}
+
+    assert :ok = TestExporter.shutdown(state)
+    assert :ok = TestExporter.force_flush(state)
   end
 end
