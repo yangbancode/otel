@@ -12,7 +12,6 @@ Sources, highest priority first:
 ## Application env
 
 ```elixir
-# config/runtime.exs
 import Config
 
 config :otel,
