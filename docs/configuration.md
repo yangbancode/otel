@@ -116,14 +116,14 @@ Module-valued options (`exporter:`, `processor:`, `sampler:`, items in
 | Processor list | `processors:` | — | list of `{module, config}` | inferred |
 | Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BSP_SCHEDULE_DELAY` | non-negative integer (ms) | `5000` |
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BSP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
-| Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BSP_MAX_QUEUE_SIZE` | integer | `2048` |
-| Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | integer | `512` |
-| Span attribute count | `span_limits: %{attribute_count_limit: _}` | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | integer | `128` |
-| Span attribute value length | `span_limits: %{attribute_value_length_limit: _}` | `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | integer or `:infinity` | `:infinity` |
-| Event count | `span_limits: %{event_count_limit: _}` | `OTEL_SPAN_EVENT_COUNT_LIMIT` | integer | `128` |
-| Link count | `span_limits: %{link_count_limit: _}` | `OTEL_SPAN_LINK_COUNT_LIMIT` | integer | `128` |
-| Per-event attribute count | `span_limits: %{attribute_per_event_limit: _}` | `OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT` | integer | `128` |
-| Per-link attribute count | `span_limits: %{attribute_per_link_limit: _}` | `OTEL_LINK_ATTRIBUTE_COUNT_LIMIT` | integer | `128` |
+| Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BSP_MAX_QUEUE_SIZE` | positive integer | `2048` |
+| Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | positive integer | `512` |
+| Span attribute count | `span_limits: %{attribute_count_limit: _}` | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
+| Span attribute value length | `span_limits: %{attribute_value_length_limit: _}` | `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
+| Event count | `span_limits: %{event_count_limit: _}` | `OTEL_SPAN_EVENT_COUNT_LIMIT` | non-negative integer | `128` |
+| Link count | `span_limits: %{link_count_limit: _}` | `OTEL_SPAN_LINK_COUNT_LIMIT` | non-negative integer | `128` |
+| Per-event attribute count | `span_limits: %{attribute_per_event_limit: _}` | `OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT` | non-negative integer | `128` |
+| Per-link attribute count | `span_limits: %{attribute_per_link_limit: _}` | `OTEL_LINK_ATTRIBUTE_COUNT_LIMIT` | non-negative integer | `128` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 | ID generator | `id_generator:` | — | module | `Otel.SDK.Trace.IdGenerator.Default` |
 
@@ -148,10 +148,10 @@ Module-valued options (`exporter:`, `processor:`, `sampler:`, items in
 | Processor list | `processors:` | — | list of `{module, config}` | inferred |
 | Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BLRP_SCHEDULE_DELAY` | non-negative integer (ms) | `1000` |
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BLRP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
-| Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BLRP_MAX_QUEUE_SIZE` | integer | `2048` |
-| Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` | integer | `512` |
-| LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | integer | `128` |
-| LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | integer or `:infinity` | `:infinity` |
+| Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BLRP_MAX_QUEUE_SIZE` | positive integer | `2048` |
+| Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` | positive integer | `512` |
+| LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
+| LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 
 ## Propagators
