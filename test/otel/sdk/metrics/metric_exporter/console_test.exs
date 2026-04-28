@@ -1,17 +1,22 @@
 defmodule Otel.SDK.Metrics.MetricExporter.ConsoleTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
+
+  import ExUnit.CaptureIO
 
   @scope %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"}
   @resource Otel.SDK.Resource.create(%{"service.name" => "test"})
 
-  describe "init/1" do
-    test "returns {:ok, config}" do
-      assert {:ok, %{}} = Otel.SDK.Metrics.MetricExporter.Console.init(%{})
-    end
+  defp render(metrics),
+    do: capture_io(fn -> Otel.SDK.Metrics.MetricExporter.Console.export(metrics, %{}) end)
+
+  test "init/1 + shutdown/1 + force_flush/1 round-trip" do
+    assert {:ok, %{}} = Otel.SDK.Metrics.MetricExporter.Console.init(%{})
+    assert :ok = Otel.SDK.Metrics.MetricExporter.Console.shutdown(%{})
+    assert :ok = Otel.SDK.Metrics.MetricExporter.Console.force_flush(%{})
   end
 
   describe "export/2" do
-    test "prints counter metric to stdout" do
+    test "renders a counter metric — name, kind, scope, value" do
       metric = %{
         name: "requests",
         description: "Total requests",
@@ -24,10 +29,7 @@ defmodule Otel.SDK.Metrics.MetricExporter.ConsoleTest do
         ]
       }
 
-      output =
-        ExUnit.CaptureIO.capture_io(fn ->
-          assert :ok == Otel.SDK.Metrics.MetricExporter.Console.export([metric], %{})
-        end)
+      output = render([metric])
 
       assert output =~ "requests"
       assert output =~ "counter"
@@ -35,7 +37,7 @@ defmodule Otel.SDK.Metrics.MetricExporter.ConsoleTest do
       assert output =~ "42"
     end
 
-    test "prints histogram metric to stdout" do
+    test "renders a histogram metric — name, kind, count + sum from the value map" do
       metric = %{
         name: "latency",
         description: "Request latency",
@@ -60,10 +62,7 @@ defmodule Otel.SDK.Metrics.MetricExporter.ConsoleTest do
         ]
       }
 
-      output =
-        ExUnit.CaptureIO.capture_io(fn ->
-          assert :ok == Otel.SDK.Metrics.MetricExporter.Console.export([metric], %{})
-        end)
+      output = render([metric])
 
       assert output =~ "latency"
       assert output =~ "histogram"
@@ -71,7 +70,7 @@ defmodule Otel.SDK.Metrics.MetricExporter.ConsoleTest do
       assert output =~ "sum=250"
     end
 
-    test "prints multiple datapoints" do
+    test "renders multiple datapoints (one per attribute set)" do
       metric = %{
         name: "temp",
         description: "Temperature",
@@ -85,25 +84,10 @@ defmodule Otel.SDK.Metrics.MetricExporter.ConsoleTest do
         ]
       }
 
-      output =
-        ExUnit.CaptureIO.capture_io(fn ->
-          Otel.SDK.Metrics.MetricExporter.Console.export([metric], %{})
-        end)
+      output = render([metric])
 
-      assert output =~ "\"host\" => \"a\""
-      assert output =~ "\"host\" => \"b\""
-    end
-  end
-
-  describe "force_flush/1" do
-    test "returns :ok" do
-      assert :ok == Otel.SDK.Metrics.MetricExporter.Console.force_flush(%{})
-    end
-  end
-
-  describe "shutdown/1" do
-    test "returns :ok" do
-      assert :ok == Otel.SDK.Metrics.MetricExporter.Console.shutdown(%{})
+      assert output =~ ~s|"host" => "a"|
+      assert output =~ ~s|"host" => "b"|
     end
   end
 end
