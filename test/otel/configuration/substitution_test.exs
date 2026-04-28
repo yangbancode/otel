@@ -39,25 +39,33 @@ defmodule Otel.Configuration.SubstitutionTest do
 
   describe ":- default value" do
     test "${VAR:-default} uses default when undefined" do
-      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_FOO:-fallback}") == "fallback"
+      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_FOO:-fallback}") ==
+               "fallback"
     end
 
     test "${VAR:-default} uses default when empty" do
       System.put_env("OTEL_TEST_EMPTY", "")
-      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_EMPTY:-fallback}") == "fallback"
+
+      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_EMPTY:-fallback}") ==
+               "fallback"
     end
 
     test "${VAR:-default} uses VAR value when defined" do
       System.put_env("OTEL_TEST_DEFINED", "real")
-      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_DEFINED:-fallback}") == "real"
+
+      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_DEFINED:-fallback}") ==
+               "real"
     end
 
     test "${env:VAR:-default} works with explicit env prefix" do
-      assert Otel.Configuration.Substitution.substitute!("${env:OTEL_TEST_FOO:-fallback}") == "fallback"
+      assert Otel.Configuration.Substitution.substitute!("${env:OTEL_TEST_FOO:-fallback}") ==
+               "fallback"
     end
 
     test "default value can contain colons and other punctuation" do
-      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_FOO:-http://localhost:4318}") ==
+      assert Otel.Configuration.Substitution.substitute!(
+               "${OTEL_TEST_FOO:-http://localhost:4318}"
+             ) ==
                "http://localhost:4318"
     end
 
@@ -73,7 +81,9 @@ defmodule Otel.Configuration.SubstitutionTest do
 
     test "$${VAR} produces a literal ${VAR} (no substitution)" do
       System.put_env("OTEL_TEST_FOO", "hello")
-      assert Otel.Configuration.Substitution.substitute!("$${OTEL_TEST_FOO}") == "${OTEL_TEST_FOO}"
+
+      assert Otel.Configuration.Substitution.substitute!("$${OTEL_TEST_FOO}") ==
+               "${OTEL_TEST_FOO}"
     end
 
     test "spec pseudocode example: '$${FOO} ${BAR} $${BAZ}' (data-model.md L368-L376)" do
@@ -93,7 +103,8 @@ defmodule Otel.Configuration.SubstitutionTest do
       System.put_env("OTEL_TEST_FOO", "a")
       System.put_env("OTEL_TEST_BAR", "b")
 
-      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_FOO}_${OTEL_TEST_BAR}") == "a_b"
+      assert Otel.Configuration.Substitution.substitute!("${OTEL_TEST_FOO}_${OTEL_TEST_BAR}") ==
+               "a_b"
     end
   end
 

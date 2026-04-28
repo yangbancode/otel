@@ -109,7 +109,12 @@ defmodule Otel.Configuration do
         raise ArgumentError, "#{@env_var} is not set"
 
     raw = File.read!(path)
-    model = raw |> Otel.Configuration.Substitution.substitute!() |> Otel.Configuration.Parser.parse_string!()
+
+    model =
+      raw
+      |> Otel.Configuration.Substitution.substitute!()
+      |> Otel.Configuration.Parser.parse_string!()
+
     Otel.Configuration.Schema.validate!(model)
     Otel.Configuration.Composer.compose!(model)
   end
