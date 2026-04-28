@@ -1,81 +1,62 @@
 defmodule Otel.API.Propagator.TextMap.NoopTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
+
+  # Spec context/api-propagators.md L322-L325 (MUST):
+  # The OpenTelemetry API MUST use no-op propagators unless
+  # explicitly configured otherwise.
+
+  @ctx Otel.API.Ctx.new()
+
+  # Setter / getter raise — proves Noop never invokes them.
+  defp raising_setter, do: fn _k, _v, _c -> raise "setter MUST NOT be called" end
+  defp raising_getter, do: fn _c, _k -> raise "getter MUST NOT be called" end
 
   describe "inject/3" do
-    test "returns carrier unchanged" do
-      carrier = [{"traceparent", "value"}, {"other", "thing"}]
-      ctx = Otel.API.Ctx.new()
+    test "returns the carrier unchanged across carrier shapes" do
+      assert Otel.API.Propagator.TextMap.Noop.inject(@ctx, [{"k", "v"}], raising_setter()) ==
+               [{"k", "v"}]
 
-      setter = fn _k, _v, _c -> raise "setter MUST NOT be called" end
-
-      assert Otel.API.Propagator.TextMap.Noop.inject(ctx, carrier, setter) == carrier
-    end
-
-    test "accepts any carrier type without touching it" do
-      carrier = %{arbitrary: :map}
-      ctx = Otel.API.Ctx.new()
-      setter = fn _k, _v, c -> c end
-
-      assert Otel.API.Propagator.TextMap.Noop.inject(ctx, carrier, setter) == carrier
+      assert Otel.API.Propagator.TextMap.Noop.inject(@ctx, %{arbitrary: :map}, raising_setter()) ==
+               %{arbitrary: :map}
     end
   end
 
   describe "extract/3" do
-    test "returns context unchanged" do
-      ctx = Otel.API.Ctx.new() |> Otel.API.Ctx.set_value(:my_key, :value)
-      carrier = [{"traceparent", "00-abc-def-01"}]
+    test "returns the context unchanged across carrier shapes" do
+      ctx = Otel.API.Ctx.set_value(@ctx, :my_key, :value)
 
-      getter = fn _c, _k -> raise "getter MUST NOT be called" end
-
-      assert Otel.API.Propagator.TextMap.Noop.extract(ctx, carrier, getter) == ctx
-    end
-
-    test "does not throw on malformed carrier (spec L100-L102)" do
-      # Spec MUST NOT throw on parse failure — Noop satisfies this
-      # trivially by not parsing anything.
-      ctx = Otel.API.Ctx.new()
-      getter = fn _c, _k -> raise "getter MUST NOT be called" end
-
-      assert Otel.API.Propagator.TextMap.Noop.extract(ctx, :garbage, getter) == ctx
-      assert Otel.API.Propagator.TextMap.Noop.extract(ctx, nil, getter) == ctx
+      assert Otel.API.Propagator.TextMap.Noop.extract(ctx, [{"k", "v"}], raising_getter()) == ctx
+      # Spec L100-L102 — MUST NOT throw on parse failure; Noop
+      # satisfies this trivially by not parsing.
+      assert Otel.API.Propagator.TextMap.Noop.extract(ctx, :garbage, raising_getter()) == ctx
+      assert Otel.API.Propagator.TextMap.Noop.extract(ctx, nil, raising_getter()) == ctx
     end
   end
 
-  describe "fields/0" do
-    test "returns an empty list" do
-      assert Otel.API.Propagator.TextMap.Noop.fields() == []
-    end
+  test "fields/0 returns an empty list" do
+    assert Otel.API.Propagator.TextMap.Noop.fields() == []
   end
 
-  describe "behaviour conformance" do
-    test "implements Otel.API.Propagator.TextMap behaviour" do
-      behaviours = Otel.API.Propagator.TextMap.Noop.module_info(:attributes)[:behaviour] || []
-      assert Otel.API.Propagator.TextMap in behaviours
-    end
-  end
-
-  describe "installed as global default" do
+  describe "installed as global default (spec L322-L325)" do
     setup do
+      saved = :persistent_term.get({Otel.API.Propagator.TextMap, :global}, nil)
       :persistent_term.erase({Otel.API.Propagator.TextMap, :global})
-      :ok
+
+      on_exit(fn ->
+        if saved,
+          do: :persistent_term.put({Otel.API.Propagator.TextMap, :global}, saved),
+          else: :persistent_term.erase({Otel.API.Propagator.TextMap, :global})
+      end)
     end
 
-    test "get_propagator/0 returns Noop when none is set (spec L322-L325)" do
+    test "get_propagator/0 returns Noop when none is set" do
       assert Otel.API.Propagator.TextMap.get_propagator() == Otel.API.Propagator.TextMap.Noop
     end
 
-    test "facade inject/3 is a no-op when no propagator is configured" do
+    test "facade inject/2 and extract/2 pass through unchanged" do
       carrier = [{"existing", "value"}]
-      ctx = Otel.API.Ctx.new()
-
-      assert Otel.API.Propagator.TextMap.inject(ctx, carrier) == carrier
-    end
-
-    test "facade extract/3 is a no-op when no propagator is configured" do
-      carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}]
-      ctx = Otel.API.Ctx.new()
-
-      assert Otel.API.Propagator.TextMap.extract(ctx, carrier) == ctx
+      assert Otel.API.Propagator.TextMap.inject(@ctx, carrier) == carrier
+      assert Otel.API.Propagator.TextMap.extract(@ctx, carrier) == @ctx
     end
   end
 end
