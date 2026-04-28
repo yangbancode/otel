@@ -162,3 +162,41 @@ Module-valued options (`exporter:`, `processor:`, `sampler:`, items in
 
 Deduplicated. `[:none]` or `[]` → Noop. `:b3` / `:b3multi` / `:jaeger` /
 `:xray` / `:ottrace` raise; supply a custom module instead.
+
+## OTLP HTTP — SSL / TLS
+
+The OTLP HTTP exporter uses Erlang's `:httpc`. For `https://` endpoints,
+certificate verification is enabled by default using system CA
+certificates (`:public_key.cacerts_get/0`).
+
+To override the defaults — custom CA bundle, mutual TLS, etc. — pass
+the exporter explicitly with an `ssl_options:` keyword list:
+
+```elixir
+config :otel,
+  trace: [
+    exporter:
+      {Otel.OTLP.Trace.SpanExporter.HTTP,
+       %{
+         endpoint: "https://collector.example.com:4318/v1/traces",
+         ssl_options: [
+           verify: :verify_peer,
+           cacertfile: "/etc/ssl/certs/ca.crt"
+         ]
+       }}
+  ]
+```
+
+`ssl_options:` accepts any
+[Erlang `:ssl` client_option](https://www.erlang.org/doc/apps/ssl/ssl.html#client_option).
+Common patterns:
+
+| Pattern | Options |
+|---|---|
+| Custom CA bundle | `verify: :verify_peer, cacertfile: "ca.crt"` |
+| Mutual TLS | add `certfile: "client.crt", keyfile: "client.key"` |
+| Disable verification (dev only) | `verify: :verify_none` |
+
+The same `{Module, opts}` shape works for `metrics:`
+(`Otel.OTLP.Metrics.MetricExporter.HTTP`) and `logs:`
+(`Otel.OTLP.Logs.LogRecordExporter.HTTP`).
