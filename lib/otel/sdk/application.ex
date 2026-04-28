@@ -45,8 +45,8 @@ defmodule Otel.SDK.Application do
 
   @spec build_provider_configs() :: %{trace: map(), metrics: map(), logs: map()}
   defp build_provider_configs do
-    if Otel.Config.config_file_set?() do
-      Otel.Config.load!()
+    if Otel.Configuration.config_file_set?() do
+      Otel.Configuration.load!()
     else
       %{
         trace: Otel.SDK.Config.trace(),

@@ -58,9 +58,9 @@ defmodule Otel.SDK.Config do
 
   - **`OTEL_CONFIG_FILE`** (declarative YAML) — when set, spec L332
     *"all other env vars... MUST be ignored"*. A whole-config
-    short-circuit; handled by `Otel.Config` —
+    short-circuit; handled by `Otel.Configuration` —
     `Otel.SDK.Application` detects the env var and routes through
-    `Otel.Config.load!/0`.
+    `Otel.Configuration.load!/0`.
   - **OTLP exporter knobs** (`OTEL_EXPORTER_OTLP_*`) — already read
     by each `Otel.OTLP.<Pillar>.Exporter.HTTP` module on its own.
     The SDK config layer only selects *which* exporter; the chosen
