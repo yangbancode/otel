@@ -57,7 +57,7 @@ When a user requests a task that involves code changes:
    - `mix test --warnings-as-errors --cover` (100% threshold)
    - `mix credo --strict`
    - `mix dialyzer`
-8. **Update docs** — if the change touches an architectural decision, update or add a doc under `docs/architecture/`. Otherwise update the affected module's `@moduledoc` so the rationale stays with the code. For spec-aligned modules, include a `## Spec verification` line recording the submodule pin (see `.claude/skills/spec-module-review/SKILL.md` § Workflow integration step 7).
+8. **Update docs** — if the change touches an architectural decision, update or add a doc under `.claude/docs/architecture/`. Otherwise update the affected module's `@moduledoc` so the rationale stays with the code. For spec-aligned modules, include a `## Spec verification` line recording the submodule pin (see `.claude/skills/spec-module-review/SKILL.md` § Workflow integration step 7).
 9. **Push and create PR** — push the branch and create a PR following git conventions
 
 Skip this workflow for questions, exploration, or tasks that do not produce code changes.

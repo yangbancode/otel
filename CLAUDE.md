@@ -22,7 +22,7 @@
 
 ## Architecture docs
 
-- [docs/architecture/](docs/architecture/) — BEAM-specific design
+- [.claude/docs/architecture/](.claude/docs/architecture/) — BEAM-specific design
   decisions that aren't recoverable from code alone (provider
   dispatch, type representation, error handling policy,
   sync/async instrument shape, `with_span` lifecycle ownership).
