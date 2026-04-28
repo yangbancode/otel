@@ -232,9 +232,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Simple do
   @impl :gen_statem
   @spec init(config :: start_link_config()) :: {:ok, :running, State.t()}
   def init(config) do
-    {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
-    {:ok, exporter_state} = exporter_module.init(exporter_opts)
-    {:ok, :running, %State{exporter: {exporter_module, exporter_state}}}
+    exporter = Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter))
+    {:ok, :running, %State{exporter: exporter}}
   end
 
   # --- State: :running ---

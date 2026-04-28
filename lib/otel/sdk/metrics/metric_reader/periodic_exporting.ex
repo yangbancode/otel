@@ -37,7 +37,7 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExporting do
 
     state = %{
       meter_config: config.meter_config,
-      exporter: config.exporter,
+      exporter: Otel.SDK.Exporter.Init.call(config.exporter),
       export_interval_ms: interval,
       timer_ref: timer_ref,
       shut_down: false
