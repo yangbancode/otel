@@ -43,8 +43,13 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
 
   defp start_reader(opts) do
     base = %{meter_config: meter_config(), exporter: nil, export_interval_ms: 60_000}
+    # `start_link` links the reader to the test process; ExUnit
+    # exits the test process with :shutdown before on_exit fires,
+    # so the link cascade tears the reader down deterministically
+    # without needing a manual `GenServer.stop` (which races
+    # against the cascade and was the source of intermittent
+    # `:noproc` failures on CI).
     {:ok, pid} = Otel.SDK.Metrics.MetricReader.PeriodicExporting.start_link(Map.merge(base, opts))
-    on_exit(fn -> if Process.alive?(pid), do: GenServer.stop(pid) end)
     pid
   end
 
