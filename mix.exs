@@ -22,7 +22,19 @@ defmodule Otel.MixProject do
       description: description(),
       package: package(),
       source_url: @repo_url,
-      homepage_url: @repo_url
+      homepage_url: @repo_url,
+      docs: docs()
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: [
+        "README.md",
+        "docs/configuration.md",
+        "docs/logger-handler.md"
+      ]
     ]
   end
 
@@ -56,7 +68,7 @@ defmodule Otel.MixProject do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => @repo_url},
-      files: ~w(lib priv mix.exs README.md LICENSE NOTICE .formatter.exs)
+      files: ~w(docs lib priv mix.exs README.md LICENSE NOTICE .formatter.exs)
     ]
   end
 end
