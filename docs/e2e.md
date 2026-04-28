@@ -114,7 +114,7 @@ mix test --only e2e test/e2e/
 | `[ ]` | 14 | Drop aggregation | View w/ `aggregation: :drop` | Mimir: no series for that instrument |
 | `[ ]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
 | `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
-| `[ ]` | 17 | Delta temporality | reader configured `:delta` | Mimir: per-window delta values |
+| `[~]` | 17 | Delta temporality | reader configured `:delta` | Mimir: lands (Prometheus exposition collapses delta vs cumulative on the wire; OTLP-side flag verified by unit tests) |
 | `[ ]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
 | `[ ]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
 | `[ ]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
