@@ -20,6 +20,7 @@ defmodule Otel.MixProject do
       ],
       elixirc_options: [warnings_as_errors: true],
       elixirc_paths: elixirc_paths(Mix.env()),
+      dialyzer: [plt_add_apps: [:ex_unit]],
       description: description(),
       package: package(),
       source_url: @repo_url,
