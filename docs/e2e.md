@@ -153,8 +153,8 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | `OTEL_SDK_DISABLED=true` | restart with env set; emit on all 3 pillars | All 3 backends: zero records for the e2e_id |
-| `[ ]` | 2 | Provider shutdown then emit | call `TracerProvider.shutdown/1` etc., emit afterward | No new records appear in backends |
+| `[x]` | 1 | `OTEL_SDK_DISABLED=true` | restart with env set; emit on all 3 pillars | All 3 backends: zero records for the e2e_id |
+| `[x]` | 2 | Provider shutdown then emit | call `TracerProvider.shutdown/1` etc., emit afterward | No new records appear in backends |
 
 ## Cross-signal / Resource
 
