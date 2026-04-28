@@ -32,8 +32,15 @@ defmodule Otel.MixProject do
       main: "readme",
       extras: [
         "README.md",
+        "docs/trace.md",
+        "docs/log.md",
+        "docs/metrics.md",
         "docs/configuration.md",
         "docs/logger-handler.md"
+      ],
+      groups_for_extras: [
+        "How-to": ["docs/trace.md", "docs/log.md", "docs/metrics.md"],
+        Configuration: ["docs/configuration.md", "docs/logger-handler.md"]
       ]
     ]
   end
