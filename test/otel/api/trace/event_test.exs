@@ -1,51 +1,36 @@
 defmodule Otel.API.Trace.EventTest do
   use ExUnit.Case, async: true
 
-  describe "new/1,2,3" do
-    test "creates an event with defaults for attributes and timestamp" do
-      before = System.system_time(:nanosecond)
+  describe "new/3" do
+    test "fills timestamp with current time when omitted" do
+      before_time = System.system_time(:nanosecond)
       event = Otel.API.Trace.Event.new("my_event")
       after_time = System.system_time(:nanosecond)
 
-      assert event.name == "my_event"
-      assert event.attributes == %{}
-      assert event.timestamp >= before
-      assert event.timestamp <= after_time
+      assert event.timestamp in before_time..after_time
     end
 
-    test "creates an event with attributes and default timestamp" do
-      before = System.system_time(:nanosecond)
+    test "preserves explicit timestamp verbatim (including zero)" do
+      assert Otel.API.Trace.Event.new("e", %{}, 1_234_567_890).timestamp == 1_234_567_890
+      assert Otel.API.Trace.Event.new("e", %{}, 0).timestamp == 0
+    end
+
+    test "forwards name and attributes to the struct" do
       event = Otel.API.Trace.Event.new("my_event", %{"key" => "val"})
-      after_time = System.system_time(:nanosecond)
 
       assert event.name == "my_event"
       assert event.attributes == %{"key" => "val"}
-      assert event.timestamp >= before
-      assert event.timestamp <= after_time
     end
 
-    test "creates an event with explicit timestamp" do
-      event = Otel.API.Trace.Event.new("my_event", %{"k" => "v"}, 1_234_567_890)
-
-      assert event.name == "my_event"
-      assert event.attributes == %{"k" => "v"}
-      assert event.timestamp == 1_234_567_890
-    end
-
-    test "explicit zero timestamp is preserved verbatim" do
-      event = Otel.API.Trace.Event.new("e", %{}, 0)
-
-      assert event.timestamp == 0
+    test "defaults attributes to an empty map" do
+      assert Otel.API.Trace.Event.new("e").attributes == %{}
     end
   end
 
-  describe "struct defaults" do
+  describe "%Otel.API.Trace.Event{}" do
     test "default struct has empty name, zero timestamp, empty attributes" do
-      event = %Otel.API.Trace.Event{}
-
-      assert event.name == ""
-      assert event.timestamp == 0
-      assert event.attributes == %{}
+      assert %Otel.API.Trace.Event{} ==
+               %Otel.API.Trace.Event{name: "", timestamp: 0, attributes: %{}}
     end
   end
 end
