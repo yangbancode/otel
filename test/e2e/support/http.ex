@@ -17,9 +17,6 @@ defmodule Otel.E2E.HTTP do
   @doc "GETs `url`. Returns `{:ok, body}` on HTTP 200, `{:error, _}` otherwise."
   @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
   def get(url) do
-    {:ok, _} = Application.ensure_all_started(:inets)
-    {:ok, _} = Application.ensure_all_started(:ssl)
-
     case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @timeout_ms}], []) do
       {:ok, {{_, 200, _}, _, body}} ->
         {:ok, to_string(body)}
