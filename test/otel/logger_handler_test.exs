@@ -200,10 +200,10 @@ defmodule Otel.LoggerHandlerTest do
       # Atom uses `to_string` (no colon prefix); module atoms keep `Elixir.` prefix.
       emit(:info, {:report, %{status: :ok, service: Enum}})
 
-      assert_received {:captured_log, _,
-                       %{body: %{"status" => "ok", "service" => "Elixir.Enum"}}}
+      assert_received {:captured_log, _, %{body: %{"status" => "ok", "service" => "Elixir.Enum"}}}
 
-      emit(:info,
+      emit(
+        :info,
         {:report,
          %{active: true, deleted: false, removed_at: nil, count: 42, ratio: 0.75, point: {1, 2}}}
       )

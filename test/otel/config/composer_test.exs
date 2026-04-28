@@ -301,7 +301,9 @@ defmodule Otel.Config.ComposerTest do
     end
 
     test "attributes from list / typed / structured override list" do
-      list_only = compose!(%{"resource" => %{"attributes_list" => "service.name=foo,deployment.env=prod"}}).trace.resource
+      list_only =
+        compose!(%{"resource" => %{"attributes_list" => "service.name=foo,deployment.env=prod"}}).trace.resource
+
       assert list_only.attributes["service.name"] == "foo"
       assert list_only.attributes["deployment.env"] == "prod"
 
@@ -386,7 +388,8 @@ defmodule Otel.Config.ComposerTest do
     end
 
     test "composite_list (post-substitution comma string)" do
-      parsed = compose!(%{"propagator" => %{"composite_list" => "tracecontext,baggage"}}).propagator
+      parsed =
+        compose!(%{"propagator" => %{"composite_list" => "tracecontext,baggage"}}).propagator
 
       assert {Otel.API.Propagator.TextMap.Composite,
               [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
@@ -424,8 +427,8 @@ defmodule Otel.Config.ComposerTest do
     test "otel-getting-started.yaml composes the three pillars" do
       configs = e2e("otel-getting-started.yaml")
 
-      assert {Otel.SDK.Trace.Sampler.ParentBased,
-              %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}} = configs.trace.sampler
+      assert {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}} =
+               configs.trace.sampler
 
       [{Otel.SDK.Trace.SpanProcessor.Batch, batch}] = configs.trace.processors
       assert {Otel.OTLP.Trace.SpanExporter.HTTP, %{endpoint: endpoint}} = batch.exporter

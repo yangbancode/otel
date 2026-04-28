@@ -39,7 +39,8 @@ defmodule Otel.OTLP.EncoderTest do
       Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
     end
 
-    defp first_span(spans), do: hd(hd(hd(roundtrip_traces(spans).resource_spans).scope_spans).spans)
+    defp first_span(spans),
+      do: hd(hd(hd(roundtrip_traces(spans).resource_spans).scope_spans).spans)
 
     test "produces a valid protobuf binary" do
       binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
