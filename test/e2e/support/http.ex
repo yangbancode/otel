@@ -49,9 +49,8 @@ defmodule Otel.E2E.HTTP do
 
   @spec fetch(url :: String.t()) :: {:ok, term()} | {:error, term()}
   defp fetch(url) do
-    with {:ok, body} <- get(url),
-         {:ok, decoded} <- Jason.decode(body) do
-      {:ok, decoded}
+    with {:ok, body} <- get(url) do
+      Jason.decode(body)
     end
   end
 
