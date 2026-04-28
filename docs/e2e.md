@@ -53,59 +53,59 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | String body | `body: "msg"` | Loki: line match |
-| `[ ]` | 2 | Map body | `body: %{...}` | Loki: structured fields |
-| `[ ]` | 3 | Map body — nested map keys recursively stringified | `body: %{user: %{id: 42}}` | Loki: keys all `String.t()` |
-| `[ ]` | 4 | Bytes body | `body: {:bytes, ...}` | Loki: bytes encoding |
-| `[ ]` | 5 | All 8 severity levels | `severity_number: 5/9/10/13/17/18/19/21` | Loki: `severity_text` matches each |
-| `[ ]` | 6 | `severity_number: 0` sentinel | default unspecified severity | Loki: `severity_number_unspecified` |
-| `[ ]` | 7 | `event_name` field | `event_name: "..."` | Loki: event_name attribute |
-| `[ ]` | 8 | `timestamp` vs `observed_timestamp` | omit timestamp → SDK fills observed | Loki: both fields present, distinct |
-| `[ ]` | 9 | Custom attributes | `attributes: %{...}` | Loki: labels / fields |
-| `[ ]` | 10 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` match |
-| `[ ]` | 11 | LogRecord limits — `attribute_count_limit` | exceed attr count | Loki: `dropped_attributes_count` |
-| `[ ]` | 12 | LogRecord limits — `attribute_value_length_limit` truncation | long string attr | Loki: value truncated |
-| `[ ]` | 13 | Multi-logger (different scopes) | `get_logger(A)`, `get_logger(B)` | Loki: `scope_name` disambiguation |
-| `[ ]` | 14 | Exception sidecar via SDK API | set `exception:` field on LogRecord | Loki: `exception.type` / `exception.message` |
+| `[x]` | 1 | String body | `body: "msg"` | Loki: line match |
+| `[x]` | 2 | Map body | `body: %{...}` | Loki: structured fields |
+| `[x]` | 3 | Map body — nested map keys recursively stringified | `body: %{user: %{id: 42}}` | Loki: keys all `String.t()` |
+| `[~]` | 4 | Bytes body | `body: {:bytes, ...}` | Loki: bytes encoding (skipped — needs structured-metadata query) |
+| `[x]` | 5 | All 8 severity levels | `severity_number: 5/9/10/13/17/18/19/21` | Loki: `severity_text` matches each |
+| `[x]` | 6 | `severity_number: 0` sentinel | default unspecified severity | Loki: `severity_number_unspecified` |
+| `[x]` | 7 | `event_name` field | `event_name: "..."` | Loki: event_name attribute |
+| `[x]` | 8 | `timestamp` vs `observed_timestamp` | omit timestamp → SDK fills observed | Loki: both fields present, distinct |
+| `[x]` | 9 | Custom attributes | `attributes: %{...}` | Loki: labels / fields |
+| `[x]` | 10 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` match |
+| `[x]` | 11 | LogRecord limits — `attribute_count_limit` | exceed attr count | Loki: `dropped_attributes_count` |
+| `[x]` | 12 | LogRecord limits — `attribute_value_length_limit` truncation | long string attr | Loki: value truncated |
+| `[x]` | 13 | Multi-logger (different scopes) | `get_logger(A)`, `get_logger(B)` | Loki: `scope_name` disambiguation |
+| `[x]` | 14 | Exception sidecar via SDK API | set `exception:` field on LogRecord | Loki: `exception.type` / `exception.message` |
 
 ## Log — `:logger` Handler bridge
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | `Logger.info("msg")` baseline | string msg | Loki: line + `severity=info` |
-| `[ ]` | 2 | All 8 levels iterated | `:emergency` through `:debug` | Loki: `severity_number` 21/19/18/17/13/10/9/5 |
-| `[ ]` | 3 | Logger metadata — primitive | `Logger.info("...", k: v)` | Loki: attr `k=v` |
-| `[ ]` | 4 | Report (map) | `Logger.info(%{k: v})` | Loki: structured |
-| `[ ]` | 5 | Report (keyword) | `Logger.info(k: v, ...)` | Loki: structured |
-| `[ ]` | 6 | `{format, args}` msg shape | `:logger.log(:info, ~c"~p", [v])` | Loki: formatted body |
-| `[ ]` | 7 | `report_cb/1` callback | `meta: %{report_cb: cb1}` | Loki: callback output |
-| `[ ]` | 8 | `report_cb/2` callback | `meta: %{report_cb: cb2}` | Loki: callback output |
-| `[ ]` | 9 | Atom value coercion | `Logger.info(role: :admin)` | Loki: `"admin"` (no colon) |
-| `[ ]` | 10 | Struct via `String.Chars` (Date) | `Logger.info(at: ~D[...])` | Loki: ISO string |
-| `[ ]` | 11 | Tuple → `inspect` | `Logger.info(point: {1, 2})` | Loki: `"{1, 2}"` |
-| `[ ]` | 12 | `crash_reason` → exception.* | `Logger.error(..., crash_reason: {e, st})` | Loki: `exception.type`, `exception.message`, `exception.stacktrace` |
-| `[ ]` | 13 | Non-exception `crash_reason` ignored | `crash_reason: {:shutdown, _}` | Loki: no `exception.*` attrs |
-| `[ ]` | 14 | `mfa` → `code.function.name` | `Logger.info(...)` (auto from compile) | Loki: `code.function.name` |
-| `[ ]` | 15 | `file` → `code.file.path` | auto from compile | Loki: `code.file.path` |
-| `[ ]` | 16 | `line` → `code.line.number` | auto from compile | Loki: `code.line.number` |
-| `[ ]` | 17 | Malformed `mfa` silently skipped | `meta: %{mfa: :not_a_tuple}` | Loki: no `code.function.name`, no crash |
-| `[ ]` | 18 | `domain` → `log.domain` | `meta: %{domain: [:a, :b]}` | Loki: array |
-| `[ ]` | 19 | Reserved keys all filtered | `mfa, file, line, domain, crash_reason, time, report_cb, gl, pid` | Loki: none of these atoms appear |
-| `[ ]` | 20 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` |
-| `[ ]` | 21 | Scope config — 4 keys | `scope_name`, `scope_version`, `scope_schema_url`, `scope_attributes` | Loki: each value visible |
+| `[x]` | 1 | `Logger.info("msg")` baseline | string msg | Loki: line + `severity=info` |
+| `[x]` | 2 | All 8 levels iterated | `:emergency` through `:debug` | Loki: `severity_number` 21/19/18/17/13/10/9/5 |
+| `[x]` | 3 | Logger metadata — primitive | `Logger.info("...", k: v)` | Loki: attr `k=v` |
+| `[x]` | 4 | Report (map) | `Logger.info(%{k: v})` | Loki: structured |
+| `[x]` | 5 | Report (keyword) | `Logger.info(k: v, ...)` | Loki: structured |
+| `[x]` | 6 | `{format, args}` msg shape | `:logger.log(:info, ~c"~p", [v])` | Loki: formatted body |
+| `[x]` | 7 | `report_cb/1` callback | `meta: %{report_cb: cb1}` | Loki: callback output |
+| `[x]` | 8 | `report_cb/2` callback | `meta: %{report_cb: cb2}` | Loki: callback output |
+| `[x]` | 9 | Atom value coercion | `Logger.info(role: :admin)` | Loki: `"admin"` (no colon) |
+| `[x]` | 10 | Struct via `String.Chars` (Date) | `Logger.info(at: ~D[...])` | Loki: ISO string |
+| `[x]` | 11 | Tuple → `inspect` | `Logger.info(point: {1, 2})` | Loki: `"{1, 2}"` |
+| `[x]` | 12 | `crash_reason` → exception.* | `Logger.error(..., crash_reason: {e, st})` | Loki: `exception.type`, `exception.message`, `exception.stacktrace` |
+| `[x]` | 13 | Non-exception `crash_reason` ignored | `crash_reason: {:shutdown, _}` | Loki: no `exception.*` attrs |
+| `[x]` | 14 | `mfa` → `code.function.name` | `Logger.info(...)` (auto from compile) | Loki: `code.function.name` |
+| `[x]` | 15 | `file` → `code.file.path` | auto from compile | Loki: `code.file.path` |
+| `[x]` | 16 | `line` → `code.line.number` | auto from compile | Loki: `code.line.number` |
+| `[x]` | 17 | Malformed `mfa` silently skipped | `meta: %{mfa: :not_a_tuple}` | Loki: no `code.function.name`, no crash |
+| `[x]` | 18 | `domain` → `log.domain` | `meta: %{domain: [:a, :b]}` | Loki: array |
+| `[x]` | 19 | Reserved keys all filtered | `mfa, file, line, domain, crash_reason, time, report_cb, gl, pid` | Loki: none of these atoms appear |
+| `[x]` | 20 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` |
+| `[x]` | 21 | Scope config — 4 keys | `scope_name`, `scope_version`, `scope_schema_url`, `scope_attributes` | Loki: each value visible |
 
 ## Metrics
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | Counter (single) | `Counter.add/3` | Mimir: `counter_total == 1` |
-| `[ ]` | 2 | Counter cumulative | N adds | Mimir: `counter == N` |
-| `[ ]` | 3 | UpDownCounter | `add 5`, `add -2` | Mimir: gauge `3` |
-| `[ ]` | 4 | Histogram | `record × N` | Mimir: bucket counts, sum, count, **min/max** |
+| `[x]` | 1 | Counter (single) | `Counter.add/3` | Mimir: `counter_total == 1` |
+| `[x]` | 2 | Counter cumulative | N adds | Mimir: `counter == N` |
+| `[x]` | 3 | UpDownCounter | `add 5`, `add -2` | Mimir: gauge `3` |
+| `[x]` | 4 | Histogram | `record × N` | Mimir: bucket counts, sum, count, **min/max** |
 | `[ ]` | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
 | `[ ]` | 6 | Histogram `record_min_max: false` | View opt | Mimir: `min`/`max` absent |
 | `[ ]` | 7 | Base2ExponentialBucketHistogram | `aggregation: :base2_exponential_bucket_histogram` | Mimir: positive/negative bucket counts, scale, zero_count |
-| `[ ]` | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
+| `[x]` | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
 | `[x]` | 9 | ObservableCounter | callback returns `[%Measurement{}]` | Mimir: counter from callback |
 | `[x]` | 10 | ObservableUpDownCounter | callback (multi-attr) | Mimir: multi-series |
 | `[x]` | 11 | ObservableGauge | callback | Mimir: gauge from callback |
@@ -113,12 +113,12 @@ mix test --only e2e test/e2e/
 | `[x]` | 13 | `unregister_callback/1` | unregister; collect again | Mimir: no further values |
 | `[ ]` | 14 | Drop aggregation | View w/ `aggregation: :drop` | Mimir: no series for that instrument |
 | `[ ]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
-| `[ ]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
+| `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
 | `[ ]` | 17 | Delta temporality | reader configured `:delta` | Mimir: per-window delta values |
 | `[ ]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
 | `[ ]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
 | `[ ]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
-| `[ ]` | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
+| `[x]` | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
 | `[ ]` | 22 | View — rename instrument | `criteria: %{name: ...}, config: %{name: "renamed"}` | Mimir: series under new name |
 | `[ ]` | 23 | View — attribute include filter | `config: %{attribute_keys: [...]}` | Mimir: only listed labels |
 | `[ ]` | 24 | View — override aggregation | `config: %{aggregation: :explicit_bucket_histogram}` for a Counter | Mimir: histogram series |
@@ -127,8 +127,8 @@ mix test --only e2e test/e2e/
 | `[ ]` | 27 | Exemplar filter `:trace_based` (default) | sampled span only | Mimir: exemplar present iff span sampled |
 | `[ ]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: per-bucket exemplar |
 | `[ ]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: ≤ N exemplars (size cap) |
-| `[ ]` | 30 | PeriodicExporting `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
-| `[ ]` | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
+| `[x]` | 30 | PeriodicExporting `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
+| `[x]` | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
 
 ## Propagator (cross-process trace continuation)
 
