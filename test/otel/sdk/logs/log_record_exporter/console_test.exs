@@ -19,18 +19,18 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
     dropped_attributes_count: 0
   }
 
-  describe "init/1" do
-    test "returns {:ok, config}" do
-      assert {:ok, %{}} = Otel.SDK.Logs.LogRecordExporter.Console.init(%{})
-    end
+  defp render(records),
+    do: capture_io(fn -> Otel.SDK.Logs.LogRecordExporter.Console.export(records, %{}) end)
+
+  test "init/1 + shutdown/1 + force_flush/1 round-trip" do
+    assert {:ok, %{}} = Otel.SDK.Logs.LogRecordExporter.Console.init(%{})
+    assert :ok = Otel.SDK.Logs.LogRecordExporter.Console.shutdown(%{})
+    assert :ok = Otel.SDK.Logs.LogRecordExporter.Console.force_flush(%{})
   end
 
-  describe "export/2" do
-    test "outputs log record to stdout" do
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([@record], %{})
-        end)
+  describe "export/2 — formatted output" do
+    test "single record renders prefix, severity, scope, body, attributes" do
+      output = render([@record])
 
       assert output =~ "[otel]"
       assert output =~ "INFO (info)"
@@ -39,64 +39,51 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
       assert output =~ "method"
     end
 
-    test "outputs multiple records" do
+    test "exports multiple records in one call" do
       record2 = %{@record | body: "Second log", severity_text: "error", severity_number: 17}
-
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([@record, record2], %{})
-        end)
+      output = render([@record, record2])
 
       assert output =~ "Hello, world!"
       assert output =~ "Second log"
       assert output =~ "ERROR (error)"
     end
 
-    test "returns :ok" do
-      output =
-        capture_io(fn ->
-          assert :ok == Otel.SDK.Logs.LogRecordExporter.Console.export([@record], %{})
-        end)
+    test "trace context — hex when present, all-zeros placeholder when absent" do
+      output_active =
+        render([
+          %{@record | trace_id: 0x0AF7651916CD43DD8448EB211C80319C, span_id: 0xB7AD6B7169203331}
+        ])
 
-      assert output != ""
+      assert output_active =~ "trace=0af7651916cd43dd8448eb211c80319c"
+      assert output_active =~ "span=b7ad6b7169203331"
+
+      output_inactive = render([@record])
+      assert output_inactive =~ "trace=00000000000000000000000000000000"
+      assert output_inactive =~ "span=0000000000000000"
     end
 
-    test "shows short name only when severity_text is empty" do
-      record = %{@record | severity_text: "", severity_number: 5}
-
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
-        end)
-
-      assert output =~ "DEBUG"
-      refute output =~ "DEBUG ("
+    test "scope is omitted when the scope name is empty" do
+      output = render([%{@record | scope: %Otel.API.InstrumentationScope{name: ""}}])
+      refute output =~ "scope="
     end
 
-    test "shows severity_text only when severity_number is zero" do
-      record = %{@record | severity_text: "custom", severity_number: 0}
+    test "severity_number ↔ severity_text rendering matrix" do
+      # Both set → "<short> (<text>)"; only number → short only;
+      # only text → text only; neither → "UNSPECIFIED".
+      assert render([%{@record | severity_text: "", severity_number: 5}]) =~ "DEBUG"
+      refute render([%{@record | severity_text: "", severity_number: 5}]) =~ "DEBUG ("
 
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
-        end)
+      assert render([%{@record | severity_text: "custom", severity_number: 0}]) =~
+               "[otel] custom "
 
-      assert output =~ "[otel] custom "
-      refute output =~ "(custom)"
+      refute render([%{@record | severity_text: "custom", severity_number: 0}]) =~ "(custom)"
+
+      assert render([%{@record | severity_text: "", severity_number: 0}]) =~ "UNSPECIFIED"
     end
 
-    test "shows UNSPECIFIED when no severity" do
-      record = %{@record | severity_text: "", severity_number: 0}
-
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
-        end)
-
-      assert output =~ "UNSPECIFIED"
-    end
-
-    test "covers full short-name table for severity_number 1..24" do
+    # Spec logs/data-model.md L121-L173 — severity_number 1..24 maps
+    # to TRACE/TRACE2.../FATAL4 short names, repeating per family.
+    test "covers the full short-name table for severity_number 1..24" do
       expected = %{
         1 => "TRACE",
         2 => "TRACE2",
@@ -125,64 +112,9 @@ defmodule Otel.SDK.Logs.LogRecordExporter.ConsoleTest do
       }
 
       for {n, short} <- expected do
-        record = %{@record | severity_text: "", severity_number: n}
-
-        output =
-          capture_io(fn ->
-            Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
-          end)
-
-        assert output =~ short, "expected #{short} for severity_number=#{n}"
+        assert render([%{@record | severity_text: "", severity_number: n}]) =~ short,
+               "expected #{short} for severity_number=#{n}"
       end
-    end
-
-    test "renders trace context hex when present" do
-      record = %{
-        @record
-        | trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
-          span_id: 0xB7AD6B7169203331
-      }
-
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
-        end)
-
-      assert output =~ "trace=0af7651916cd43dd8448eb211c80319c"
-      assert output =~ "span=b7ad6b7169203331"
-    end
-
-    test "renders all-zeros trace context when no Context is active" do
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([@record], %{})
-        end)
-
-      assert output =~ "trace=00000000000000000000000000000000"
-      assert output =~ "span=0000000000000000"
-    end
-
-    test "omits scope when name is empty" do
-      record = %{@record | scope: %Otel.API.InstrumentationScope{name: ""}}
-
-      output =
-        capture_io(fn ->
-          Otel.SDK.Logs.LogRecordExporter.Console.export([record], %{})
-        end)
-
-      refute output =~ "scope="
-    end
-  end
-
-  describe "force_flush/1" do
-    test "returns :ok" do
-      assert :ok == Otel.SDK.Logs.LogRecordExporter.Console.force_flush(%{})
-    end
-  end
-
-  describe "shutdown/1" do
-    test "returns :ok" do
-      assert :ok == Otel.SDK.Logs.LogRecordExporter.Console.shutdown(%{})
     end
   end
 end
