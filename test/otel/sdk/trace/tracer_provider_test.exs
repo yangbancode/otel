@@ -106,6 +106,28 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
         Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: "lib"})
     end
 
+    test "lifecycle + introspection facades stay graceful when the provider isn't running" do
+      # When `OTEL_SDK_DISABLED=true` (or the SDK Application is
+      # otherwise stopped), the provider GenServer is never
+      # started. Every public-facing facade that does
+      # `GenServer.call/3` MUST stay graceful so caller code can
+      # keep its plumbing in place without guarding each call.
+      Application.stop(:otel)
+      refute GenServer.whereis(Otel.SDK.Trace.TracerProvider)
+
+      assert :ok =
+               Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider, 1_000)
+
+      assert :ok = Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider, 1_000)
+
+      assert %Otel.SDK.Resource{} =
+               Otel.SDK.Trace.TracerProvider.resource(Otel.SDK.Trace.TracerProvider)
+
+      assert %{} = Otel.SDK.Trace.TracerProvider.config(Otel.SDK.Trace.TracerProvider)
+
+      Application.ensure_all_started(:otel)
+    end
+
     test "invokes shutdown / force_flush on every registered processor" do
       restart_sdk(trace: [processors: [{OkProcessor, %{}}, {OkProcessor, %{}}]])
       assert :ok = Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider)

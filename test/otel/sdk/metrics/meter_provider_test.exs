@@ -111,6 +111,30 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
       {Otel.API.Metrics.Meter.Noop, _} = meter_for(p, "lib")
     end
 
+    test "lifecycle + introspection facades stay graceful when the provider isn't running" do
+      Application.stop(:otel)
+      refute GenServer.whereis(Otel.SDK.Metrics.MeterProvider)
+
+      assert :ok =
+               Otel.SDK.Metrics.MeterProvider.force_flush(Otel.SDK.Metrics.MeterProvider, 1_000)
+
+      assert :ok = Otel.SDK.Metrics.MeterProvider.shutdown(Otel.SDK.Metrics.MeterProvider, 1_000)
+
+      assert %Otel.SDK.Resource{} =
+               Otel.SDK.Metrics.MeterProvider.resource(Otel.SDK.Metrics.MeterProvider)
+
+      assert %{} = Otel.SDK.Metrics.MeterProvider.config(Otel.SDK.Metrics.MeterProvider)
+
+      assert :ok =
+               Otel.SDK.Metrics.MeterProvider.add_view(
+                 Otel.SDK.Metrics.MeterProvider,
+                 %{name: "x"},
+                 %{}
+               )
+
+      Application.ensure_all_started(:otel)
+    end
+
     test "invokes shutdown / force_flush on every reader" do
       restart_sdk(metrics: [readers: [{OkReader, %{}}, {OkReader, %{}}]])
       assert :ok = Otel.SDK.Metrics.MeterProvider.shutdown(Otel.SDK.Metrics.MeterProvider)

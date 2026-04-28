@@ -77,11 +77,9 @@ defmodule Otel.SDK.Metrics.MeterProvider do
           Otel.API.Metrics.Meter.t()
   @impl Otel.API.Metrics.MeterProvider
   def get_meter(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    if GenServer.whereis(server) do
-      GenServer.call(server, {:get_meter, instrumentation_scope})
-    else
-      {Otel.API.Metrics.Meter.Noop, []}
-    end
+    GenServer.call(server, {:get_meter, instrumentation_scope})
+  catch
+    :exit, {:noproc, _} -> {Otel.API.Metrics.Meter.Noop, []}
   end
 
   @doc """
@@ -95,6 +93,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ 5000) do
     GenServer.call(server, :shutdown, timeout)
+  catch
+    :exit, {:noproc, _} -> :ok
   end
 
   @doc """
@@ -106,24 +106,31 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def force_flush(server, timeout \\ 5000) do
     GenServer.call(server, :force_flush, timeout)
+  catch
+    :exit, {:noproc, _} -> :ok
   end
 
   @doc """
   **SDK** (introspection) — Returns the resource associated with
-  this provider.
+  this provider, or `Otel.SDK.Resource.default/0` when the
+  provider isn't running.
   """
   @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
   def resource(server) do
     GenServer.call(server, :resource)
+  catch
+    :exit, {:noproc, _} -> Otel.SDK.Resource.default()
   end
 
   @doc """
   **SDK** (introspection) — Returns the current configuration
-  snapshot.
+  snapshot, or an empty map when the provider isn't running.
   """
-  @spec config(server :: GenServer.server()) :: config()
+  @spec config(server :: GenServer.server()) :: config() | %{}
   def config(server) do
     GenServer.call(server, :config)
+  catch
+    :exit, {:noproc, _} -> %{}
   end
 
   @doc """
@@ -131,7 +138,9 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   (`metrics/sdk.md` §View L259-L327).
 
   Returns `{:error, reason}` if the View is invalid (e.g.
-  wildcard name with stream name override).
+  wildcard name with stream name override). Returns `:ok` when
+  the provider isn't running — there's no aggregation pipeline
+  to install the View on, so the call is a silent no-op.
   """
   @spec add_view(
           server :: GenServer.server(),
@@ -140,6 +149,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
         ) :: :ok | {:error, String.t()}
   def add_view(server, criteria \\ %{}, config \\ %{}) do
     GenServer.call(server, {:add_view, criteria, config})
+  catch
+    :exit, {:noproc, _} -> :ok
   end
 
   # --- Server Callbacks ---

@@ -160,11 +160,9 @@ defmodule Otel.SDK.Trace.TracerProvider do
           Otel.API.Trace.Tracer.t()
   @impl Otel.API.Trace.TracerProvider
   def get_tracer(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
-    if GenServer.whereis(server) do
-      GenServer.call(server, {:get_tracer, instrumentation_scope})
-    else
-      {Otel.API.Trace.Tracer.Noop, []}
-    end
+    GenServer.call(server, {:get_tracer, instrumentation_scope})
+  catch
+    :exit, {:noproc, _} -> {Otel.API.Trace.Tracer.Noop, []}
   end
 
   @doc """
@@ -181,6 +179,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ @default_shutdown_timeout_ms) do
     GenServer.call(server, {:shutdown, timeout}, timeout)
+  catch
+    :exit, {:noproc, _} -> :ok
   end
 
   @doc """
@@ -195,24 +195,31 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def force_flush(server, timeout \\ @default_force_flush_timeout_ms) do
     GenServer.call(server, {:force_flush, timeout}, timeout)
+  catch
+    :exit, {:noproc, _} -> :ok
   end
 
   @doc """
   **SDK** (introspection) — Returns the resource associated with
-  this provider.
+  this provider, or `Otel.SDK.Resource.default/0` when the
+  provider isn't running.
   """
   @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
   def resource(server) do
     GenServer.call(server, :resource)
+  catch
+    :exit, {:noproc, _} -> Otel.SDK.Resource.default()
   end
 
   @doc """
   **SDK** (introspection) — Returns the current configuration
-  snapshot.
+  snapshot, or an empty map when the provider isn't running.
   """
-  @spec config(server :: GenServer.server()) :: config()
+  @spec config(server :: GenServer.server()) :: config() | %{}
   def config(server) do
     GenServer.call(server, :config)
+  catch
+    :exit, {:noproc, _} -> %{}
   end
 
   # --- Server Callbacks ---
