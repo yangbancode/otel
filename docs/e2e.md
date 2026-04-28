@@ -130,6 +130,32 @@ mix test --only e2e test/e2e/
 | `[ ]` | 30 | PeriodicExporting `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
 | `[ ]` | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
 
+## Propagator (cross-process trace continuation)
+
+| Done | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| `[ ]` | 1 | TraceContext round-trip | `TextMap.inject/3` → carrier → `TextMap.extract/3` → child span with extracted ctx | Tempo: same `trace_id`, child `parent_span_id` = parent `span_id` |
+| `[ ]` | 2 | Trace flags propagation (sampled bit) | sampled parent → inject → extract | Tempo: child also sampled / present |
+| `[ ]` | 3 | Tracestate (vendor data) propagation | parent w/ tracestate → inject → extract | Tempo: child carries identical `tracestate` |
+| `[ ]` | 4 | Baggage round-trip (manual span copy) | `Baggage.set_value/3` → inject → extract → copy to span attr | Tempo: span carries baggage value |
+| `[ ]` | 5 | Composite (TraceContext + Baggage) | both propagators → inject → extract | Tempo: both trace ctx + baggage preserved |
+
+## Resource / service identification
+
+| Done | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| `[ ]` | 1 | `OTEL_SERVICE_NAME` env var | set then SDK restart | All 3 backends: `service.name` matches env value |
+| `[ ]` | 2 | `OTEL_RESOURCE_ATTRIBUTES` env var | set `deployment.environment=test,…` | Tempo / Loki / Mimir: resource carries those attrs |
+| `[ ]` | 3 | `OTEL_SERVICE_NAME` precedence | both env vars set with conflicting `service.name` | `service.name` matches `OTEL_SERVICE_NAME` (spec MUST) |
+| `[ ]` | 4 | Mix Config `:resource` | `config :otel, trace: [resource: …]` | Tempo: resource overridden by Mix value |
+
+## Global SDK control
+
+| Done | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| `[ ]` | 1 | `OTEL_SDK_DISABLED=true` | restart with env set; emit on all 3 pillars | All 3 backends: zero records for the e2e_id |
+| `[ ]` | 2 | Provider shutdown then emit | call `TracerProvider.shutdown/1` etc., emit afterward | No new records appear in backends |
+
 ## Cross-signal / Resource
 
 | Done | # | Scenario | Backend assertion |
@@ -149,9 +175,24 @@ mix test --only e2e test/e2e/
 | C-3a | `metrics_sync_test.exs` | ~15 (rows 1–11, 14–17, 21) |
 | C-3b | `metrics_async_test.exs` | ~6 (rows 9–13, 20) |
 | C-3c | `metrics_view_test.exs` | ~9 (rows 22–24, 25–29, 30–31) |
-| C-4 | `cross_signal_test.exs` | 4 |
+| C-4 | `propagator_test.exs` | 5 |
+| C-5 | `resource_test.exs` | 4 |
+| C-6 | `disabled_test.exs` | 2 |
+| C-7 | `cross_signal_test.exs` | 4 |
 
-**Total: ~102 scenarios.** Tick `[x]` in the Done column as each
+**Total: ~113 scenarios.** Tick `[x]` in the Done column as each
 scenario lands. Phase C-3 splits into three focused PRs because the
 Metrics surface is broad (sync vs observable vs View / exemplar /
 reader knobs); the others stay one file each.
+
+Out of e2e scope (covered by unit tests in `test/otel/...`):
+
+* OTLP exporter knobs (compression, headers, retry, timeout) — exercised
+  by `test/otel/otlp/{trace,metrics,logs}/*/http_test.exs` against a
+  fake socket server.
+* `OTEL_CONFIG_FILE` declarative YAML loading / substitution / schema
+  validation — exercised by `test/otel/configuration/*_test.exs`.
+* Concurrency / queue overflow / backpressure — exercised by
+  `test/otel/sdk/trace/span_processor/batch_test.exs` and friends.
+* Severity number → text mapping, attribute coercion rules, malformed
+  metadata silent-skip — exercised by `test/otel/logger_handler_test.exs`.
