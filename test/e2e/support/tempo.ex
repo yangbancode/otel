@@ -11,11 +11,8 @@ defmodule Otel.E2E.Tempo do
   """
   @spec find(e2e_id :: String.t()) :: Otel.E2E.HTTP.result()
   def find(e2e_id) do
-    url = "#{@base}/api/search?tags=#{URI.encode_www_form("e2e.id=#{e2e_id}")}&limit=1"
-
-    Otel.E2E.HTTP.poll(url, fn
-      %{"traces" => [_ | _] = traces} -> {:ok, traces}
-      _ -> :empty
-    end)
+    Otel.E2E.HTTP.poll(
+      "#{@base}/api/search?tags=#{URI.encode_www_form("e2e.id=#{e2e_id}")}&limit=1"
+    )
   end
 end

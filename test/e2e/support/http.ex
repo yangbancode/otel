@@ -1,46 +1,57 @@
 defmodule Otel.E2E.HTTP do
   @moduledoc """
   HTTP helpers for e2e backend queries — `:httpc` GET plus a
-  poll-until-match driver that wraps fetch + JSON decode + caller-
-  supplied pattern match in a single call.
+  poll-until-non-empty driver.
 
-  Polling cadence: up to 3 attempts, 1 s apart, with a 5 s timeout
-  on each individual HTTP request.
+  `poll/1` knows the two response shapes returned by the LGTM
+  query APIs:
+
+  - `%{"traces" => [_ | _]}` — Tempo
+  - `%{"data" => %{"result" => [_ | _]}}` — Loki / Mimir (Prometheus)
+
+  When neither pattern matches (i.e. the result list is empty),
+  it retries every 1 s up to 3 attempts total.
   """
 
-  @type result :: {:ok, term()} | {:error, term()}
+  @type result :: {:ok, [term()]} | {:error, term()}
 
   @interval_ms 1_000
   @timeout_ms 5_000
   @max_attempts 3
 
   @doc """
-  Repeatedly GETs `url`, JSON-decodes the body, and runs `match_fn`
-  on the decoded payload. Returns `{:ok, value}` the first time
-  `match_fn` returns `{:ok, value}`. Otherwise retries every 1 s up
-  to 3 attempts total, then `{:error, :timeout}`.
+  Repeatedly GETs `url` until the JSON body has a non-empty result
+  list (Tempo `traces` or Prometheus-style `data.result`). Retries
+  every 1 s up to 3 attempts; returns `{:error, :timeout}` after
+  the final empty response.
   """
-  @spec poll(url :: String.t(), match_fn :: (term() -> {:ok, term()} | term())) :: result()
-  def poll(url, match_fn) do
-    loop(url, match_fn, @max_attempts)
+  @spec poll(url :: String.t()) :: result()
+  def poll(url) do
+    loop(url, @max_attempts)
   end
 
-  @spec loop(
-          url :: String.t(),
-          match_fn :: (term() -> {:ok, term()} | term()),
-          attempts_left :: non_neg_integer()
-        ) :: result()
-  defp loop(_url, _match_fn, 0), do: {:error, :timeout}
+  @spec loop(url :: String.t(), attempts_left :: non_neg_integer()) :: result()
+  defp loop(_url, 0), do: {:error, :timeout}
 
-  defp loop(url, match_fn, attempts_left) do
-    with {:ok, body} <- get(url),
-         {:ok, decoded} <- Jason.decode(body),
-         {:ok, value} <- match_fn.(decoded) do
-      {:ok, value}
-    else
+  defp loop(url, attempts_left) do
+    case fetch(url) do
+      {:ok, %{"traces" => [_ | _] = results}} ->
+        {:ok, results}
+
+      {:ok, %{"data" => %{"result" => [_ | _] = results}}} ->
+        {:ok, results}
+
       _ ->
         Process.sleep(@interval_ms)
-        loop(url, match_fn, attempts_left - 1)
+        loop(url, attempts_left - 1)
+    end
+  end
+
+  @spec fetch(url :: String.t()) :: {:ok, term()} | {:error, term()}
+  defp fetch(url) do
+    with {:ok, body} <- get(url),
+         {:ok, decoded} <- Jason.decode(body) do
+      {:ok, decoded}
     end
   end
 

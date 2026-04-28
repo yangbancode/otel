@@ -18,11 +18,7 @@ defmodule Otel.E2E.Mimir do
   @spec find_metric(metric :: String.t(), e2e_id :: String.t()) :: Otel.E2E.HTTP.result()
   def find_metric(metric, e2e_id) do
     query = ~s(#{metric}{e2e_id="#{e2e_id}"})
-    url = "#{@base}/api/v1/query?query=#{URI.encode_www_form(query)}"
 
-    Otel.E2E.HTTP.poll(url, fn
-      %{"data" => %{"result" => [_ | _] = series}} -> {:ok, series}
-      _ -> :empty
-    end)
+    Otel.E2E.HTTP.poll("#{@base}/api/v1/query?query=#{URI.encode_www_form(query)}")
   end
 end

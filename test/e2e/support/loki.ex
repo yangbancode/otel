@@ -20,16 +20,12 @@ defmodule Otel.E2E.Loki do
     now = System.system_time(:nanosecond)
     start = now - 60 * 1_000_000_000
 
-    url =
+    Otel.E2E.HTTP.poll(
       "#{@base}/loki/api/v1/query_range" <>
         "?query=#{URI.encode_www_form(query)}" <>
         "&start=#{start}" <>
         "&end=#{now}" <>
         "&limit=10"
-
-    Otel.E2E.HTTP.poll(url, fn
-      %{"data" => %{"result" => [_ | _] = streams}} -> {:ok, streams}
-      _ -> :empty
-    end)
+    )
   end
 end
