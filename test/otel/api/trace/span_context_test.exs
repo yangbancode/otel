@@ -1,148 +1,91 @@
 defmodule Otel.API.Trace.SpanContextTest do
   use ExUnit.Case, async: true
 
-  @valid_trace_id 0xFF000000000000000000000000000001
-  @valid_span_id 0xFF00000000000001
-  @zero_trace_id 0
-  @zero_span_id 0
+  @trace_id 0xFF000000000000000000000000000001
+  @span_id 0xFF00000000000001
 
-  describe "new/2,3,4" do
-    test "creates context with non-zero IDs" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      assert ctx.trace_id == @valid_trace_id
-      assert ctx.span_id == @valid_span_id
+  test "default struct has all zeros, empty TraceState, is_remote false" do
+    assert %Otel.API.Trace.SpanContext{} ==
+             %Otel.API.Trace.SpanContext{
+               trace_id: 0,
+               span_id: 0,
+               trace_flags: 0,
+               tracestate: Otel.API.Trace.TraceState.new(),
+               is_remote: false
+             }
+  end
+
+  describe "new/4" do
+    test "trace_flags and tracestate default to 0 / empty" do
+      ctx = Otel.API.Trace.SpanContext.new(@trace_id, @span_id)
+
+      assert ctx.trace_id == @trace_id
+      assert ctx.span_id == @span_id
       assert ctx.trace_flags == 0
       assert ctx.tracestate == Otel.API.Trace.TraceState.new()
       assert ctx.is_remote == false
     end
 
-    test "accepts trace_flags and tracestate" do
-      ts = Otel.API.Trace.TraceState.new() |> Otel.API.Trace.TraceState.add("vendor", "value")
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
+    test "trace_flags and tracestate are forwarded when supplied" do
+      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor", "value")
+      ctx = Otel.API.Trace.SpanContext.new(@trace_id, @span_id, 1, ts)
+
       assert ctx.trace_flags == 1
       assert ctx.tracestate == ts
     end
   end
 
   describe "valid?/1" do
-    test "returns true for valid context" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      assert Otel.API.Trace.SpanContext.valid?(ctx) == true
+    # Spec trace/api.md L268-L271: valid iff both ids are non-zero.
+    test "true only when both trace_id and span_id are non-zero" do
+      assert Otel.API.Trace.SpanContext.valid?(
+               Otel.API.Trace.SpanContext.new(@trace_id, @span_id)
+             )
     end
 
-    test "returns false when trace_id is zero" do
-      ctx = Otel.API.Trace.SpanContext.new(@zero_trace_id, @valid_span_id)
-      assert Otel.API.Trace.SpanContext.valid?(ctx) == false
-    end
-
-    test "returns false when span_id is zero" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @zero_span_id)
-      assert Otel.API.Trace.SpanContext.valid?(ctx) == false
-    end
-
-    test "returns false when both are zero" do
-      ctx = Otel.API.Trace.SpanContext.new(@zero_trace_id, @zero_span_id)
-      assert Otel.API.Trace.SpanContext.valid?(ctx) == false
+    test "false when either id is zero" do
+      refute Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.SpanContext.new(0, @span_id))
+      refute Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.SpanContext.new(@trace_id, 0))
+      refute Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.SpanContext.new(0, 0))
+      refute Otel.API.Trace.SpanContext.valid?(%Otel.API.Trace.SpanContext{})
     end
   end
 
   describe "remote?/1" do
-    test "returns false by default" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      assert Otel.API.Trace.SpanContext.remote?(ctx) == false
-    end
-
-    test "returns true when is_remote is set" do
-      ctx = %{Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id) | is_remote: true}
-      assert Otel.API.Trace.SpanContext.remote?(ctx) == true
+    # Spec trace/api.md L273-L278: true only when the SpanContext was
+    # extracted from a remote parent by a Propagator.
+    test "reads the is_remote field" do
+      ctx = Otel.API.Trace.SpanContext.new(@trace_id, @span_id)
+      refute Otel.API.Trace.SpanContext.remote?(ctx)
+      assert Otel.API.Trace.SpanContext.remote?(%{ctx | is_remote: true})
     end
   end
 
-  describe "trace_id_hex/1" do
-    test "returns 32-char lowercase hex string" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      hex = Otel.API.Trace.SpanContext.trace_id_hex(ctx)
-      assert String.length(hex) == 32
-      assert hex == String.downcase(hex)
+  describe "id retrieval (delegates to TraceId/SpanId)" do
+    # The encoding rules (lowercase hex, zero-padding, big-endian
+    # bytes) are verified in TraceIdTest and SpanIdTest. Here we
+    # just verify the accessor extracts the right struct field.
+    setup do
+      %{ctx: Otel.API.Trace.SpanContext.new(@trace_id, @span_id)}
     end
 
-    test "zero trace_id returns 32 zeros" do
-      ctx = Otel.API.Trace.SpanContext.new(@zero_trace_id, @valid_span_id)
-      assert Otel.API.Trace.SpanContext.trace_id_hex(ctx) == "00000000000000000000000000000000"
+    test "trace_id_hex/1 forwards trace_id", %{ctx: ctx} do
+      assert Otel.API.Trace.SpanContext.trace_id_hex(ctx) ==
+               Otel.API.Trace.TraceId.to_hex(@trace_id)
     end
 
-    test "pads short hex values with leading zeros" do
-      ctx = Otel.API.Trace.SpanContext.new(1, @valid_span_id)
-      assert Otel.API.Trace.SpanContext.trace_id_hex(ctx) == "00000000000000000000000000000001"
-    end
-  end
-
-  describe "span_id_hex/1" do
-    test "returns 16-char lowercase hex string" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      hex = Otel.API.Trace.SpanContext.span_id_hex(ctx)
-      assert String.length(hex) == 16
-      assert hex == String.downcase(hex)
+    test "span_id_hex/1 forwards span_id", %{ctx: ctx} do
+      assert Otel.API.Trace.SpanContext.span_id_hex(ctx) == Otel.API.Trace.SpanId.to_hex(@span_id)
     end
 
-    test "zero span_id returns 16 zeros" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @zero_span_id)
-      assert Otel.API.Trace.SpanContext.span_id_hex(ctx) == "0000000000000000"
+    test "trace_id_bytes/1 forwards trace_id", %{ctx: ctx} do
+      assert Otel.API.Trace.SpanContext.trace_id_bytes(ctx) ==
+               Otel.API.Trace.TraceId.to_bytes(@trace_id)
     end
 
-    test "pads short hex values with leading zeros" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, 1)
-      assert Otel.API.Trace.SpanContext.span_id_hex(ctx) == "0000000000000001"
-    end
-  end
-
-  describe "trace_id_bytes/1" do
-    test "returns 16-byte binary" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      bytes = Otel.API.Trace.SpanContext.trace_id_bytes(ctx)
-      assert byte_size(bytes) == 16
-    end
-
-    test "zero trace_id returns 16 zero bytes" do
-      ctx = Otel.API.Trace.SpanContext.new(@zero_trace_id, @valid_span_id)
-      assert Otel.API.Trace.SpanContext.trace_id_bytes(ctx) == <<0::128>>
-    end
-
-    test "roundtrips with integer" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      <<roundtrip::unsigned-integer-size(128)>> = Otel.API.Trace.SpanContext.trace_id_bytes(ctx)
-      assert roundtrip == @valid_trace_id
-    end
-  end
-
-  describe "span_id_bytes/1" do
-    test "returns 8-byte binary" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      bytes = Otel.API.Trace.SpanContext.span_id_bytes(ctx)
-      assert byte_size(bytes) == 8
-    end
-
-    test "zero span_id returns 8 zero bytes" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @zero_span_id)
-      assert Otel.API.Trace.SpanContext.span_id_bytes(ctx) == <<0::64>>
-    end
-
-    test "roundtrips with integer" do
-      ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id)
-      <<roundtrip::unsigned-integer-size(64)>> = Otel.API.Trace.SpanContext.span_id_bytes(ctx)
-      assert roundtrip == @valid_span_id
-    end
-  end
-
-  describe "struct defaults" do
-    test "default struct has all zeros and is invalid" do
-      ctx = %Otel.API.Trace.SpanContext{}
-      assert ctx.trace_id == 0
-      assert ctx.span_id == 0
-      assert ctx.trace_flags == 0
-      assert ctx.tracestate == Otel.API.Trace.TraceState.new()
-      assert ctx.is_remote == false
-      assert Otel.API.Trace.SpanContext.valid?(ctx) == false
+    test "span_id_bytes/1 forwards span_id", %{ctx: ctx} do
+      assert Otel.API.Trace.SpanContext.span_id_bytes(ctx) ==
+               Otel.API.Trace.SpanId.to_bytes(@span_id)
     end
   end
 end
