@@ -3,9 +3,10 @@ defmodule Otel.E2E.Case do
   ExUnit case template for end-to-end tests against the local
   Grafana LGTM stack.
 
-  Each test gets a unique `:e2e_id` (timestamp + random) in its
-  context so test data can be located in Tempo / Loki / Mimir
-  without colliding with other concurrent or recent runs.
+  Each test gets a unique `:e2e_id` (BEAM-runtime monotonic
+  integer) in its context so test data can be located in Tempo /
+  Loki / Mimir without colliding with other concurrent or recent
+  runs.
 
   All e2e modules carry `@moduletag :e2e`, so they are excluded
   from the default `mix test` run via
@@ -26,10 +27,6 @@ defmodule Otel.E2E.Case do
   end
 
   setup do
-    {:ok, e2e_id: e2e_id()}
-  end
-
-  defp e2e_id do
-    "e2e-#{:os.system_time(:millisecond)}-#{System.unique_integer([:positive, :monotonic])}"
+    {:ok, e2e_id: Integer.to_string(System.unique_integer([:positive, :monotonic]))}
   end
 end
