@@ -72,27 +72,27 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | `Logger.info("msg")` baseline | string msg | Loki: line + `severity=info` |
-| `[ ]` | 2 | All 8 levels iterated | `:emergency` through `:debug` | Loki: `severity_number` 21/19/18/17/13/10/9/5 |
-| `[ ]` | 3 | Logger metadata — primitive | `Logger.info("...", k: v)` | Loki: attr `k=v` |
-| `[ ]` | 4 | Report (map) | `Logger.info(%{k: v})` | Loki: structured |
-| `[ ]` | 5 | Report (keyword) | `Logger.info(k: v, ...)` | Loki: structured |
-| `[ ]` | 6 | `{format, args}` msg shape | `:logger.log(:info, ~c"~p", [v])` | Loki: formatted body |
-| `[ ]` | 7 | `report_cb/1` callback | `meta: %{report_cb: cb1}` | Loki: callback output |
-| `[ ]` | 8 | `report_cb/2` callback | `meta: %{report_cb: cb2}` | Loki: callback output |
-| `[ ]` | 9 | Atom value coercion | `Logger.info(role: :admin)` | Loki: `"admin"` (no colon) |
-| `[ ]` | 10 | Struct via `String.Chars` (Date) | `Logger.info(at: ~D[...])` | Loki: ISO string |
-| `[ ]` | 11 | Tuple → `inspect` | `Logger.info(point: {1, 2})` | Loki: `"{1, 2}"` |
-| `[ ]` | 12 | `crash_reason` → exception.* | `Logger.error(..., crash_reason: {e, st})` | Loki: `exception.type`, `exception.message`, `exception.stacktrace` |
-| `[ ]` | 13 | Non-exception `crash_reason` ignored | `crash_reason: {:shutdown, _}` | Loki: no `exception.*` attrs |
-| `[ ]` | 14 | `mfa` → `code.function.name` | `Logger.info(...)` (auto from compile) | Loki: `code.function.name` |
-| `[ ]` | 15 | `file` → `code.file.path` | auto from compile | Loki: `code.file.path` |
-| `[ ]` | 16 | `line` → `code.line.number` | auto from compile | Loki: `code.line.number` |
-| `[ ]` | 17 | Malformed `mfa` silently skipped | `meta: %{mfa: :not_a_tuple}` | Loki: no `code.function.name`, no crash |
-| `[ ]` | 18 | `domain` → `log.domain` | `meta: %{domain: [:a, :b]}` | Loki: array |
-| `[ ]` | 19 | Reserved keys all filtered | `mfa, file, line, domain, crash_reason, time, report_cb, gl, pid` | Loki: none of these atoms appear |
-| `[ ]` | 20 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` |
-| `[ ]` | 21 | Scope config — 4 keys | `scope_name`, `scope_version`, `scope_schema_url`, `scope_attributes` | Loki: each value visible |
+| `[x]` | 1 | `Logger.info("msg")` baseline | string msg | Loki: line + `severity=info` |
+| `[x]` | 2 | All 8 levels iterated | `:emergency` through `:debug` | Loki: `severity_number` 21/19/18/17/13/10/9/5 |
+| `[x]` | 3 | Logger metadata — primitive | `Logger.info("...", k: v)` | Loki: attr `k=v` |
+| `[x]` | 4 | Report (map) | `Logger.info(%{k: v})` | Loki: structured |
+| `[x]` | 5 | Report (keyword) | `Logger.info(k: v, ...)` | Loki: structured |
+| `[x]` | 6 | `{format, args}` msg shape | `:logger.log(:info, ~c"~p", [v])` | Loki: formatted body |
+| `[x]` | 7 | `report_cb/1` callback | `meta: %{report_cb: cb1}` | Loki: callback output |
+| `[x]` | 8 | `report_cb/2` callback | `meta: %{report_cb: cb2}` | Loki: callback output |
+| `[x]` | 9 | Atom value coercion | `Logger.info(role: :admin)` | Loki: `"admin"` (no colon) |
+| `[x]` | 10 | Struct via `String.Chars` (Date) | `Logger.info(at: ~D[...])` | Loki: ISO string |
+| `[x]` | 11 | Tuple → `inspect` | `Logger.info(point: {1, 2})` | Loki: `"{1, 2}"` |
+| `[x]` | 12 | `crash_reason` → exception.* | `Logger.error(..., crash_reason: {e, st})` | Loki: `exception.type`, `exception.message`, `exception.stacktrace` |
+| `[x]` | 13 | Non-exception `crash_reason` ignored | `crash_reason: {:shutdown, _}` | Loki: no `exception.*` attrs |
+| `[x]` | 14 | `mfa` → `code.function.name` | `Logger.info(...)` (auto from compile) | Loki: `code.function.name` |
+| `[x]` | 15 | `file` → `code.file.path` | auto from compile | Loki: `code.file.path` |
+| `[x]` | 16 | `line` → `code.line.number` | auto from compile | Loki: `code.line.number` |
+| `[x]` | 17 | Malformed `mfa` silently skipped | `meta: %{mfa: :not_a_tuple}` | Loki: no `code.function.name`, no crash |
+| `[x]` | 18 | `domain` → `log.domain` | `meta: %{domain: [:a, :b]}` | Loki: array |
+| `[x]` | 19 | Reserved keys all filtered | `mfa, file, line, domain, crash_reason, time, report_cb, gl, pid` | Loki: none of these atoms appear |
+| `[x]` | 20 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` |
+| `[x]` | 21 | Scope config — 4 keys | `scope_name`, `scope_version`, `scope_schema_url`, `scope_attributes` | Loki: each value visible |
 
 ## Metrics
 
