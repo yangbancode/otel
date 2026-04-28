@@ -37,13 +37,30 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExporting do
 
     state = %{
       meter_config: config.meter_config,
-      exporter: config.exporter,
+      exporter: init_exporter(config.exporter),
       export_interval_ms: interval,
       timer_ref: timer_ref,
       shut_down: false
     }
 
     {:ok, state}
+  end
+
+  # Mirrors `SpanProcessor.Batch`: call the exporter's `init/1` once
+  # at startup and store the resulting state, so per-call paths
+  # (`export/2`, `force_flush/1`, `shutdown/1`) receive the
+  # initialised state rather than the raw user opts. Without this,
+  # OTLP HTTP's defaults (`:compression`, `:headers`, ...) never
+  # populate and `export/2` crashes on the first batch.
+  @spec init_exporter(exporter :: {module(), term()} | nil) ::
+          {module(), term()} | nil
+  defp init_exporter(nil), do: nil
+
+  defp init_exporter({module, opts}) do
+    case module.init(opts) do
+      {:ok, state} -> {module, state}
+      :ignore -> nil
+    end
   end
 
   @impl GenServer

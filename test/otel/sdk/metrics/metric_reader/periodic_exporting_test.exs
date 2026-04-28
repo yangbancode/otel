@@ -4,6 +4,8 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
   defmodule TestExporter do
     @moduledoc false
 
+    def init(opts), do: {:ok, opts}
+
     def export(batch, %{test_pid: pid}) do
       send(pid, {:exported, batch})
       :ok
@@ -147,6 +149,51 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
       })
 
     assert_receive {:exported, _}, 200
+  end
+
+  describe "init/1 exporter initialization" do
+    defmodule InitTrackingExporter do
+      @moduledoc false
+      def init(%{test_pid: pid} = opts) do
+        send(pid, {:exporter_init_called, opts})
+        {:ok, Map.put(opts, :compression, :gzip)}
+      end
+
+      def export(_batch, _state), do: :ok
+      def force_flush(_state), do: :ok
+      def shutdown(_state), do: :ok
+    end
+
+    defmodule IgnoringExporter do
+      @moduledoc false
+      def init(_opts), do: :ignore
+      def export(_, _), do: :ok
+      def force_flush(_), do: :ok
+      def shutdown(_), do: :ok
+    end
+
+    # Regression: PeriodicExporting used to store `config.exporter`
+    # verbatim, so the exporter's `init/1` (where OTLP HTTP populates
+    # `:compression` / `:headers` / `:retry_opts` defaults) never
+    # ran and `export/2` crashed on the first batch with `KeyError
+    # :compression not found in: %{}`.
+    test "calls exporter.init/1 once at startup; stored state replaces raw opts" do
+      reader =
+        start_reader(%{
+          exporter: {InitTrackingExporter, %{test_pid: self(), seed: :ok}}
+        })
+
+      assert_receive {:exporter_init_called, %{seed: :ok}}
+
+      state = :sys.get_state(reader)
+      assert {InitTrackingExporter, exporter_state} = state.exporter
+      assert exporter_state.compression == :gzip
+    end
+
+    test ":ignore reply from exporter.init demotes exporter to nil" do
+      reader = start_reader(%{exporter: {IgnoringExporter, %{}}})
+      assert :sys.get_state(reader).exporter == nil
+    end
   end
 
   test "end-to-end: MeterProvider supervises the reader; force_flush + shutdown propagate" do
