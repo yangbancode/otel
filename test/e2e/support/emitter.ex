@@ -1,20 +1,26 @@
 defmodule Otel.E2E.Emitter do
   @moduledoc """
-  Helpers for emitting telemetry from e2e tests. Each helper tags
-  the emitted record with the supplied `e2e_id` (under attribute
-  `e2e.id`) and force-flushes the corresponding pillar so the data
-  is on its way to the collector by return.
+  Shared setup + flush helpers for e2e tests against the local
+  Grafana LGTM stack.
+
+  Telemetry emission itself uses the SDK API directly in each
+  test — `with_span/4`, `Logger.emit/2`, `Counter.add/3`, etc. —
+  so the test reads as a literal walkthrough of the public API.
+
+  This module exposes only the bits that genuinely need wrapping:
+  the boot-time `OTEL_SERVICE_NAME` injection (requires
+  `:otel` restart), the shared `InstrumentationScope`, and the
+  three pillar `force_flush` calls.
   """
 
-  @scope %Otel.API.InstrumentationScope{name: "e2e", version: "1.0.0"}
+  @scope %Otel.API.InstrumentationScope{name: "e2e", version: "0.1.0"}
 
-  @doc "InstrumentationScope used by every e2e helper."
+  @doc "InstrumentationScope used by every e2e test."
   def scope, do: @scope
 
   @doc """
   Restarts `:otel` with `OTEL_SERVICE_NAME=name` so the resource
-  carries a recognisable `service.name` (used by Tempo / Loki to
-  index by service).
+  carries a recognisable `service.name`. Call from `setup_all`.
   """
   @spec setup_service_name(name :: String.t()) :: :ok
   def setup_service_name(name) do
@@ -24,71 +30,13 @@ defmodule Otel.E2E.Emitter do
     :ok
   end
 
-  @doc """
-  Emits a span via `with_span/4` and force-flushes traces. Extra
-  span attributes (beyond `e2e.id`) can be passed via `attributes:`.
-  Other `start_opts()` keys (`kind:`, `links:`, …) pass through.
-  """
-  @spec emit_span(name :: String.t(), e2e_id :: String.t(), opts :: keyword()) :: term()
-  def emit_span(name, e2e_id, opts \\ []) do
-    {extra_attrs, opts} = Keyword.pop(opts, :attributes, %{})
-    {fun, opts} = Keyword.pop(opts, :run, fn _ -> :ok end)
+  @doc "Force-flushes the SDK TracerProvider."
+  def flush_traces, do: Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider)
 
-    tracer = Otel.API.Trace.TracerProvider.get_tracer(@scope)
-    attrs = Map.put(extra_attrs, "e2e.id", e2e_id)
+  @doc "Force-flushes the SDK LoggerProvider."
+  def flush_logs, do: Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
 
-    result = Otel.API.Trace.with_span(tracer, name, [attributes: attrs] ++ opts, fun)
-
-    flush_traces()
-    result
-  end
-
-  @doc """
-  Emits a log record via the SDK API and force-flushes logs.
-  """
-  @spec emit_log(body :: term(), e2e_id :: String.t(), opts :: keyword()) :: :ok
-  def emit_log(body, e2e_id, opts \\ []) do
-    {extra_attrs, opts} = Keyword.pop(opts, :attributes, %{})
-    severity_number = Keyword.get(opts, :severity_number, 9)
-    severity_text = Keyword.get(opts, :severity_text, "info")
-
-    logger = Otel.API.Logs.LoggerProvider.get_logger(@scope)
-    attrs = Map.put(extra_attrs, "e2e.id", e2e_id)
-
-    Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
-      body: body,
-      severity_number: severity_number,
-      severity_text: severity_text,
-      attributes: attrs
-    })
-
-    flush_logs()
-    :ok
-  end
-
-  @doc """
-  Increments a counter by 1 (or `value`) and force-flushes metrics.
-  Counter creation opts (`unit:`, `description:`, …) pass through;
-  emit-time `attributes:` are merged with the e2e_id.
-  """
-  @spec emit_counter(name :: String.t(), e2e_id :: String.t(), opts :: keyword()) :: :ok
-  def emit_counter(name, e2e_id, opts \\ []) do
-    {extra_attrs, opts} = Keyword.pop(opts, :attributes, %{})
-    {value, create_opts} = Keyword.pop(opts, :value, 1)
-
-    meter = Otel.API.Metrics.MeterProvider.get_meter(@scope)
-    counter = Otel.API.Metrics.Meter.create_counter(meter, name, create_opts)
-    attrs = Map.put(extra_attrs, "e2e.id", e2e_id)
-
-    Otel.API.Metrics.Counter.add(counter, value, attrs)
-
-    flush_metrics()
-    :ok
-  end
-
-  defp flush_traces, do: Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider)
-  defp flush_logs, do: Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
-
-  defp flush_metrics,
+  @doc "Force-flushes the SDK MeterProvider."
+  def flush_metrics,
     do: Otel.SDK.Metrics.MeterProvider.force_flush(Otel.SDK.Metrics.MeterProvider)
 end
