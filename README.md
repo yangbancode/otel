@@ -33,10 +33,12 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/).
 
 | Component | Version |
 |---|---|
-| OpenTelemetry Specification | `v1.55.0` |
-| W3C Trace Context | Level 2 |
-| W3C Baggage | Working Draft |
-| OTLP | `v1.10.0` |
+| OpenTelemetry Specification | `v1.55.0` (Stable signals only) |
+| OpenTelemetry Protocol (OTLP) | `v1.10.0` |
+| OpenTelemetry Configuration | `v1.0.0` |
+| OpenTelemetry Semantic Conventions | `v1.40.0` |
+| W3C Trace Context | Level 2 (REC) |
+| W3C Baggage | wire format per OTel's Stable Baggage Propagator |
 
 ## Installation
 
