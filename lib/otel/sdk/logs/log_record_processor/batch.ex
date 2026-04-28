@@ -293,11 +293,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   @impl :gen_statem
   @spec init(config :: start_link_config()) :: {:ok, :idle, State.t()}
   def init(config) do
-    {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
-    {:ok, exporter_state} = exporter_module.init(exporter_opts)
-
     state = %State{
-      exporter: {exporter_module, exporter_state},
+      exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter)),
       max_queue_size: Map.get(config, :max_queue_size, @default_max_queue_size),
       scheduled_delay_ms: Map.get(config, :scheduled_delay_ms, @default_scheduled_delay_ms),
       export_timeout_ms: Map.get(config, :export_timeout_ms, @default_export_timeout_ms),

@@ -73,19 +73,11 @@ defmodule Otel.SDK.Trace.SpanProcessor.Simple do
   @impl GenServer
   @spec init(config :: Otel.SDK.Trace.SpanProcessor.config()) :: {:ok, map()}
   def init(config) do
-    {exporter_module, exporter_opts} = Map.fetch!(config, :exporter)
-
-    case exporter_module.init(exporter_opts) do
-      {:ok, exporter_state} ->
-        {:ok,
-         %{
-           exporter: {exporter_module, exporter_state},
-           resource: Map.get(config, :resource, %{})
-         }}
-
-      :ignore ->
-        {:ok, %{exporter: nil, resource: %{}}}
-    end
+    {:ok,
+     %{
+       exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter)),
+       resource: Map.get(config, :resource, %{})
+     }}
   end
 
   @impl GenServer
