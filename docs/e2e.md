@@ -134,11 +134,11 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | TraceContext round-trip | `TextMap.inject/3` → carrier → `TextMap.extract/3` → child span with extracted ctx | Tempo: same `trace_id`, child `parent_span_id` = parent `span_id` |
-| `[ ]` | 2 | Trace flags propagation (sampled bit) | sampled parent → inject → extract | Tempo: child also sampled / present |
-| `[ ]` | 3 | Tracestate (vendor data) propagation | parent w/ tracestate → inject → extract | Tempo: child carries identical `tracestate` |
-| `[ ]` | 4 | Baggage round-trip (manual span copy) | `Baggage.set_value/3` → inject → extract → copy to span attr | Tempo: span carries baggage value |
-| `[ ]` | 5 | Composite (TraceContext + Baggage) | both propagators → inject → extract | Tempo: both trace ctx + baggage preserved |
+| `[x]` | 1 | TraceContext round-trip | `TextMap.inject/3` → carrier → `TextMap.extract/3` → child span with extracted ctx | Tempo: same `trace_id`, child `parent_span_id` = parent `span_id` |
+| `[x]` | 2 | Trace flags propagation (sampled bit) | sampled parent → inject → extract | Tempo: child also sampled / present |
+| `[x]` | 3 | Tracestate (vendor data) propagation | parent w/ tracestate → inject → extract | Tempo: child carries identical `tracestate` |
+| `[x]` | 4 | Baggage round-trip (manual span copy) | `Baggage.set_value/3` → inject → extract → copy to span attr | Tempo: span carries baggage value |
+| `[x]` | 5 | Composite (TraceContext + Baggage) | both propagators → inject → extract | Tempo: both trace ctx + baggage preserved |
 
 ## Resource / service identification
 
