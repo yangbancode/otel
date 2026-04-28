@@ -47,7 +47,9 @@ jobs:
         run: mix format --check-formatted
 
       - name: Test
-        run: mix test --warnings-as-errors --cover
+        run: mix coveralls.github --warnings-as-errors
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Credo
         run: mix credo --strict

@@ -1,5 +1,8 @@
 # Otel
 
+[![CI](https://github.com/yangbancode/otel/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/yangbancode/otel/actions/workflows/ci.yml)
+[![Coverage Status](https://coveralls.io/repos/github/yangbancode/otel/badge.svg?branch=main)](https://coveralls.io/github/yangbancode/otel?branch=main)
+
 Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/)
 
 ## Features
