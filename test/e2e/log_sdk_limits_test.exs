@@ -44,7 +44,20 @@ defmodule Otel.E2E.LogSdkLimitsTest do
       })
 
       flush()
-      assert {:ok, [_ | _]} = poll(Loki.query(e2e_id))
+      assert {:ok, [_ | _] = results} = poll(Loki.query(e2e_id))
+
+      # 4 attributes were sent (e2e.id + k1/k2/k3); limit was 2.
+      # `e2e.id` survives (we filtered on it to find the record).
+      # That leaves room for at most 1 of k1/k2/k3 in the
+      # persisted record — the other two MUST have been dropped
+      # at emit time. We don't assume which one survives because
+      # the spec doesn't pin the order.
+      payload = Jason.encode!(results)
+
+      survivors = Enum.count(["k1", "k2", "k3"], &(payload =~ &1))
+
+      assert survivors <= 1,
+             "expected at most 1 of k1/k2/k3 to survive limit=2, got #{survivors}"
     end
 
     test "12: attribute_value_length_limit (8) truncates long string values",
@@ -61,7 +74,17 @@ defmodule Otel.E2E.LogSdkLimitsTest do
       })
 
       flush()
-      assert {:ok, [_ | _]} = poll(Loki.query(e2e_id))
+      assert {:ok, [_ | _] = results} = poll(Loki.query(e2e_id))
+
+      # The original 16-char value MUST NOT appear anywhere in
+      # the response. With limit=8 enforced, only the truncated
+      # prefix `"01234567"` survives — the suffix `"89ABCDEF"`
+      # is the unambiguous fingerprint of an *un*-truncated
+      # value.
+      payload = Jason.encode!(results)
+
+      refute payload =~ "0123456789ABCDEF",
+             "full 16-char value reached Loki — value-length limit not enforced"
     end
   end
 end
