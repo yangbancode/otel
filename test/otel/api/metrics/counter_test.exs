@@ -1,75 +1,56 @@
 defmodule Otel.API.Metrics.CounterTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   setup do
+    saved = :persistent_term.get({Otel.API.Metrics.MeterProvider, :global}, nil)
     :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
 
-    meter =
-      Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test_lib"})
+    on_exit(fn ->
+      if saved,
+        do: :persistent_term.put({Otel.API.Metrics.MeterProvider, :global}, saved),
+        else: :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
+    end)
 
-    %{meter: meter}
+    %{
+      meter:
+        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test"})
+    }
   end
 
-  describe "create/2,3" do
-    test "creates counter via meter", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :counter, name: "request_count"} =
-               Otel.API.Metrics.Counter.create(meter, "request_count")
+  describe "create/3 — delegates to Meter.create_counter" do
+    test "with name only", %{meter: meter} do
+      assert %Otel.API.Metrics.Instrument{kind: :counter, name: "n"} =
+               Otel.API.Metrics.Counter.create(meter, "n")
     end
 
-    test "accepts opts", %{meter: meter} do
+    test "forwards unit, description, and advisory opts", %{meter: meter} do
       assert %Otel.API.Metrics.Instrument{
                kind: :counter,
-               name: "request_count",
+               name: "n",
                unit: "1",
-               description: "Number of requests"
+               description: "desc",
+               advisory: [explicit_bucket_boundaries: [10, 50]]
              } =
-               Otel.API.Metrics.Counter.create(meter, "request_count",
+               Otel.API.Metrics.Counter.create(meter, "n",
                  unit: "1",
-                 description: "Number of requests"
-               )
-    end
-
-    test "accepts advisory params", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :counter} =
-               Otel.API.Metrics.Counter.create(meter, "request_count",
-                 advisory: [explicit_bucket_boundaries: [10, 50, 100]]
+                 description: "desc",
+                 advisory: [explicit_bucket_boundaries: [10, 50]]
                )
     end
   end
 
-  describe "enabled?/1,2" do
-    test "returns false for noop", %{meter: meter} do
-      instrument = Otel.API.Metrics.Counter.create(meter, "request_count")
-      assert false == Otel.API.Metrics.Counter.enabled?(instrument)
-    end
-
-    test "accepts opts", %{meter: meter} do
-      instrument = Otel.API.Metrics.Counter.create(meter, "request_count")
-      assert false == Otel.API.Metrics.Counter.enabled?(instrument, [])
-    end
+  test "enabled?/2 returns false under the Noop Meter", %{meter: meter} do
+    inst = Otel.API.Metrics.Counter.create(meter, "n")
+    refute Otel.API.Metrics.Counter.enabled?(inst)
+    refute Otel.API.Metrics.Counter.enabled?(inst, span_name: "x")
   end
 
-  describe "add/2,3" do
-    test "records a value", %{meter: meter} do
-      instrument = Otel.API.Metrics.Counter.create(meter, "request_count")
-      assert :ok == Otel.API.Metrics.Counter.add(instrument, 1)
-    end
+  test "add/3 returns :ok across value shapes and attribute payloads", %{meter: meter} do
+    inst = Otel.API.Metrics.Counter.create(meter, "n")
 
-    test "records with attributes", %{meter: meter} do
-      instrument = Otel.API.Metrics.Counter.create(meter, "request_count")
-
-      assert :ok ==
-               Otel.API.Metrics.Counter.add(instrument, 5, %{"http.method" => "GET"})
-    end
-
-    test "accepts zero", %{meter: meter} do
-      instrument = Otel.API.Metrics.Counter.create(meter, "request_count")
-      assert :ok == Otel.API.Metrics.Counter.add(instrument, 0)
-    end
-
-    test "accepts float", %{meter: meter} do
-      instrument = Otel.API.Metrics.Counter.create(meter, "request_count")
-      assert :ok == Otel.API.Metrics.Counter.add(instrument, 1.5)
-    end
+    assert :ok = Otel.API.Metrics.Counter.add(inst, 1)
+    assert :ok = Otel.API.Metrics.Counter.add(inst, 0)
+    assert :ok = Otel.API.Metrics.Counter.add(inst, 1.5)
+    assert :ok = Otel.API.Metrics.Counter.add(inst, 5, %{"http.method" => "GET"})
   end
 end
