@@ -14,21 +14,6 @@ defmodule Otel.E2E.HTTP do
   @timeout_ms 5_000
   @max_attempts 3
 
-  @doc "GETs `url`. Returns `{:ok, body}` on HTTP 200, `{:error, _}` otherwise."
-  @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
-  def get(url) do
-    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @timeout_ms}], []) do
-      {:ok, {{_, 200, _}, _, body}} ->
-        {:ok, to_string(body)}
-
-      {:ok, {{_, status, _}, _, body}} ->
-        {:error, {:status, status, to_string(body)}}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
   @doc """
   Repeatedly GETs `url`, JSON-decodes the body, and runs `match_fn`
   on the decoded payload. Returns `{:ok, value}` the first time
@@ -40,6 +25,11 @@ defmodule Otel.E2E.HTTP do
     loop(url, match_fn, @max_attempts)
   end
 
+  @spec loop(
+          url :: String.t(),
+          match_fn :: (term() -> {:ok, term()} | term()),
+          attempts_left :: non_neg_integer()
+        ) :: result()
   defp loop(_url, _match_fn, 0), do: {:error, :timeout}
 
   defp loop(url, match_fn, attempts_left) do
@@ -51,6 +41,20 @@ defmodule Otel.E2E.HTTP do
       _ ->
         Process.sleep(@interval_ms)
         loop(url, match_fn, attempts_left - 1)
+    end
+  end
+
+  @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
+  defp get(url) do
+    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @timeout_ms}], []) do
+      {:ok, {{_, 200, _}, _, body}} ->
+        {:ok, to_string(body)}
+
+      {:ok, {{_, status, _}, _, body}} ->
+        {:error, {:status, status, to_string(body)}}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

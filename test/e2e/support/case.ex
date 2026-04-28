@@ -20,9 +20,11 @@ defmodule Otel.E2E.Case do
   @scope %Otel.API.InstrumentationScope{name: "e2e", version: "0.1.0"}
 
   @doc "InstrumentationScope used by every e2e test."
+  @spec scope() :: Otel.API.InstrumentationScope.t()
   def scope, do: @scope
 
   @doc "Force-flushes all three SDK providers (Tracer / Logger / Meter)."
+  @spec flush() :: :ok
   def flush do
     Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider)
     Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
