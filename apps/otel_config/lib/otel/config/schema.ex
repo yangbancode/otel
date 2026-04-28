@@ -32,7 +32,7 @@ defmodule Otel.Config.Schema do
 
   **No caching by design.** `Otel.Config.load!/0` is called
   once per VM at SDK boot, so the per-call cost (~8ms file
-  read + Jason.decode + JSONSchex.compile) is paid exactly
+  read + JSON.decode + JSONSchex.compile) is paid exactly
   once and never matters. Avoiding caches keeps the function
   pure (deterministic, no shared state, no test-ordering
   fragility, no permanent BEAM bloat from a giant embedded
@@ -98,7 +98,7 @@ defmodule Otel.Config.Schema do
       |> :code.priv_dir()
       |> Path.join(@schema_relative_path)
       |> File.read!()
-      |> Jason.decode!()
+      |> JSON.decode!()
 
     {:ok, compiled} = JSONSchex.compile(schema)
     compiled
