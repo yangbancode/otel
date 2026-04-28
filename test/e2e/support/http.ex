@@ -17,13 +17,20 @@ defmodule Otel.E2E.HTTP do
 
   @interval_ms 1_000
   @timeout_ms 5_000
-  @max_attempts 3
+  @max_attempts 15
 
   @doc """
   Repeatedly GETs `url` until the JSON body has a non-empty result
   list (Tempo `traces` or Prometheus-style `data.result`). Retries
-  every 1 s up to 3 attempts; returns `{:error, :timeout}` after
+  every 1 s up to 15 attempts; returns `{:error, :timeout}` after
   the final empty response.
+
+  The cap is 15 (≈15 s wall budget) because Tempo's `/api/search`
+  indexing lags ingest by several seconds — especially right
+  after the LGTM container starts and when several scenarios
+  ingest concurrently. Per-attempt fetch is ~instant on a
+  reachable backend, so this only spends real wall time when
+  nothing has landed yet.
   """
   @spec poll(url :: String.t()) :: result()
   def poll(url) do
