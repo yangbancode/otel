@@ -15,13 +15,16 @@ defmodule Otel.SDK.Metrics.StreamTest do
     )
   end
 
+  defp view(opts), do: elem(Otel.SDK.Metrics.View.new(%{}, opts), 1)
+  defp view!, do: elem(Otel.SDK.Metrics.View.new(), 1)
+
   describe "from_instrument/1" do
-    test "creates stream with instrument defaults" do
+    test "carries instrument identity; view-specific fields default to nil" do
       inst = instrument()
       stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
 
-      assert stream.name == "http.request.duration"
-      assert stream.description == "Request duration"
+      assert stream.name == inst.name
+      assert stream.description == inst.description
       assert stream.instrument == inst
       assert stream.attribute_keys == nil
       assert stream.aggregation == nil
@@ -30,165 +33,95 @@ defmodule Otel.SDK.Metrics.StreamTest do
     end
   end
 
-  describe "from_view/2" do
-    test "uses view name when configured" do
-      {:ok, view} =
-        Otel.SDK.Metrics.View.new(
-          %{name: "http.request.duration"},
-          %{name: "http.duration"}
+  describe "from_view/2 — view fields override instrument defaults" do
+    test "name + description: view value wins; missing falls back to instrument value" do
+      inst = instrument()
+
+      named = Otel.SDK.Metrics.Stream.from_view(view(%{name: "renamed"}), inst)
+      assert named.name == "renamed"
+      assert named.description == "Request duration"
+
+      with_desc = Otel.SDK.Metrics.Stream.from_view(view(%{description: "Custom"}), inst)
+      assert with_desc.description == "Custom"
+
+      empty = Otel.SDK.Metrics.Stream.from_view(view!(), inst)
+      assert empty.name == "http.request.duration"
+    end
+
+    test "passes through view-only fields verbatim" do
+      stream =
+        Otel.SDK.Metrics.Stream.from_view(
+          view(%{
+            attribute_keys: {:include, ["method"]},
+            aggregation: SomeAggregation,
+            aggregation_options: %{boundaries: [1, 5, 10]},
+            exemplar_reservoir: SomeReservoir,
+            aggregation_cardinality_limit: 1000
+          }),
+          instrument()
         )
 
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
-      assert stream.name == "http.duration"
-    end
-
-    test "falls back to instrument name" do
-      {:ok, view} = Otel.SDK.Metrics.View.new()
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
-      assert stream.name == "http.request.duration"
-    end
-
-    test "uses view description when configured" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{description: "Custom"})
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
-      assert stream.description == "Custom"
-    end
-
-    test "falls back to instrument description" do
-      {:ok, view} = Otel.SDK.Metrics.View.new()
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
-      assert stream.description == "Request duration"
-    end
-
-    test "uses view attribute_keys when configured" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{attribute_keys: {:include, ["method"]}})
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
       assert stream.attribute_keys == {:include, ["method"]}
-    end
-
-    test "no attribute_keys leaves nil" do
-      {:ok, view} = Otel.SDK.Metrics.View.new()
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
-      assert stream.attribute_keys == nil
-    end
-
-    test "passes through aggregation config" do
-      {:ok, view} =
-        Otel.SDK.Metrics.View.new(%{}, %{
-          aggregation: SomeAggregation,
-          aggregation_options: %{boundaries: [1, 5, 10]}
-        })
-
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
       assert stream.aggregation == SomeAggregation
       assert stream.aggregation_options == %{boundaries: [1, 5, 10]}
-    end
-
-    test "passes through exemplar_reservoir config" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{exemplar_reservoir: SomeReservoir})
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
       assert stream.exemplar_reservoir == SomeReservoir
-    end
-
-    test "passes through aggregation_cardinality_limit" do
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{}, %{aggregation_cardinality_limit: 1000})
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
       assert stream.aggregation_cardinality_limit == 1000
-    end
-
-    test "stores reference to source instrument" do
-      {:ok, view} = Otel.SDK.Metrics.View.new()
-      inst = instrument()
-      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
-      assert stream.instrument == inst
     end
   end
 
-  describe "resolve/1" do
-    test "resolves nil aggregation to default for counter" do
-      inst = instrument(%{kind: :counter})
-      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.Sum
+  describe "resolve/1 — fills aggregation default and merges advisory boundaries" do
+    test "nil aggregation resolves to the kind's default" do
+      assert Otel.SDK.Metrics.Stream.from_instrument(instrument(%{kind: :counter}))
+             |> Otel.SDK.Metrics.Stream.resolve()
+             |> Map.fetch!(:aggregation) == Otel.SDK.Metrics.Aggregation.Sum
+
+      assert Otel.SDK.Metrics.Stream.from_instrument(instrument(%{kind: :gauge}))
+             |> Otel.SDK.Metrics.Stream.resolve()
+             |> Map.fetch!(:aggregation) == Otel.SDK.Metrics.Aggregation.LastValue
+
+      assert Otel.SDK.Metrics.Stream.from_instrument(instrument())
+             |> Otel.SDK.Metrics.Stream.resolve()
+             |> Map.fetch!(:aggregation) == Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram
     end
 
-    test "resolves nil aggregation to default for gauge" do
-      inst = instrument(%{kind: :gauge})
-      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.LastValue
+    test "explicit aggregation from a view is preserved" do
+      stream =
+        Otel.SDK.Metrics.Stream.from_view(
+          view(%{aggregation: Otel.SDK.Metrics.Aggregation.Drop}),
+          instrument()
+        )
+
+      assert Otel.SDK.Metrics.Stream.resolve(stream).aggregation ==
+               Otel.SDK.Metrics.Aggregation.Drop
     end
 
-    test "resolves nil aggregation to default for histogram" do
-      stream = Otel.SDK.Metrics.Stream.from_instrument(instrument())
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram
-    end
-
-    test "preserves explicit aggregation" do
-      {:ok, view} =
-        Otel.SDK.Metrics.View.new(%{}, %{aggregation: Otel.SDK.Metrics.Aggregation.Drop})
-
-      stream = Otel.SDK.Metrics.Stream.from_view(view, instrument())
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation == Otel.SDK.Metrics.Aggregation.Drop
-    end
-
-    test "merges advisory bucket boundaries into opts" do
-      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
-      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation_options.boundaries == [1, 5, 10]
-    end
-
-    test "view aggregation_options take precedence over advisory" do
+    # Advisory boundaries are only used when the View doesn't already
+    # specify a non-default aggregation OR aggregation_options.
+    test "advisory boundaries are picked up only when neither view aggregation nor opts override them" do
       inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
 
-      {:ok, view} =
-        Otel.SDK.Metrics.View.new(%{}, %{aggregation_options: %{boundaries: [100, 200]}})
+      # No view → advisory wins.
+      assert Otel.SDK.Metrics.Stream.from_instrument(inst)
+             |> Otel.SDK.Metrics.Stream.resolve()
+             |> get_in([Access.key!(:aggregation_options), :boundaries]) == [1, 5, 10]
 
-      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation_options.boundaries == [100, 200]
-    end
+      # View boundaries take precedence over advisory.
+      vp =
+        Otel.SDK.Metrics.Stream.from_view(
+          view(%{aggregation_options: %{boundaries: [100, 200]}}),
+          inst
+        )
 
-    test "view specifying EBH aggregation without boundaries ignores advisory" do
-      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
+      assert Otel.SDK.Metrics.Stream.resolve(vp).aggregation_options.boundaries == [100, 200]
 
-      {:ok, view} =
-        Otel.SDK.Metrics.View.new(%{}, %{
-          aggregation: Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram
-        })
+      # View specifies a non-default aggregation → advisory ignored.
+      sum =
+        Otel.SDK.Metrics.Stream.from_view(
+          view(%{aggregation: Otel.SDK.Metrics.Aggregation.Sum}),
+          inst
+        )
 
-      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      refute Map.has_key?(resolved.aggregation_options, :boundaries)
-    end
-
-    test "view specifying non-default aggregation ignores advisory boundaries" do
-      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
-
-      {:ok, view} =
-        Otel.SDK.Metrics.View.new(%{}, %{aggregation: Otel.SDK.Metrics.Aggregation.Sum})
-
-      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      refute Map.has_key?(resolved.aggregation_options, :boundaries)
-    end
-
-    test "no view uses advisory boundaries as fallback" do
-      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
-      stream = Otel.SDK.Metrics.Stream.from_instrument(inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation_options.boundaries == [1, 5, 10]
-    end
-
-    test "view with default aggregation uses advisory boundaries" do
-      inst = instrument(%{advisory: [explicit_bucket_boundaries: [1, 5, 10]]})
-      {:ok, view} = Otel.SDK.Metrics.View.new(%{name: "http.request.duration"}, %{})
-      stream = Otel.SDK.Metrics.Stream.from_view(view, inst)
-      resolved = Otel.SDK.Metrics.Stream.resolve(stream)
-      assert resolved.aggregation_options.boundaries == [1, 5, 10]
+      refute Map.has_key?(Otel.SDK.Metrics.Stream.resolve(sum).aggregation_options, :boundaries)
     end
   end
 end
