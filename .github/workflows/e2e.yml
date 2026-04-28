@@ -1,0 +1,60 @@
+name: E2E
+
+on:
+  workflow_dispatch:
+
+env:
+  MIX_ENV: test
+  OTP_VERSION: "26.2.5.20"
+  ELIXIR_VERSION: "1.18.4"
+
+permissions:
+  contents: read
+
+jobs:
+  e2e:
+    name: E2E against Grafana LGTM
+    runs-on: ubuntu-latest
+
+    services:
+      lgtm:
+        image: grafana/otel-lgtm:0.26.0
+        ports:
+          - 3000:3000
+          - 4318:4318
+          - 3100:3100
+          - 3200:3200
+          - 9090:9090
+        options: >-
+          --health-cmd "curl -sf http://localhost:3000/api/health || exit 1"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 24
+          --health-start-period 30s
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: erlef/setup-beam@v1
+        with:
+          otp-version: ${{ env.OTP_VERSION }}
+          elixir-version: ${{ env.ELIXIR_VERSION }}
+
+      - name: Cache deps and _build
+        uses: actions/cache@v5
+        with:
+          path: |
+            deps
+            _build
+          key: mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            mix-${{ env.OTP_VERSION }}-${{ env.ELIXIR_VERSION }}-
+
+      - name: Install dependencies
+        run: mix deps.get
+
+      - name: Compile
+        run: mix compile --warnings-as-errors
+
+      - name: Run E2E tests
+        run: mix test --only e2e --warnings-as-errors
