@@ -1,76 +1,58 @@
 defmodule Otel.API.Metrics.HistogramTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   setup do
+    saved = :persistent_term.get({Otel.API.Metrics.MeterProvider, :global}, nil)
     :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
 
-    meter =
-      Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test_lib"})
+    on_exit(fn ->
+      if saved,
+        do: :persistent_term.put({Otel.API.Metrics.MeterProvider, :global}, saved),
+        else: :persistent_term.erase({Otel.API.Metrics.MeterProvider, :global})
+    end)
 
-    %{meter: meter}
+    %{
+      meter:
+        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test"})
+    }
   end
 
-  describe "create/2,3" do
-    test "creates histogram via meter", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :histogram, name: "request_duration"} =
-               Otel.API.Metrics.Histogram.create(meter, "request_duration")
+  describe "create/3 — delegates to Meter.create_histogram" do
+    test "with name only", %{meter: meter} do
+      assert %Otel.API.Metrics.Instrument{kind: :histogram, name: "n"} =
+               Otel.API.Metrics.Histogram.create(meter, "n")
     end
 
-    test "accepts opts", %{meter: meter} do
+    test "forwards unit, description, and explicit_bucket_boundaries advisory", %{meter: meter} do
+      boundaries = [0, 5, 10, 25, 50, 75, 100, 250, 500, 1000]
+
       assert %Otel.API.Metrics.Instrument{
                kind: :histogram,
+               name: "n",
                unit: "ms",
-               description: "Request duration in milliseconds"
+               description: "duration",
+               advisory: [explicit_bucket_boundaries: ^boundaries]
              } =
-               Otel.API.Metrics.Histogram.create(meter, "request_duration",
+               Otel.API.Metrics.Histogram.create(meter, "n",
                  unit: "ms",
-                 description: "Request duration in milliseconds"
-               )
-    end
-
-    test "accepts explicit_bucket_boundaries advisory", %{meter: meter} do
-      assert %Otel.API.Metrics.Instrument{kind: :histogram} =
-               Otel.API.Metrics.Histogram.create(meter, "request_duration",
-                 advisory: [
-                   explicit_bucket_boundaries: [0, 5, 10, 25, 50, 75, 100, 250, 500, 1000]
-                 ]
+                 description: "duration",
+                 advisory: [explicit_bucket_boundaries: boundaries]
                )
     end
   end
 
-  describe "enabled?/1,2" do
-    test "returns false for noop", %{meter: meter} do
-      instrument = Otel.API.Metrics.Histogram.create(meter, "request_duration")
-      assert false == Otel.API.Metrics.Histogram.enabled?(instrument)
-    end
-
-    test "accepts opts", %{meter: meter} do
-      instrument = Otel.API.Metrics.Histogram.create(meter, "request_duration")
-      assert false == Otel.API.Metrics.Histogram.enabled?(instrument, [])
-    end
+  test "enabled?/2 returns false under the Noop Meter", %{meter: meter} do
+    inst = Otel.API.Metrics.Histogram.create(meter, "n")
+    refute Otel.API.Metrics.Histogram.enabled?(inst)
+    refute Otel.API.Metrics.Histogram.enabled?(inst, [])
   end
 
-  describe "record/2,3" do
-    test "records a value", %{meter: meter} do
-      instrument = Otel.API.Metrics.Histogram.create(meter, "request_duration")
-      assert :ok == Otel.API.Metrics.Histogram.record(instrument, 42)
-    end
+  test "record/3 returns :ok across value shapes and attributes", %{meter: meter} do
+    inst = Otel.API.Metrics.Histogram.create(meter, "n")
 
-    test "records with attributes", %{meter: meter} do
-      instrument = Otel.API.Metrics.Histogram.create(meter, "request_duration")
-
-      assert :ok ==
-               Otel.API.Metrics.Histogram.record(instrument, 150, %{"http.method" => "POST"})
-    end
-
-    test "accepts zero", %{meter: meter} do
-      instrument = Otel.API.Metrics.Histogram.create(meter, "request_duration")
-      assert :ok == Otel.API.Metrics.Histogram.record(instrument, 0)
-    end
-
-    test "accepts float", %{meter: meter} do
-      instrument = Otel.API.Metrics.Histogram.create(meter, "request_duration")
-      assert :ok == Otel.API.Metrics.Histogram.record(instrument, 3.14)
-    end
+    assert :ok = Otel.API.Metrics.Histogram.record(inst, 42)
+    assert :ok = Otel.API.Metrics.Histogram.record(inst, 0)
+    assert :ok = Otel.API.Metrics.Histogram.record(inst, 3.14)
+    assert :ok = Otel.API.Metrics.Histogram.record(inst, 150, %{"http.method" => "POST"})
   end
 end
