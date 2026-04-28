@@ -11,7 +11,7 @@ defmodule Otel.E2E.SmokeTest do
       fn _ -> :ok end
     )
 
-    flush_traces()
+    flush()
 
     assert {:ok, body} = Tempo.find(e2e_id)
     assert body =~ e2e_id
@@ -27,7 +27,7 @@ defmodule Otel.E2E.SmokeTest do
       attributes: %{"e2e.id" => e2e_id}
     })
 
-    flush_logs()
+    flush()
 
     assert {:ok, body} = Loki.find(e2e_id)
     assert body =~ e2e_id
@@ -39,7 +39,7 @@ defmodule Otel.E2E.SmokeTest do
 
     Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
 
-    flush_metrics()
+    flush()
 
     assert {:ok, body} = Mimir.find_metric("e2e_smoke_total", e2e_id)
     assert body =~ e2e_id
