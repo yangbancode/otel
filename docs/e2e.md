@@ -106,11 +106,11 @@ mix test --only e2e test/e2e/
 | `[ ]` | 6 | Histogram `record_min_max: false` | View opt | Mimir: `min`/`max` absent |
 | `[ ]` | 7 | Base2ExponentialBucketHistogram | `aggregation: :base2_exponential_bucket_histogram` | Mimir: positive/negative bucket counts, scale, zero_count |
 | `[ ]` | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
-| `[ ]` | 9 | ObservableCounter | callback returns `[%Measurement{}]` | Mimir: counter from callback |
-| `[ ]` | 10 | ObservableUpDownCounter | callback (multi-attr) | Mimir: multi-series |
-| `[ ]` | 11 | ObservableGauge | callback | Mimir: gauge from callback |
-| `[ ]` | 12 | `register_callback/5` (multi-instrument) | shared callback for several instruments | Mimir: each instrument fed |
-| `[ ]` | 13 | `unregister_callback/1` | unregister; collect again | Mimir: no further values |
+| `[x]` | 9 | ObservableCounter | callback returns `[%Measurement{}]` | Mimir: counter from callback |
+| `[x]` | 10 | ObservableUpDownCounter | callback (multi-attr) | Mimir: multi-series |
+| `[x]` | 11 | ObservableGauge | callback | Mimir: gauge from callback |
+| `[x]` | 12 | `register_callback/5` (multi-instrument) | shared callback for several instruments | Mimir: each instrument fed |
+| `[x]` | 13 | `unregister_callback/1` | unregister; collect again | Mimir: no further values |
 | `[ ]` | 14 | Drop aggregation | View w/ `aggregation: :drop` | Mimir: no series for that instrument |
 | `[ ]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
 | `[ ]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
