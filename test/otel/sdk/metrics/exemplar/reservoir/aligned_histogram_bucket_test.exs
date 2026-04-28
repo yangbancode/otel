@@ -2,123 +2,53 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucketTest do
   use ExUnit.Case, async: true
 
   @boundaries [10, 50, 100]
+  @ctx %{}
 
-  defp ctx, do: %{}
+  defp new_state,
+    do: Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.new(%{boundaries: @boundaries})
 
-  describe "new/1" do
-    test "stores boundaries" do
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.new(%{boundaries: @boundaries})
+  defp offer(state, value),
+    do:
+      Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
+        state,
+        value,
+        1000,
+        %{},
+        @ctx
+      )
 
-      assert state.boundaries == @boundaries
-    end
+  test "new/1 stores the boundaries" do
+    assert new_state().boundaries == @boundaries
   end
 
-  describe "offer/5" do
-    test "stores exemplar in correct bucket" do
+  describe "offer/5 — at most one exemplar per bucket (boundaries+1 buckets total)" do
+    test "different buckets keep separate exemplars" do
       state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.new(%{boundaries: @boundaries})
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          5,
-          1000,
-          %{},
-          ctx()
-        )
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          25,
-          1000,
-          %{},
-          ctx()
-        )
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          75,
-          1000,
-          %{},
-          ctx()
-        )
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          200,
-          1000,
-          %{},
-          ctx()
-        )
+        new_state()
+        |> offer(5)
+        |> offer(25)
+        |> offer(75)
+        |> offer(200)
 
       assert map_size(state.exemplars) == 4
     end
 
-    test "replaces exemplar in same bucket" do
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.new(%{boundaries: @boundaries})
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          5,
-          1000,
-          %{},
-          ctx()
-        )
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          8,
-          2000,
-          %{},
-          ctx()
-        )
+    test "same bucket overwrites — newest exemplar wins" do
+      state = new_state() |> offer(5) |> offer(8)
 
       assert map_size(state.exemplars) == 1
       assert state.exemplars[0].value == 8
     end
 
-    test "at most one exemplar per bucket" do
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.new(%{boundaries: @boundaries})
-
-      state =
-        Enum.reduce(1..20, state, fn i, s ->
-          Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(s, i, 1000, %{}, ctx())
-        end)
-
+    test "many measurements never exceed boundaries+1 exemplars" do
+      state = Enum.reduce(1..20, new_state(), &offer(&2, &1))
       assert map_size(state.exemplars) <= length(@boundaries) + 1
     end
   end
 
   describe "collect/1" do
-    test "returns exemplars and clears" do
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.new(%{boundaries: @boundaries})
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          5,
-          1000,
-          %{},
-          ctx()
-        )
-
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.offer(
-          state,
-          75,
-          1000,
-          %{},
-          ctx()
-        )
+    test "returns the offered exemplars and clears the reservoir" do
+      state = new_state() |> offer(5) |> offer(75)
 
       {exemplars, new_state} =
         Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.collect(state)
@@ -127,12 +57,9 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucketTest do
       assert new_state.exemplars == %{}
     end
 
-    test "empty reservoir returns empty" do
-      state =
-        Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.new(%{boundaries: @boundaries})
-
-      {exemplars, _} = Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.collect(state)
-      assert exemplars == []
+    test "empty reservoir → []" do
+      assert {[], _} =
+               Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket.collect(new_state())
     end
   end
 end
