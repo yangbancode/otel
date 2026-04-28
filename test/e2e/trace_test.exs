@@ -165,6 +165,207 @@ defmodule Otel.E2E.TraceTest do
     end
   end
 
+  describe "mutations" do
+    test "7: set_attribute/3 mid-span persists on the span", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-7-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          Otel.API.Trace.Span.set_attribute(span_ctx, "added.key", "added-value")
+        end
+      )
+
+      flush()
+      assert [span] = trace_spans(e2e_id)
+      assert Tempo.attribute(span, "added.key") == "added-value"
+    end
+
+    test "8: set_attributes/2 bulk persists every key", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-8-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          Otel.API.Trace.Span.set_attributes(span_ctx, %{
+            "k.string" => "v",
+            "k.int" => 2,
+            "k.bool" => true
+          })
+        end
+      )
+
+      flush()
+      assert [span] = trace_spans(e2e_id)
+      assert Tempo.attribute(span, "k.string") == "v"
+      assert Tempo.attribute(span, "k.int") == 2
+      assert Tempo.attribute(span, "k.bool") == true
+    end
+
+    test "9: add_event/2 single event lands on the span", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-9-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          event = Otel.API.Trace.Event.new("evt-1", %{"event.attr" => "x"})
+          Otel.API.Trace.Span.add_event(span_ctx, event)
+        end
+      )
+
+      flush()
+      assert [span] = trace_spans(e2e_id)
+      assert [%{"name" => "evt-1"}] = span["events"]
+    end
+
+    test "10: add_event/2 multiple events preserve emission order", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-10-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          for n <- 1..3 do
+            Otel.API.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("evt-#{n}"))
+          end
+        end
+      )
+
+      flush()
+      assert [span] = trace_spans(e2e_id)
+      assert ["evt-1", "evt-2", "evt-3"] = Enum.map(span["events"], & &1["name"])
+    end
+
+    test "11: add_link/2 single link mid-span", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+
+      target_ctx =
+        Otel.API.Trace.start_span(tracer, "target-11-#{e2e_id}",
+          attributes: %{"e2e.id" => e2e_id}
+        )
+
+      Otel.API.Trace.Span.end_span(target_ctx)
+
+      name = "scenario-11-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          Otel.API.Trace.Span.add_link(span_ctx, %Otel.API.Trace.Link{context: target_ctx})
+        end
+      )
+
+      flush()
+      span = trace_spans(e2e_id) |> Enum.find(&(&1["name"] == name))
+      assert [%{"spanId" => linked_span_id}] = span["links"]
+      assert linked_span_id == otlp_id(target_ctx.span_id, 64)
+    end
+
+    test "12: add_link/2 multiple links preserve emission order", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+
+      targets =
+        for n <- 1..3 do
+          ctx =
+            Otel.API.Trace.start_span(tracer, "target-12-#{n}-#{e2e_id}",
+              attributes: %{"e2e.id" => e2e_id}
+            )
+
+          Otel.API.Trace.Span.end_span(ctx)
+          ctx
+        end
+
+      name = "scenario-12-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          for ctx <- targets do
+            Otel.API.Trace.Span.add_link(span_ctx, %Otel.API.Trace.Link{context: ctx})
+          end
+        end
+      )
+
+      flush()
+      span = trace_spans(e2e_id) |> Enum.find(&(&1["name"] == name))
+      expected = Enum.map(targets, &otlp_id(&1.span_id, 64))
+      actual = Enum.map(span["links"], & &1["spanId"])
+      assert expected == actual
+    end
+
+    test "13: set_status/2 :ok lands on the span", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-13-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          Otel.API.Trace.Span.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
+        end
+      )
+
+      flush()
+      assert [span] = trace_spans(e2e_id)
+      # OTLP/JSON status code: 1 = OK, 2 = ERROR.
+      assert span["status"]["code"] in [1, "STATUS_CODE_OK"]
+    end
+
+    test "14: set_status/2 :error carries the description", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      name = "scenario-14-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          Otel.API.Trace.Span.set_status(span_ctx, Otel.API.Trace.Status.new(:error, "boom"))
+        end
+      )
+
+      flush()
+      assert [span] = trace_spans(e2e_id)
+      assert span["status"]["code"] in [2, "STATUS_CODE_ERROR"]
+      assert span["status"]["message"] == "boom"
+    end
+
+    test "15: update_name/2 changes the reported name", %{e2e_id: e2e_id} do
+      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      initial = "initial-15-#{e2e_id}"
+      final = "final-15-#{e2e_id}"
+
+      Otel.API.Trace.with_span(
+        tracer,
+        initial,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn span_ctx ->
+          Otel.API.Trace.Span.update_name(span_ctx, final)
+        end
+      )
+
+      flush()
+      assert [span] = trace_spans(e2e_id)
+      assert span["name"] == final
+    end
+  end
+
   describe "kinds" do
     test "16: each of the 5 SpanKind variants round-trips through Tempo", %{e2e_id: e2e_id} do
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
