@@ -1,9 +1,0 @@
-This project includes code generated from opentelemetry-proto,
-licensed under the Apache License 2.0.
-
-  https://github.com/open-telemetry/opentelemetry-proto
-  Copyright The OpenTelemetry Authors
-  SPDX-License-Identifier: Apache-2.0
-
-Generated files:
-  apps/otel_otlp/lib/otel/otlp/proto/
