@@ -61,4 +61,9 @@ jobs:
         run: mix compile --warnings-as-errors
 
       - name: Run E2E tests
-        run: mix test --only e2e --warnings-as-errors
+        run: |
+          if ls test/e2e/*_test.exs >/dev/null 2>&1; then
+            mix test --only e2e --warnings-as-errors
+          else
+            echo "No e2e test files under test/e2e yet — skipping"
+          fi
