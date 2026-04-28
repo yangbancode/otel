@@ -73,7 +73,9 @@ defmodule Otel.API.Trace.SpanTest do
     end
   end
 
-  describe "recording?/1" do
+  describe "recording?/1 with Noop module" do
+    setup :pin_noop_module
+
     test "returns false without SDK (always non-recording)" do
       assert Otel.API.Trace.Span.recording?(@valid_ctx) == false
     end
@@ -84,6 +86,8 @@ defmodule Otel.API.Trace.SpanTest do
   end
 
   describe "no-op operations on API level" do
+    setup :pin_noop_module
+
     test "set_attribute returns :ok" do
       assert Otel.API.Trace.Span.set_attribute(@valid_ctx, "key", "value") == :ok
     end
@@ -225,5 +229,24 @@ defmodule Otel.API.Trace.SpanTest do
       assert Otel.API.Trace.Span.record_exception(@valid_ctx, %RuntimeError{message: "oops"}) ==
                :ok
     end
+  end
+
+  # Pin the facade dispatch to `Otel.API.Trace.Span.Noop` for the
+  # current test so calls don't reach `Otel.SDK.Trace.Span` (whose
+  # ETS-backed storage may be torn down by other async: false
+  # suites that restart `:otel`). Restore the SDK module on exit.
+  defp pin_noop_module(_ctx) do
+    sdk_module = :persistent_term.get({Otel.API.Trace.Span, :module}, nil)
+    Otel.API.Trace.Span.set_module(Otel.API.Trace.Span.Noop)
+
+    on_exit(fn ->
+      if sdk_module do
+        Otel.API.Trace.Span.set_module(sdk_module)
+      else
+        :persistent_term.erase({Otel.API.Trace.Span, :module})
+      end
+    end)
+
+    :ok
   end
 end
