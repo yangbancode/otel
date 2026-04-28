@@ -38,12 +38,12 @@ mix test --only e2e test/e2e/
 | `[ ]` | 21 | **Sibling spans** | 2× `with_span` under one parent | Tempo: same `parent_span_id` |
 | `[ ]` | 22 | **Deep nesting (5 levels)** | recursive `with_span` | Tempo: parent chain |
 | `[ ]` | 23 | Tracestate propagates across nested spans | nested under parent w/ tracestate | Tempo: child carries parent tracestate |
-| `[ ]` | 24 | Span limits — `attribute_count_limit` | exceed limit | Tempo: `dropped_attributes_count > 0` |
-| `[ ]` | 25 | Span limits — `attribute_value_length_limit` truncation | long string attribute | Tempo: value truncated |
-| `[ ]` | 26 | Span limits — `event_count_limit` | exceed via `add_event` | Tempo: `dropped_events_count > 0` |
-| `[ ]` | 27 | Span limits — `link_count_limit` | exceed via `add_link` | Tempo: `dropped_links_count > 0` |
-| `[ ]` | 28 | Span limits — `attribute_per_event_limit` | event w/ excess attrs | Tempo: event `dropped_attributes_count` |
-| `[ ]` | 29 | Span limits — `attribute_per_link_limit` | link w/ excess attrs | Tempo: link `dropped_attributes_count` |
+| `[x]` | 24 | Span limits — `attribute_count_limit` | exceed limit | Tempo: `dropped_attributes_count > 0` |
+| `[x]` | 25 | Span limits — `attribute_value_length_limit` truncation | long string attribute | Tempo: value truncated |
+| `[x]` | 26 | Span limits — `event_count_limit` | exceed via `add_event` | Tempo: `dropped_events_count > 0` |
+| `[x]` | 27 | Span limits — `link_count_limit` | exceed via `add_link` | Tempo: `dropped_links_count > 0` |
+| `[x]` | 28 | Span limits — `attribute_per_event_limit` | event w/ excess attrs | Tempo: event `dropped_attributes_count` |
+| `[x]` | 29 | Span limits — `attribute_per_link_limit` | link w/ excess attrs | Tempo: link `dropped_attributes_count` |
 | `[ ]` | 30 | Sampler `always_on` | configured then emit | Tempo: span present |
 | `[ ]` | 31 | Sampler `always_off` | configured then emit | Tempo: span absent |
 | `[ ]` | 32 | Sampler `parentbased_always_on` | inherit parent decision | Tempo: span present iff parent sampled |
