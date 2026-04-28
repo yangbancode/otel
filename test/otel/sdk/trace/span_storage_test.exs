@@ -1,5 +1,5 @@
 defmodule Otel.SDK.Trace.SpanStorageTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   setup do
     Application.stop(:otel)
@@ -16,59 +16,40 @@ defmodule Otel.SDK.Trace.SpanStorageTest do
     is_recording: true
   }
 
-  describe "insert/1" do
-    test "inserts a span" do
-      assert Otel.SDK.Trace.SpanStorage.insert(@span) == true
-    end
-  end
+  describe "insert/1 + get/1 + take/1" do
+    test "round-trip: insert → get returns the span; get on a missing key → nil" do
+      assert true == Otel.SDK.Trace.SpanStorage.insert(@span)
 
-  describe "get/1" do
-    test "returns span by span_id" do
-      Otel.SDK.Trace.SpanStorage.insert(@span)
-      span = Otel.SDK.Trace.SpanStorage.get(@span.span_id)
-      assert span.name == "test_span"
-      assert span.trace_id == @span.trace_id
-    end
+      assert %Otel.SDK.Trace.Span{name: "test_span", trace_id: trace_id} =
+               Otel.SDK.Trace.SpanStorage.get(@span.span_id)
 
-    test "returns nil for missing span_id" do
+      assert trace_id == @span.trace_id
       assert Otel.SDK.Trace.SpanStorage.get(999) == nil
     end
-  end
 
-  describe "take/1" do
-    test "removes and returns span" do
+    test "take/1 removes and returns the span; take on a missing key → nil" do
       Otel.SDK.Trace.SpanStorage.insert(@span)
-      span = Otel.SDK.Trace.SpanStorage.take(@span.span_id)
-      assert span.name == "test_span"
-      # gone from table
-      assert Otel.SDK.Trace.SpanStorage.get(@span.span_id) == nil
-    end
 
-    test "returns nil for missing span_id" do
+      assert %Otel.SDK.Trace.Span{name: "test_span"} =
+               Otel.SDK.Trace.SpanStorage.take(@span.span_id)
+
+      assert Otel.SDK.Trace.SpanStorage.get(@span.span_id) == nil
       assert Otel.SDK.Trace.SpanStorage.take(999) == nil
     end
-  end
 
-  describe "insert as update" do
-    test "re-insert replaces span" do
+    test "re-insert under the same span_id replaces the existing entry" do
       Otel.SDK.Trace.SpanStorage.insert(@span)
-      updated_span = %{@span | name: "updated_name"}
-      Otel.SDK.Trace.SpanStorage.insert(updated_span)
-      span = Otel.SDK.Trace.SpanStorage.get(@span.span_id)
-      assert span.name == "updated_name"
+      Otel.SDK.Trace.SpanStorage.insert(%{@span | name: "updated_name"})
+
+      assert Otel.SDK.Trace.SpanStorage.get(@span.span_id).name == "updated_name"
     end
   end
 
-  describe "table properties" do
-    test "table is public and named" do
-      info = :ets.info(Otel.SDK.Trace.SpanStorage.table())
-      assert info[:named_table] == true
-      assert info[:protection] == :public
-    end
+  test "ETS table is named, public, and write-concurrent" do
+    info = :ets.info(Otel.SDK.Trace.SpanStorage.table())
 
-    test "table has write_concurrency" do
-      info = :ets.info(Otel.SDK.Trace.SpanStorage.table())
-      assert info[:write_concurrency] != false
-    end
+    assert info[:named_table] == true
+    assert info[:protection] == :public
+    assert info[:write_concurrency] != false
   end
 end
