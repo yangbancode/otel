@@ -1,11 +1,6 @@
 defmodule Otel.E2E.SmokeTest do
   use Otel.E2E.Case, async: false
 
-  setup_all do
-    Otel.E2E.Emitter.setup_service_name("e2e")
-    :ok
-  end
-
   test "trace lands in Tempo", %{e2e_id: e2e_id} do
     tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
 

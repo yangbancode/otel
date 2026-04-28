@@ -6,17 +6,16 @@ defmodule Otel.E2E.Loki do
   @base "http://localhost:3100"
 
   @doc """
-  Polls Loki's `/loki/api/v1/query_range` for log lines matching
-  `service_name="<service>"` and containing `e2e_id`. Default
-  service is `"e2e"` (set by `Otel.E2E.Emitter.setup_service_name/1`).
+  Polls Loki's `/loki/api/v1/query_range` for log lines containing
+  `e2e_id`. The stream selector `{service_name=~".+"}` matches any
+  service so the test does not need to pin `OTEL_SERVICE_NAME`.
   """
   @spec find(e2e_id :: String.t(), opts :: keyword()) :: Otel.E2E.Polling.result()
   def find(e2e_id, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 10_000)
-    service = Keyword.get(opts, :service, "e2e")
 
     Otel.E2E.Polling.until(timeout, fn ->
-      query = ~s({service_name="#{service}"} |= "#{e2e_id}")
+      query = ~s({service_name=~".+"} |= "#{e2e_id}")
       now = System.system_time(:nanosecond)
       start = now - 60 * 1_000_000_000
 
