@@ -13,7 +13,7 @@ defmodule Otel.E2E.SmokeTest do
 
     flush()
 
-    assert {:ok, [_ | _]} = poll(Tempo.query(e2e_id))
+    assert {:ok, [_ | _]} = poll(Tempo.search(e2e_id))
   end
 
   test "log lands in Loki", %{e2e_id: e2e_id} do

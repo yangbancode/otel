@@ -15,12 +15,12 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | Single span (`with_span`) | `with_span/4` | Tempo: 1 span, name match |
-| `[ ]` | 2 | Manual lifecycle | `start_span` + `end_span` | Tempo: 1 span |
-| `[ ]` | 3 | `start_span` with explicit parent context | `start_span/4` (with ctx) | Tempo: parent_span_id matches passed ctx |
-| `[ ]` | 4 | Initial attributes via opts | `with_span(opts: [attributes: %{...}])` | Tempo: span carries attrs |
-| `[ ]` | 5 | Initial links via opts | `with_span(opts: [links: [...]])` | Tempo: links array |
-| `[ ]` | 6 | `is_root: true` ignores parent | `with_span(opts: [is_root: true])` inside outer span | Tempo: `parent_span_id` empty |
+| `[x]` | 1 | Single span (`with_span`) | `with_span/4` | Tempo: 1 span, name match |
+| `[x]` | 2 | Manual lifecycle | `start_span` + `end_span` | Tempo: 1 span |
+| `[x]` | 3 | `start_span` with explicit parent context | `start_span/4` (with ctx) | Tempo: parent_span_id matches passed ctx |
+| `[x]` | 4 | Initial attributes via opts | `with_span(opts: [attributes: %{...}])` | Tempo: span carries attrs |
+| `[x]` | 5 | Initial links via opts | `with_span(opts: [links: [...]])` | Tempo: links array |
+| `[x]` | 6 | `is_root: true` ignores parent | `with_span(opts: [is_root: true])` inside outer span | Tempo: `parent_span_id` empty |
 | `[ ]` | 7 | `set_attribute/3` | mid-span mutation | Tempo: span carries attr |
 | `[ ]` | 8 | `set_attributes/2` (bulk) | mid-span mutation | Tempo: all attrs |
 | `[ ]` | 9 | Single event | `add_event/2` | Tempo: events array |

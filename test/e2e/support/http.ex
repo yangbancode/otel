@@ -15,19 +15,40 @@ defmodule Otel.E2E.HTTP do
 
   @type result :: {:ok, [term()]} | {:error, term()}
 
-  @interval_ms 1_000
+  @interval_ms 3_000
   @timeout_ms 5_000
-  @max_attempts 3
+  @max_attempts 10
 
   @doc """
   Repeatedly GETs `url` until the JSON body has a non-empty result
   list (Tempo `traces` or Prometheus-style `data.result`). Retries
-  every 1 s up to 3 attempts; returns `{:error, :timeout}` after
+  every 3 s up to 10 attempts; returns `{:error, :timeout}` after
   the final empty response.
+
+  The 3 s interval matches Tempo's `/api/search` indexing cadence
+  — polling faster just queries an empty index repeatedly while
+  the backend catches up. Per-attempt fetch is ~instant on a
+  reachable backend, so this only spends real wall time when
+  nothing has landed yet.
   """
   @spec poll(url :: String.t()) :: result()
   def poll(url) do
     loop(url, @max_attempts)
+  end
+
+  @doc "Single-shot GET. Returns the raw body; tests decode as needed."
+  @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
+  def get(url) do
+    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @timeout_ms}], []) do
+      {:ok, {{_, 200, _}, _, body}} ->
+        {:ok, to_string(body)}
+
+      {:ok, {{_, status, _}, _, body}} ->
+        {:error, {:status, status, to_string(body)}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   @spec loop(url :: String.t(), attempts_left :: non_neg_integer()) :: result()
@@ -51,20 +72,6 @@ defmodule Otel.E2E.HTTP do
   defp fetch(url) do
     with {:ok, body} <- get(url) do
       Jason.decode(body)
-    end
-  end
-
-  @spec get(url :: String.t()) :: {:ok, String.t()} | {:error, term()}
-  defp get(url) do
-    case :httpc.request(:get, {String.to_charlist(url), []}, [{:timeout, @timeout_ms}], []) do
-      {:ok, {{_, 200, _}, _, body}} ->
-        {:ok, to_string(body)}
-
-      {:ok, {{_, status, _}, _, body}} ->
-        {:error, {:status, status, to_string(body)}}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
 end
