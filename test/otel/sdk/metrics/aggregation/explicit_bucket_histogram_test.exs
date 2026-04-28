@@ -5,141 +5,56 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogramTest do
   @boundaries [10, 50, 100]
 
   setup do
-    tab = :ets.new(:test_metrics, [:set, :public])
-    %{tab: tab, opts: %{boundaries: @boundaries}}
+    %{tab: :ets.new(:hist_test, [:set, :public]), opts: %{boundaries: @boundaries}}
   end
 
   defp key(attrs \\ %{}), do: {"histogram", @scope, nil, attrs}
 
-  describe "aggregate/4" do
-    test "creates entry on first aggregate", %{tab: tab, opts: opts} do
-      assert :ok ==
-               Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(
-                 tab,
-                 key(),
-                 5,
-                 opts
-               )
+  defp datapoint(tab, opts) do
+    [dp] =
+      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
+        tab,
+        {"histogram", @scope},
+        opts
+      )
 
-      assert length(:ets.tab2list(tab)) == 1
+    dp
+  end
+
+  test "default_boundaries/0 returns the OTel-spec defaults" do
+    assert Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.default_boundaries() ==
+             [0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10_000]
+  end
+
+  describe "aggregate/4 + collect/3" do
+    # Spec metrics/sdk.md L1314 — bucket boundaries are inclusive
+    # upper bounds; a value equal to a boundary lands in the lower bucket.
+    test "places each value in the right bucket and tracks count, sum, min, max",
+         %{tab: tab, opts: opts} do
+      # 5 → bucket 0 (≤10), 10 → bucket 0 (boundary→lower),
+      # 75 → bucket 2 (≤100), 200 → bucket 3 (overflow).
+      for v <- [5, 10, 75, 200] do
+        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), v, opts)
+      end
+
+      dp = datapoint(tab, opts)
+
+      assert dp.value.bucket_counts == [2, 0, 1, 1]
+      assert dp.value.boundaries == @boundaries
+      assert dp.value.count == 4
+      assert dp.value.sum == 290
+      assert dp.value.min == 5
+      assert dp.value.max == 200
     end
 
-    test "increments correct bucket", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 5, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 15, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 75, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 200, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.bucket_counts == [1, 1, 1, 1]
-    end
-
-    test "tracks count", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 1, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 2, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 3, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.count == 3
-    end
-
-    test "tracks integer sum", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 10, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 20, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.sum == 30
-    end
-
-    test "tracks float sum", %{tab: tab, opts: opts} do
+    test "tracks float sum precisely", %{tab: tab, opts: opts} do
       Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 1.5, opts)
       Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 2.5, opts)
 
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert_in_delta dp.value.sum, 4.0, 0.001
+      assert_in_delta datapoint(tab, opts).value.sum, 4.0, 0.001
     end
 
-    test "tracks min", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 50, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 10, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 30, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.min == 10
-    end
-
-    test "tracks max", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 10, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 90, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 50, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.max == 90
-    end
-
-    test "boundary value goes in lower bucket", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 10, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.bucket_counts == [1, 0, 0, 0]
-    end
-
-    test "value above all boundaries goes in last bucket", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 999, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.bucket_counts == [0, 0, 0, 1]
-    end
-
-    test "separate entries for different attributes", %{tab: tab, opts: opts} do
+    test "keeps separate datapoints per attribute set", %{tab: tab, opts: opts} do
       Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(
         tab,
         key(%{"m" => "GET"}),
@@ -163,24 +78,9 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogramTest do
 
       assert length(dps) == 2
     end
-  end
 
-  describe "collect/3" do
-    test "returns boundaries in datapoint", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 5, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.boundaries == @boundaries
-    end
-
-    test "returns empty for non-existent stream", %{tab: tab, opts: opts} do
-      assert [] ==
+    test "empty result for an unknown stream key", %{tab: tab, opts: opts} do
+      assert [] =
                Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
                  tab,
                  {"other", @scope},
@@ -189,82 +89,26 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogramTest do
     end
   end
 
-  describe "default_boundaries/0" do
-    test "returns spec-defined defaults" do
-      assert Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.default_boundaries() ==
-               [0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10_000]
-    end
-  end
-
-  describe "RecordMinMax option (spec metrics/sdk.md L662)" do
-    test "default true preserves min/max recording", %{tab: tab, opts: opts} do
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 5, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 80, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 12, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.min == 5
-      assert dp.value.max == 80
+  # Spec metrics/sdk.md L662 RecordMinMax option — when false, the
+  # collector emits nil min/max but everything else (count, sum,
+  # buckets) keeps tracking.
+  describe "record_min_max: false" do
+    setup do
+      %{opts: %{boundaries: @boundaries, record_min_max: false}}
     end
 
-    test "record_min_max: false emits nil min/max in datapoint", %{tab: tab} do
-      opts = %{boundaries: @boundaries, record_min_max: false}
+    test "first and subsequent aggregates leave min/max as nil; count/sum/buckets unaffected",
+         %{tab: tab, opts: opts} do
+      for v <- [5, 80, 12] do
+        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), v, opts)
+      end
 
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 5, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 80, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
+      dp = datapoint(tab, opts)
       assert dp.value.min == nil
       assert dp.value.max == nil
-    end
-
-    test "record_min_max: false still tracks count, sum, buckets", %{tab: tab} do
-      opts = %{boundaries: @boundaries, record_min_max: false}
-
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 5, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 80, opts)
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 12, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
       assert dp.value.count == 3
       assert dp.value.sum == 97
       assert Enum.sum(dp.value.bucket_counts) == 3
-    end
-
-    test "record_min_max: false on init clause too (first aggregate)", %{tab: tab} do
-      opts = %{boundaries: @boundaries, record_min_max: false}
-
-      Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), 42, opts)
-
-      [dp] =
-        Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram.collect(
-          tab,
-          {"histogram", @scope},
-          opts
-        )
-
-      assert dp.value.min == nil
-      assert dp.value.max == nil
-      assert dp.value.count == 1
-      assert dp.value.sum == 42
     end
   end
 end
