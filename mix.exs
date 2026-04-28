@@ -57,7 +57,7 @@ defmodule Otel.MixProject do
     [
       licenses: ["Unlicense"],
       links: %{"GitHub" => @repo_url},
-      files: ~w(lib priv mix.exs README.md LICENSE .formatter.exs)
+      files: ~w(lib priv mix.exs README.md LICENSE NOTICE .formatter.exs)
     ]
   end
 end

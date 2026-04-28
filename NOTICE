@@ -1,0 +1,32 @@
+Otel
+Copyright (c) yangbancode and contributors
+
+This software is released into the public domain under The Unlicense
+(see LICENSE).
+
+================================================================================
+Acknowledgements
+================================================================================
+
+This implementation builds on prior work by The OpenTelemetry Authors,
+licensed under the Apache License, Version 2.0
+(https://www.apache.org/licenses/LICENSE-2.0):
+
+  * The wire format is implemented from the OpenTelemetry Protocol
+    (OTLP) `.proto` schemas in
+    https://github.com/open-telemetry/opentelemetry-proto.
+    Schemas under `lib/otel/otlp/proto/` were generated locally with
+    `protoc`.
+
+  * Semantic conventions are implemented from the YAML registry in
+    https://github.com/open-telemetry/semantic-conventions.
+    Modules under `lib/otel/sem_conv/` were generated locally with
+    Weaver (https://github.com/open-telemetry/weaver), and some
+    docstrings carry verbatim attribute briefs from the upstream
+    registry.
+
+  * Behaviour is verified against the OpenTelemetry Specification
+    (https://github.com/open-telemetry/opentelemetry-specification).
+    The Erlang reference implementation
+    (https://github.com/open-telemetry/opentelemetry-erlang) is
+    consulted as a cross-check.
