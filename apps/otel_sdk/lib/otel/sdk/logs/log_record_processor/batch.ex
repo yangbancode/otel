@@ -460,19 +460,14 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   end
 
   def exporting(:info, {:DOWN, ref, :process, pid, reason}, %State{runner: {pid, ref}} = state) do
-    Logger.warning("Otel.SDK.Logs.LogRecordProcessor.Batch: exporter crashed: #{inspect(reason)}")
-
+    warn_exporter_crashed(reason)
     after_runner(%State{state | runner: nil})
   end
 
   def exporting(:state_timeout, :export_timeout, %State{runner: {pid, ref}} = state) do
     Process.demonitor(ref, [:flush])
     Process.exit(pid, :kill)
-
-    Logger.warning(
-      "Otel.SDK.Logs.LogRecordProcessor.Batch: exporter timed out after #{state.export_timeout_ms}ms"
-    )
-
+    warn_exporter_timeout(state.export_timeout_ms)
     after_runner(%State{state | runner: nil})
   end
 
@@ -523,11 +518,49 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.Batch do
   defp report_drops_if_any(%State{dropped_since_last_report: 0} = state), do: state
 
   defp report_drops_if_any(%State{dropped_since_last_report: count} = state) do
+    warn_queue_full_drops(count)
+    %State{state | dropped_since_last_report: 0}
+  end
+
+  # Spec `logs/sdk.md` L540-L541 — when the queue is at
+  # `max_queue_size`, additional log records MUST be dropped.
+  # We warn once per `:export_timer` cycle with the running
+  # total so operators see sustained back-pressure without
+  # being spammed once-per-record.
+  @spec warn_queue_full_drops(count :: pos_integer()) :: :ok
+  defp warn_queue_full_drops(count) do
     Logger.warning(
-      "Otel.SDK.Logs.LogRecordProcessor.Batch: queue full, dropped #{count} log record(s) since last report"
+      "Otel.SDK.Logs.LogRecordProcessor.Batch: queue full — dropped #{count} " <>
+        "log record#{if count == 1, do: "", else: "s"} since last report"
     )
 
-    %State{state | dropped_since_last_report: 0}
+    :ok
+  end
+
+  # Emitted from `:DOWN` runner-crash handler. Not in spec —
+  # operational signal so users can correlate dropped batches
+  # with a crash report.
+  @spec warn_exporter_crashed(reason :: term()) :: :ok
+  defp warn_exporter_crashed(reason) do
+    Logger.warning(
+      "Otel.SDK.Logs.LogRecordProcessor.Batch: exporter crashed with " <>
+        "#{inspect(reason)} — batch dropped, processor remains active"
+    )
+
+    :ok
+  end
+
+  # Emitted when the runner exceeds `export_timeout_ms`. We
+  # kill the runner first; this warning surfaces the choice
+  # to the operator.
+  @spec warn_exporter_timeout(timeout_ms :: pos_integer()) :: :ok
+  defp warn_exporter_timeout(timeout_ms) do
+    Logger.warning(
+      "Otel.SDK.Logs.LogRecordProcessor.Batch: exporter timed out after " <>
+        "#{timeout_ms}ms — runner killed, batch dropped"
+    )
+
+    :ok
   end
 
   @spec start_export(state :: State.t()) :: State.t()

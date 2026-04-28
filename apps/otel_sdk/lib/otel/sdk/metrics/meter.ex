@@ -286,7 +286,7 @@ defmodule Otel.SDK.Metrics.Meter do
 
       false ->
         [{^key, existing}] = :ets.lookup(config.instruments_tab, key)
-        warn_duplicate_if_conflict(existing, instrument)
+        warn_duplicate_instrument(existing, instrument)
         existing
     end
   end
@@ -303,11 +303,11 @@ defmodule Otel.SDK.Metrics.Meter do
   # four user-visible fields and skip the warning when the new
   # registration is identical (idempotent re-registration is
   # common in tests and library reloads).
-  @spec warn_duplicate_if_conflict(
+  @spec warn_duplicate_instrument(
           existing :: Otel.API.Metrics.Instrument.t(),
           new :: Otel.API.Metrics.Instrument.t()
         ) :: :ok
-  defp warn_duplicate_if_conflict(existing, new) do
+  defp warn_duplicate_instrument(existing, new) do
     fields = [:kind, :unit, :description, :advisory]
     diffs = Enum.filter(fields, fn f -> Map.get(existing, f) != Map.get(new, f) end)
 
@@ -315,9 +315,9 @@ defmodule Otel.SDK.Metrics.Meter do
       :ok
     else
       Logger.warning(
-        "Otel.SDK.Metrics.Meter: duplicate instrument registration for #{inspect(new.name)} " <>
-          "differs in #{inspect(diffs)}; returning the existing instrument. " <>
-          "Resolve by giving the second instrument a distinct name, or by using a View to rename."
+        "Otel.SDK.Metrics.Meter: duplicate instrument registration for " <>
+          "#{inspect(new.name)} differs in #{inspect(diffs)} — " <>
+          "give the second instrument a distinct name or use a View to rename"
       )
 
       :ok

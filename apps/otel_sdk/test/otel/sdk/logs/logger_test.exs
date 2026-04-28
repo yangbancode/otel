@@ -255,7 +255,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
           )
         end)
 
-      assert log =~ "LogRecord limits applied"
+      assert log =~ "log record limits applied"
       assert log =~ "dropped 2 attribute"
     end
 
@@ -272,7 +272,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
           )
         end)
 
-      assert log =~ "LogRecord limits applied"
+      assert log =~ "log record limits applied"
       assert log =~ "truncated"
     end
 
@@ -296,7 +296,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
       message_lines =
         log
         |> String.split("\n")
-        |> Enum.filter(&String.contains?(&1, "LogRecord limits applied"))
+        |> Enum.filter(&String.contains?(&1, "log record limits applied"))
 
       assert length(message_lines) == 1
       assert log =~ "dropped 1 attribute"
@@ -315,7 +315,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
           )
         end)
 
-      refute log =~ "LogRecord limits applied"
+      refute log =~ "log record limits applied"
     end
   end
 

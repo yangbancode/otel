@@ -257,7 +257,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
         _from,
         config
       ) do
-    warn_on_invalid_scope_name(instrumentation_scope)
+    warn_invalid_scope_name(instrumentation_scope)
 
     sampler = Otel.SDK.Trace.Sampler.new(config.sampler)
 
@@ -313,10 +313,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
         {:noreply, config}
 
       %{module: module} ->
-        Logger.warning(
-          "Otel.SDK.Trace.TracerProvider: SpanProcessor #{inspect(module)} (#{inspect(pid)}) exited with #{inspect(reason)}; removing from active list."
-        )
-
+        warn_processor_exited(module, pid, reason)
         new_processors = Enum.reject(config.processors, &(&1.pid == pid))
 
         # Update the persistent_term fast path so
@@ -339,8 +336,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
   # invalid SHOULD be logged."* The MUST is satisfied
   # structurally — we always return the SDK Tracer; the SHOULD
   # log is enforced here.
-  @spec warn_on_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
-  defp warn_on_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+  @spec warn_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
+  defp warn_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
     Logger.warning(
       "Otel.SDK.Trace.TracerProvider: invalid Tracer name (empty string) — returning a working Tracer as fallback"
     )
@@ -348,7 +345,20 @@ defmodule Otel.SDK.Trace.TracerProvider do
     :ok
   end
 
-  defp warn_on_invalid_scope_name(_scope), do: :ok
+  defp warn_invalid_scope_name(_scope), do: :ok
+
+  # Emitted from `handle_info({:EXIT, ...})` when a managed
+  # SpanProcessor crashes. Not in spec — operational signal so
+  # users can correlate dropped telemetry with a crash report.
+  @spec warn_processor_exited(module :: module(), pid :: pid(), reason :: term()) :: :ok
+  defp warn_processor_exited(module, pid, reason) do
+    Logger.warning(
+      "Otel.SDK.Trace.TracerProvider: SpanProcessor #{inspect(module)} " <>
+        "(#{inspect(pid)}) exited with #{inspect(reason)} — removed from active list"
+    )
+
+    :ok
+  end
 
   @spec default_config() :: %{atom() => term()}
   defp default_config do

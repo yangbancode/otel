@@ -541,7 +541,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
           Otel.SDK.Logs.LogRecordProcessor.Batch.shutdown(config)
         end)
 
-      assert log =~ "queue full, dropped 3 log record(s) since last report"
+      assert log =~ "queue full — dropped 3 log records since last report"
     end
 
     test "no warning when no records were dropped" do
@@ -599,7 +599,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor.BatchTest do
           assert_receive {:DOWN, ^ref, :process, ^pid, _reason}, 1_000
         end)
 
-      assert log =~ "queue full, dropped 2 log record(s) since last report"
+      assert log =~ "queue full — dropped 2 log records since last report"
     end
   end
 

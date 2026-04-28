@@ -219,7 +219,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
         _from,
         config
       ) do
-    warn_on_invalid_scope_name(instrumentation_scope)
+    warn_invalid_scope_name(instrumentation_scope)
 
     reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
 
@@ -291,10 +291,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
         {:noreply, config}
 
       {module, _pid} ->
-        Logger.warning(
-          "Otel.SDK.Metrics.MeterProvider: MetricReader #{inspect(module)} (#{inspect(pid)}) exited with #{inspect(reason)}; removing from active list."
-        )
-
+        warn_reader_exited(module, pid, reason)
         new_readers = Enum.reject(config.readers, fn {_m, p} -> p == pid end)
         {:noreply, %{config | readers: new_readers}}
     end
@@ -310,8 +307,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   # specified value is invalid SHOULD be logged."* The MUST is
   # satisfied structurally — we always return the SDK Meter; the
   # SHOULD log is enforced here.
-  @spec warn_on_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
-  defp warn_on_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+  @spec warn_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
+  defp warn_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
     Logger.warning(
       "Otel.SDK.Metrics.MeterProvider: invalid Meter name (empty string) — returning a working Meter as fallback"
     )
@@ -319,7 +316,19 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     :ok
   end
 
-  defp warn_on_invalid_scope_name(_scope), do: :ok
+  defp warn_invalid_scope_name(_scope), do: :ok
+
+  # Emitted from `handle_info({:EXIT, ...})` when a managed
+  # MetricReader crashes. Not in spec — operational signal.
+  @spec warn_reader_exited(module :: module(), pid :: pid(), reason :: term()) :: :ok
+  defp warn_reader_exited(module, pid, reason) do
+    Logger.warning(
+      "Otel.SDK.Metrics.MeterProvider: MetricReader #{inspect(module)} " <>
+        "(#{inspect(pid)}) exited with #{inspect(reason)} — removed from active list"
+    )
+
+    :ok
+  end
 
   @spec default_config() :: config()
   defp default_config do

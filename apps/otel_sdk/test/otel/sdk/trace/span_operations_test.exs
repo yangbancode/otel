@@ -577,6 +577,29 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
       assert Otel.SDK.Trace.Span.end_span(span_ctx, nil) == :ok
       assert Otel.SDK.Trace.Span.end_span(span_ctx, nil) == :ok
     end
+
+    test "logs span limits applied warning when any drop occurred (spec L873-L876)" do
+      span_ctx =
+        start_span(span_limits: %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 1})
+
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "a", 1)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "b", 2)
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "c", 3)
+
+      log = ExUnit.CaptureLog.capture_log(fn -> Otel.SDK.Trace.Span.end_span(span_ctx, nil) end)
+
+      assert log =~ "span limits applied"
+      assert log =~ "dropped 2 attributes"
+    end
+
+    test "no warning when no limits triggered" do
+      span_ctx = start_span()
+      Otel.SDK.Trace.Span.set_attribute(span_ctx, "a", 1)
+
+      log = ExUnit.CaptureLog.capture_log(fn -> Otel.SDK.Trace.Span.end_span(span_ctx, nil) end)
+
+      refute log =~ "span limits applied"
+    end
   end
 
   describe "record_exception/4" do
