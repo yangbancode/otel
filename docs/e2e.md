@@ -122,11 +122,11 @@ mix test --only e2e test/e2e/
 | `[ ]` | 22 | View — rename instrument | `criteria: %{name: ...}, config: %{name: "renamed"}` | Mimir: series under new name |
 | `[ ]` | 23 | View — attribute include filter | `config: %{attribute_keys: [...]}` | Mimir: only listed labels |
 | `[ ]` | 24 | View — override aggregation | `config: %{aggregation: :explicit_bucket_histogram}` for a Counter | Mimir: histogram series |
-| `[ ]` | 25 | Exemplar filter `:always_on` | sampling-mode reservoir | Mimir: every measurement attaches exemplar |
-| `[ ]` | 26 | Exemplar filter `:always_off` | reservoir is `Drop` | Mimir: no exemplars |
-| `[ ]` | 27 | Exemplar filter `:trace_based` (default) | sampled span only | Mimir: exemplar present iff span sampled |
-| `[ ]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: per-bucket exemplar |
-| `[ ]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: ≤ N exemplars (size cap) |
+| `[~]` | 25 | Exemplar filter `:always_on` | sampling-mode reservoir | Mimir: lands (exemplar exposure config-dependent in LGTM 0.26.0) |
+| `[~]` | 26 | Exemplar filter `:always_off` | reservoir is `Drop` | Mimir: lands (Drop is internal-only contract) |
+| `[~]` | 27 | Exemplar filter `:trace_based` (default) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
+| `[~]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: histogram lands |
+| `[~]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: counter lands |
 | `[x]` | 30 | PeriodicExporting `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
 | `[x]` | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
 
