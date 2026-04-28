@@ -21,15 +21,15 @@ mix test --only e2e test/e2e/
 | `[x]` | 4 | Initial attributes via opts | `with_span(opts: [attributes: %{...}])` | Tempo: span carries attrs |
 | `[x]` | 5 | Initial links via opts | `with_span(opts: [links: [...]])` | Tempo: links array |
 | `[x]` | 6 | `is_root: true` ignores parent | `with_span(opts: [is_root: true])` inside outer span | Tempo: `parent_span_id` empty |
-| `[ ]` | 7 | `set_attribute/3` | mid-span mutation | Tempo: span carries attr |
-| `[ ]` | 8 | `set_attributes/2` (bulk) | mid-span mutation | Tempo: all attrs |
-| `[ ]` | 9 | Single event | `add_event/2` | Tempo: events array |
-| `[ ]` | 10 | Multiple events preserve order | `add_event/2` × N | Tempo: events ordered |
-| `[ ]` | 11 | Single link | `add_link/2` | Tempo: links array |
-| `[ ]` | 12 | Multiple links preserve order | `add_link/2` × N | Tempo: links ordered |
-| `[ ]` | 13 | Status `:ok` | `set_status/2` | Tempo: status.code = OK |
-| `[ ]` | 14 | Status `:error` | `set_status/2` | Tempo: status.code = ERROR + message |
-| `[ ]` | 15 | Update name | `update_name/2` | Tempo: updated name |
+| `[x]` | 7 | `set_attribute/3` | mid-span mutation | Tempo: span carries attr |
+| `[x]` | 8 | `set_attributes/2` (bulk) | mid-span mutation | Tempo: all attrs |
+| `[x]` | 9 | Single event | `add_event/2` | Tempo: events array |
+| `[x]` | 10 | Multiple events preserve order | `add_event/2` × N | Tempo: events ordered |
+| `[x]` | 11 | Single link | `add_link/2` | Tempo: links array |
+| `[x]` | 12 | Multiple links preserve order | `add_link/2` × N | Tempo: links ordered |
+| `[x]` | 13 | Status `:ok` | `set_status/2` | Tempo: status.code = OK |
+| `[x]` | 14 | Status `:error` | `set_status/2` | Tempo: status.code = ERROR + message |
+| `[x]` | 15 | Update name | `update_name/2` | Tempo: updated name |
 | `[ ]` | 16 | Span kinds — 5 variants iterated | `kind: :internal/:server/:client/:producer/:consumer` | Tempo: each kind matches |
 | `[ ]` | 17 | Exception (`with_span` auto-records) | raise inside `with_span` | Tempo: exception event + Error status |
 | `[ ]` | 18 | `record_exception/3` (manual) | `record_exception/3` | Tempo: exception event |
@@ -38,12 +38,12 @@ mix test --only e2e test/e2e/
 | `[x]` | 21 | **Sibling spans** | 2× `with_span` under one parent | Tempo: same `parent_span_id` |
 | `[x]` | 22 | **Deep nesting (5 levels)** | recursive `with_span` | Tempo: parent chain |
 | `[x]` | 23 | Tracestate propagates across nested spans | nested under parent w/ tracestate | Tempo: child carries parent tracestate |
-| `[ ]` | 24 | Span limits — `attribute_count_limit` | exceed limit | Tempo: `dropped_attributes_count > 0` |
-| `[ ]` | 25 | Span limits — `attribute_value_length_limit` truncation | long string attribute | Tempo: value truncated |
-| `[ ]` | 26 | Span limits — `event_count_limit` | exceed via `add_event` | Tempo: `dropped_events_count > 0` |
-| `[ ]` | 27 | Span limits — `link_count_limit` | exceed via `add_link` | Tempo: `dropped_links_count > 0` |
-| `[ ]` | 28 | Span limits — `attribute_per_event_limit` | event w/ excess attrs | Tempo: event `dropped_attributes_count` |
-| `[ ]` | 29 | Span limits — `attribute_per_link_limit` | link w/ excess attrs | Tempo: link `dropped_attributes_count` |
+| `[x]` | 24 | Span limits — `attribute_count_limit` | exceed limit | Tempo: `dropped_attributes_count > 0` |
+| `[x]` | 25 | Span limits — `attribute_value_length_limit` truncation | long string attribute | Tempo: value truncated |
+| `[x]` | 26 | Span limits — `event_count_limit` | exceed via `add_event` | Tempo: `dropped_events_count > 0` |
+| `[x]` | 27 | Span limits — `link_count_limit` | exceed via `add_link` | Tempo: `dropped_links_count > 0` |
+| `[x]` | 28 | Span limits — `attribute_per_event_limit` | event w/ excess attrs | Tempo: event `dropped_attributes_count` |
+| `[x]` | 29 | Span limits — `attribute_per_link_limit` | link w/ excess attrs | Tempo: link `dropped_attributes_count` |
 | `[ ]` | 30 | Sampler `always_on` | configured then emit | Tempo: span present |
 | `[ ]` | 31 | Sampler `always_off` | configured then emit | Tempo: span absent |
 | `[ ]` | 32 | Sampler `parentbased_always_on` | inherit parent decision | Tempo: span present iff parent sampled |
