@@ -1,12 +1,13 @@
 defmodule Otel.SDK.Logs.LoggerTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
   defmodule CollectorProcessor do
     @moduledoc false
-    def on_emit(record, _ctx, config) do
-      send(config.test_pid, {:log_record, record})
+
+    def on_emit(record, _ctx, %{test_pid: pid}) do
+      send(pid, {:log_record, record})
       :ok
     end
 
@@ -23,106 +24,74 @@ defmodule Otel.SDK.Logs.LoggerTest do
       Application.stop(:otel)
       for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
     end)
-
-    :ok
   end
 
-  defp start_logger_with_limits(limit_overrides) do
-    limits = struct(Otel.SDK.Logs.LogRecordLimits, limit_overrides)
-
-    restart_sdk(
-      logs: [
-        processors: [{CollectorProcessor, %{test_pid: self()}}],
-        log_record_limits: limits
-      ]
-    )
-
+  defp logger_for(scope_name, version \\ "1.0.0") do
     {_mod, config} =
       Otel.SDK.Logs.LoggerProvider.get_logger(
         Otel.SDK.Logs.LoggerProvider,
-        %Otel.API.InstrumentationScope{name: "lib"}
+        %Otel.API.InstrumentationScope{name: scope_name, version: version}
       )
 
     {Otel.SDK.Logs.Logger, config}
   end
 
-  setup do
-    restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
+  defp logger_with_limits(limit_overrides) do
+    restart_sdk(
+      logs: [
+        processors: [{CollectorProcessor, %{test_pid: self()}}],
+        log_record_limits: struct(Otel.SDK.Logs.LogRecordLimits, limit_overrides)
+      ]
+    )
 
-    {_module, logger_config} =
-      Otel.SDK.Logs.LoggerProvider.get_logger(
-        Otel.SDK.Logs.LoggerProvider,
-        %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"}
-      )
-
-    logger = {Otel.SDK.Logs.Logger, logger_config}
-
-    %{logger: logger}
+    logger_for("lib")
   end
 
-  describe "emit/3" do
-    test "dispatches to processor", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "hello"})
-      assert_receive {:log_record, record}
-      assert record.body == "hello"
-    end
+  setup do
+    restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
+    %{logger: logger_for("test_lib")}
+  end
 
-    test "sets observed_timestamp when not provided", %{logger: logger} do
+  describe "emit/3 — record enrichment" do
+    test "fills observed_timestamp from current time when missing; preserves user value when set",
+         %{logger: logger} do
       ctx = Otel.API.Ctx.current()
+
       before = System.system_time(:nanosecond)
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "test"})
-      assert_receive {:log_record, record}
-      assert record.observed_timestamp >= before
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "auto"})
+      assert_receive {:log_record, auto}
+      assert auto.observed_timestamp >= before
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+        body: "manual",
+        observed_timestamp: 42
+      })
+
+      assert_receive {:log_record, manual}
+      assert manual.observed_timestamp == 42
     end
 
-    test "preserves user-provided observed_timestamp", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-
-      Otel.SDK.Logs.Logger.emit(
-        logger,
-        ctx,
-        %Otel.API.Logs.LogRecord{body: "test", observed_timestamp: 42}
-      )
-
+    test "decorates with scope, resource, trace context, and proto3 defaults", %{logger: logger} do
+      Otel.SDK.Logs.Logger.emit(logger, Otel.API.Ctx.current(), %Otel.API.Logs.LogRecord{})
       assert_receive {:log_record, record}
-      assert record.observed_timestamp == 42
-    end
 
-    test "populates all proto3-default fields on empty record", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{})
-      assert_receive {:log_record, record}
+      assert record.scope.name == "test_lib"
+      assert record.scope.version == "1.0.0"
+      assert %Otel.SDK.Resource{} = record.resource
       assert record.timestamp == 0
       assert record.severity_number == 0
       assert record.severity_text == ""
       assert record.body == nil
       assert record.attributes == %{}
       assert record.event_name == ""
+
+      for field <- [:trace_id, :span_id, :trace_flags] do
+        assert Map.has_key?(record, field)
+      end
     end
 
-    test "includes scope and resource", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "scoped"})
-      assert_receive {:log_record, record}
-      assert record.scope.name == "test_lib"
-      assert record.scope.version == "1.0.0"
-      assert %Otel.SDK.Resource{} = record.resource
-    end
-
-    test "extracts trace context", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "traced"})
-      assert_receive {:log_record, record}
-      assert Map.has_key?(record, :trace_id)
-      assert Map.has_key?(record, :span_id)
-      assert Map.has_key?(record, :trace_flags)
-    end
-
-    test "passes all user-provided fields through", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+    test "passes user-provided fields through verbatim", %{logger: logger} do
+      Otel.SDK.Logs.Logger.emit(logger, Otel.API.Ctx.current(), %Otel.API.Logs.LogRecord{
         timestamp: 1_000_000,
         severity_number: 9,
         severity_text: "INFO",
@@ -141,189 +110,132 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
   end
 
-  describe "enabled?/2" do
-    test "returns true when processors exist", %{logger: logger} do
-      assert Otel.SDK.Logs.Logger.enabled?(logger, [])
-    end
-
-    test "returns false when no processors" do
-      restart_sdk(logs: [exporter: :none])
-
-      {_mod, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(
-          Otel.SDK.Logs.LoggerProvider,
-          %Otel.API.InstrumentationScope{name: "lib"}
-        )
-
-      logger = {Otel.SDK.Logs.Logger, config}
-
-      refute Otel.SDK.Logs.Logger.enabled?(logger, [])
-    end
+  test "emit via Otel.API.Logs.Logger dispatch reaches the SDK Logger", %{logger: logger} do
+    Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{body: "via API"})
+    assert_receive {:log_record, %{body: "via API"}}
   end
 
   describe "exception handling" do
-    test "sets exception attributes from exception", %{logger: logger} do
+    test "exception fields populate exception.type / exception.message attributes; user values win",
+         %{logger: logger} do
       ctx = Otel.API.Ctx.current()
-      exception = %RuntimeError{message: "something went wrong"}
+      ex = %RuntimeError{message: "auto"}
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "e", exception: ex})
+      assert_receive {:log_record, auto}
+      assert auto.attributes["exception.type"] == "Elixir.RuntimeError"
+      assert auto.attributes["exception.message"] == "auto"
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
-        body: "error",
-        exception: exception
-      })
-
-      assert_receive {:log_record, record}
-      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
-      assert record.attributes["exception.message"] == "something went wrong"
-    end
-
-    test "user attributes take precedence over exception attributes", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-      exception = %RuntimeError{message: "auto"}
-
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
-        body: "error",
-        exception: exception,
+        body: "e",
+        exception: ex,
         attributes: %{"exception.message" => "user override"}
       })
 
-      assert_receive {:log_record, record}
-      assert record.attributes["exception.message"] == "user override"
-      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
+      assert_receive {:log_record, override}
+      assert override.attributes["exception.message"] == "user override"
+      assert override.attributes["exception.type"] == "Elixir.RuntimeError"
     end
 
-    test "no exception does not set exception attributes", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "normal"})
+    test "no exception → no exception attributes injected", %{logger: logger} do
+      Otel.SDK.Logs.Logger.emit(logger, Otel.API.Ctx.current(), %Otel.API.Logs.LogRecord{
+        body: "normal"
+      })
+
       assert_receive {:log_record, record}
       refute Map.has_key?(record.attributes, "exception.type")
     end
   end
 
-  describe "attribute limits" do
-    test "truncates attribute values when limit set" do
-      logger =
-        start_logger_with_limits(attribute_value_length_limit: 5)
+  describe "Logger.enabled?/2" do
+    test "true when at least one processor exists; false when none", %{logger: logger} do
+      assert Otel.SDK.Logs.Logger.enabled?(logger, [])
 
-      ctx = Otel.API.Ctx.current()
-
-      Otel.SDK.Logs.Logger.emit(
-        logger,
-        ctx,
-        %Otel.API.Logs.LogRecord{attributes: %{"key" => "abcdefgh"}}
-      )
-
-      assert_receive {:log_record, record}
-      assert record.attributes["key"] == "abcde"
+      restart_sdk(logs: [exporter: :none])
+      refute Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
     end
+  end
 
-    test "drops excess attributes when count limit set" do
-      logger = start_logger_with_limits(attribute_count_limit: 2)
+  describe "log_record_limits enforcement" do
+    test "value-length limit truncates strings; count limit drops attributes; both report dropped_attributes_count" do
+      logger = logger_with_limits(attribute_value_length_limit: 5)
       ctx = Otel.API.Ctx.current()
+
+      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+        attributes: %{"key" => "abcdefgh"}
+      })
+
+      assert_receive {:log_record, truncated}
+      assert truncated.attributes["key"] == "abcde"
+      assert truncated.dropped_attributes_count == 0
+
+      logger = logger_with_limits(attribute_count_limit: 2)
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
         attributes: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
       })
 
-      assert_receive {:log_record, record}
-      assert map_size(record.attributes) == 2
-      assert record.dropped_attributes_count == 2
+      assert_receive {:log_record, dropped}
+      assert map_size(dropped.attributes) == 2
+      assert dropped.dropped_attributes_count == 2
     end
 
-    test "dropped_attributes_count is 0 when within limit", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
-
-      Otel.SDK.Logs.Logger.emit(
-        logger,
-        ctx,
-        %Otel.API.Logs.LogRecord{attributes: %{"a" => 1}}
-      )
-
-      assert_receive {:log_record, record}
-      assert record.dropped_attributes_count == 0
-    end
-
-    test "warns when attributes are dropped", %{logger: _default_logger} do
-      logger = start_logger_with_limits(%{attribute_count_limit: 1})
-      ctx = Otel.API.Ctx.current()
-
-      log =
+    test "warns once with the right phrase when limits trim; silent when within limits" do
+      drop_log =
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
-            logger,
-            ctx,
+            logger_with_limits(attribute_count_limit: 1),
+            Otel.API.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => 2, "c" => 3}}
           )
         end)
 
-      assert log =~ "log record limits applied"
-      assert log =~ "dropped 2 attribute"
-    end
+      assert drop_log =~ "log record limits applied"
+      assert drop_log =~ "dropped 2 attribute"
 
-    test "warns when values are truncated", %{logger: _default_logger} do
-      logger = start_logger_with_limits(%{attribute_value_length_limit: 3})
-      ctx = Otel.API.Ctx.current()
-
-      log =
+      truncate_log =
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
-            logger,
-            ctx,
+            logger_with_limits(attribute_value_length_limit: 3),
+            Otel.API.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"key" => "abcdefg"}}
           )
         end)
 
-      assert log =~ "log record limits applied"
-      assert log =~ "truncated"
-    end
+      assert truncate_log =~ "log record limits applied"
+      assert truncate_log =~ "truncated"
 
-    test "drop takes precedence in single message when both effects occur", %{
-      logger: _default_logger
-    } do
-      logger =
-        start_logger_with_limits(%{attribute_count_limit: 1, attribute_value_length_limit: 3})
-
-      ctx = Otel.API.Ctx.current()
-
-      log =
+      # When both effects occur in one record, drop wins; only one warning.
+      both_log =
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
-            logger,
-            ctx,
+            logger_with_limits(attribute_count_limit: 1, attribute_value_length_limit: 3),
+            Otel.API.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"a" => "abcdef", "b" => "ghijkl"}}
           )
         end)
 
-      message_lines =
-        log
+      lines =
+        both_log
         |> String.split("\n")
         |> Enum.filter(&String.contains?(&1, "log record limits applied"))
 
-      assert length(message_lines) == 1
-      assert log =~ "dropped 1 attribute"
-      refute log =~ "truncated"
-    end
+      assert length(lines) == 1
+      assert both_log =~ "dropped 1 attribute"
+      refute both_log =~ "truncated"
 
-    test "does not warn when within limits", %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
+      restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
 
-      log =
+      silent_log =
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
-            logger,
-            ctx,
+            logger_for("lib"),
+            Otel.API.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => "short"}}
           )
         end)
 
-      refute log =~ "log record limits applied"
-    end
-  end
-
-  describe "dispatch via API" do
-    test "emit via API dispatch works", %{logger: logger} do
-      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{body: "via API"})
-      assert_receive {:log_record, record}
-      assert record.body == "via API"
+      refute silent_log =~ "log record limits applied"
     end
   end
 end

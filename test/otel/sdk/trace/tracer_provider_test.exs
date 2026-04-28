@@ -1,19 +1,33 @@
-defmodule Otel.SDK.Trace.TracerProviderTest.OkProcessor do
-  def shutdown(_config, _timeout \\ 5_000), do: :ok
-  def force_flush(_config, _timeout \\ 5_000), do: :ok
-end
-
-defmodule Otel.SDK.Trace.TracerProviderTest.FailProcessor do
-  def shutdown(_config, _timeout \\ 5_000), do: {:error, :shutdown_failed}
-  def force_flush(_config, _timeout \\ 5_000), do: {:error, :flush_failed}
-end
-
 defmodule Otel.SDK.Trace.TracerProviderTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
-  setup do
-    restart_sdk(trace: [exporter: :none])
-    %{provider: Otel.SDK.Trace.TracerProvider}
+  import ExUnit.CaptureLog
+
+  defmodule OkProcessor do
+    @moduledoc false
+    def shutdown(_cfg, _t \\ 5_000), do: :ok
+    def force_flush(_cfg, _t \\ 5_000), do: :ok
+  end
+
+  defmodule FailProcessor do
+    @moduledoc false
+    def shutdown(_cfg, _t \\ 5_000), do: {:error, :shutdown_failed}
+    def force_flush(_cfg, _t \\ 5_000), do: {:error, :flush_failed}
+  end
+
+  defmodule LinkableProcessor do
+    @moduledoc false
+    use GenServer
+
+    def start_link(config), do: GenServer.start_link(__MODULE__, config)
+
+    @impl true
+    def init(config), do: {:ok, config}
+
+    def on_start(_ctx, span, _cfg), do: span
+    def on_end(_span, _cfg), do: :ok
+    def shutdown(_cfg, _t \\ 5_000), do: :ok
+    def force_flush(_cfg, _t \\ 5_000), do: :ok
   end
 
   defp restart_sdk(env) do
@@ -25,188 +39,100 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       Application.stop(:otel)
       for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
     end)
-
-    :ok
   end
 
-  describe "start_link/1" do
-    test "starts with default config", %{provider: provider} do
-      assert Process.alive?(Process.whereis(provider))
-    end
-
-    test "registers as global provider on start", %{provider: provider} do
-      assert Otel.API.Trace.TracerProvider.get_provider() ==
-               {Otel.SDK.Trace.TracerProvider, provider}
-    end
-
-    test "starts with custom config" do
-      custom_resource = Otel.SDK.Resource.create(%{"service.name" => "test"})
-      restart_sdk(trace: [exporter: :none, resource: custom_resource])
-      assert Process.alive?(Process.whereis(Otel.SDK.Trace.TracerProvider))
-    end
+  setup do
+    restart_sdk(trace: [exporter: :none])
+    %{provider: Otel.SDK.Trace.TracerProvider}
   end
 
-  describe "get_tracer/2,3,4" do
-    test "returns SDK tracer tuple", %{provider: pid} do
-      {module, tracer_config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
-          name: "my_lib"
-        })
+  test "registers as global TracerProvider on boot", %{provider: p} do
+    assert Process.alive?(Process.whereis(p))
+    assert Otel.API.Trace.TracerProvider.get_provider() == {Otel.SDK.Trace.TracerProvider, p}
+  end
 
-      assert module == Otel.SDK.Trace.Tracer
-      assert %{sampler: _, id_generator: _, span_limits: _, scope: _} = tracer_config
-    end
-
-    test "tracer includes instrumentation scope", %{provider: pid} do
-      {_module, %{scope: scope}} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
+  describe "get_tracer/2" do
+    test "returns {SDK.Tracer, config} carrying scope, sampler, id_generator, span_limits",
+         %{provider: p} do
+      {module, config} =
+        Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{
           name: "my_lib",
           version: "1.0.0",
           schema_url: "https://example.com"
         })
 
+      assert module == Otel.SDK.Trace.Tracer
+
       assert %Otel.API.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com"
-             } = scope
-    end
+             } = config.scope
 
-    test "tracer includes initialized sampler", %{provider: pid} do
-      {_module, %{sampler: sampler}} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
-          name: "my_lib"
-        })
-
-      # sampler is already initialized {module, description, config} tuple
-      assert {Otel.SDK.Trace.Sampler.ParentBased, _desc, _config} = sampler
-    end
-
-    test "tracer includes id_generator and span_limits", %{provider: pid} do
-      {_module, config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
-          name: "my_lib"
-        })
-
+      # Sampler is initialized to {module, description, opts}.
+      assert {Otel.SDK.Trace.Sampler.ParentBased, _desc, _opts} = config.sampler
       assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
       assert %Otel.SDK.Trace.SpanLimits{} = config.span_limits
     end
 
-    test "logs a warning for empty Tracer name (spec MUST/SHOULD)", %{provider: pid} do
+    # Spec trace/sdk.md L125-L130 — invalid Tracer name SHOULD log a
+    # warning, but the original value MUST be preserved.
+    test "empty Tracer name → warns; valid name is silent", %{provider: p} do
       log =
-        ExUnit.CaptureLog.capture_log(fn ->
-          Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{name: ""})
+        capture_log(fn ->
+          Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: ""})
         end)
 
       assert log =~ "invalid Tracer name"
-    end
 
-    test "no warning for a valid Tracer name", %{provider: pid} do
-      log =
-        ExUnit.CaptureLog.capture_log(fn ->
-          Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
-            name: "my_lib"
-          })
+      silent =
+        capture_log(fn ->
+          Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: "ok"})
         end)
 
-      refute log =~ "invalid Tracer name"
+      refute silent =~ "invalid Tracer name"
     end
   end
 
-  describe "shutdown/1" do
-    test "returns :ok with no processors", %{provider: pid} do
-      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == :ok
+  describe "shutdown/1 + force_flush/1" do
+    test "no-processor provider: first shutdown :ok; subsequent ops → :already_shutdown; get_tracer → Noop",
+         %{provider: p} do
+      assert :ok = Otel.SDK.Trace.TracerProvider.shutdown(p)
+
+      assert {:error, :already_shutdown} = Otel.SDK.Trace.TracerProvider.shutdown(p)
+      assert {:error, :already_shutdown} = Otel.SDK.Trace.TracerProvider.force_flush(p)
+
+      {Otel.API.Trace.Tracer.Noop, _} =
+        Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: "lib"})
     end
 
-    test "invokes shutdown on all processors" do
-      restart_sdk(
-        trace: [
-          processors: [
-            {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}},
-            {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}}
-          ]
-        ]
-      )
+    test "invokes shutdown / force_flush on every registered processor" do
+      restart_sdk(trace: [processors: [{OkProcessor, %{}}, {OkProcessor, %{}}]])
+      assert :ok = Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider)
 
-      assert Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider) == :ok
+      restart_sdk(trace: [processors: [{OkProcessor, %{}}]])
+      assert :ok = Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider)
     end
 
-    test "collects errors from failing processors" do
-      restart_sdk(
-        trace: [
-          processors: [
-            {Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}},
-            {Otel.SDK.Trace.TracerProviderTest.FailProcessor, %{}}
-          ]
-        ]
-      )
+    test "errors from processors are collected per-processor" do
+      restart_sdk(trace: [processors: [{OkProcessor, %{}}, {FailProcessor, %{}}]])
 
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, :shutdown_failed}]} =
+      assert {:error, [{FailProcessor, :shutdown_failed}]} =
                Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider)
-    end
 
-    test "returns noop tracer after shutdown", %{provider: pid} do
-      Otel.SDK.Trace.TracerProvider.shutdown(pid)
+      restart_sdk(trace: [processors: [{FailProcessor, %{}}]])
 
-      {module, _} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(pid, %Otel.API.InstrumentationScope{
-          name: "my_lib"
-        })
-
-      assert module == Otel.API.Trace.Tracer.Noop
-    end
-
-    test "second shutdown returns error", %{provider: pid} do
-      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == :ok
-      assert Otel.SDK.Trace.TracerProvider.shutdown(pid) == {:error, :already_shutdown}
-    end
-  end
-
-  describe "force_flush/1" do
-    test "returns :ok with no processors", %{provider: pid} do
-      assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == :ok
-    end
-
-    test "invokes force_flush on all processors" do
-      restart_sdk(trace: [processors: [{Otel.SDK.Trace.TracerProviderTest.OkProcessor, %{}}]])
-
-      assert Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider) == :ok
-    end
-
-    test "collects errors from failing processors" do
-      restart_sdk(trace: [processors: [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, %{}}]])
-
-      assert {:error, [{Otel.SDK.Trace.TracerProviderTest.FailProcessor, :flush_failed}]} =
+      assert {:error, [{FailProcessor, :flush_failed}]} =
                Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider)
-    end
-
-    test "returns error after shutdown", %{provider: pid} do
-      Otel.SDK.Trace.TracerProvider.shutdown(pid)
-      assert Otel.SDK.Trace.TracerProvider.force_flush(pid) == {:error, :already_shutdown}
     end
   end
 
   describe "processor crash handling" do
-    defmodule LinkableProcessor do
-      @moduledoc false
-      use GenServer
-
-      def start_link(config), do: GenServer.start_link(__MODULE__, config)
-
-      @impl true
-      def init(config), do: {:ok, config}
-
-      def on_start(_ctx, span, _config), do: span
-      def on_end(_span, _config), do: :ok
-      def shutdown(_config, _timeout \\ 5_000), do: :ok
-      def force_flush(_config, _timeout \\ 5_000), do: :ok
-    end
-
-    test "removes a crashed processor and keeps serving the rest" do
+    test "killing a process-backed processor removes it from state and persistent_term registry" do
       restart_sdk(trace: [processors: [{LinkableProcessor, %{}}, {LinkableProcessor, %{}}]])
-
       provider = Otel.SDK.Trace.TracerProvider
-      [%{pid: victim} = _entry, %{pid: survivor}] = :sys.get_state(provider).processors
+
+      [%{pid: victim}, %{pid: survivor}] = :sys.get_state(provider).processors
       key = :sys.get_state(provider).processors_key
       assert length(:persistent_term.get(key)) == 2
 
@@ -214,36 +140,29 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       Process.exit(victim, :kill)
       assert_receive {:DOWN, ^ref, :process, ^victim, :killed}
 
-      # Round-trip a call so the provider has finished its EXIT handler.
+      # Round-trip a call so the provider has run its EXIT handler.
       _ = :sys.get_state(provider)
       assert Process.alive?(Process.whereis(provider))
       assert [%{pid: ^survivor}] = :sys.get_state(provider).processors
       assert [{LinkableProcessor, _}] = :persistent_term.get(key)
     end
 
-    test "ignores EXIT from unmanaged process", %{provider: provider} do
-      send(Process.whereis(provider), {:EXIT, self(), :unrelated})
-      assert is_map(:sys.get_state(provider))
-    end
+    test "ignores EXIT from unmanaged processes; ignores late EXIT after shutdown",
+         %{provider: p} do
+      send(Process.whereis(p), {:EXIT, self(), :unrelated})
+      assert is_map(:sys.get_state(p))
 
-    test "ignores late EXIT after shutdown", %{provider: provider} do
-      :ok = Otel.SDK.Trace.TracerProvider.shutdown(provider)
-      send(Process.whereis(provider), {:EXIT, self(), :late})
-      assert match?(%{shut_down: true}, :sys.get_state(provider))
+      :ok = Otel.SDK.Trace.TracerProvider.shutdown(p)
+      send(Process.whereis(p), {:EXIT, self(), :late})
+      assert match?(%{shut_down: true}, :sys.get_state(p))
     end
   end
 
-  describe "introspection" do
-    test "resource/1 returns the configured resource", %{provider: pid} do
-      assert %Otel.SDK.Resource{} = Otel.SDK.Trace.TracerProvider.resource(pid)
-    end
+  test "resource/1 + config/1 return the boot-time provider state", %{provider: p} do
+    assert %Otel.SDK.Resource{} = Otel.SDK.Trace.TracerProvider.resource(p)
 
-    test "config/1 returns the runtime config snapshot", %{provider: pid} do
-      config = Otel.SDK.Trace.TracerProvider.config(pid)
-      assert is_map(config)
-      assert Map.has_key?(config, :sampler)
-      assert Map.has_key?(config, :processors)
-      assert Map.has_key?(config, :resource)
-    end
+    config = Otel.SDK.Trace.TracerProvider.config(p)
+
+    for field <- [:sampler, :processors, :resource], do: assert(Map.has_key?(config, field))
   end
 end
