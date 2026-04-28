@@ -1,153 +1,68 @@
 defmodule Otel.SDK.Trace.Sampler.ParentBasedTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
 
-  describe "root span (no parent)" do
-    test "delegates to root sampler (default AlwaysOn)" do
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-        )
+  # Default ParentBased — root delegates to AlwaysOn; remote/local
+  # parent (sampled vs not-sampled) inherits the parent's sampled bit
+  # via the default AlwaysOn / AlwaysOff sub-samplers.
+  @sampler Otel.SDK.Trace.Sampler.new(
+             {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
+           )
 
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, 123, [], "span", :internal, %{})
-
-      assert decision == :record_and_sample
-    end
-
-    test "treats span_id 0 as root" do
-      parent = %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 0}
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-        )
-
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
-
-      assert decision == :record_and_sample
-    end
-
-    test "uses custom root sampler" do
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}}}}
-        )
-
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, %{}, 123, [], "span", :internal, %{})
-
-      assert decision == :drop
-    end
-  end
-
-  describe "remote parent sampled" do
-    test "delegates to remote_parent_sampled (default AlwaysOn)" do
-      parent = %Otel.API.Trace.SpanContext{
+  defp parent_ctx(span_id, trace_flags, is_remote) do
+    Otel.API.Trace.set_current_span(
+      Otel.API.Ctx.new(),
+      %Otel.API.Trace.SpanContext{
         trace_id: 123,
-        span_id: 456,
-        trace_flags: 1,
-        is_remote: true
+        span_id: span_id,
+        trace_flags: trace_flags,
+        is_remote: is_remote
       }
+    )
+  end
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+  defp decision(sampler, ctx),
+    do:
+      elem(Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{}), 0)
 
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-        )
+  describe "delegates to the right sub-sampler per parent shape" do
+    test "no parent → root sampler (AlwaysOn by default)" do
+      assert decision(@sampler, %{}) == :record_and_sample
+    end
 
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
+    test "span_id 0 is treated as root" do
+      assert decision(@sampler, parent_ctx(0, 1, false)) == :record_and_sample
+    end
 
-      assert decision == :record_and_sample
+    # Spec trace/sdk.md L240-L260 — parent's sampled bit drives the
+    # default behavior on each of the four parent variants.
+    test "remote sampled → record_and_sample; remote unsampled → drop" do
+      assert decision(@sampler, parent_ctx(456, 1, true)) == :record_and_sample
+      assert decision(@sampler, parent_ctx(456, 0, true)) == :drop
+    end
+
+    test "local sampled → record_and_sample; local unsampled → drop" do
+      assert decision(@sampler, parent_ctx(456, 1, false)) == :record_and_sample
+      assert decision(@sampler, parent_ctx(456, 0, false)) == :drop
     end
   end
 
-  describe "remote parent not sampled" do
-    test "delegates to remote_parent_not_sampled (default AlwaysOff)" do
-      parent = %Otel.API.Trace.SpanContext{
-        trace_id: 123,
-        span_id: 456,
-        trace_flags: 0,
-        is_remote: true
-      }
+  test "custom root sampler is honoured for span with no parent" do
+    custom_root =
+      Otel.SDK.Trace.Sampler.new(
+        {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}}}}
+      )
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-        )
-
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
-
-      assert decision == :drop
-    end
+    assert decision(custom_root, %{}) == :drop
   end
 
-  describe "local parent sampled" do
-    test "delegates to local_parent_sampled (default AlwaysOn)" do
-      parent = %Otel.API.Trace.SpanContext{
-        trace_id: 123,
-        span_id: 456,
-        trace_flags: 1,
-        is_remote: false
-      }
+  test "description/1 includes every sub-sampler" do
+    desc = Otel.SDK.Trace.Sampler.description(@sampler)
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-        )
-
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
-
-      assert decision == :record_and_sample
-    end
-  end
-
-  describe "local parent not sampled" do
-    test "delegates to local_parent_not_sampled (default AlwaysOff)" do
-      parent = %Otel.API.Trace.SpanContext{
-        trace_id: 123,
-        span_id: 456,
-        trace_flags: 0,
-        is_remote: false
-      }
-
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
-
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-        )
-
-      {decision, _, _} =
-        Otel.SDK.Trace.Sampler.should_sample(sampler, ctx, 123, [], "span", :internal, %{})
-
-      assert decision == :drop
-    end
-  end
-
-  describe "description" do
-    test "includes all sub-sampler descriptions" do
-      sampler =
-        Otel.SDK.Trace.Sampler.new(
-          {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-        )
-
-      desc = Otel.SDK.Trace.Sampler.description(sampler)
-      assert desc =~ "ParentBased{"
-      assert desc =~ "root:AlwaysOnSampler"
-      assert desc =~ "remoteParentSampled:AlwaysOnSampler"
-      assert desc =~ "remoteParentNotSampled:AlwaysOffSampler"
-      assert desc =~ "localParentSampled:AlwaysOnSampler"
-      assert desc =~ "localParentNotSampled:AlwaysOffSampler"
-    end
+    assert desc =~ "ParentBased{"
+    assert desc =~ "root:AlwaysOnSampler"
+    assert desc =~ "remoteParentSampled:AlwaysOnSampler"
+    assert desc =~ "remoteParentNotSampled:AlwaysOffSampler"
+    assert desc =~ "localParentSampled:AlwaysOnSampler"
+    assert desc =~ "localParentNotSampled:AlwaysOffSampler"
   end
 end
