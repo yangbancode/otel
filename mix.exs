@@ -19,6 +19,8 @@ defmodule Otel.MixProject do
         "coveralls.github": :test
       ],
       elixirc_options: [warnings_as_errors: true],
+      elixirc_paths: elixirc_paths(Mix.env()),
+      dialyzer: [plt_add_apps: [:ex_unit]],
       description: description(),
       package: package(),
       source_url: @repo_url,
@@ -26,6 +28,9 @@ defmodule Otel.MixProject do
       docs: docs()
     ]
   end
+
+  defp elixirc_paths(:test), do: ["lib", "test/e2e/support"]
+  defp elixirc_paths(_), do: ["lib"]
 
   defp docs do
     [
