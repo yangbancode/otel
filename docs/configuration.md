@@ -1,13 +1,13 @@
 # Configuration
 
-Sources, by priority:
+Sources, highest priority first:
 
-| Source | Wins over |
+| # | Source |
 |---|---|
-| `OTEL_CONFIG_FILE` (YAML) | everything else |
-| `config :otel, ...` in `config/*.exs` | env vars + defaults |
-| `OTEL_*` environment variables | defaults |
-| Built-in defaults | — |
+| 1 | `OTEL_CONFIG_FILE` (YAML) — overrides everything below |
+| 2 | `config :otel, ...` in `config/*.exs` |
+| 3 | `OTEL_*` environment variables |
+| 4 | Built-in defaults |
 
 ## Application env
 
