@@ -53,20 +53,20 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[ ]` | 1 | String body | `body: "msg"` | Loki: line match |
-| `[ ]` | 2 | Map body | `body: %{...}` | Loki: structured fields |
-| `[ ]` | 3 | Map body — nested map keys recursively stringified | `body: %{user: %{id: 42}}` | Loki: keys all `String.t()` |
-| `[ ]` | 4 | Bytes body | `body: {:bytes, ...}` | Loki: bytes encoding |
-| `[ ]` | 5 | All 8 severity levels | `severity_number: 5/9/10/13/17/18/19/21` | Loki: `severity_text` matches each |
-| `[ ]` | 6 | `severity_number: 0` sentinel | default unspecified severity | Loki: `severity_number_unspecified` |
-| `[ ]` | 7 | `event_name` field | `event_name: "..."` | Loki: event_name attribute |
-| `[ ]` | 8 | `timestamp` vs `observed_timestamp` | omit timestamp → SDK fills observed | Loki: both fields present, distinct |
-| `[ ]` | 9 | Custom attributes | `attributes: %{...}` | Loki: labels / fields |
-| `[ ]` | 10 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` match |
-| `[ ]` | 11 | LogRecord limits — `attribute_count_limit` | exceed attr count | Loki: `dropped_attributes_count` |
-| `[ ]` | 12 | LogRecord limits — `attribute_value_length_limit` truncation | long string attr | Loki: value truncated |
-| `[ ]` | 13 | Multi-logger (different scopes) | `get_logger(A)`, `get_logger(B)` | Loki: `scope_name` disambiguation |
-| `[ ]` | 14 | Exception sidecar via SDK API | set `exception:` field on LogRecord | Loki: `exception.type` / `exception.message` |
+| `[x]` | 1 | String body | `body: "msg"` | Loki: line match |
+| `[x]` | 2 | Map body | `body: %{...}` | Loki: structured fields |
+| `[x]` | 3 | Map body — nested map keys recursively stringified | `body: %{user: %{id: 42}}` | Loki: keys all `String.t()` |
+| `[x]` | 4 | Bytes body | `body: {:bytes, ...}` | Loki: bytes encoding |
+| `[x]` | 5 | All 8 severity levels | `severity_number: 5/9/10/13/17/18/19/21` | Loki: `severity_text` matches each |
+| `[x]` | 6 | `severity_number: 0` sentinel | default unspecified severity | Loki: `severity_number_unspecified` |
+| `[x]` | 7 | `event_name` field | `event_name: "..."` | Loki: event_name attribute |
+| `[x]` | 8 | `timestamp` vs `observed_timestamp` | omit timestamp → SDK fills observed | Loki: both fields present, distinct |
+| `[x]` | 9 | Custom attributes | `attributes: %{...}` | Loki: labels / fields |
+| `[x]` | 10 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` match |
+| `[x]` | 11 | LogRecord limits — `attribute_count_limit` | exceed attr count | Loki: `dropped_attributes_count` |
+| `[x]` | 12 | LogRecord limits — `attribute_value_length_limit` truncation | long string attr | Loki: value truncated |
+| `[x]` | 13 | Multi-logger (different scopes) | `get_logger(A)`, `get_logger(B)` | Loki: `scope_name` disambiguation |
+| `[x]` | 14 | Exception sidecar via SDK API | set `exception:` field on LogRecord | Loki: `exception.type` / `exception.message` |
 
 ## Log — `:logger` Handler bridge
 
