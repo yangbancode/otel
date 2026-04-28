@@ -1,17 +1,25 @@
 # Configuration
 
-The SDK resolves configuration from three layers, highest precedence first:
+Configuration sources, highest precedence first:
 
-1. **Application env** — `Application.get_env(:otel, …)`, usually set in `config/runtime.exs`.
-2. **OS environment** — spec-blessed `OTEL_*` variables.
-3. **Built-in defaults** — match the OpenTelemetry spec defaults.
+1. **`OTEL_CONFIG_FILE`** (declarative YAML) — when set, short-circuits everything below.
+2. **Application env** — `Application.get_env(:otel, …)`.
+3. **`OTEL_*` environment variables.**
+4. **Built-in defaults** — match the OpenTelemetry spec defaults.
 
-Mix freely between layers. The `OTEL_CONFIG_FILE` declarative-YAML path,
-when set, overrides everything else (handled by `Otel.Configuration`).
+When `OTEL_CONFIG_FILE` is set, sources 2–4 are ignored entirely (spec
+mandate). When unset, sources 2–4 compose freely — any missing value falls
+through to the next layer.
 
-## via `config/runtime.exs`
+## via Application env
+
+`Application.get_env(:otel, …)` reads from any `config/*.exs` file. Most
+deployments use `config/runtime.exs` so endpoints / tokens can be resolved
+from the live environment, but `config/config.exs`,
+`config/dev.exs` etc. work the same way.
 
 ```elixir
+# config/runtime.exs
 import Config
 
 config :otel,
@@ -32,7 +40,7 @@ config :otel,
   propagators: [:tracecontext, :baggage]
 ```
 
-## via `OTEL_*` environment
+## via OS environment
 
 ```bash
 export OTEL_TRACES_SAMPLER=parentbased_always_on
@@ -42,6 +50,66 @@ export OTEL_METRIC_EXPORT_INTERVAL=30000
 export OTEL_LOGS_EXPORTER=otlp
 export OTEL_PROPAGATORS=tracecontext,baggage
 ```
+
+## via `OTEL_CONFIG_FILE` (declarative YAML)
+
+When `OTEL_CONFIG_FILE` is set, the SDK loads the entire configuration
+from the referenced file and ignores every other source. The schema is
+OpenTelemetry Configuration `v1.0.0`.
+
+```yaml
+# /etc/otel/config.yaml
+file_format: "1.0"
+
+resource:
+  attributes_list: ${OTEL_RESOURCE_ATTRIBUTES}
+
+propagator:
+  composite:
+    - tracecontext:
+    - baggage:
+
+tracer_provider:
+  sampler:
+    parent_based:
+      root:
+        always_on:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}/v1/traces
+
+meter_provider:
+  readers:
+    - periodic:
+        exporter:
+          otlp_http:
+            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}/v1/metrics
+
+logger_provider:
+  processors:
+    - batch:
+        exporter:
+          otlp_http:
+            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}/v1/logs
+```
+
+```bash
+export OTEL_CONFIG_FILE=/etc/otel/config.yaml
+```
+
+`${VAR}` and `${VAR:-default}` substitution work for any value, so the
+YAML can stay static while endpoints / tokens vary by environment. See
+`test/fixtures/v1.0.0/` for canonical examples.
+
+## Disabling the SDK
+
+| Option | `OTEL_*` | Accepted values | Default |
+|---|---|---|---|
+| Skip provider registration | `OTEL_SDK_DISABLED` | `true` / `false` | `false` |
+
+When `true`, all telemetry calls become no-ops; the propagator stays active.
 
 ## Selectors — accepted forms
 
@@ -110,11 +178,3 @@ The list is deduplicated. `[:none]` or an empty list installs the Noop
 propagator. Spec-named propagators not bundled in this package
 (`:b3`, `:b3multi`, `:jaeger`, `:xray`, `:ottrace`) raise — supply a
 custom `{MyPropagator, opts}` instead.
-
-## Disabling the SDK
-
-| Option | `OTEL_*` | Accepted values | Default |
-|---|---|---|---|
-| Skip provider registration | `OTEL_SDK_DISABLED` | `true` / `false` | `false` |
-
-When `true`, all telemetry calls become no-ops; the propagator stays active.
