@@ -46,7 +46,7 @@ export OTEL_PROPAGATORS=tracecontext,baggage
 
 ## Declarative YAML (`OTEL_CONFIG_FILE`)
 
-Schema: OpenTelemetry Configuration `v1.0.0`. When set, overrides everything else.
+Schema: OpenTelemetry Configuration `v1.0.0`.
 
 ```yaml
 # /etc/otel/config.yaml
@@ -99,7 +99,8 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 
 ## Selectors
 
-`exporter:` / `processor:` / `sampler:` / propagator entries accept:
+Module-valued options (`exporter:`, `processor:`, `sampler:`, items in
+`propagators:`) accept:
 
 - a shortcut atom (see tables below)
 - a module — same as `{Module, %{}}`
@@ -110,10 +111,10 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 | Option | `config :otel, trace:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Sampler | `sampler:` | `OTEL_TRACES_SAMPLER` | `:always_on` / `:always_off` / `:parentbased_always_on` / `:parentbased_always_off` / `:traceidratio` / `:parentbased_traceidratio` / `{:traceidratio, 0.5}` / `{Module, opts}` | `:parentbased_always_on` |
-| Sampler arg | (in tuple form above) | `OTEL_TRACES_SAMPLER_ARG` | float in `0.0..1.0` | `1.0` |
+| Sampler arg | via `{:traceidratio, n}` tuple | `OTEL_TRACES_SAMPLER_ARG` | float in `0.0..1.0` | `1.0` |
 | Exporter | `exporter:` | `OTEL_TRACES_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
 | Processor | `processor:` | — | `:batch` / `:simple` / `Module` | `:batch` |
-| Explicit processor list | `processors:` | — | list of `{module, config}` | inferred |
+| Processor list | `processors:` | — | list of `{module, config}` | inferred |
 | Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BSP_SCHEDULE_DELAY` | non-negative integer (ms) | `5000` |
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BSP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BSP_MAX_QUEUE_SIZE` | integer | `2048` |
@@ -124,7 +125,7 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 | Link count | `span_limits: %{link_count_limit: _}` | `OTEL_SPAN_LINK_COUNT_LIMIT` | integer | `128` |
 | Per-event attribute count | `span_limits: %{attribute_per_event_limit: _}` | `OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT` | integer | `128` |
 | Per-link attribute count | `span_limits: %{attribute_per_link_limit: _}` | `OTEL_LINK_ATTRIBUTE_COUNT_LIMIT` | integer | `128` |
-| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | SDK identity attributes |
+| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 | ID generator | `id_generator:` | — | module | `Otel.SDK.Trace.IdGenerator.Default` |
 
 ## Metrics pillar
@@ -132,12 +133,12 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 | Option | `config :otel, metrics:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Exporter | `exporter:` | `OTEL_METRICS_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
-| Explicit reader list | `readers:` | — | list of `{module, config}` | inferred from `exporter:` |
+| Reader list | `readers:` | — | list of `{module, config}` | inferred from `exporter:` |
 | Reader export interval | `reader_config: %{export_interval_ms: _}` | `OTEL_METRIC_EXPORT_INTERVAL` | non-negative integer (ms) | `60000` |
 | Reader export timeout | `reader_config: %{export_timeout_ms: _}` | `OTEL_METRIC_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Exemplar filter | `exemplar_filter:` | `OTEL_METRICS_EXEMPLAR_FILTER` | `:always_on` / `:always_off` / `:trace_based` | `:trace_based` |
 | Views | `views:` | — | list of `Otel.SDK.Metrics.View.t()` | `[]` |
-| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | SDK identity attributes |
+| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 
 ## Logs pillar
 
@@ -145,14 +146,14 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 |---|---|---|---|---|
 | Exporter | `exporter:` | `OTEL_LOGS_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
 | Processor | `processor:` | — | `:batch` / `:simple` / `Module` | `:batch` |
-| Explicit processor list | `processors:` | — | list of `{module, config}` | inferred |
+| Processor list | `processors:` | — | list of `{module, config}` | inferred |
 | Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BLRP_SCHEDULE_DELAY` | non-negative integer (ms) | `1000` |
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BLRP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BLRP_MAX_QUEUE_SIZE` | integer | `2048` |
 | Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` | integer | `512` |
 | LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | integer | `128` |
 | LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | integer or `:infinity` | `:infinity` |
-| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | SDK identity attributes |
+| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 
 ## Propagators
 
