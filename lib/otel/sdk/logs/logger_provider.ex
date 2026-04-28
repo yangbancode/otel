@@ -317,8 +317,16 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     }
   end
 
+  # `Code.ensure_loaded/1` is required before `function_exported?/3`:
+  # processor modules are referenced as bare atoms in the user config,
+  # so the BEAM has no reason to have loaded them when `init/1` runs.
+  # An unloaded module makes `function_exported?/3` return false, which
+  # would silently demote a process-backed `start_link/1` to module-only
+  # (callback_config without `:pid`) and crash every callback dispatch.
   @spec start_processor({module(), term()}) :: processor_entry()
   defp start_processor({module, init_config}) do
+    Code.ensure_loaded(module)
+
     if function_exported?(module, :start_link, 1) do
       {:ok, pid} = module.start_link(init_config)
       %{module: module, pid: pid, callback_config: %{pid: pid}}
