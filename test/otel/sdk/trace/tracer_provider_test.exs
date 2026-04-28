@@ -106,6 +106,23 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
         Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: "lib"})
     end
 
+    test "shutdown/force_flush return :ok when the provider isn't running (e.g. SDK_DISABLED)" do
+      # When `OTEL_SDK_DISABLED=true` (or the SDK Application is
+      # otherwise stopped), the provider GenServer is never
+      # started. The lifecycle facades MUST stay graceful so
+      # caller code can keep its `force_flush/0` / `shutdown/0`
+      # plumbing in place without guarding every call site.
+      Application.stop(:otel)
+      refute GenServer.whereis(Otel.SDK.Trace.TracerProvider)
+
+      assert :ok =
+               Otel.SDK.Trace.TracerProvider.force_flush(Otel.SDK.Trace.TracerProvider, 1_000)
+
+      assert :ok = Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider, 1_000)
+
+      Application.ensure_all_started(:otel)
+    end
+
     test "invokes shutdown / force_flush on every registered processor" do
       restart_sdk(trace: [processors: [{OkProcessor, %{}}, {OkProcessor, %{}}]])
       assert :ok = Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider)

@@ -183,7 +183,11 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   """
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ @default_shutdown_timeout_ms) do
-    GenServer.call(server, {:shutdown, timeout}, timeout)
+    if GenServer.whereis(server) do
+      GenServer.call(server, {:shutdown, timeout}, timeout)
+    else
+      :ok
+    end
   end
 
   @doc """
@@ -197,7 +201,11 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   """
   @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def force_flush(server, timeout \\ @default_force_flush_timeout_ms) do
-    GenServer.call(server, {:force_flush, timeout}, timeout)
+    if GenServer.whereis(server) do
+      GenServer.call(server, {:force_flush, timeout}, timeout)
+    else
+      :ok
+    end
   end
 
   # --- Server Callbacks ---

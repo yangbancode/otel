@@ -92,6 +92,18 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       {Otel.API.Logs.Logger.Noop, _} =
         Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.API.InstrumentationScope{name: "lib"})
     end
+
+    test "shutdown/force_flush return :ok when the provider isn't running (e.g. SDK_DISABLED)" do
+      Application.stop(:otel)
+      refute GenServer.whereis(Otel.SDK.Logs.LoggerProvider)
+
+      assert :ok =
+               Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider, 1_000)
+
+      assert :ok = Otel.SDK.Logs.LoggerProvider.shutdown(Otel.SDK.Logs.LoggerProvider, 1_000)
+
+      Application.ensure_all_started(:otel)
+    end
   end
 
   describe "processor lifecycle delegation" do

@@ -94,7 +94,11 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   """
   @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def shutdown(server, timeout \\ 5000) do
-    GenServer.call(server, :shutdown, timeout)
+    if GenServer.whereis(server) do
+      GenServer.call(server, :shutdown, timeout)
+    else
+      :ok
+    end
   end
 
   @doc """
@@ -105,7 +109,11 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   """
   @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
   def force_flush(server, timeout \\ 5000) do
-    GenServer.call(server, :force_flush, timeout)
+    if GenServer.whereis(server) do
+      GenServer.call(server, :force_flush, timeout)
+    else
+      :ok
+    end
   end
 
   @doc """

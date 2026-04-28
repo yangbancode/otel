@@ -111,6 +111,18 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
       {Otel.API.Metrics.Meter.Noop, _} = meter_for(p, "lib")
     end
 
+    test "shutdown/force_flush return :ok when the provider isn't running (e.g. SDK_DISABLED)" do
+      Application.stop(:otel)
+      refute GenServer.whereis(Otel.SDK.Metrics.MeterProvider)
+
+      assert :ok =
+               Otel.SDK.Metrics.MeterProvider.force_flush(Otel.SDK.Metrics.MeterProvider, 1_000)
+
+      assert :ok = Otel.SDK.Metrics.MeterProvider.shutdown(Otel.SDK.Metrics.MeterProvider, 1_000)
+
+      Application.ensure_all_started(:otel)
+    end
+
     test "invokes shutdown / force_flush on every reader" do
       restart_sdk(metrics: [readers: [{OkReader, %{}}, {OkReader, %{}}]])
       assert :ok = Otel.SDK.Metrics.MeterProvider.shutdown(Otel.SDK.Metrics.MeterProvider)
