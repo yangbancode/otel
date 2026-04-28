@@ -12,8 +12,9 @@ defmodule Otel.E2E.Mimir do
   @base "http://localhost:9090"
 
   @doc """
-  Polls Mimir's `/api/v1/query` for `metric{e2e_id="<e2e_id>"}`
-  until a matching series is returned.
+  Polls Mimir's `/api/v1/query` for `metric{e2e_id="<e2e_id>"}` until
+  at least one series matches. Empty results
+  (`{"data": {"result": []}}`) trigger a retry.
   """
   @spec find_metric(metric :: String.t(), e2e_id :: String.t(), opts :: keyword()) ::
           Otel.E2E.Polling.result()
@@ -25,8 +26,8 @@ defmodule Otel.E2E.Mimir do
       url = "#{@base}/api/v1/query?query=#{URI.encode_www_form(query)}"
 
       with {:ok, body} <- Otel.E2E.HTTP.get(url),
-           true <- String.contains?(body, e2e_id) do
-        {:ok, body}
+           {:ok, %{"data" => %{"result" => [_ | _] = series}}} <- Jason.decode(body) do
+        {:ok, series}
       else
         _ -> :retry
       end

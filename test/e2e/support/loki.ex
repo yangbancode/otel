@@ -6,8 +6,8 @@ defmodule Otel.E2E.Loki do
   @base "http://localhost:3100"
 
   @doc """
-  Polls Loki's `/loki/api/v1/query_range` for log lines containing
-  `e2e_id`.
+  Polls Loki's `/loki/api/v1/query_range` until at least one log line
+  matches. Empty results (`{"data": {"result": []}}`) trigger a retry.
 
   The actual match is the `|= "<e2e_id>"` line filter; the
   `{service_name=~".+"}` stream selector is purely a LogQL
@@ -31,8 +31,8 @@ defmodule Otel.E2E.Loki do
           "&limit=10"
 
       with {:ok, body} <- Otel.E2E.HTTP.get(url),
-           true <- String.contains?(body, e2e_id) do
-        {:ok, body}
+           {:ok, %{"data" => %{"result" => [_ | _] = streams}}} <- Jason.decode(body) do
+        {:ok, streams}
       else
         _ -> :retry
       end

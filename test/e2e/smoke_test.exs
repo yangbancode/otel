@@ -13,8 +13,7 @@ defmodule Otel.E2E.SmokeTest do
 
     flush()
 
-    assert {:ok, body} = Tempo.find(e2e_id)
-    assert body =~ e2e_id
+    assert {:ok, [_ | _]} = Tempo.find(e2e_id)
   end
 
   test "log lands in Loki", %{e2e_id: e2e_id} do
@@ -29,8 +28,7 @@ defmodule Otel.E2E.SmokeTest do
 
     flush()
 
-    assert {:ok, body} = Loki.find(e2e_id)
-    assert body =~ e2e_id
+    assert {:ok, [_ | _]} = Loki.find(e2e_id)
   end
 
   test "counter lands in Mimir", %{e2e_id: e2e_id} do
@@ -41,7 +39,6 @@ defmodule Otel.E2E.SmokeTest do
 
     flush()
 
-    assert {:ok, body} = Mimir.find_metric("e2e_smoke_total", e2e_id)
-    assert body =~ e2e_id
+    assert {:ok, [_ | _]} = Mimir.find_metric("e2e_smoke_total", e2e_id)
   end
 end
