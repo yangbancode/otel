@@ -3,8 +3,6 @@ defmodule Otel.E2E.Loki do
   Loki (log backend) URL builders.
   """
 
-  @base "http://localhost:3100"
-
   @doc """
   Loki `/loki/api/v1/query_range` URL for the given e2e_id.
 
@@ -15,14 +13,22 @@ defmodule Otel.E2E.Loki do
   """
   @spec find(e2e_id :: String.t()) :: String.t()
   def find(e2e_id) do
-    query = ~s({service_name=~".+"} |= "#{e2e_id}")
     now = System.system_time(:nanosecond)
     start = now - 60 * 1_000_000_000
 
-    "#{@base}/loki/api/v1/query_range" <>
-      "?query=#{URI.encode_www_form(query)}" <>
-      "&start=#{start}" <>
-      "&end=#{now}" <>
-      "&limit=10"
+    %URI{
+      scheme: "http",
+      host: "localhost",
+      port: 3100,
+      path: "/loki/api/v1/query_range",
+      query:
+        URI.encode_query(
+          query: ~s({service_name=~".+"} |= "#{e2e_id}"),
+          start: start,
+          end: now,
+          limit: 10
+        )
+    }
+    |> URI.to_string()
   end
 end

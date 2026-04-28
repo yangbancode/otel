@@ -3,11 +3,16 @@ defmodule Otel.E2E.Tempo do
   Tempo (trace backend) URL builders.
   """
 
-  @base "http://localhost:3200"
-
   @doc "Tempo `/api/search` URL for the given e2e_id."
   @spec find(e2e_id :: String.t()) :: String.t()
   def find(e2e_id) do
-    "#{@base}/api/search?tags=#{URI.encode_www_form("e2e.id=#{e2e_id}")}&limit=1"
+    %URI{
+      scheme: "http",
+      host: "localhost",
+      port: 3200,
+      path: "/api/search",
+      query: URI.encode_query(tags: "e2e.id=#{e2e_id}", limit: 1)
+    }
+    |> URI.to_string()
   end
 end
