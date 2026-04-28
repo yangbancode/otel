@@ -187,6 +187,37 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       assert entry.pid == nil
       assert entry.callback_config == %{test_pid: self()}
     end
+
+    defmodule FakeExporter do
+      @moduledoc false
+      @behaviour Otel.SDK.Logs.LogRecordExporter
+      @impl true
+      def init(_), do: {:ok, %{}}
+      @impl true
+      def export(_, _), do: :ok
+      @impl true
+      def force_flush(_), do: :ok
+      @impl true
+      def shutdown(_), do: :ok
+    end
+
+    # Regression: `function_exported?(module, :start_link, 1)` returns
+    # false for an unloaded module, which silently demotes
+    # `LogRecordProcessor.Batch` to module-only and crashes
+    # `on_emit/3` because the callback config has no `:pid`.
+    # `Code.ensure_loaded/1` in `start_processor/1` prevents this.
+    test "Batch processor receives a pid when configured by the provider" do
+      :code.purge(Otel.SDK.Logs.LogRecordProcessor.Batch)
+      :code.delete(Otel.SDK.Logs.LogRecordProcessor.Batch)
+
+      restart_sdk(logs: [processor: :batch, exporter: {FakeExporter, %{}}])
+
+      [%{module: Otel.SDK.Logs.LogRecordProcessor.Batch, pid: pid, callback_config: cb}] =
+        :sys.get_state(Otel.SDK.Logs.LoggerProvider).processors
+
+      assert is_pid(pid) and Process.alive?(pid)
+      assert cb == %{pid: pid}
+    end
   end
 
   describe "EXIT signal handling" do
