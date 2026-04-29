@@ -7,9 +7,32 @@ Two paths into OpenTelemetry Logs:
 - **SDK API** — emit a `LogRecord` directly. For library authors and
   instrumentation that wants full control over the record.
 
+## Quick start
+
+```elixir
+# config/config.exs — attach the handler at boot
+config :kernel,
+  logger: [
+    {:handler, :otel, Otel.LoggerHandler, %{
+      config: %{scope_name: "my_app"}
+    }}
+  ]
+```
+
+```elixir
+require Logger
+Logger.info("checkout completed", user_id: 42)
+```
+
+The SDK ships logs to `http://localhost:4318/v1/logs` by default.
+See [Configuration](configuration.md) to change endpoint, processor,
+or limits.
+
 ## `:logger` bridge
 
-Attach the handler once at boot — see [Logger Handler](logger-handler.md).
+The handler converts every `:logger` call into a LogRecord and forwards
+to the SDK. See [Logger Handler](logger-handler.md) for the full
+attribute mapping.
 
 ### Plain message
 
@@ -36,9 +59,18 @@ Logger.info(%{event: "upload", size: 1024})
 
 ### Severity
 
-Use the standard `:logger` levels — they map to OTel `SeverityNumber`
-(`:emergency` → 21, `:alert` → 19, `:critical` → 18, `:error` → 17,
-`:warning` → 13, `:notice` → 10, `:info` → 9, `:debug` → 5).
+`:logger` levels map to OTel `SeverityNumber`:
+
+| `:logger` | `severity_number` | Use for |
+|---|---|---|
+| `:emergency` | 21 | system unusable, immediate action required |
+| `:alert` | 19 | action required quickly |
+| `:critical` | 18 | critical condition |
+| `:error` | 17 | runtime error condition |
+| `:warning` | 13 | warning condition; operation continues |
+| `:notice` | 10 | normal but significant |
+| `:info` | 9 | informational |
+| `:debug` | 5 | debug detail |
 
 ```elixir
 Logger.warning("retry exhausted", attempt: 5)
@@ -59,6 +91,12 @@ rescue
     reraise e, __STACKTRACE__
 end
 ```
+
+### Trace context auto-propagation
+
+When `Logger` fires inside a `with_span/4` block, the LogRecord
+automatically carries the active span's `trace_id` / `span_id` — no
+extra wiring needed.
 
 ## SDK API
 
@@ -102,4 +140,21 @@ Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
 ### With trace context
 
 The current span's IDs flow through automatically when the call site
-is inside a `with_span/4` block — no extra wiring needed.
+is inside a `with_span/4` block — same rule as the `:logger` bridge.
+
+## Limits
+
+Defaults: 128 attributes per LogRecord, no string-length truncation.
+
+```elixir
+config :otel,
+  logs: [
+    log_record_limits: %{
+      attribute_count_limit: 256,
+      attribute_value_length_limit: 1024
+    }
+  ]
+```
+
+See [Configuration](configuration.md) §"Logs pillar" for processor,
+batch, and environment-variable knobs.
