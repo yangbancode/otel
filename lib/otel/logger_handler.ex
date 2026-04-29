@@ -252,7 +252,7 @@ defmodule Otel.LoggerHandler do
   halves of the tuple land in two OTel-aligned destinations:
 
   - **`exception` struct** → `log_record.exception` field
-    (`Otel.API.Logs.LogRecord.t/0`). API-layer MAY-accepted
+    (`t:Otel.API.Logs.LogRecord.t/0`). API-layer MAY-accepted
     sidecar per `api.md` L131. SDK converts this to the
     stable `exception.type` and `exception.message`
     attributes (reading `.__struct__` and calling
