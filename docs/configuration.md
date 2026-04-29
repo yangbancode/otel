@@ -16,16 +16,19 @@ import Config
 
 config :otel,
   trace: [
+    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
     sampler: :parentbased_always_on,
     exporter: :otlp,
     processor: :batch,
     span_limits: %{attribute_count_limit: 256}
   ],
   metrics: [
+    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
     exporter: :otlp,
     reader_config: %{export_interval_ms: 30_000}
   ],
   logs: [
+    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
     exporter: :otlp,
     processor: :batch
   ],
@@ -35,6 +38,8 @@ config :otel,
 ## OS environment
 
 ```bash
+export OTEL_SERVICE_NAME=my_app
+export OTEL_RESOURCE_ATTRIBUTES="deployment.environment=prod,service.version=1.2.3"
 export OTEL_TRACES_SAMPLER=parentbased_always_on
 export OTEL_TRACES_EXPORTER=otlp
 export OTEL_METRICS_EXPORTER=otlp
