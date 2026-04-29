@@ -341,38 +341,12 @@ defmodule Otel.OTLP.EncoderTest do
       assert dp.max == 120.0
     end
 
-    test "histogram :unset min/max → absent in proto" do
-      unset_hist = %{
-        @counter
-        | kind: :histogram,
-          datapoints: [
-            %{
-              attributes: %{},
-              value: %{
-                bucket_counts: [1],
-                boundaries: [],
-                sum: 5,
-                count: 1,
-                min: :unset,
-                max: :unset
-              },
-              start_time: 1_000_000,
-              time: 2_000_000,
-              exemplars: []
-            }
-          ]
-      }
-
-      {:histogram, h} = first_metric([unset_hist]).data
-      dp = hd(h.data_points)
-      assert dp.min == nil
-      assert dp.max == nil
-    end
-
     # Regression for the e2e §Metrics row 6 crash: a Histogram
     # configured with `aggregation_options: %{record_min_max:
-    # false}` carries `min: nil` / `max: nil` (rather than the
-    # `:unset` sentinel). Encoder used to crash in
+    # false}` carries `min: nil` / `max: nil` on the datapoint.
+    # SDK aggregations' `normalize/1` converts the internal
+    # `:unset` ETS sentinel to `nil` at collect time, so the
+    # encoder only ever sees `nil`. Encoder used to crash in
     # `encode_optional_double/1` with `ArithmeticError` from
     # `nil + 0.0`.
     test "histogram nil min/max → absent in proto" do
@@ -423,8 +397,8 @@ defmodule Otel.OTLP.EncoderTest do
                 boundaries: [],
                 sum: 5,
                 count: 1,
-                min: :unset,
-                max: :unset
+                min: nil,
+                max: nil
               },
               start_time: 1_000_000,
               time: 2_000_000,

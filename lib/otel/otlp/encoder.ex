@@ -384,8 +384,7 @@ defmodule Otel.OTLP.Encoder do
   defp encode_number_value(value) when is_float(value), do: {:as_double, value}
   defp encode_number_value(value), do: {:as_double, value + 0.0}
 
-  @spec encode_optional_double(value :: number() | :unset | nil) :: float() | nil
-  defp encode_optional_double(:unset), do: nil
+  @spec encode_optional_double(value :: number() | nil) :: float() | nil
   defp encode_optional_double(nil), do: nil
   defp encode_optional_double(value), do: value + 0.0
 
