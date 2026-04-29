@@ -102,7 +102,7 @@ mix test --only e2e test/e2e/
 | `[x]` | 2 | Counter cumulative | N adds | Mimir: `counter == N` |
 | `[x]` | 3 | UpDownCounter | `add 5`, `add -2` | Mimir: gauge `3` |
 | `[x]` | 4 | Histogram | `record × N` | Mimir: bucket counts, sum, count, **min/max** |
-| `[ ]` | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
+| `[x]` | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
 | `[ ]` | 6 | Histogram `record_min_max: false` | View opt | Mimir: `min`/`max` absent |
 | `[ ]` | 7 | Base2ExponentialBucketHistogram | `aggregation: :base2_exponential_bucket_histogram` | Mimir: positive/negative bucket counts, scale, zero_count |
 | `[x]` | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
@@ -115,7 +115,7 @@ mix test --only e2e test/e2e/
 | `[ ]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
 | `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
 | `[ ]` | 17 | Delta temporality | reader configured `:delta` | Mimir: per-window delta values |
-| `[ ]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
+| `[x]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
 | `[ ]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
 | `[ ]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
 | `[x]` | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
