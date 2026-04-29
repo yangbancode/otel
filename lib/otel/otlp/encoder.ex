@@ -263,6 +263,30 @@ defmodule Otel.OTLP.Encoder do
           | {:gauge, Opentelemetry.Proto.Metrics.V1.Gauge.t()}
           | {:histogram, Opentelemetry.Proto.Metrics.V1.Histogram.t()}
           | {:exponential_histogram, Opentelemetry.Proto.Metrics.V1.ExponentialHistogram.t()}
+  # Dispatch on the *datapoint shape* first, falling through to
+  # the instrument `kind` only when the datapoint is a plain
+  # number. A View `aggregation:` override (e.g. Counter →
+  # ExplicitBucketHistogram) leaves `metric.kind` as the
+  # original `:counter` but rewrites every datapoint to the
+  # histogram shape, so kind-only dispatch sent histogram
+  # datapoints into the number-encoder and crashed in
+  # `encode_number_value/1`.
+  defp encode_metric_data(%{datapoints: [%{value: %{scale: _}} | _]} = metric) do
+    {:exponential_histogram,
+     %Opentelemetry.Proto.Metrics.V1.ExponentialHistogram{
+       data_points: Enum.map(metric.datapoints, &encode_exponential_histogram_data_point/1),
+       aggregation_temporality: encode_temporality(metric.temporality)
+     }}
+  end
+
+  defp encode_metric_data(%{datapoints: [%{value: %{bucket_counts: _}} | _]} = metric) do
+    {:histogram,
+     %Opentelemetry.Proto.Metrics.V1.Histogram{
+       data_points: Enum.map(metric.datapoints, &encode_histogram_data_point/1),
+       aggregation_temporality: encode_temporality(metric.temporality)
+     }}
+  end
+
   defp encode_metric_data(%{kind: kind} = metric)
        when kind in [:counter, :updown_counter, :observable_counter, :observable_updown_counter] do
     {:sum,
@@ -278,14 +302,6 @@ defmodule Otel.OTLP.Encoder do
     {:gauge,
      %Opentelemetry.Proto.Metrics.V1.Gauge{
        data_points: Enum.map(metric.datapoints, &encode_number_data_point/1)
-     }}
-  end
-
-  defp encode_metric_data(%{kind: :histogram, datapoints: [%{value: %{scale: _}} | _]} = metric) do
-    {:exponential_histogram,
-     %Opentelemetry.Proto.Metrics.V1.ExponentialHistogram{
-       data_points: Enum.map(metric.datapoints, &encode_exponential_histogram_data_point/1),
-       aggregation_temporality: encode_temporality(metric.temporality)
      }}
   end
 
@@ -368,8 +384,8 @@ defmodule Otel.OTLP.Encoder do
   defp encode_number_value(value) when is_float(value), do: {:as_double, value}
   defp encode_number_value(value), do: {:as_double, value + 0.0}
 
-  @spec encode_optional_double(value :: number() | :unset) :: float() | nil
-  defp encode_optional_double(:unset), do: nil
+  @spec encode_optional_double(value :: number() | nil) :: float() | nil
+  defp encode_optional_double(nil), do: nil
   defp encode_optional_double(value), do: value + 0.0
 
   @spec encode_temporality(temporality :: atom() | nil) ::
