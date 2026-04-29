@@ -9,18 +9,27 @@ defmodule Otel.E2E.Mimir do
   - attribute keys become labels (`http.method` → `http_method`)
   """
 
-  @doc "Mimir `/api/v1/query` URL for the given e2e_id + metric."
-  @spec query(e2e_id :: String.t(), metric :: String.t()) :: String.t()
-  def query(e2e_id, metric) do
+  @doc "Mimir `/api/v1/query` URL for a raw PromQL expression."
+  @spec query(promql :: String.t()) :: String.t()
+  def query(promql) do
     %URI{
       scheme: "http",
       host: "localhost",
       port: 9090,
       path: "/api/v1/query",
-      query: URI.encode_query(query: ~s(#{metric}{e2e_id="#{e2e_id}"}))
+      query: URI.encode_query(query: promql)
     }
     |> URI.to_string()
   end
+
+  @doc """
+  Convenience wrapper: builds `metric{e2e_id="..."}` and
+  delegates to `query/1`. Most metric tests want this — the
+  `e2e_id` selector keeps each test's series separated under
+  a shared metric name.
+  """
+  @spec query(e2e_id :: String.t(), metric :: String.t()) :: String.t()
+  def query(e2e_id, metric), do: query(~s(#{metric}{e2e_id="#{e2e_id}"}))
 
   @doc """
   Mimir `/api/v1/query_exemplars` URL — exemplar lookup.
