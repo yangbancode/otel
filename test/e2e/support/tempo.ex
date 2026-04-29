@@ -11,15 +11,23 @@ defmodule Otel.E2E.Tempo do
 
   @port 3200
 
-  @doc "Tempo `/api/search` URL — find traces by tag."
-  @spec search(e2e_id :: String.t()) :: String.t()
-  def search(e2e_id) do
+  @doc """
+  Tempo `/api/search` URL — find traces by tag.
+
+  `:limit` defaults to 32, which is plenty for the per-signal
+  scenarios where one test produces a handful of traces.
+  Concurrency / fan-out scenarios that intentionally generate
+  many root traces pass a higher limit so the search isn't
+  truncated.
+  """
+  @spec search(e2e_id :: String.t(), opts :: keyword()) :: String.t()
+  def search(e2e_id, opts \\ []) do
     %URI{
       scheme: "http",
       host: "localhost",
       port: @port,
       path: "/api/search",
-      query: URI.encode_query(tags: "e2e.id=#{e2e_id}", limit: 32)
+      query: URI.encode_query(tags: "e2e.id=#{e2e_id}", limit: opts[:limit] || 32)
     }
     |> URI.to_string()
   end
