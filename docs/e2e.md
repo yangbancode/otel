@@ -165,6 +165,23 @@ mix test --only e2e test/e2e/
 | `[x]` | 3 | Resource consistency (3 pillars) | All backends share `service.name` |
 | `[~]` | 4 | `InstrumentationScope` (Trace + Log) | `scope.name` carried through Tempo + Loki; Mimir doesn't promote OTLP scope to PromQL labels in LGTM 0.26.0 (lands-only) |
 
+## Concurrency
+
+The single-process happy-path scenarios in the per-signal
+sections cover *what* the SDK exports. This section covers
+*how* it behaves under load and async fan-out — concerns
+that don't show up in spec-MUST checks but matter in
+production. Scoped to scenarios that need no SDK reconfig
+(every scenario runs in the standard `mix test --only e2e`
+pass without touching `Application.put_env`).
+
+| Done | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| `[ ]` | 1 | N=50 concurrent tasks each emit one span | `Task.async_stream` over 50 names | Tempo: every span name lands |
+| `[ ]` | 2 | High-volume single process — 1000 spans in tight loop | `for _ <- 1..1000` + `with_span` | Tempo: 1000 distinct spans land within `force_flush` |
+| `[ ]` | 3 | Three signals concurrent (trace + log + metric same scope) | `Task.async` × 3 emitting different signals | Tempo + Loki + Mimir each receive their record for the e2e_id |
+| `[ ]` | 4 | Span context propagated across `Task.async_stream` | parent `with_span` wrapping async_stream that creates child spans | Tempo: every child carries the parent's `parent_span_id` |
+
 ## PR plan
 
 | Phase | File | Scenarios |
@@ -179,6 +196,7 @@ mix test --only e2e test/e2e/
 | C-5 | `resource_test.exs` | 4 |
 | C-6 | `disabled_test.exs` | 2 |
 | C-7 | `cross_signal_test.exs` | 4 |
+| C-8 | `concurrency_test.exs` | 4 |
 
 **Total: ~113 scenarios.** Tick `[x]` in the Done column as each
 scenario lands. Phase C-3 splits into three focused PRs because the
