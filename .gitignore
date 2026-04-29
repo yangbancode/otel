@@ -20,7 +20,7 @@ erl_crash.dump
 *.ez
 
 # Ignore package tarball (built via "mix hex.build").
-otel_*.tar
+otel-*.tar
 
 # Skill eval workspaces — temporary benchmarking artifacts, not checked in.
 /.claude/skills/*-workspace/
