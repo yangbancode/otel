@@ -68,7 +68,8 @@ defmodule Otel.E2E.MetricsReaderTest do
       # attribute — every other attribute (including `e2e.id`)
       # is dropped. The metric name suffix already keys this
       # query to this test's instrument.
-      assert {:ok, [_ | _]} = poll(Mimir.query_overflow("#{metric}_total"))
+      assert {:ok, [_ | _]} =
+               poll(Mimir.query(~s(#{metric}_total{otel_metric_overflow="true"})))
     end
 
     test "20: async first-observed cardinality is pinned across collects",
@@ -107,7 +108,8 @@ defmodule Otel.E2E.MetricsReaderTest do
 
       flush()
 
-      assert {:ok, [_ | _]} = poll(Mimir.query_overflow("#{metric}_total"))
+      assert {:ok, [_ | _]} =
+               poll(Mimir.query(~s(#{metric}_total{otel_metric_overflow="true"})))
     end
   end
 end
