@@ -56,7 +56,7 @@ mix test --only e2e test/e2e/
 | `[x]` | 1 | String body | `body: "msg"` | Loki: line match |
 | `[x]` | 2 | Map body | `body: %{...}` | Loki: structured fields |
 | `[x]` | 3 | Map body — nested map keys recursively stringified | `body: %{user: %{id: 42}}` | Loki: keys all `String.t()` |
-| `[~]` | 4 | Bytes body | `body: {:bytes, ...}` | Loki: bytes encoding (skipped — needs structured-metadata query) |
+| `[x]` | 4 | Bytes body | `body: {:bytes, ...}` | Loki: structured-metadata query on `e2e.id` attribute (line filter would fail because the body is base64-encoded) |
 | `[x]` | 5 | All 8 severity levels | `severity_number: 5/9/10/13/17/18/19/21` | Loki: `severity_text` matches each |
 | `[x]` | 6 | `severity_number: 0` sentinel | default unspecified severity | Loki: `severity_number_unspecified` |
 | `[x]` | 7 | `event_name` field | `event_name: "..."` | Loki: event_name attribute |
