@@ -34,31 +34,49 @@ defmodule Otel.E2E.ConcurrencyTest do
 
       flush()
 
+      # 50 root spans → 50 separate traces; pass an explicit
+      # `:limit` past Tempo's default page size.
       observed =
         e2e_id
-        |> trace_spans()
+        |> trace_spans(limit: 60)
         |> Enum.map(& &1["name"])
         |> MapSet.new()
 
       assert MapSet.equal?(observed, MapSet.new(names))
     end
 
-    test "2: 1000 spans from a single process land within force_flush",
+    test "2: 1000 child spans under one parent land within force_flush",
          %{e2e_id: e2e_id} do
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      parent_name = "parent-conc-2-#{e2e_id}"
 
-      for i <- 1..1000 do
-        Otel.API.Trace.with_span(
-          tracer,
-          "scenario-conc-2-#{e2e_id}-#{i}",
-          [attributes: %{"e2e.id" => e2e_id}],
-          fn _ -> :ok end
-        )
-      end
+      # Single parent so all 1001 spans share a trace_id —
+      # avoids fanning Tempo's tag-based search across 1000
+      # root traces (which would then need pagination beyond
+      # the default page size). The interesting signal is the
+      # BatchProcessor's behaviour under sustained burst, not
+      # Tempo's search throughput.
+      Otel.API.Trace.with_span(
+        tracer,
+        parent_name,
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn _ ->
+          for i <- 1..1000 do
+            Otel.API.Trace.with_span(
+              tracer,
+              "child-conc-2-#{e2e_id}-#{i}",
+              [attributes: %{"e2e.id" => e2e_id}],
+              fn _ -> :ok end
+            )
+          end
+        end
+      )
 
       flush()
 
-      assert length(trace_spans(e2e_id)) == 1000
+      spans = trace_spans(e2e_id)
+      children = Enum.filter(spans, &String.starts_with?(&1["name"], "child-conc-2-"))
+      assert length(children) == 1000
     end
   end
 
@@ -157,9 +175,9 @@ defmodule Otel.E2E.ConcurrencyTest do
 
   # ---- helpers ----
 
-  @spec trace_spans(e2e_id :: String.t()) :: [map()]
-  defp trace_spans(e2e_id) do
-    {:ok, traces} = poll(Tempo.search(e2e_id))
+  @spec trace_spans(e2e_id :: String.t(), opts :: keyword()) :: [map()]
+  defp trace_spans(e2e_id, opts \\ []) do
+    {:ok, traces} = poll(Tempo.search(e2e_id, opts))
 
     Enum.flat_map(traces, fn %{"traceID" => trace_id} ->
       {:ok, body} = HTTP.get(Tempo.get_trace(trace_id))

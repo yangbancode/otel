@@ -178,7 +178,7 @@ pass without touching `Application.put_env`).
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
 | `[ ]` | 1 | N=50 concurrent tasks each emit one span | `Task.async_stream` over 50 names | Tempo: every span name lands |
-| `[ ]` | 2 | High-volume single process — 1000 spans in tight loop | `for _ <- 1..1000` + `with_span` | Tempo: 1000 distinct spans land within `force_flush` |
+| `[ ]` | 2 | 1000 child spans under one parent (single trace) | `for _ <- 1..1000` of nested `with_span` | Tempo: trace contains all 1000 children within `force_flush` |
 | `[ ]` | 3 | Three signals concurrent (trace + log + metric same scope) | `Task.async` × 3 emitting different signals | Tempo + Loki + Mimir each receive their record for the e2e_id |
 | `[ ]` | 4 | Span context propagated across `Task.async_stream` | parent `with_span` wrapping async_stream that creates child spans | Tempo: every child carries the parent's `parent_span_id` |
 
