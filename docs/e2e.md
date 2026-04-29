@@ -114,7 +114,7 @@ mix test --only e2e test/e2e/
 | `[x]` | 14 | Drop aggregation | View w/ `aggregation: ...Drop` | Mimir: no series for that instrument |
 | `[x]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
 | `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
-| `[ ]` | 17 | Delta temporality | reader configured `:delta` | Mimir: per-window delta values |
+| `[~]` | 17 | Delta temporality | reader configured `:delta` | Unit-tested only — Mimir's OTLP receiver in LGTM 0.26.0 drops delta-temporality counters (delta-to-cumulative is opt-in, off by default), so an e2e test would have no signal beyond what `test/otel/sdk/metrics/temporality_test.exs` and `test/otel/otlp/encoder_test.exs` already cover. The setup_all-driven SDK restart that the e2e test would need also leaks delta config into other modules' tests |
 | `[x]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
 | `[x]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
 | `[x]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
