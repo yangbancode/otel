@@ -24,12 +24,17 @@ defmodule Otel.E2E.Loki do
   Loki query URL for a structured-metadata filter on an OTLP
   attribute. Use this when the body doesn't surface the value
   as plain text in the rendered line — e.g. bytes bodies that
-  OTLP→Loki encodes as base64. Backticks let LogQL accept
-  attribute keys with dots (`e2e.id` → `` `e2e.id` ``).
+  OTLP→Loki encodes as base64.
+
+  The OTel Collector's Loki exporter sanitises attribute keys
+  the same way Prometheus does — `.` becomes `_` — so
+  callers pass the OTel key (e.g. `"e2e.id"`) and this helper
+  converts it to the LogQL identifier (`e2e_id`).
   """
   @spec query(attribute_key :: String.t(), attribute_value :: String.t()) :: String.t()
   def query(attribute_key, attribute_value) do
-    query_logql(~s({service_name=~".+"} | `#{attribute_key}` = "#{attribute_value}"))
+    sanitized = String.replace(attribute_key, ".", "_")
+    query_logql(~s({service_name=~".+"} | #{sanitized}="#{attribute_value}"))
   end
 
   @doc """
