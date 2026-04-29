@@ -62,11 +62,13 @@ defmodule Otel.E2E.MetricsReaderTest do
 
       flush()
 
-      assert {:ok, results} = poll(Mimir.query(e2e_id, "#{metric}_total"))
-      payload = Jason.encode!(results)
-
-      assert payload =~ "otel.metric.overflow" or payload =~ "otel_metric_overflow",
-             "expected an overflow series — payload: #{payload}"
+      # The overflow series is selected via the overflow label
+      # rather than `e2e_id` because per spec the overflow
+      # attribute set is the single `otel.metric.overflow=true`
+      # attribute — every other attribute (including `e2e.id`)
+      # is dropped. The metric name suffix already keys this
+      # query to this test's instrument.
+      assert {:ok, [_ | _]} = poll(Mimir.query_overflow("#{metric}_total"))
     end
 
     test "20: async first-observed cardinality is pinned across collects",
@@ -105,11 +107,7 @@ defmodule Otel.E2E.MetricsReaderTest do
 
       flush()
 
-      assert {:ok, results} = poll(Mimir.query(e2e_id, "#{metric}_total"))
-      payload = Jason.encode!(results)
-
-      assert payload =~ "otel.metric.overflow" or payload =~ "otel_metric_overflow",
-             "expected an overflow series — payload: #{payload}"
+      assert {:ok, [_ | _]} = poll(Mimir.query_overflow("#{metric}_total"))
     end
   end
 end
