@@ -7,10 +7,6 @@
 {:otel, "~> 0.1"}
 ```
 
-```bash
-docker compose up -d   # local LGTM stack — optional, any OTLP backend works
-```
-
 ```elixir
 scope = %Otel.API.InstrumentationScope{name: "my_app"}
 tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
@@ -20,9 +16,9 @@ Otel.API.Trace.with_span(tracer, "checkout", fn _span_ctx ->
 end)
 ```
 
-The SDK starts automatically and ships to `http://localhost:4318` by
-default. See [Configuration](configuration.md) to change endpoint,
-sampler, or limits.
+The SDK ships traces to `http://localhost:4318/v1/traces` by default.
+See [Configuration](configuration.md) to change endpoint, sampler, or
+limits.
 
 ## Get a tracer
 
