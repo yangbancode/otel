@@ -130,12 +130,14 @@ defmodule Otel.E2E.MetricsViewsTest do
 
       flush()
 
-      # Mimir's PromQL doesn't yet expose exponential
-      # histograms as standard `_bucket` series in LGTM 0.26.0
-      # — they ride on the native histograms protocol behind
-      # `/api/v1/query` with `histogram` envelope. Land on
-      # `_count` is the conservative cross-version signal.
-      assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "#{metric}_count"))
+      # Mimir's OTLP receiver converts exponential histograms
+      # to Prometheus native histograms in LGTM 0.26.0; native
+      # histograms expose a single series under the bare metric
+      # name (envelope `histogram` on the `/api/v1/query`
+      # response), not the classic `_count` / `_sum` / `_bucket`
+      # decomposition. Landing on the bare name is the
+      # conservative cross-version signal.
+      assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, metric))
     end
   end
 
