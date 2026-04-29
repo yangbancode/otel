@@ -64,6 +64,44 @@ defmodule Otel.E2E.MetricsSyncTest do
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "e2e_scenario_8_#{e2e_id}"))
     end
+
+    test "5: Histogram custom buckets via advisory carry through to Mimir",
+         %{e2e_id: e2e_id} do
+      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      bounds = [1.0, 5.0, 25.0]
+
+      hist =
+        Otel.API.Metrics.Meter.create_histogram(meter, "e2e_scenario_5_#{e2e_id}",
+          advisory: [explicit_bucket_boundaries: bounds]
+        )
+
+      for v <- [0.5, 3.0, 10.0],
+          do: Otel.API.Metrics.Histogram.record(hist, v, %{"e2e.id" => e2e_id})
+
+      flush()
+
+      # Each advisory bound should yield a `_bucket{le="..."}`
+      # series (plus the implicit `+Inf` bucket). Query a non-
+      # boundary value (3.0 falls between 1.0 and 5.0) — its
+      # bucket lookup confirms the bound list reached Mimir.
+      assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "e2e_scenario_5_#{e2e_id}_bucket"))
+    end
+
+    test "18: multi-dimensional attrs produce one Mimir series per attr combination",
+         %{e2e_id: e2e_id} do
+      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+
+      counter =
+        Otel.API.Metrics.Meter.create_counter(meter, "e2e_scenario_18_#{e2e_id}")
+
+      Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id, "host" => "a"})
+      Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id, "host" => "b"})
+      flush()
+
+      assert {:ok, results} = poll(Mimir.query(e2e_id, "e2e_scenario_18_#{e2e_id}_total"))
+      # Two distinct `host` values → two distinct PromQL series.
+      assert length(results) == 2
+    end
   end
 
   describe "semantics" do

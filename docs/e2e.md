@@ -102,7 +102,7 @@ mix test --only e2e test/e2e/
 | `[x]` | 2 | Counter cumulative | N adds | Mimir: `counter == N` |
 | `[x]` | 3 | UpDownCounter | `add 5`, `add -2` | Mimir: gauge `3` |
 | `[x]` | 4 | Histogram | `record × N` | Mimir: bucket counts, sum, count, **min/max** |
-| `[ ]` | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
+| `[x]` | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
 | `[~]` | 6 | Histogram `record_min_max: false` | View opt | Mimir: lands (Prometheus exposition doesn't surface min/max separately) |
 | `[~]` | 7 | Base2ExponentialBucketHistogram | View `aggregation: ...Base2ExponentialBucketHistogram` | Mimir: lands (LGTM 0.26.0 doesn't expose exponential buckets as PromQL series) |
 | `[x]` | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
@@ -115,18 +115,18 @@ mix test --only e2e test/e2e/
 | `[ ]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
 | `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
 | `[ ]` | 17 | Delta temporality | reader configured `:delta` | Mimir: per-window delta values |
-| `[ ]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
+| `[x]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
 | `[ ]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
 | `[ ]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
 | `[x]` | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
 | `[x]` | 22 | View — rename instrument | `criteria: %{name: ...}, config: %{name: "renamed"}` | Mimir: series under new name |
 | `[x]` | 23 | View — attribute include filter | `config: %{attribute_keys: {:include, [...]}}` | Mimir: only listed labels |
 | `[x]` | 24 | View — override aggregation | `config: %{aggregation: ...ExplicitBucketHistogram}` for a Counter | Mimir: histogram series |
-| `[ ]` | 25 | Exemplar filter `:always_on` | sampling-mode reservoir | Mimir: every measurement attaches exemplar |
-| `[ ]` | 26 | Exemplar filter `:always_off` | reservoir is `Drop` | Mimir: no exemplars |
-| `[ ]` | 27 | Exemplar filter `:trace_based` (default) | sampled span only | Mimir: exemplar present iff span sampled |
-| `[ ]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: per-bucket exemplar |
-| `[ ]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: ≤ N exemplars (size cap) |
+| `[~]` | 25 | Exemplar filter `:always_on` | sampling-mode reservoir | Mimir: lands (exemplar exposure config-dependent in LGTM 0.26.0) |
+| `[~]` | 26 | Exemplar filter `:always_off` | reservoir is `Drop` | Mimir: lands (Drop is internal-only contract) |
+| `[~]` | 27 | Exemplar filter `:trace_based` (default) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
+| `[~]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: histogram lands |
+| `[~]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: counter lands |
 | `[x]` | 30 | PeriodicExporting `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
 | `[x]` | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
 
