@@ -369,6 +369,73 @@ defmodule Otel.OTLP.EncoderTest do
       assert dp.max == nil
     end
 
+    # Regression for the e2e §Metrics row 6 crash: a Histogram
+    # configured with `aggregation_options: %{record_min_max:
+    # false}` carries `min: nil` / `max: nil` (rather than the
+    # `:unset` sentinel). Encoder used to crash in
+    # `encode_optional_double/1` with `ArithmeticError` from
+    # `nil + 0.0`.
+    test "histogram nil min/max → absent in proto" do
+      nil_hist = %{
+        @counter
+        | kind: :histogram,
+          datapoints: [
+            %{
+              attributes: %{},
+              value: %{
+                bucket_counts: [1],
+                boundaries: [],
+                sum: 5,
+                count: 1,
+                min: nil,
+                max: nil
+              },
+              start_time: 1_000_000,
+              time: 2_000_000,
+              exemplars: []
+            }
+          ]
+      }
+
+      {:histogram, h} = first_metric([nil_hist]).data
+      dp = hd(h.data_points)
+      assert dp.min == nil
+      assert dp.max == nil
+    end
+
+    # Regression for the e2e §Metrics row 24 crash: a View
+    # `aggregation: ExplicitBucketHistogram` override on a
+    # Counter rewrites every datapoint to histogram shape but
+    # leaves `metric.kind` as `:counter`. Encoder used to
+    # dispatch on `kind` only, so the histogram-shaped
+    # datapoints went to `encode_number_data_point/1` and
+    # crashed in `encode_number_value/1`. Datapoint-shape
+    # dispatch handles the override without the SDK having to
+    # rewrite `metric.kind`.
+    test "histogram-shaped datapoints on a counter-kind metric encode as histogram" do
+      counter_with_hist_dp = %{
+        @counter
+        | datapoints: [
+            %{
+              attributes: %{},
+              value: %{
+                bucket_counts: [1],
+                boundaries: [],
+                sum: 5,
+                count: 1,
+                min: :unset,
+                max: :unset
+              },
+              start_time: 1_000_000,
+              time: 2_000_000,
+              exemplars: []
+            }
+          ]
+      }
+
+      assert {:histogram, _} = first_metric([counter_with_hist_dp]).data
+    end
+
     test "exponential histogram encodes scale, offsets, zero count/threshold, min/max" do
       exp = %{
         @histogram
