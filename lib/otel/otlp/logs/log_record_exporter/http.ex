@@ -40,13 +40,10 @@ defmodule Otel.OTLP.Logs.LogRecordExporter.HTTP do
   @default_endpoint "http://localhost:4318"
   @logs_path "/v1/logs"
   @default_timeout 10_000
-  @user_agent "OTel-OTLP-Exporter-Elixir/0.1.0"
 
   @impl true
   @spec init(config :: term()) :: {:ok, Otel.SDK.Logs.LogRecordExporter.state()}
   def init(config) do
-    :inets.start()
-
     endpoint = resolve_endpoint(config)
     headers = resolve_headers(config)
     compression = resolve_compression(config)
@@ -128,8 +125,11 @@ defmodule Otel.OTLP.Logs.LogRecordExporter.HTTP do
           parse_headers(header_string)
       end
 
-    [{~c"user-agent", String.to_charlist(@user_agent)} | user_headers]
+    [{~c"user-agent", String.to_charlist(user_agent())} | user_headers]
   end
+
+  @spec user_agent() :: String.t()
+  defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
 
   @spec resolve_compression(config :: map()) :: :gzip | :none
   defp resolve_compression(config) do

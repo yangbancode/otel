@@ -40,13 +40,10 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
   @default_endpoint "http://localhost:4318"
   @traces_path "/v1/traces"
   @default_timeout 10_000
-  @user_agent "OTel-OTLP-Exporter-Elixir/0.1.0"
 
   @spec init(config :: term()) :: {:ok, Otel.SDK.Trace.SpanExporter.state()} | :ignore
   @impl true
   def init(config) do
-    :inets.start()
-
     endpoint = resolve_endpoint(config)
     headers = resolve_headers(config)
     compression = resolve_compression(config)
@@ -132,8 +129,11 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
           parse_headers(header_string)
       end
 
-    [{~c"user-agent", String.to_charlist(@user_agent)} | user_headers]
+    [{~c"user-agent", String.to_charlist(user_agent())} | user_headers]
   end
+
+  @spec user_agent() :: String.t()
+  defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
 
   @spec resolve_compression(config :: map()) :: :gzip | :none
   defp resolve_compression(config) do
