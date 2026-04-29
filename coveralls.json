@@ -3,6 +3,7 @@
     "minimum_coverage": 95
   },
   "skip_files": [
-    "lib/otel/otlp/proto/"
+    "lib/otel/otlp/proto/",
+    "test/e2e/support/"
   ]
 }
