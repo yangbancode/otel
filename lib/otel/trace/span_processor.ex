@@ -126,18 +126,19 @@ defmodule Otel.Trace.SpanProcessor do
   @impl GenServer
   @spec init(config :: config()) :: {:ok, map()}
   def init(config) do
-    # `Otel.SDK.Application` supervises this child with `[]` config —
-    # exporter and resource are read from `Otel.SDK.Config` here.
+    # `Otel.Application` supervises this child with `[]` config —
+    # exporter and resource come from the user's
+    # `config :otel, exporter: %{...}` and `:resource` keys here.
     # Tests that want a custom exporter (e.g. FakeExporter) override
     # via the args.
     exporter =
-      Map.get_lazy(config, :exporter, fn -> Otel.SDK.Config.exporter(:trace) end)
+      Map.get(config, :exporter, {Otel.Trace.SpanExporter, exporter_app_env()})
 
     resource =
-      Map.get_lazy(config, :resource, fn -> Otel.SDK.Config.resource() end)
+      Map.get_lazy(config, :resource, &Otel.Resource.from_app_env/0)
 
     state = %{
-      exporter: Otel.SDK.Exporter.Init.call(exporter),
+      exporter: init_exporter(exporter),
       resource: resource,
       queue: [],
       queue_size: 0
@@ -145,6 +146,21 @@ defmodule Otel.Trace.SpanProcessor do
 
     schedule_export()
     {:ok, state}
+  end
+
+  @spec exporter_app_env() :: map()
+  defp exporter_app_env, do: Application.get_env(:otel, :exporter, %{})
+
+  # Runs the exporter's own `init/1` so OTLP HTTP can populate
+  # compression / SSL defaults; `:ignore` demotes to `nil`.
+  @spec init_exporter({module(), term()} | nil) :: {module(), term()} | nil
+  defp init_exporter(nil), do: nil
+
+  defp init_exporter({module, opts}) do
+    case module.init(opts) do
+      {:ok, state} -> {module, state}
+      :ignore -> nil
+    end
   end
 
   @impl GenServer

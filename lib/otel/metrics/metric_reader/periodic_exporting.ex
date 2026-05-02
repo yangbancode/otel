@@ -35,8 +35,8 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
 
   @impl GenServer
   def init(config) do
-    # `Otel.SDK.Application` supervises this child with `[]` config
-    # — meter_config (ETS table refs, reader_id) is seeded by
+    # `Otel.Application` supervises this child with `[]` config —
+    # meter_config (ETS table refs, reader_id) is seeded by
     # `Otel.Metrics.MeterProvider.init/0` and read from
     # persistent_term here. Tests that want a custom exporter or
     # interval override via the args.
@@ -46,20 +46,35 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
       end)
 
     exporter =
-      Map.get_lazy(config, :exporter, fn -> Otel.SDK.Config.exporter(:metrics) end)
+      Map.get(config, :exporter, {Otel.Metrics.MetricExporter, exporter_app_env()})
 
     interval = Map.get(config, :export_interval_ms, @default_export_interval_ms)
     timer_ref = schedule_collect(interval)
 
     state = %{
       meter_config: meter_config,
-      exporter: Otel.SDK.Exporter.Init.call(exporter),
+      exporter: init_exporter(exporter),
       export_interval_ms: interval,
       timer_ref: timer_ref,
       shut_down: false
     }
 
     {:ok, state}
+  end
+
+  @spec exporter_app_env() :: map()
+  defp exporter_app_env, do: Application.get_env(:otel, :exporter, %{})
+
+  # Runs the exporter's own `init/1` so OTLP HTTP can populate
+  # compression / SSL defaults; `:ignore` demotes to `nil`.
+  @spec init_exporter({module(), term()} | nil) :: {module(), term()} | nil
+  defp init_exporter(nil), do: nil
+
+  defp init_exporter({module, opts}) do
+    case module.init(opts) do
+      {:ok, state} -> {module, state}
+      :ignore -> nil
+    end
   end
 
   @impl GenServer

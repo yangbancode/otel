@@ -57,9 +57,12 @@ defmodule Otel.Metrics.MeterProvider do
 
   @doc """
   **SDK** (boot hook) — Called once from
-  `Otel.SDK.Application.start/2` (or from `Otel.TestSupport`
-  for tests) to create the named ETS tables and seed the
-  `:persistent_term` slot from `Otel.SDK.Config.metrics/0`.
+  `Otel.Application.start/2` (or from `Otel.TestSupport` for
+  tests) to create the named ETS tables and seed the
+  `:persistent_term` slot. `exemplar_filter` is hardcoded to
+  `:trace_based` (spec default per `metrics/sdk.md` L1123); only
+  the resource flows from the user's
+  `config :otel, resource: %{...}`.
 
   Idempotent: a second call replaces the persistent_term slot
   and reuses the existing ETS tables (or creates them if
@@ -67,20 +70,20 @@ defmodule Otel.Metrics.MeterProvider do
   """
   @spec init() :: :ok
   def init do
-    config = Otel.SDK.Config.metrics()
     ensure_tables!()
 
+    resource = Otel.Resource.from_app_env()
     reader_id = make_ref()
 
     base_meter_config = %{
-      resource: config.resource,
+      resource: resource,
       instruments_tab: :otel_instruments,
       streams_tab: :otel_streams,
       metrics_tab: :otel_metrics,
       callbacks_tab: :otel_callbacks,
       exemplars_tab: :otel_exemplars,
       observed_attrs_tab: :otel_observed_attrs,
-      exemplar_filter: config.exemplar_filter
+      exemplar_filter: :trace_based
     }
 
     reader_meter_config =
@@ -89,8 +92,8 @@ defmodule Otel.Metrics.MeterProvider do
       |> Map.put(:temporality_mapping, Otel.Metrics.Instrument.default_temporality_mapping())
 
     :persistent_term.put(@persistent_key, %{
-      resource: config.resource,
-      exemplar_filter: config.exemplar_filter,
+      resource: resource,
+      exemplar_filter: :trace_based,
       base_meter_config: base_meter_config,
       reader_meter_config: reader_meter_config,
       reader_id: reader_id,

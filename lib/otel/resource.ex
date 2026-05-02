@@ -13,9 +13,21 @@ defmodule Otel.Resource do
   (`telemetry.sdk.{name,language,version}`) plus a fallback
   `service.name` of `"unknown_service"`. The SDK reads no
   OS environment variables; user attributes are configured via
-  `config :otel, resource: %{...}` (a map, not a struct), and
-  `Otel.SDK.Config` merges them onto this base. See
-  `Otel.SDK.Config` for the bridging pattern from `runtime.exs`.
+  `config :otel, resource: %{...}` (a map, not a struct).
+  `from_app_env/0` merges the user's map onto the default
+  base — that's what each provider's `init/0` calls at boot.
+
+  Bridge OS env vars (`OTEL_SERVICE_NAME` /
+  `OTEL_RESOURCE_ATTRIBUTES`) from `runtime.exs` (Phoenix
+  `PHX_SERVER` pattern):
+
+      # config/runtime.exs
+      import Config
+
+      config :otel,
+        resource: %{
+          "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
+        }
 
   ## References
 
@@ -64,6 +76,20 @@ defmodule Otel.Resource do
     merged_attributes = Map.merge(old.attributes, updating.attributes)
     merged_schema_url = merge_schema_url(old.schema_url, updating.schema_url)
     %__MODULE__{attributes: merged_attributes, schema_url: merged_schema_url}
+  end
+
+  @doc """
+  Returns the resolved boot-time Resource — `default/0` merged
+  with the user's `config :otel, resource: %{...}` map.
+
+  Called once per provider at `init/0` time. User attributes
+  take precedence on key conflicts; the `service.name` fallback
+  applies only when the user supplies no value.
+  """
+  @spec from_app_env() :: t()
+  def from_app_env do
+    user_attrs = Application.get_env(:otel, :resource, %{})
+    merge(default(), create(user_attrs))
   end
 
   @doc """

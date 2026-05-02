@@ -168,7 +168,8 @@ defmodule Otel.Logs.LogRecordProcessor do
 
   @typedoc """
   `start_link/1` configuration map. `:exporter` is optional and
-  defaults to `Otel.SDK.Config.exporter(:logs)` when absent —
+  defaults to the OTLP/HTTP `Otel.Logs.LogRecordExporter` with
+  the user's `config :otel, exporter: %{...}` map when absent —
   tests that need a substitute exporter override it. The four
   batch knobs (`max_queue_size`, `scheduled_delay_ms`,
   `export_timeout_ms`, `max_export_batch_size`) are hardcoded
@@ -306,18 +307,32 @@ defmodule Otel.Logs.LogRecordProcessor do
   @impl :gen_statem
   @spec init(config :: start_link_config()) :: {:ok, :idle, State.t()}
   def init(config) do
-    # `Otel.SDK.Application` supervises this child with `[]` config —
-    # exporter is read from `Otel.SDK.Config` here. Tests that want a
-    # custom exporter override via the args.
+    # `Otel.Application` supervises this child with `[]` config —
+    # exporter comes from the user's `config :otel, exporter: %{...}`
+    # key here. Tests that want a custom exporter override via the
+    # args.
     exporter =
-      Map.get_lazy(config, :exporter, fn -> Otel.SDK.Config.exporter(:logs) end)
+      Map.get(config, :exporter, {Otel.Logs.LogRecordExporter, exporter_app_env()})
 
-    state = %State{
-      exporter: Otel.SDK.Exporter.Init.call(exporter)
-    }
+    state = %State{exporter: init_exporter(exporter)}
 
     schedule_periodic_export()
     {:ok, :idle, state}
+  end
+
+  @spec exporter_app_env() :: map()
+  defp exporter_app_env, do: Application.get_env(:otel, :exporter, %{})
+
+  # Runs the exporter's own `init/1` so OTLP HTTP can populate
+  # compression / SSL defaults; `:ignore` demotes to `nil`.
+  @spec init_exporter({module(), term()} | nil) :: {module(), term()} | nil
+  defp init_exporter(nil), do: nil
+
+  defp init_exporter({module, opts}) do
+    case module.init(opts) do
+      {:ok, state} -> {module, state}
+      :ignore -> nil
+    end
   end
 
   # --- State: :idle ---

@@ -10,15 +10,15 @@ defmodule Otel.Trace.TracerProvider do
   `get_tracer/1` calls are pure persistent_term reads.
 
   Not a GenServer — this module holds no process state. The
-  three siblings under `Otel.SDK.Application` that *do* hold
-  state are the BatchProcessor itself, `Otel.Trace.SpanStorage`
-  (ETS owner), and the configured exporter.
+  three siblings under `Otel.Application` that *do* hold state
+  are the BatchProcessor itself, `Otel.Trace.SpanStorage` (ETS
+  owner), and the configured exporter.
 
   ## Public API
 
   | Function | Role |
   |---|---|
-  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` from `Otel.SDK.Config.trace/0` |
+  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` (resource + spec-default span_limits) |
   | `get_tracer/1` | **Application** (OTel API MUST) — Get a Tracer (`trace/api.md` L107-L157) |
   | `shutdown/1` | **Application** (OTel API MUST) — Shutdown (`trace/sdk.md` §Shutdown) |
   | `force_flush/1` | **Application** (OTel API MUST) — ForceFlush (`trace/sdk.md` §ForceFlush) |
@@ -49,18 +49,18 @@ defmodule Otel.Trace.TracerProvider do
         }
 
   @doc """
-  **SDK** (boot hook) — Called once from `Otel.SDK.Application.start/2`
-  to seed the `:persistent_term` slot from
-  `Otel.SDK.Config.trace/0`. Idempotent — safe to call multiple
-  times (each call replaces the slot wholesale).
+  **SDK** (boot hook) — Called once from `Otel.Application.start/2`
+  to seed the `:persistent_term` slot. Idempotent — safe to call
+  multiple times (each call replaces the slot wholesale).
+
+  `span_limits` is hardcoded to the spec defaults; only the
+  resource flows from the user's `config :otel, resource: %{...}`.
   """
   @spec init() :: :ok
   def init do
-    config = Otel.SDK.Config.trace()
-
     :persistent_term.put(@persistent_key, %{
-      resource: config.resource,
-      span_limits: config.span_limits,
+      resource: Otel.Resource.from_app_env(),
+      span_limits: %Otel.Trace.SpanLimits{},
       shut_down: false
     })
 
