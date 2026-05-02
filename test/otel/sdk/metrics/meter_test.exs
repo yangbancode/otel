@@ -32,7 +32,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
   end
 
   setup do
-    restart_sdk(metrics: [exporter: :none])
+    restart_sdk(metrics: [readers: []])
     %{meter: meter_for()}
   end
 
@@ -548,7 +548,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
       refute Otel.SDK.Metrics.Meter.enabled?(ghost, [])
 
-      restart_sdk(metrics: [exporter: :none])
+      restart_sdk(metrics: [readers: []])
       meter2 = meter_for()
       cfg2 = config_of(meter2)
 

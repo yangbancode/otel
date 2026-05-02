@@ -5,7 +5,7 @@ defmodule Otel.SDK.Trace.TracerTest do
     # `enabled?` tests below depend on the no-processor leg, so boot
     # the supervised TracerProvider with an empty processor list.
     Application.stop(:otel)
-    Application.put_env(:otel, :trace, exporter: :none)
+    Application.put_env(:otel, :trace, processors: [])
     Application.ensure_all_started(:otel)
 
     on_exit(fn ->

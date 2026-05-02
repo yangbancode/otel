@@ -42,7 +42,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
   end
 
   setup do
-    restart_sdk(trace: [exporter: :none])
+    restart_sdk(trace: [processors: []])
     %{provider: Otel.SDK.Trace.TracerProvider}
   end
 

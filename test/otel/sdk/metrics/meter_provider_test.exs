@@ -54,7 +54,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
   end
 
   setup do
-    restart_sdk(metrics: [exporter: :none])
+    restart_sdk(metrics: [readers: []])
     %{provider: Otel.SDK.Metrics.MeterProvider}
   end
 
@@ -63,7 +63,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     assert Otel.API.Metrics.MeterProvider.get_provider() == {Otel.SDK.Metrics.MeterProvider, p}
 
     custom = Otel.SDK.Resource.create(%{"service.name" => "test"})
-    restart_sdk(metrics: [exporter: :none, resource: custom])
+    restart_sdk(metrics: [readers: [], resource: custom])
 
     {_, %{resource: resource}} = meter_for(Otel.SDK.Metrics.MeterProvider, "lib")
     assert resource.attributes["service.name"] == "test"

@@ -73,7 +73,7 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
   end
 
   setup do
-    restart_sdk(metrics: [exporter: :none])
+    restart_sdk(metrics: [readers: []])
     :ok
   end
 

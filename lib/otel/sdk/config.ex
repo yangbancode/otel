@@ -16,10 +16,12 @@ defmodule Otel.SDK.Config do
   3. **Application env** — `Application.get_env(:otel, pillar,
      [])`. Lets users configure the SDK declaratively from
      `config/runtime.exs` or `config/<env>.exs`.
-  4. **Built-in defaults** — defined inline below; mirror the spec
-     defaults (exporter `otlp`, processor `batch`, etc.). Sampling
-     is hardcoded to `parentbased_always_on` (`Otel.SDK.Trace.Sampler`)
-     and is not configurable.
+  4. **Built-in defaults** — defined inline below. Several
+     components are *hardcoded* and not configurable:
+     Sampler (`parentbased_always_on`), IdGenerator (random),
+     SpanProcessor / LogRecordProcessor (batch), and **exporter
+     (OTLP/HTTP)**. To stop emitting telemetry, set
+     `config :otel, disabled: true`.
 
   ## Configuration UX
 
@@ -27,22 +29,17 @@ defmodule Otel.SDK.Config do
   # config/runtime.exs
   config :otel,
     trace: [
-      exporter: :otlp,                       # short form, blessed names
-      processor: :batch,
+      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
       span_limits: %{attribute_count_limit: 256}
     ],
     metrics: [
-      exporter: :otlp,
-      export_interval_ms: 30_000
+      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
+      reader_config: %{export_interval_ms: 30_000}
     ],
     logs: [
-      exporter: {MyApp.CustomExporter, %{api_key: System.get_env("X")}},
-      processor: :batch
+      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
     ]
   ```
-
-  All exporter / processor values accept the three forms documented
-  in `Otel.SDK.Config.Selector`.
 
   ## Public API
 
@@ -119,25 +116,8 @@ defmodule Otel.SDK.Config do
 
   @spec default_trace_processors(pillar :: keyword()) ::
           [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
-  defp default_trace_processors(pillar) do
-    case trace_exporter(pillar) do
-      :none -> []
-      exporter -> [{Otel.SDK.Trace.SpanProcessor, %{exporter: exporter}}]
-    end
-  end
-
-  @spec trace_exporter(pillar :: keyword()) :: {module(), map()} | :none
-  defp trace_exporter(pillar) do
-    cond do
-      explicit = Keyword.get(pillar, :exporter) ->
-        Otel.SDK.Config.Selector.trace_exporter(explicit)
-
-      from_env = Otel.SDK.Config.Env.enum("OTEL_TRACES_EXPORTER", [:otlp, :console, :none]) ->
-        Otel.SDK.Config.Selector.trace_exporter(from_env)
-
-      true ->
-        Otel.SDK.Config.Selector.trace_exporter(:otlp)
-    end
+  defp default_trace_processors(_pillar) do
+    [{Otel.SDK.Trace.SpanProcessor, %{exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{}}}}]
   end
 
   @spec build_span_limits(pillar :: keyword()) :: Otel.SDK.Trace.SpanLimits.t()
@@ -194,35 +174,15 @@ defmodule Otel.SDK.Config do
   @spec default_metrics_readers(pillar :: keyword()) ::
           [{module(), Otel.SDK.Metrics.MetricReader.config()}]
   defp default_metrics_readers(pillar) do
-    case metrics_exporter(pillar) do
-      :none ->
-        []
-
-      exporter ->
-        [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, reader_config(pillar, exporter)}]
-    end
+    [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, reader_config(pillar)}]
   end
 
-  @spec metrics_exporter(pillar :: keyword()) :: {module(), map()} | :none
-  defp metrics_exporter(pillar) do
-    cond do
-      explicit = Keyword.get(pillar, :exporter) ->
-        Otel.SDK.Config.Selector.metrics_exporter(explicit)
-
-      from_env = Otel.SDK.Config.Env.enum("OTEL_METRICS_EXPORTER", [:otlp, :console, :none]) ->
-        Otel.SDK.Config.Selector.metrics_exporter(from_env)
-
-      true ->
-        Otel.SDK.Config.Selector.metrics_exporter(:otlp)
-    end
-  end
-
-  @spec reader_config(pillar :: keyword(), exporter :: {module(), map()}) :: map()
-  defp reader_config(pillar, exporter) do
+  @spec reader_config(pillar :: keyword()) :: map()
+  defp reader_config(pillar) do
     overrides = Keyword.get(pillar, :reader_config, %{})
 
     base = %{
-      exporter: exporter,
+      exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}},
       export_interval_ms:
         Otel.SDK.Config.Env.duration_ms("OTEL_METRIC_EXPORT_INTERVAL") || 60_000,
       export_timeout_ms: Otel.SDK.Config.Env.timeout_ms("OTEL_METRIC_EXPORT_TIMEOUT") || 30_000
@@ -277,25 +237,11 @@ defmodule Otel.SDK.Config do
 
   @spec default_logs_processors(pillar :: keyword()) ::
           [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
-  defp default_logs_processors(pillar) do
-    case logs_exporter(pillar) do
-      :none -> []
-      exporter -> [{Otel.SDK.Logs.LogRecordProcessor, %{exporter: exporter}}]
-    end
-  end
-
-  @spec logs_exporter(pillar :: keyword()) :: {module(), map()} | :none
-  defp logs_exporter(pillar) do
-    cond do
-      explicit = Keyword.get(pillar, :exporter) ->
-        Otel.SDK.Config.Selector.logs_exporter(explicit)
-
-      from_env = Otel.SDK.Config.Env.enum("OTEL_LOGS_EXPORTER", [:otlp, :console, :none]) ->
-        Otel.SDK.Config.Selector.logs_exporter(from_env)
-
-      true ->
-        Otel.SDK.Config.Selector.logs_exporter(:otlp)
-    end
+  defp default_logs_processors(_pillar) do
+    [
+      {Otel.SDK.Logs.LogRecordProcessor,
+       %{exporter: {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}}}
+    ]
   end
 
   @spec build_log_record_limits(pillar :: keyword()) :: Otel.SDK.Logs.LogRecordLimits.t()
