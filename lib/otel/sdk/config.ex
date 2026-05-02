@@ -110,7 +110,7 @@ defmodule Otel.SDK.Config do
   """
   @spec exporter(signal :: :trace | :metrics | :logs) :: {module(), map()}
   def exporter(:trace), do: {Otel.Trace.SpanExporter, exporter_config()}
-  def exporter(:metrics), do: {Otel.OTLP.Metrics.MetricExporter, exporter_config()}
+  def exporter(:metrics), do: {Otel.Metrics.MetricExporter, exporter_config()}
   def exporter(:logs), do: {Otel.OTLP.Logs.LogRecordExporter, exporter_config()}
 
   @spec exporter_config() :: map()
@@ -190,13 +190,13 @@ defmodule Otel.SDK.Config do
   # override for tests that exercise the `:always_on` /
   # `:always_off` filter paths; it is not part of the
   # documented user surface.
-  @spec build_exemplar_filter(pillar :: keyword()) :: Otel.SDK.Metrics.Exemplar.Filter.t()
+  @spec build_exemplar_filter(pillar :: keyword()) :: Otel.Metrics.Exemplar.Filter.t()
   defp build_exemplar_filter(pillar) do
     Keyword.get(pillar, :exemplar_filter, :trace_based)
   end
 
   @spec build_metrics_readers(pillar :: keyword()) ::
-          [{module(), Otel.SDK.Metrics.MetricReader.config()}]
+          [{module(), Otel.Metrics.MetricReader.config()}]
   defp build_metrics_readers(pillar) do
     case Keyword.get(pillar, :readers) do
       nil -> default_metrics_readers(pillar)
@@ -208,10 +208,10 @@ defmodule Otel.SDK.Config do
   # (`metrics/sdk.md` L1450-L1453: `exportIntervalMillis`
   # `60000`, `exportTimeoutMillis` `30000`).
   @spec default_metrics_readers(pillar :: keyword()) ::
-          [{module(), Otel.SDK.Metrics.MetricReader.config()}]
+          [{module(), Otel.Metrics.MetricReader.config()}]
   defp default_metrics_readers(_pillar) do
     [
-      {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
+      {Otel.Metrics.MetricReader.PeriodicExporting,
        %{
          exporter: exporter(:metrics),
          export_interval_ms: 60_000,

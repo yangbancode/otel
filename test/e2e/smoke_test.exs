@@ -32,10 +32,10 @@ defmodule Otel.E2E.SmokeTest do
   end
 
   test "counter lands in Mimir", %{e2e_id: e2e_id} do
-    meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
-    counter = Otel.API.Metrics.Meter.create_counter(meter, "e2e.smoke")
+    meter = Otel.Metrics.MeterProvider.get_meter(scope())
+    counter = Otel.Metrics.Meter.create_counter(meter, "e2e.smoke")
 
-    Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
+    Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
 
     flush()
 

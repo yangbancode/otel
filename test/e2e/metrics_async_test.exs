@@ -14,14 +14,14 @@ defmodule Otel.E2E.MetricsAsyncTest do
 
   describe "observable instruments" do
     test "9: ObservableCounter callback feeds the counter", %{e2e_id: e2e_id} do
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
 
       cb = fn _args ->
-        [%Otel.API.Metrics.Measurement{value: 7, attributes: %{"e2e.id" => e2e_id}}]
+        [%Otel.Metrics.Measurement{value: 7, attributes: %{"e2e.id" => e2e_id}}]
       end
 
       _ =
-        Otel.API.Metrics.Meter.create_observable_counter(
+        Otel.Metrics.Meter.create_observable_counter(
           meter,
           "e2e_scenario_9_#{e2e_id}",
           cb,
@@ -34,15 +34,15 @@ defmodule Otel.E2E.MetricsAsyncTest do
     end
 
     test "10: ObservableUpDownCounter callback feeds multi-attr series", %{e2e_id: e2e_id} do
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
 
       cb = fn _args ->
         [
-          %Otel.API.Metrics.Measurement{
+          %Otel.Metrics.Measurement{
             value: 1,
             attributes: %{"e2e.id" => e2e_id, "host" => "a"}
           },
-          %Otel.API.Metrics.Measurement{
+          %Otel.Metrics.Measurement{
             value: -1,
             attributes: %{"e2e.id" => e2e_id, "host" => "b"}
           }
@@ -50,7 +50,7 @@ defmodule Otel.E2E.MetricsAsyncTest do
       end
 
       _ =
-        Otel.API.Metrics.Meter.create_observable_updown_counter(
+        Otel.Metrics.Meter.create_observable_updown_counter(
           meter,
           "e2e_scenario_10_#{e2e_id}",
           cb,
@@ -63,14 +63,14 @@ defmodule Otel.E2E.MetricsAsyncTest do
     end
 
     test "11: ObservableGauge callback feeds the gauge", %{e2e_id: e2e_id} do
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
 
       cb = fn _args ->
-        [%Otel.API.Metrics.Measurement{value: 99, attributes: %{"e2e.id" => e2e_id}}]
+        [%Otel.Metrics.Measurement{value: 99, attributes: %{"e2e.id" => e2e_id}}]
       end
 
       _ =
-        Otel.API.Metrics.Meter.create_observable_gauge(
+        Otel.Metrics.Meter.create_observable_gauge(
           meter,
           "e2e_scenario_11_#{e2e_id}",
           cb,
@@ -86,28 +86,28 @@ defmodule Otel.E2E.MetricsAsyncTest do
   describe "callback registration" do
     test "12: register_callback/5 fans out measurements across instruments",
          %{e2e_id: e2e_id} do
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
 
       gauge_a =
-        Otel.API.Metrics.Meter.create_observable_gauge(
+        Otel.Metrics.Meter.create_observable_gauge(
           meter,
           "e2e_scenario_12_a_#{e2e_id}"
         )
 
       gauge_b =
-        Otel.API.Metrics.Meter.create_observable_gauge(
+        Otel.Metrics.Meter.create_observable_gauge(
           meter,
           "e2e_scenario_12_b_#{e2e_id}"
         )
 
       cb = fn _args ->
         [
-          {gauge_a, %Otel.API.Metrics.Measurement{value: 1, attributes: %{"e2e.id" => e2e_id}}},
-          {gauge_b, %Otel.API.Metrics.Measurement{value: 2, attributes: %{"e2e.id" => e2e_id}}}
+          {gauge_a, %Otel.Metrics.Measurement{value: 1, attributes: %{"e2e.id" => e2e_id}}},
+          {gauge_b, %Otel.Metrics.Measurement{value: 2, attributes: %{"e2e.id" => e2e_id}}}
         ]
       end
 
-      _reg = Otel.API.Metrics.Meter.register_callback(meter, [gauge_a, gauge_b], cb, nil, [])
+      _reg = Otel.Metrics.Meter.register_callback(meter, [gauge_a, gauge_b], cb, nil, [])
 
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "e2e_scenario_12_a_#{e2e_id}"))
@@ -115,23 +115,23 @@ defmodule Otel.E2E.MetricsAsyncTest do
     end
 
     test "13: unregister_callback/1 stops further measurements", %{e2e_id: e2e_id} do
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
 
       gauge =
-        Otel.API.Metrics.Meter.create_observable_gauge(
+        Otel.Metrics.Meter.create_observable_gauge(
           meter,
           "e2e_scenario_13_#{e2e_id}"
         )
 
       cb = fn _args ->
-        [{gauge, %Otel.API.Metrics.Measurement{value: 1, attributes: %{"e2e.id" => e2e_id}}}]
+        [{gauge, %Otel.Metrics.Measurement{value: 1, attributes: %{"e2e.id" => e2e_id}}}]
       end
 
-      reg = Otel.API.Metrics.Meter.register_callback(meter, [gauge], cb, nil, [])
+      reg = Otel.Metrics.Meter.register_callback(meter, [gauge], cb, nil, [])
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "e2e_scenario_13_#{e2e_id}"))
 
-      :ok = Otel.API.Metrics.Meter.unregister_callback(reg)
+      :ok = Otel.Metrics.Meter.unregister_callback(reg)
       # Verifying *absence* of further values is brittle (Mimir
       # keeps the existing series and timestamps), so the
       # post-unregister check just confirms the call succeeded

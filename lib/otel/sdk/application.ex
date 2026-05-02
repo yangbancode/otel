@@ -11,7 +11,7 @@ defmodule Otel.SDK.Application do
     children = [
       Otel.Trace.SpanStorage,
       {Otel.Trace.TracerProvider, [config: Otel.SDK.Config.trace()]},
-      {Otel.SDK.Metrics.MeterProvider, [config: Otel.SDK.Config.metrics()]},
+      {Otel.Metrics.MeterProvider, [config: Otel.SDK.Config.metrics()]},
       {Otel.SDK.Logs.LoggerProvider, [config: Otel.SDK.Config.logs()]}
     ]
 

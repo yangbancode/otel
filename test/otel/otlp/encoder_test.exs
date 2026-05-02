@@ -474,7 +474,7 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "exemplars with and without trace context" do
-      with_ctx = %Otel.SDK.Metrics.Exemplar{
+      with_ctx = %Otel.Metrics.Exemplar{
         value: 42,
         time: 1_500_000,
         filtered_attributes: %{"extra" => "val"},
@@ -482,7 +482,7 @@ defmodule Otel.OTLP.EncoderTest do
         trace_id: 0x0AF7651916CD43DD8448EB211C80319C
       }
 
-      no_ctx = %Otel.SDK.Metrics.Exemplar{
+      no_ctx = %Otel.Metrics.Exemplar{
         value: 10.5,
         time: 1_500_000,
         filtered_attributes: %{},
