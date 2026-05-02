@@ -104,8 +104,7 @@ defmodule Otel.SDK.Config do
     %{
       resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
       processors: build_trace_processors(pillar),
-      span_limits: build_span_limits(pillar),
-      id_generator: Keyword.get(pillar, :id_generator, Otel.SDK.Trace.IdGenerator.Default)
+      span_limits: build_span_limits(pillar)
     }
   end
 

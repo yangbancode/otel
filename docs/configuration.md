@@ -126,7 +126,10 @@ Sampling is hardcoded to `parentbased_always_on`
 | Per-event attribute count | `span_limits: %{attribute_per_event_limit: _}` | `OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT` | non-negative integer | `128` |
 | Per-link attribute count | `span_limits: %{attribute_per_link_limit: _}` | `OTEL_LINK_ATTRIBUTE_COUNT_LIMIT` | non-negative integer | `128` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
-| ID generator | `id_generator:` | — | module | `Otel.SDK.Trace.IdGenerator.Default` |
+
+ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
+(random non-zero 128-bit trace IDs / 64-bit span IDs); no
+`id_generator:` option is accepted.
 
 ## Metrics pillar
 

@@ -39,7 +39,6 @@ defmodule Otel.Configuration.ComposerTest do
 
       assert trace.processors == []
       assert %Otel.SDK.Trace.SpanLimits{} = trace.span_limits
-      assert trace.id_generator == Otel.SDK.Trace.IdGenerator.Default
 
       assert metrics.readers == []
       assert metrics.exemplar_filter == :trace_based

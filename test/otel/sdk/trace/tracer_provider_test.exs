@@ -52,7 +52,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
   end
 
   describe "get_tracer/2" do
-    test "returns {SDK.Tracer, config} carrying scope, id_generator, span_limits",
+    test "returns {SDK.Tracer, config} carrying scope, span_limits",
          %{provider: p} do
       {module, config} =
         Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{
@@ -69,9 +69,9 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
                schema_url: "https://example.com"
              } = config.scope
 
-      assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
       assert %Otel.SDK.Trace.SpanLimits{} = config.span_limits
       refute Map.has_key?(config, :sampler)
+      refute Map.has_key?(config, :id_generator)
     end
 
     # Spec trace/sdk.md L125-L130 — invalid Tracer name SHOULD log a

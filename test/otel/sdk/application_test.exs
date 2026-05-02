@@ -31,12 +31,13 @@ defmodule Otel.SDK.ApplicationTest do
 
         reboot()
 
-        # Tracer state has the four default keys (no :sampler — sampling
-        # is hardcoded to `Otel.SDK.Trace.Sampler` and not stored in
-        # provider state).
+        # Tracer state has the three default keys (no :sampler or
+        # :id_generator — sampling is hardcoded to
+        # `Otel.SDK.Trace.Sampler` and ID generation to
+        # `Otel.SDK.Trace.IdGenerator`).
         state = :sys.get_state(Otel.SDK.Trace.TracerProvider)
 
-        for key <- [:processors, :id_generator, :resource, :span_limits],
+        for key <- [:processors, :resource, :span_limits],
             do: assert(Map.has_key?(state, key))
       end
     end
