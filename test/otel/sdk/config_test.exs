@@ -3,7 +3,7 @@ defmodule Otel.SDK.ConfigTest do
 
   setup do
     on_exit(fn ->
-      for k <- [:trace, :metrics, :logs, :propagators, :resource, :exporter],
+      for k <- [:trace, :metrics, :logs, :resource, :exporter],
           do: Application.delete_env(:otel, k)
     end)
 
@@ -135,20 +135,6 @@ defmodule Otel.SDK.ConfigTest do
 
       assert %Otel.Logs.LogRecordLimits{attribute_count_limit: 128} =
                Otel.SDK.Config.logs().log_record_limits
-    end
-  end
-
-  describe "propagator/0" do
-    test "hardcoded: Composite of TraceContext + Baggage" do
-      assert {Otel.API.Propagator.TextMap.Composite,
-              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
-               Otel.SDK.Config.propagator()
-    end
-
-    test "ignores Application env :propagators (no longer read)" do
-      Application.put_env(:otel, :propagators, [:tracecontext])
-
-      assert {Otel.API.Propagator.TextMap.Composite, _} = Otel.SDK.Config.propagator()
     end
   end
 end

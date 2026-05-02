@@ -6,8 +6,6 @@ defmodule Otel.SDK.Application do
   @impl true
   @spec start(type :: Application.start_type(), args :: term()) :: {:ok, pid()}
   def start(_type, _args) do
-    Otel.API.Propagator.TextMap.set_propagator(Otel.SDK.Config.propagator())
-
     children = [
       Otel.Trace.SpanStorage,
       {Otel.Trace.TracerProvider, [config: Otel.SDK.Config.trace()]},

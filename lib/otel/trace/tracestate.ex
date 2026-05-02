@@ -183,7 +183,7 @@ defmodule Otel.Trace.TraceState do
   Serializes to a W3C `tracestate` header value. Returns `""` for
   an empty state.
 
-  Used by `Otel.API.Propagator.TextMap.TraceContext` when injecting
+  Used by `Otel.Propagator.TextMap.TraceContext` when injecting
   outgoing requests.
   """
   @spec encode(trace_state :: t()) :: String.t()
@@ -207,7 +207,7 @@ defmodule Otel.Trace.TraceState do
   is applied at mutation time by `add/3` / `update/3` per
   OTel api.md L294-L295. Pairs without `=` raise `MatchError`.
 
-  Used by `Otel.API.Propagator.TextMap.TraceContext` when
+  Used by `Otel.Propagator.TextMap.TraceContext` when
   extracting incoming requests.
   """
   @spec decode(header :: String.t()) :: t()
@@ -261,7 +261,7 @@ defmodule Otel.Trace.TraceState do
 
   Returns whether the TraceState has no entries.
 
-  Used by `Otel.API.Propagator.TextMap.TraceContext` to skip
+  Used by `Otel.Propagator.TextMap.TraceContext` to skip
   injecting an empty `tracestate` header (W3C §3.3.1 L275:
   "SHOULD avoid sending [empty headers]").
   """

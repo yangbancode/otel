@@ -1,4 +1,4 @@
-defmodule Otel.API.Propagator.TextMap.Baggage do
+defmodule Otel.Propagator.TextMap.Baggage do
   @moduledoc """
   W3C Baggage propagator (W3C `HTTP_HEADER_FORMAT.md` §Header
   Content L19-L113; OTel `context/api-propagators.md`
@@ -31,7 +31,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   MUST mean literal plus — not an encoded space.
 
   Encoding and decoding are delegated to
-  `Otel.API.Baggage.Percent`, which also implements the §L69
+  `Otel.Baggage.Percent`, which also implements the §L69
   MUST that percent-encoded octet sequences not matching
   UTF-8 must be replaced with `U+FFFD`. Inject produces
   `%20` for space; extract decodes `%20` to space and leaves
@@ -46,7 +46,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   ### 2. Metadata as opaque string
 
-  `Otel.API.Baggage` stores each entry's metadata as a single
+  `Otel.Baggage` stores each entry's metadata as a single
   string (`{value, metadata}`). W3C §property L82-L100 defines
   a structured property list (e.g. `;k1=v1;k2;k3=v3`), and
   `opentelemetry-erlang` parses it into a list of key/value
@@ -54,7 +54,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   This propagator round-trips the raw metadata string
   byte-for-byte — no splitting on `;`, no per-property
-  percent-encoding. The choice mirrors `Otel.API.Baggage`'s
+  percent-encoding. The choice mirrors `Otel.Baggage`'s
   opaque-metadata design; callers who need structured
   metadata parse it themselves.
 
@@ -81,7 +81,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   entry present in `Baggage.current/1`. Neither the MUST
   (trivially satisfied for small baggage) nor the MAY
   (optional) requires defensive limits here; if limits become
-  necessary they belong in `Otel.API.Baggage`'s mutation
+  necessary they belong in `Otel.Baggage`'s mutation
   surface, not the wire-format propagator.
 
   ### 5. Key encoding over-encodes RFC 7230 token characters
@@ -93,7 +93,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   ALPHA/DIGIT — so a key like `user.id` or `user!id` is a
   valid `token`.
 
-  `Otel.API.Baggage.Percent.encode/1` percent-encodes
+  `Otel.Baggage.Percent.encode/1` percent-encodes
   everything outside `URI.char_unreserved?/1` (`A-Z`, `a-z`,
   `0-9`, `-`, `.`, `_`, `~`). That is RFC 3986 strict — but
   it over-encodes the token sub-delims. A key like
@@ -118,7 +118,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   | Function | Role |
   |---|---|
-  | `inject/3` | **SDK** (OTel API MUST) — TextMap Inject (L155-L182); `@impl Otel.API.Propagator.TextMap` |
+  | `inject/3` | **SDK** (OTel API MUST) — TextMap Inject (L155-L182); `@impl Otel.Propagator.TextMap` |
   | `extract/3` | **SDK** (OTel API MUST) — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L102) |
   | `fields/0` | **SDK** (OTel API MUST) — Fields (L133-L152) |
   | `encode_baggage/1` | **Application** (W3C header serialization) — §Definition L23-L41 |
@@ -132,8 +132,6 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api/src/otel_propagator_baggage.erl`
   """
 
-  @behaviour Otel.API.Propagator.TextMap
-
   @baggage_header "baggage"
 
   @doc """
@@ -141,19 +139,18 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   (`api-propagators.md` L155-L182) for the W3C `baggage`
   header.
 
-  Serialises `Otel.API.Baggage.current(ctx)` into a single
+  Serialises `Otel.Baggage.current(ctx)` into a single
   comma-separated `baggage` header value and sets it on the
   carrier. When the context's baggage is empty the carrier is
   returned unchanged (no header written).
   """
-  @impl true
   @spec inject(
           ctx :: Otel.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          setter :: Otel.API.Propagator.TextMap.setter()
-        ) :: Otel.API.Propagator.TextMap.carrier()
+          carrier :: Otel.Propagator.TextMap.carrier(),
+          setter :: Otel.Propagator.TextMap.setter()
+        ) :: Otel.Propagator.TextMap.carrier()
   def inject(ctx, carrier, setter) do
-    baggage = Otel.API.Baggage.current(ctx)
+    baggage = Otel.Baggage.current(ctx)
 
     if map_size(baggage) > 0 do
       header_value = encode_baggage(baggage)
@@ -169,7 +166,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   header.
 
   Parses the `baggage` header into `{value, metadata}` pairs
-  and merges the result into `Otel.API.Baggage.current(ctx)`
+  and merges the result into `Otel.Baggage.current(ctx)`
   (see "Extract merges with existing baggage" in the module
   docs).
 
@@ -183,11 +180,10 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   listed under "Not error handling" in
   `.claude/rules/code-conventions.md`.
   """
-  @impl true
   @spec extract(
           ctx :: Otel.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          getter :: Otel.API.Propagator.TextMap.getter()
+          carrier :: Otel.Propagator.TextMap.carrier(),
+          getter :: Otel.Propagator.TextMap.getter()
         ) :: Otel.Ctx.t()
   def extract(ctx, carrier, getter) do
     case getter.(carrier, @baggage_header) do
@@ -197,9 +193,9 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
       header_value ->
         try do
           baggage = decode_baggage(String.trim(header_value))
-          existing = Otel.API.Baggage.current(ctx)
+          existing = Otel.Baggage.current(ctx)
           merged = Map.merge(existing, baggage)
-          Otel.API.Baggage.set_current(ctx, merged)
+          Otel.Baggage.set_current(ctx, merged)
         catch
           _, _ -> ctx
         end
@@ -213,7 +209,6 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   Returns `["baggage"]` — the single header name this
   propagator reads and writes.
   """
-  @impl true
   @spec fields() :: [String.t()]
   def fields, do: [@baggage_header]
 
@@ -221,7 +216,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   @doc """
   **Application** (W3C header serialization) — encodes an
-  `Otel.API.Baggage.t()` map into a `baggage` header value.
+  `Otel.Baggage.t()` map into a `baggage` header value.
 
   Produces a comma-separated list of `list-member`s per W3C
   §Definition L23-L41 (ABNF). Each entry's name and value
@@ -232,12 +227,12 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   Returns `""` for an empty baggage map. The `inject/3`
   caller uses that as the signal not to emit the header.
   """
-  @spec encode_baggage(baggage :: Otel.API.Baggage.t()) :: String.t()
+  @spec encode_baggage(baggage :: Otel.Baggage.t()) :: String.t()
   def encode_baggage(baggage) do
     baggage
     |> Enum.map_join(",", fn {name, {value, metadata}} ->
-      encoded_name = Otel.API.Baggage.Percent.encode(name)
-      encoded_value = Otel.API.Baggage.Percent.encode(value)
+      encoded_name = Otel.Baggage.Percent.encode(name)
+      encoded_value = Otel.Baggage.Percent.encode(value)
 
       if metadata == "" do
         "#{encoded_name}=#{encoded_value}"
@@ -251,7 +246,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
   @doc """
   **Application** (W3C header parsing) — decodes a `baggage`
-  header value into an `Otel.API.Baggage.t()` map.
+  header value into an `Otel.Baggage.t()` map.
 
   Splits the header on `,` into `list-member`s per W3C
   §Definition L23-L41, delegates each to `decode_entry/1`,
@@ -265,7 +260,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   failure") should go through `extract/3`, which wraps this
   call in a `catch` clause.
   """
-  @spec decode_baggage(header :: String.t()) :: Otel.API.Baggage.t()
+  @spec decode_baggage(header :: String.t()) :: Otel.Baggage.t()
   def decode_baggage(header) do
     header
     |> String.split(",")
@@ -287,7 +282,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
 
     [name, value] = String.split(String.trim(key_value), "=", parts: 2)
 
-    {Otel.API.Baggage.Percent.decode(String.trim(name)),
-     Otel.API.Baggage.Percent.decode(String.trim(value)), metadata}
+    {Otel.Baggage.Percent.decode(String.trim(name)),
+     Otel.Baggage.Percent.decode(String.trim(value)), metadata}
   end
 end

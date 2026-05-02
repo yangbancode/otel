@@ -72,7 +72,6 @@ defmodule Otel.SDK.Config do
   | `trace/0` | TracerProvider config map |
   | `metrics/0` | MeterProvider config map |
   | `logs/0` | LoggerProvider config map |
-  | `propagator/0` | Global TextMap propagator (`{Composite, [TraceContext, Baggage]}`) |
 
   ## References
 
@@ -259,24 +258,5 @@ defmodule Otel.SDK.Config do
           [{module(), Otel.Logs.LogRecordProcessor.config()}]
   defp default_logs_processors(_pillar) do
     [{Otel.Logs.LogRecordProcessor, %{exporter: exporter(:logs)}}]
-  end
-
-  # ====== Propagator ======
-
-  @doc """
-  Returns the hardcoded global TextMap propagator —
-  `Composite[TraceContext, Baggage]`, the OTel spec default
-  per `sdk-environment-variables.md` L118
-  (`OTEL_PROPAGATORS` default `"tracecontext,baggage"`) and
-  `context/api-propagators.md` L329-331.
-
-  Not configurable per minikube-style scope. Power users
-  wanting B3 / Jaeger / X-Ray propagators should use
-  `opentelemetry-erlang`.
-  """
-  @spec propagator() :: {module(), [module()]}
-  def propagator do
-    {Otel.API.Propagator.TextMap.Composite,
-     [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]}
   end
 end
