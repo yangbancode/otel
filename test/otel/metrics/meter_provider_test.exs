@@ -33,16 +33,7 @@ defmodule Otel.Metrics.MeterProviderTest do
     def handle_call(:force_flush, _from, state), do: {:reply, {:error, :flush_failed}, state}
   end
 
-  defp restart_sdk(env) do
-    Application.stop(:otel)
-    for {pillar, opts} <- env, do: Application.put_env(:otel, pillar, opts)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
-    end)
-  end
+  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp meter_for(pid, scope_name) do
     Otel.Metrics.MeterProvider.get_meter(pid, %Otel.InstrumentationScope{name: scope_name})
@@ -106,7 +97,7 @@ defmodule Otel.Metrics.MeterProviderTest do
     end
 
     test "lifecycle + introspection facades stay graceful when the provider isn't running" do
-      Application.stop(:otel)
+      Otel.TestSupport.stop_all()
       refute GenServer.whereis(Otel.Metrics.MeterProvider)
 
       assert :ok =

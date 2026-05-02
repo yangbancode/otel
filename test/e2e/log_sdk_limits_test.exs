@@ -11,20 +11,13 @@ defmodule Otel.E2E.LogSdkLimitsTest do
 
   use Otel.E2E.Case, async: false
 
-  @small_limits %{attribute_count_limit: 2, attribute_value_length_limit: 8}
+  @small_limits %Otel.Logs.LogRecordLimits{
+    attribute_count_limit: 2,
+    attribute_value_length_limit: 8
+  }
 
   setup_all do
-    prev = Application.get_env(:otel, :logs, [])
-    Application.stop(:otel)
-    Application.put_env(:otel, :logs, log_record_limits: @small_limits)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      Application.put_env(:otel, :logs, prev)
-      Application.ensure_all_started(:otel)
-    end)
-
+    Otel.TestSupport.restart_with(logs: [log_record_limits: @small_limits])
     :ok
   end
 

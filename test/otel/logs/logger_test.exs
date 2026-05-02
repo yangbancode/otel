@@ -15,16 +15,7 @@ defmodule Otel.Logs.LoggerTest do
     def force_flush(_config, _timeout \\ 5000), do: :ok
   end
 
-  defp restart_sdk(env) do
-    Application.stop(:otel)
-    for {pillar, opts} <- env, do: Application.put_env(:otel, pillar, opts)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
-    end)
-  end
+  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp logger_for(scope_name, version \\ "1.0.0") do
     Otel.Logs.LoggerProvider.get_logger(

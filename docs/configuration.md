@@ -38,8 +38,10 @@ exporters (trace, metrics, logs). Common keys:
 | `:headers` | `%{}` | `%{header_name => value}` — use for SaaS auth tokens |
 | `:ssl_options` | system CAs for HTTPS | Erlang `:ssl` client options |
 
-`:compression`, `:timeout`, `:retry_opts` are also accepted by the
-exporter modules but rarely need adjustment.
+`:compression` and `:timeout` are also accepted by the exporter
+modules but rarely need adjustment. Retry behavior is hardcoded to
+the Java OTLP defaults (5 attempts, 1s → 5s exponential backoff,
+±20% jitter) and is not user-tunable.
 
 ## Bridging OS environment variables (Phoenix pattern)
 
@@ -182,23 +184,16 @@ Common patterns:
 | Mutual TLS | add `certfile: "client.crt", keyfile: "client.key"` |
 | Disable verification (dev only) | `verify: :verify_none` |
 
-## Advanced overrides (test / power-user only)
+## What's *not* user-configurable
 
-The per-pillar keys (`trace:`, `metrics:`, `logs:`) accept the
-underlying processor / reader / limits structures. They bypass
-the simple surface above and are mostly for tests.
+By design (minikube-style), there is no knob for:
 
-| Pillar | Key | Type |
-|---|---|---|
-| `trace:` | `:processors` | `[{module, config}]` |
-| `trace:` | `:resource` | `%Otel.Resource{}` (struct, not map) |
-| `trace:` | `:span_limits` | `%Otel.SDK.Trace.SpanLimits{}` or keyword |
-| `metrics:` | `:readers` | `[{module, config}]` |
-| `metrics:` | `:resource` | `%Otel.Resource{}` |
-| `metrics:` | `:exemplar_filter` | `:always_on` / `:always_off` / `:trace_based` |
-| `logs:` | `:processors` | `[{module, config}]` |
-| `logs:` | `:resource` | `%Otel.Resource{}` |
-| `logs:` | `:log_record_limits` | `%Otel.SDK.Logs.LogRecordLimits{}` or keyword |
+- SpanProcessor / LogRecordProcessor (always Batch)
+- MetricReader (always PeriodicExporting, 60s interval / 30s timeout)
+- SpanLimits / LogRecordLimits (spec defaults)
+- Exemplar filter (always `:trace_based`)
+- Retry behavior (Java OTLP defaults)
+- Per-pillar resource (only the top-level `:resource` is used)
 
-When a per-pillar override is set, the matching top-level key is
-bypassed for that pillar.
+Power users wanting custom processors / readers / limits / filters
+should use [`opentelemetry-erlang`](https://github.com/open-telemetry/opentelemetry-erlang).

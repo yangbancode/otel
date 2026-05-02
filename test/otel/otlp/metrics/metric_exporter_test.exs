@@ -129,19 +129,12 @@ defmodule Otel.Metrics.MetricExporterTest do
       assert :ok = Otel.Metrics.MetricExporter.export([@metric], ssl)
     end
 
-    test "503 retried then :error" do
-      state =
-        init!(%{
-          endpoint: server(503),
-          retry_opts: %{
-            max_attempts: 2,
-            initial_backoff_ms: 1,
-            max_backoff_ms: 5,
-            jitter_ratio: 0.0
-          }
-        })
-
-      assert :error = Otel.Metrics.MetricExporter.export([@metric], state)
+    # Retry behavior is exercised comprehensively by
+    # `Otel.OTLP.HTTP.RetryTest`. The exporter delegates verbatim
+    # to that module with hardcoded Java OTLP defaults.
+    test "non-retryable 4xx → :error immediately" do
+      bad = init!(%{endpoint: server(400)})
+      assert :error = Otel.Metrics.MetricExporter.export([@metric], bad)
     end
   end
 

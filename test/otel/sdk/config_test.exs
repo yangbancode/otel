@@ -78,31 +78,6 @@ defmodule Otel.SDK.ConfigTest do
 
       assert exp_config.endpoint == "https://collector:4318"
     end
-
-    test "Application env: explicit :processors list bypasses implicit build" do
-      processors = [{MyApp.CustomProcessor, %{x: 1}}]
-      Application.put_env(:otel, :trace, processors: processors)
-      assert Otel.SDK.Config.trace().processors == processors
-    end
-
-    test "pillar :resource (advanced override) bypasses top-level :resource" do
-      Application.put_env(:otel, :resource, %{"service.name" => "from_top"})
-
-      override = %Otel.Resource{attributes: %{"service.name" => "from_pillar"}}
-      Application.put_env(:otel, :trace, resource: override)
-
-      assert Otel.SDK.Config.trace().resource == override
-    end
-
-    test "span_limits accepts map and keyword forms; untouched fields keep defaults" do
-      Application.put_env(:otel, :trace, span_limits: %{attribute_count_limit: 256})
-      limits = Otel.SDK.Config.trace().span_limits
-      assert limits.attribute_count_limit == 256
-      assert limits.event_count_limit == 128
-
-      Application.put_env(:otel, :trace, span_limits: [attribute_count_limit: 64])
-      assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
-    end
   end
 
   describe "metrics/0" do
@@ -114,16 +89,6 @@ defmodule Otel.SDK.ConfigTest do
       assert reader.export_interval_ms == 60_000
       assert reader.export_timeout_ms == 30_000
       assert Otel.SDK.Config.metrics().exemplar_filter == :trace_based
-    end
-
-    test "Application :readers shortcut (advanced override; for tests)" do
-      Application.put_env(:otel, :metrics, readers: [{MyApp.Reader, %{}}])
-      assert Otel.SDK.Config.metrics().readers == [{MyApp.Reader, %{}}]
-    end
-
-    test ":exemplar_filter Application env override (advanced; for tests)" do
-      Application.put_env(:otel, :metrics, exemplar_filter: :always_on)
-      assert Otel.SDK.Config.metrics().exemplar_filter == :always_on
     end
   end
 

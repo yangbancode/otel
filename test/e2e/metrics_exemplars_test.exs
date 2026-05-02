@@ -104,20 +104,7 @@ defmodule Otel.E2E.MetricsExemplarsTest do
 
   # ---- helpers ----
 
-  defp restart_with(opts) do
-    prev = Application.get_env(:otel, :metrics, [])
-    Application.stop(:otel)
-    Application.put_env(:otel, :metrics, opts)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      Application.put_env(:otel, :metrics, prev)
-      Application.ensure_all_started(:otel)
-    end)
-
-    :ok
-  end
+  defp restart_with(opts), do: Otel.TestSupport.restart_with(metrics: opts)
 
   defp record_counter(name, e2e_id) do
     meter = Otel.Metrics.MeterProvider.get_meter(scope())
