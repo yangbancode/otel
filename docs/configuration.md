@@ -18,7 +18,6 @@ config :otel,
   trace: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
     exporter: :otlp,
-    processor: :batch,
     span_limits: %{attribute_count_limit: 256}
   ],
   metrics: [
@@ -28,8 +27,7 @@ config :otel,
   ],
   logs: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-    exporter: :otlp,
-    processor: :batch
+    exporter: :otlp
   ],
   propagators: [:tracecontext, :baggage]
 ```
@@ -98,8 +96,8 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 
 ## Selectors
 
-Module-valued options (`exporter:`, `processor:`, items in
-`propagators:`) accept:
+Module-valued options (`exporter:`, items in `propagators:`)
+accept:
 
 - a shortcut atom (see tables below)
 - a module — same as `{Module, %{}}`
@@ -113,8 +111,7 @@ Sampling is hardcoded to `parentbased_always_on`
 | Option | `config :otel, trace:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Exporter | `exporter:` | `OTEL_TRACES_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
-| Processor | `processor:` | — | `:batch` / `:simple` / `Module` | `:batch` |
-| Processor list | `processors:` | — | list of `{module, config}` | inferred |
+| Processor list | `processors:` | — | list of `{module, config}` (advanced override) | inferred |
 | Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BSP_SCHEDULE_DELAY` | non-negative integer (ms) | `5000` |
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BSP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BSP_MAX_QUEUE_SIZE` | positive integer | `2048` |
@@ -148,8 +145,7 @@ ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
 | Option | `config :otel, logs:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Exporter | `exporter:` | `OTEL_LOGS_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
-| Processor | `processor:` | — | `:batch` / `:simple` / `Module` | `:batch` |
-| Processor list | `processors:` | — | list of `{module, config}` | inferred |
+| Processor list | `processors:` | — | list of `{module, config}` (advanced override) | inferred |
 | Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BLRP_SCHEDULE_DELAY` | non-negative integer (ms) | `1000` |
 | Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BLRP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BLRP_MAX_QUEUE_SIZE` | positive integer | `2048` |

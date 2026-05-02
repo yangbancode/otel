@@ -9,12 +9,13 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   It is not recommended for production use. The output format
   is not standardized and can change at any time."*
 
-  Spec L29-L34 — recommended pairing is
-  `Otel.SDK.Logs.LogRecordProcessor.Simple`. The spec SHOULD
-  is conditional on the SDK providing an auto-configuration
-  mechanism (e.g. `OTEL_LOGS_EXPORTER`); this SDK does not
-  currently, so the pairing is informational rather than
-  mandated.
+  Spec L29-L34 — recommended pairing is the Simple processor
+  for debug visibility. This SDK ships only the batching
+  processor (`Otel.SDK.Logs.LogRecordProcessor`); the spec
+  SHOULD is conditional on the SDK providing an
+  auto-configuration mechanism (e.g. `OTEL_LOGS_EXPORTER`),
+  so the missing Simple processor is informational rather
+  than spec-violating.
 
   ## Output format
 
@@ -51,10 +52,10 @@ defmodule Otel.SDK.Logs.LogRecordExporter.Console do
   of the exporter."* Console is stateless (the user's config
   is opaque, never mutated):
 
-  - `export/2` writes to `:stdio` via `IO.puts/1`. The OTel
-    SDK's bundled processors (`Simple`, `Batch`) serialise
-    `export/2` calls per spec L572-L573, so Console assumes
-    a single `export/2` in flight at a time. `IO.puts/1`
+  - `export/2` writes to `:stdio` via `IO.puts/1`. The bundled
+    `LogRecordProcessor` serialises `export/2` calls per spec
+    L572-L573, so Console assumes a single `export/2` in
+    flight at a time. `IO.puts/1`
     itself is thread-safe (the IO server serialises writes),
     so even concurrent invocation by a non-bundled
     processor would not corrupt output, only interleave

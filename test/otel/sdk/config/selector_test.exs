@@ -29,26 +29,6 @@ defmodule Otel.SDK.Config.SelectorTest do
     end
   end
 
-  describe "trace_processor/1, logs_processor/1" do
-    test "shortcut atoms map to processor modules; bare module passes through" do
-      assert Otel.SDK.Config.Selector.trace_processor(:batch) ==
-               Otel.SDK.Trace.SpanProcessor.Batch
-
-      assert Otel.SDK.Config.Selector.trace_processor(:simple) ==
-               Otel.SDK.Trace.SpanProcessor.Simple
-
-      assert Otel.SDK.Config.Selector.trace_processor(MyApp.Processor) == MyApp.Processor
-
-      assert Otel.SDK.Config.Selector.logs_processor(:batch) ==
-               Otel.SDK.Logs.LogRecordProcessor.Batch
-
-      assert Otel.SDK.Config.Selector.logs_processor(:simple) ==
-               Otel.SDK.Logs.LogRecordProcessor.Simple
-
-      assert Otel.SDK.Config.Selector.logs_processor(MyApp.LogProcessor) == MyApp.LogProcessor
-    end
-  end
-
   describe "propagator/1" do
     test "implemented atoms map to project modules; custom modules pass through" do
       assert Otel.SDK.Config.Selector.propagator(:tracecontext) ==

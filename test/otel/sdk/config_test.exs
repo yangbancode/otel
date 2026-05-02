@@ -47,7 +47,7 @@ defmodule Otel.SDK.ConfigTest do
       config = Otel.SDK.Config.trace()
 
       assert [
-               {Otel.SDK.Trace.SpanProcessor.Batch,
+               {Otel.SDK.Trace.SpanProcessor,
                 %{exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{}}}}
              ] = config.processors
 
@@ -55,14 +55,11 @@ defmodule Otel.SDK.ConfigTest do
       refute Map.has_key?(config, :id_generator)
     end
 
-    test "Application env: exporter / processor selectors swap underlying module" do
+    test "Application env: exporter selector swaps underlying module" do
       Application.put_env(:otel, :trace, exporter: :console)
 
       assert [{_, %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}] =
                Otel.SDK.Config.trace().processors
-
-      Application.put_env(:otel, :trace, processor: :simple, exporter: :console)
-      assert [{Otel.SDK.Trace.SpanProcessor.Simple, _}] = Otel.SDK.Config.trace().processors
 
       Application.put_env(:otel, :trace, exporter: :none)
       assert Otel.SDK.Config.trace().processors == []
@@ -155,7 +152,7 @@ defmodule Otel.SDK.ConfigTest do
 
   describe "logs/0" do
     test "defaults: Batch(OTLP HTTP) + LogRecordLimits" do
-      [{Otel.SDK.Logs.LogRecordProcessor.Batch, config}] = Otel.SDK.Config.logs().processors
+      [{Otel.SDK.Logs.LogRecordProcessor, config}] = Otel.SDK.Config.logs().processors
 
       assert config.exporter == {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}
       assert config.scheduled_delay_ms == 1_000

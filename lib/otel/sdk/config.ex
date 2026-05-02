@@ -122,7 +122,7 @@ defmodule Otel.SDK.Config do
   defp default_trace_processors(pillar) do
     case trace_exporter(pillar) do
       :none -> []
-      exporter -> [{trace_processor_module(pillar), trace_processor_config(pillar, exporter)}]
+      exporter -> [{Otel.SDK.Trace.SpanProcessor, trace_processor_config(pillar, exporter)}]
     end
   end
 
@@ -140,15 +140,8 @@ defmodule Otel.SDK.Config do
     end
   end
 
-  @spec trace_processor_module(pillar :: keyword()) :: module()
-  defp trace_processor_module(pillar) do
-    pillar
-    |> Keyword.get(:processor, :batch)
-    |> Otel.SDK.Config.Selector.trace_processor()
-  end
-
-  # Forwards the OTEL_BSP_* knobs into the Batch processor's init
-  # config. Simple processor ignores the BSP knobs harmlessly.
+  # Forwards the OTEL_BSP_* knobs into the SpanProcessor's init
+  # config.
   @spec trace_processor_config(pillar :: keyword(), exporter :: {module(), map()}) :: map()
   defp trace_processor_config(pillar, exporter) do
     overrides = Keyword.get(pillar, :processor_config, %{})
@@ -304,7 +297,7 @@ defmodule Otel.SDK.Config do
   defp default_logs_processors(pillar) do
     case logs_exporter(pillar) do
       :none -> []
-      exporter -> [{logs_processor_module(pillar), logs_processor_config(pillar, exporter)}]
+      exporter -> [{Otel.SDK.Logs.LogRecordProcessor, logs_processor_config(pillar, exporter)}]
     end
   end
 
@@ -320,13 +313,6 @@ defmodule Otel.SDK.Config do
       true ->
         Otel.SDK.Config.Selector.logs_exporter(:otlp)
     end
-  end
-
-  @spec logs_processor_module(pillar :: keyword()) :: module()
-  defp logs_processor_module(pillar) do
-    pillar
-    |> Keyword.get(:processor, :batch)
-    |> Otel.SDK.Config.Selector.logs_processor()
   end
 
   @spec logs_processor_config(pillar :: keyword(), exporter :: {module(), map()}) :: map()

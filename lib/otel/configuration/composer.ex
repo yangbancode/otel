@@ -38,9 +38,9 @@ defmodule Otel.Configuration.Composer do
 
   | Pillar | Processor / Reader | Exporter |
   |---|---|---|
-  | Trace | batch, simple | otlp_http, console |
+  | Trace | batch | otlp_http, console |
   | Metrics | periodic | otlp_http, console |
-  | Logs | batch, simple | otlp_http, console |
+  | Logs | batch | otlp_http, console |
 
   Sampler is hardcoded to `parentbased_always_on`
   (`Otel.SDK.Trace.Sampler`); any `tracer_provider.sampler`
@@ -199,11 +199,7 @@ defmodule Otel.Configuration.Composer do
   defp compose_span_processor(spec) do
     case sole_key(spec) do
       {"batch", inner} ->
-        {Otel.SDK.Trace.SpanProcessor.Batch, batch_processor_config(inner || %{}, :trace)}
-
-      {"simple", inner} ->
-        {Otel.SDK.Trace.SpanProcessor.Simple,
-         %{exporter: compose_trace_exporter(inner["exporter"])}}
+        {Otel.SDK.Trace.SpanProcessor, batch_processor_config(inner || %{}, :trace)}
 
       {key, _} ->
         raise ArgumentError, "unsupported span processor: #{inspect(key)}"
@@ -352,11 +348,7 @@ defmodule Otel.Configuration.Composer do
   defp compose_log_processor(spec) do
     case sole_key(spec) do
       {"batch", inner} ->
-        {Otel.SDK.Logs.LogRecordProcessor.Batch, batch_processor_config(inner || %{}, :logs)}
-
-      {"simple", inner} ->
-        {Otel.SDK.Logs.LogRecordProcessor.Simple,
-         %{exporter: compose_log_exporter(inner["exporter"])}}
+        {Otel.SDK.Logs.LogRecordProcessor, batch_processor_config(inner || %{}, :logs)}
 
       {key, _} ->
         raise ArgumentError, "unsupported log processor: #{inspect(key)}"

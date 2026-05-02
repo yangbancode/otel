@@ -13,10 +13,9 @@ defmodule Otel.SDK.Logs.LogRecordExporter do
   with other `Export` calls for the same exporter instance."*
   Note this is a SHOULD-strength clause (lowercase *"should
   not"* in the spec text), not a MUST. The SDK's
-  `Otel.SDK.Logs.LogRecordProcessor.Simple` and
-  `Otel.SDK.Logs.LogRecordProcessor.Batch` serialise export
-  calls through a gen_statem so exporter implementations may
-  assume single-threaded `export/2`.
+  `Otel.SDK.Logs.LogRecordProcessor` serialises export calls
+  through a gen_statem so exporter implementations may assume
+  single-threaded `export/2`.
 
   Spec L659-L660 — *"`ForceFlush` and `Shutdown` MUST be safe
   to be called concurrently."* The MUST applies independently

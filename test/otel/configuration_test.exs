@@ -34,13 +34,13 @@ defmodule Otel.ConfigurationTest do
       assert %{trace: trace, metrics: metrics, logs: logs} = Otel.Configuration.load!()
 
       # Trace pipeline produced batch(otlp_http) processor
-      assert [{Otel.SDK.Trace.SpanProcessor.Batch, _}] = trace.processors
+      assert [{Otel.SDK.Trace.SpanProcessor, _}] = trace.processors
 
       # Metrics produced periodic reader
       assert [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, _}] = metrics.readers
 
       # Logs produced batch processor
-      assert [{Otel.SDK.Logs.LogRecordProcessor.Batch, _}] = logs.processors
+      assert [{Otel.SDK.Logs.LogRecordProcessor, _}] = logs.processors
     end
 
     test "raises when OTEL_CONFIG_FILE is unset" do

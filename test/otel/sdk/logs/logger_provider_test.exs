@@ -220,16 +220,16 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
     # Regression: `function_exported?(module, :start_link, 1)` returns
     # false for an unloaded module, which silently demotes
-    # `LogRecordProcessor.Batch` to module-only and crashes
+    # `LogRecordProcessor` to module-only and crashes
     # `on_emit/3` because the callback config has no `:pid`.
     # `Code.ensure_loaded/1` in `start_processor/1` prevents this.
     test "Batch processor receives a pid when configured by the provider" do
-      :code.purge(Otel.SDK.Logs.LogRecordProcessor.Batch)
-      :code.delete(Otel.SDK.Logs.LogRecordProcessor.Batch)
+      :code.purge(Otel.SDK.Logs.LogRecordProcessor)
+      :code.delete(Otel.SDK.Logs.LogRecordProcessor)
 
       restart_sdk(logs: [processor: :batch, exporter: {FakeExporter, %{}}])
 
-      [%{module: Otel.SDK.Logs.LogRecordProcessor.Batch, pid: pid, callback_config: cb}] =
+      [%{module: Otel.SDK.Logs.LogRecordProcessor, pid: pid, callback_config: cb}] =
         :sys.get_state(Otel.SDK.Logs.LoggerProvider).processors
 
       assert is_pid(pid) and Process.alive?(pid)

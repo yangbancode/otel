@@ -27,12 +27,12 @@ defmodule Otel.SDK.Config.Selector do
   | `trace_exporter/1` | `sdk-environment-variables.md` L243-L254 |
   | `metrics_exporter/1` | L244, L258-L265 |
   | `logs_exporter/1` | L245 |
-  | `trace_processor/1` | `trace/sdk.md` §SpanProcessor (no env var) |
-  | `logs_processor/1` | `logs/sdk.md` §LogRecordProcessor (no env var) |
   | `propagator/1` | L122-L131 (`OTEL_PROPAGATORS`) |
 
-  Sampler selection is intentionally absent — sampling is hardcoded
-  to `parentbased_always_on` (`Otel.SDK.Trace.Sampler`).
+  Sampler and processor selection is intentionally absent — sampling
+  is hardcoded to `parentbased_always_on` (`Otel.SDK.Trace.Sampler`),
+  and span/log processors are hardcoded to the batch implementations
+  (`Otel.SDK.Trace.SpanProcessor`, `Otel.SDK.Logs.LogRecordProcessor`).
 
   ## Out of scope (future PRs)
 
@@ -88,28 +88,6 @@ defmodule Otel.SDK.Config.Selector do
     do: {module, config}
 
   def logs_exporter(module) when is_atom(module), do: {module, %{}}
-
-  # ====== Span processors ======
-
-  @doc """
-  Normalizes a span processor selector to a module reference. The
-  caller wraps it with the exporter + processor knobs at composition
-  time.
-  """
-  @spec trace_processor(value :: atom() | module()) :: module()
-  def trace_processor(:batch), do: Otel.SDK.Trace.SpanProcessor.Batch
-  def trace_processor(:simple), do: Otel.SDK.Trace.SpanProcessor.Simple
-  def trace_processor(module) when is_atom(module), do: module
-
-  # ====== LogRecord processors ======
-
-  @doc """
-  Normalizes a log record processor selector to a module reference.
-  """
-  @spec logs_processor(value :: atom() | module()) :: module()
-  def logs_processor(:batch), do: Otel.SDK.Logs.LogRecordProcessor.Batch
-  def logs_processor(:simple), do: Otel.SDK.Logs.LogRecordProcessor.Simple
-  def logs_processor(module) when is_atom(module), do: module
 
   # ====== Propagators ======
 

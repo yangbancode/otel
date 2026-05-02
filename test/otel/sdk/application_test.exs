@@ -49,12 +49,11 @@ defmodule Otel.SDK.ApplicationTest do
       tracer_state = :sys.get_state(Otel.SDK.Trace.TracerProvider)
 
       # Fixture pins console exporter only and a distinctive
-      # resource service.name. Any sampler block in the YAML is
-      # silently ignored — sampling is hardcoded.
+      # resource service.name.
       assert tracer_state.resource.attributes["service.name"] == "otel_config_wiring_test"
 
       logs_state = :sys.get_state(Otel.SDK.Logs.LoggerProvider)
-      assert [%{module: Otel.SDK.Logs.LogRecordProcessor.Simple}] = logs_state.processors
+      assert [%{module: Otel.SDK.Logs.LogRecordProcessor}] = logs_state.processors
     end
   end
 
