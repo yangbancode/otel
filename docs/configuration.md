@@ -4,10 +4,9 @@ Sources, highest priority first:
 
 | # | Source |
 |---|---|
-| 1 | `OTEL_CONFIG_FILE` (YAML) — overrides everything below |
-| 2 | `config :otel, ...` in `config/*.exs` |
-| 3 | `OTEL_*` environment variables |
-| 4 | Built-in defaults |
+| 1 | `config :otel, ...` in `config/*.exs` |
+| 2 | `OTEL_*` environment variables |
+| 3 | Built-in defaults |
 
 ## Application env
 
@@ -33,51 +32,6 @@ config :otel,
 export OTEL_SERVICE_NAME=my_app
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment=prod,service.version=1.2.3"
 ```
-
-## Declarative YAML (`OTEL_CONFIG_FILE`)
-
-Schema: OpenTelemetry Configuration `v1.0.0`.
-
-```yaml
-# /etc/otel/config.yaml
-file_format: "1.0"
-
-resource:
-  attributes_list: ${OTEL_RESOURCE_ATTRIBUTES}
-
-propagator:
-  composite:
-    - tracecontext:
-    - baggage:
-
-tracer_provider:
-  processors:
-    - batch:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}/v1/traces
-
-meter_provider:
-  readers:
-    - periodic:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}/v1/metrics
-
-logger_provider:
-  processors:
-    - batch:
-        exporter:
-          otlp_http:
-            endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://localhost:4318}/v1/logs
-```
-
-```bash
-export OTEL_CONFIG_FILE=/etc/otel/config.yaml
-```
-
-`${VAR}` / `${VAR:-default}` substitution works anywhere. More examples in
-`test/fixtures/v1.0.0/`.
 
 ## Disable the SDK
 

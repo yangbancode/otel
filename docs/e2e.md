@@ -198,8 +198,6 @@ Out of e2e scope (covered by unit tests in `test/otel/...`):
 * OTLP exporter knobs (compression, headers, retry, timeout) — exercised
   by `test/otel/otlp/{trace,metrics,logs}/*/http_test.exs` against a
   fake socket server.
-* `OTEL_CONFIG_FILE` declarative YAML loading / substitution / schema
-  validation — exercised by `test/otel/configuration/*_test.exs`.
 * Concurrency / queue overflow / backpressure — exercised by
   `test/otel/sdk/trace/span_processor/batch_test.exs` and friends.
 * Severity number → text mapping, attribute coercion rules, malformed
