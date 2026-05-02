@@ -16,8 +16,7 @@ import Config
 
 config :otel,
   trace: [
-    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-    span_limits: %{attribute_count_limit: 256}
+    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
   ],
   metrics: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
@@ -101,12 +100,6 @@ Sampling is hardcoded to `parentbased_always_on`
 | Option | `config :otel, trace:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Processor list | `processors:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Span attribute count | `span_limits: %{attribute_count_limit: _}` | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
-| Span attribute value length | `span_limits: %{attribute_value_length_limit: _}` | `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
-| Event count | `span_limits: %{event_count_limit: _}` | `OTEL_SPAN_EVENT_COUNT_LIMIT` | non-negative integer | `128` |
-| Link count | `span_limits: %{link_count_limit: _}` | `OTEL_SPAN_LINK_COUNT_LIMIT` | non-negative integer | `128` |
-| Per-event attribute count | `span_limits: %{attribute_per_event_limit: _}` | `OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT` | non-negative integer | `128` |
-| Per-link attribute count | `span_limits: %{attribute_per_link_limit: _}` | `OTEL_LINK_ATTRIBUTE_COUNT_LIMIT` | non-negative integer | `128` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 
 ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
@@ -118,6 +111,15 @@ Span batch processor knobs (`max_queue_size: 2048`,
 `max_export_batch_size: 512`) are hardcoded to spec defaults
 (`trace/sdk.md` L1109-L1118); `OTEL_BSP_*` env vars are not
 read.
+
+Span limits are hardcoded to spec defaults (all `128`,
+`attribute_value_length_limit: :infinity`, see
+`trace/sdk.md` L868-871 and `common/README.md` L305-306);
+`OTEL_SPAN_*_LIMIT` / `OTEL_EVENT_*` / `OTEL_LINK_*` /
+`OTEL_ATTRIBUTE_*` env vars are not read. The
+`:span_limits` Application-env keyword is retained as an
+advanced override for tests that need to exercise the
+limit-enforcement code paths with small caps.
 
 ## Metrics pillar
 
@@ -139,13 +141,19 @@ Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Logs.LogRecordExporter.HTTP`)
 | Option | `config :otel, logs:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Processor list | `processors:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
-| LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 
 LogRecord batch processor knobs (same shape as the trace
 pillar, with `scheduled_delay_ms` defaulting to `1000`) are
 hardcoded; `OTEL_BLRP_*` env vars are not read.
+
+LogRecord limits are hardcoded to spec defaults
+(`attribute_count_limit: 128`,
+`attribute_value_length_limit: :infinity`, see
+`logs/sdk.md` L321 and `common/README.md` L305-306);
+`OTEL_LOGRECORD_*_LIMIT` / `OTEL_ATTRIBUTE_*` env vars
+are not read. The `:log_record_limits` Application-env
+keyword is retained as an advanced override for tests.
 
 ## Propagators
 

@@ -66,24 +66,6 @@ defmodule Otel.SDK.ConfigTest do
       Application.put_env(:otel, :trace, span_limits: [attribute_count_limit: 64])
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
     end
-
-    # Spec sdk-environment-variables.md L389-L395.
-    test "OTEL_SPAN_*_LIMIT overrides OTEL_ATTRIBUTE_*_LIMIT global fallback" do
-      System.put_env("OTEL_ATTRIBUTE_COUNT_LIMIT", "32")
-      assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 32
-
-      System.put_env("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", "64")
-      assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
-
-      System.put_env("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT", "200")
-      assert Otel.SDK.Config.trace().span_limits.attribute_value_length_limit == 200
-    end
-
-    test "Application env wins over OS env" do
-      System.put_env("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", "64")
-      Application.put_env(:otel, :trace, span_limits: %{attribute_count_limit: 256})
-      assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 256
-    end
   end
 
   describe "metrics/0" do
@@ -118,14 +100,6 @@ defmodule Otel.SDK.ConfigTest do
 
       assert %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 128} =
                Otel.SDK.Config.logs().log_record_limits
-    end
-
-    test "LOGRECORD/ATTRIBUTE limit env-var fallbacks" do
-      System.put_env("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", "16")
-      assert Otel.SDK.Config.logs().log_record_limits.attribute_count_limit == 16
-
-      System.put_env("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT", "200")
-      assert Otel.SDK.Config.logs().log_record_limits.attribute_value_length_limit == 200
     end
   end
 

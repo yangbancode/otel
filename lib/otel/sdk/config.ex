@@ -29,8 +29,7 @@ defmodule Otel.SDK.Config do
   # config/runtime.exs
   config :otel,
     trace: [
-      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-      span_limits: %{attribute_count_limit: 256}
+      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
     ],
     metrics: [
       resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
@@ -120,30 +119,22 @@ defmodule Otel.SDK.Config do
     [{Otel.SDK.Trace.SpanProcessor, %{exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{}}}}]
   end
 
+  # Limits are hardcoded to spec defaults (`%Otel.SDK.Trace.SpanLimits{}`).
+  # The `:span_limits` Application-env keyword is retained as an
+  # advanced override for tests that need to exercise the
+  # limit-enforcement code paths with small caps; it is not part
+  # of the documented user surface.
   @spec build_span_limits(pillar :: keyword()) :: Otel.SDK.Trace.SpanLimits.t()
   defp build_span_limits(pillar) do
-    overrides =
-      pillar
-      |> Keyword.get(:span_limits, %{})
-      |> normalize_struct_or_keyword()
-
-    env_limits = %{
-      attribute_count_limit:
-        Otel.SDK.Config.Env.integer("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT") ||
-          Otel.SDK.Config.Env.integer("OTEL_ATTRIBUTE_COUNT_LIMIT") || 128,
-      attribute_value_length_limit:
-        Otel.SDK.Config.Env.integer("OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT") ||
-          Otel.SDK.Config.Env.integer("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT") || :infinity,
-      event_count_limit: Otel.SDK.Config.Env.integer("OTEL_SPAN_EVENT_COUNT_LIMIT") || 128,
-      link_count_limit: Otel.SDK.Config.Env.integer("OTEL_SPAN_LINK_COUNT_LIMIT") || 128,
-      attribute_per_event_limit:
-        Otel.SDK.Config.Env.integer("OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT") || 128,
-      attribute_per_link_limit:
-        Otel.SDK.Config.Env.integer("OTEL_LINK_ATTRIBUTE_COUNT_LIMIT") || 128
-    }
-
-    struct(Otel.SDK.Trace.SpanLimits, Map.merge(env_limits, overrides))
+    case Keyword.get(pillar, :span_limits) do
+      nil -> %Otel.SDK.Trace.SpanLimits{}
+      override -> struct(Otel.SDK.Trace.SpanLimits, normalize_struct_or_keyword(override))
+    end
   end
+
+  @spec normalize_struct_or_keyword(value :: keyword() | map() | struct()) :: map()
+  defp normalize_struct_or_keyword(value) when is_map(value), do: Map.delete(value, :__struct__)
+  defp normalize_struct_or_keyword(value) when is_list(value), do: Enum.into(value, %{})
 
   # ====== Metrics ======
 
@@ -226,6 +217,16 @@ defmodule Otel.SDK.Config do
     }
   end
 
+  # See `build_span_limits/1`: same advanced-override semantics
+  # for `:log_record_limits` Application-env keyword.
+  @spec build_log_record_limits(pillar :: keyword()) :: Otel.SDK.Logs.LogRecordLimits.t()
+  defp build_log_record_limits(pillar) do
+    case Keyword.get(pillar, :log_record_limits) do
+      nil -> %Otel.SDK.Logs.LogRecordLimits{}
+      override -> struct(Otel.SDK.Logs.LogRecordLimits, normalize_struct_or_keyword(override))
+    end
+  end
+
   @spec build_logs_processors(pillar :: keyword()) ::
           [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
   defp build_logs_processors(pillar) do
@@ -242,39 +243,6 @@ defmodule Otel.SDK.Config do
       {Otel.SDK.Logs.LogRecordProcessor,
        %{exporter: {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}}}
     ]
-  end
-
-  @spec build_log_record_limits(pillar :: keyword()) :: Otel.SDK.Logs.LogRecordLimits.t()
-  defp build_log_record_limits(pillar) do
-    overrides =
-      pillar
-      |> Keyword.get(:log_record_limits, %{})
-      |> normalize_struct_or_keyword()
-
-    env_limits = %{
-      attribute_count_limit:
-        Otel.SDK.Config.Env.integer("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT") ||
-          Otel.SDK.Config.Env.integer("OTEL_ATTRIBUTE_COUNT_LIMIT") || 128,
-      attribute_value_length_limit:
-        Otel.SDK.Config.Env.integer("OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT") ||
-          Otel.SDK.Config.Env.integer("OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT") || :infinity
-    }
-
-    struct(Otel.SDK.Logs.LogRecordLimits, Map.merge(env_limits, overrides))
-  end
-
-  # Accept both keyword (`[attribute_count_limit: 128]`) and
-  # struct (`%LogRecordLimits{...}`, `%SpanLimits{...}`) forms
-  # in pillar overrides. Strips the `:__struct__` key so it
-  # does not collide with `struct/2`'s default-application
-  # path. Plain maps pass through untouched.
-  @spec normalize_struct_or_keyword(value :: keyword() | map() | struct()) :: map()
-  defp normalize_struct_or_keyword(value) when is_map(value) do
-    Map.delete(value, :__struct__)
-  end
-
-  defp normalize_struct_or_keyword(value) when is_list(value) do
-    Enum.into(value, %{})
   end
 
   # ====== Propagator ======

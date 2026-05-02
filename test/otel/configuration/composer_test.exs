@@ -107,27 +107,6 @@ defmodule Otel.Configuration.ComposerTest do
     end
   end
 
-  describe "compose span_limits" do
-    test "pillar limits override globals; globals flow when pillar absent; schema default 128" do
-      with_pillar = %{
-        "attribute_limits" => %{"attribute_count_limit" => 32},
-        "tracer_provider" => %{"limits" => %{"attribute_count_limit" => 256}}
-      }
-
-      assert compose!(with_pillar).trace.span_limits.attribute_count_limit == 256
-
-      globals_only = %{"attribute_limits" => %{"attribute_count_limit" => 32}}
-      assert compose!(globals_only).trace.span_limits.attribute_count_limit == 32
-
-      assert compose!(%{}).trace.span_limits.attribute_count_limit == 128
-    end
-
-    test "tracer_provider.limits attribute_value_length_limit override" do
-      model = %{"tracer_provider" => %{"limits" => %{"attribute_value_length_limit" => 100}}}
-      assert compose!(model).trace.span_limits.attribute_value_length_limit == 100
-    end
-  end
-
   describe "compose metric readers" do
     test "periodic reader with otlp_http exporter" do
       [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, http}] =
@@ -218,11 +197,6 @@ defmodule Otel.Configuration.ComposerTest do
       assert_raise ArgumentError, ~r/unsupported logs exporter/, fn ->
         log_processors([%{"batch" => %{"exporter" => %{"otlp_grpc" => %{}}}}])
       end
-    end
-
-    test "logger_provider.limits attribute_value_length_limit override" do
-      model = %{"logger_provider" => %{"limits" => %{"attribute_value_length_limit" => 64}}}
-      assert compose!(model).logs.log_record_limits.attribute_value_length_limit == 64
     end
   end
 
