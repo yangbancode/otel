@@ -108,7 +108,7 @@ defmodule Otel.Configuration.ComposerTest do
   end
 
   describe "compose metric readers" do
-    test "periodic reader with otlp_http exporter" do
+    test "periodic reader with otlp_http exporter; YAML interval/timeout ignored" do
       [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, http}] =
         readers([
           %{
@@ -120,8 +120,10 @@ defmodule Otel.Configuration.ComposerTest do
           }
         ])
 
-      assert http.export_interval_ms == 5_000
-      assert http.export_timeout_ms == 1_000
+      # YAML `interval` / `timeout` silently ignored — mirrors
+      # sampler / limits / propagator / exemplar_filter policy.
+      assert http.export_interval_ms == 60_000
+      assert http.export_timeout_ms == 30_000
 
       assert http.exporter ==
                {Otel.OTLP.Metrics.MetricExporter.HTTP, %{endpoint: "http://x:4318/v1/metrics"}}
