@@ -128,9 +128,16 @@ Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter.HTTP`)
 | Reader list | `readers:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
 | Reader export interval | `reader_config: %{export_interval_ms: _}` | `OTEL_METRIC_EXPORT_INTERVAL` | non-negative integer (ms) | `60000` |
 | Reader export timeout | `reader_config: %{export_timeout_ms: _}` | `OTEL_METRIC_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
-| Exemplar filter | `exemplar_filter:` | `OTEL_METRICS_EXEMPLAR_FILTER` | `:always_on` / `:always_off` / `:trace_based` | `:trace_based` |
 | Views | `views:` | — | list of `Otel.SDK.Metrics.View.t()` | `[]` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
+
+Exemplar filter is hardcoded to **`:trace_based`** — the
+spec default per `metrics/sdk.md` L1123 (*"The default value
+SHOULD be `TraceBased`"*). `OTEL_METRICS_EXEMPLAR_FILTER`
+env var is no longer read. The `:exemplar_filter`
+Application-env keyword is retained as an advanced override
+for tests that exercise the `:always_on` / `:always_off`
+filter paths.
 
 ## Logs pillar
 

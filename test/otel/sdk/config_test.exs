@@ -6,7 +6,6 @@ defmodule Otel.SDK.ConfigTest do
     OTEL_TRACES_EXPORTER OTEL_METRICS_EXPORTER OTEL_LOGS_EXPORTER
     OTEL_TRACES_SAMPLER OTEL_TRACES_SAMPLER_ARG
     OTEL_METRIC_EXPORT_INTERVAL OTEL_METRIC_EXPORT_TIMEOUT
-    OTEL_METRICS_EXEMPLAR_FILTER
     OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
     OTEL_SPAN_EVENT_COUNT_LIMIT OTEL_SPAN_LINK_COUNT_LIMIT
     OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT OTEL_LINK_ATTRIBUTE_COUNT_LIMIT
@@ -82,11 +81,13 @@ defmodule Otel.SDK.ConfigTest do
       [{_, config}] = Otel.SDK.Config.metrics().readers
       assert config.export_interval_ms == 5000
 
-      System.put_env("OTEL_METRICS_EXEMPLAR_FILTER", "always_on")
-      assert Otel.SDK.Config.metrics().exemplar_filter == :always_on
-
       Application.put_env(:otel, :metrics, readers: [{MyApp.Reader, %{}}])
       assert Otel.SDK.Config.metrics().readers == [{MyApp.Reader, %{}}]
+    end
+
+    test ":exemplar_filter Application env override (advanced; for tests)" do
+      Application.put_env(:otel, :metrics, exemplar_filter: :always_on)
+      assert Otel.SDK.Config.metrics().exemplar_filter == :always_on
     end
   end
 
