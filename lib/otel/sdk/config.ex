@@ -49,13 +49,8 @@ defmodule Otel.SDK.Config do
   | `logs/0` | LoggerProvider config map |
   | `propagator/0` | Global TextMap propagator (single module or `{Composite, [...]}`) |
 
-  ## Out of scope (future PRs)
+  ## Out of scope
 
-  - **`OTEL_CONFIG_FILE`** (declarative YAML) — when set, spec L332
-    *"all other env vars... MUST be ignored"*. A whole-config
-    short-circuit; handled by `Otel.Configuration` —
-    `Otel.SDK.Application` detects the env var and routes through
-    `Otel.Configuration.load!/0`.
   - **OTLP exporter knobs** (`OTEL_EXPORTER_OTLP_*`) — already read
     by each `Otel.OTLP.<Pillar>.Exporter.HTTP` module on its own.
     The SDK config layer only selects *which* exporter; the chosen
