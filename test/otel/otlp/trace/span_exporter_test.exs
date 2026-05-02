@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
+defmodule Otel.OTLP.Trace.SpanExporterTest do
   use ExUnit.Case, async: true
 
   @span %Otel.SDK.Trace.Span{
@@ -15,7 +15,7 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
   @resource Otel.SDK.Resource.create(%{"service.name" => "test"})
 
   defp init!(opts \\ %{}) do
-    {:ok, state} = Otel.OTLP.Trace.SpanExporter.HTTP.init(opts)
+    {:ok, state} = Otel.OTLP.Trace.SpanExporter.init(opts)
     state
   end
 
@@ -110,18 +110,18 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
 
   describe "export/3" do
     test "empty list short-circuits to :ok" do
-      assert :ok = Otel.OTLP.Trace.SpanExporter.HTTP.export([], @resource, init!())
+      assert :ok = Otel.OTLP.Trace.SpanExporter.export([], @resource, init!())
     end
 
     test "200 → :ok; gzip and ssl_options variants succeed" do
       ok = init!(%{endpoint: server(200)})
-      assert :ok = Otel.OTLP.Trace.SpanExporter.HTTP.export([@span], @resource, ok)
+      assert :ok = Otel.OTLP.Trace.SpanExporter.export([@span], @resource, ok)
 
       gz = init!(%{endpoint: server(200), compression: :gzip})
-      assert :ok = Otel.OTLP.Trace.SpanExporter.HTTP.export([@span], @resource, gz)
+      assert :ok = Otel.OTLP.Trace.SpanExporter.export([@span], @resource, gz)
 
       ssl = %{init!(%{endpoint: server(200)}) | ssl_options: [verify: :verify_none]}
-      assert :ok = Otel.OTLP.Trace.SpanExporter.HTTP.export([@span], @resource, ssl)
+      assert :ok = Otel.OTLP.Trace.SpanExporter.export([@span], @resource, ssl)
     end
 
     test "503 retried then :error; 400 :error immediately" do
@@ -136,14 +136,14 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
           }
         })
 
-      assert :error = Otel.OTLP.Trace.SpanExporter.HTTP.export([@span], @resource, retry)
+      assert :error = Otel.OTLP.Trace.SpanExporter.export([@span], @resource, retry)
 
       bad = init!(%{endpoint: server(400)})
-      assert :error = Otel.OTLP.Trace.SpanExporter.HTTP.export([@span], @resource, bad)
+      assert :error = Otel.OTLP.Trace.SpanExporter.export([@span], @resource, bad)
     end
   end
 
   test "shutdown/1 returns :ok" do
-    assert :ok = Otel.OTLP.Trace.SpanExporter.HTTP.shutdown(init!())
+    assert :ok = Otel.OTLP.Trace.SpanExporter.shutdown(init!())
   end
 end

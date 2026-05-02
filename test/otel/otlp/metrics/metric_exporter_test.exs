@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
+defmodule Otel.OTLP.Metrics.MetricExporterTest do
   use ExUnit.Case, async: true
 
   @resource Otel.SDK.Resource.create(%{"service.name" => "test"})
@@ -24,7 +24,7 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
   }
 
   defp init!(opts \\ %{}) do
-    {:ok, state} = Otel.OTLP.Metrics.MetricExporter.HTTP.init(opts)
+    {:ok, state} = Otel.OTLP.Metrics.MetricExporter.init(opts)
     state
   end
 
@@ -115,18 +115,18 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
 
   describe "export/2" do
     test "empty list short-circuits to :ok" do
-      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([], init!())
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.export([], init!())
     end
 
     test "200 → :ok; gzip and ssl_options variants succeed" do
       ok = init!(%{endpoint: server(200)})
-      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], ok)
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.export([@metric], ok)
 
       gz = init!(%{endpoint: server(200), compression: :gzip})
-      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], gz)
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.export([@metric], gz)
 
       ssl = %{init!(%{endpoint: server(200)}) | ssl_options: [verify: :verify_none]}
-      assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], ssl)
+      assert :ok = Otel.OTLP.Metrics.MetricExporter.export([@metric], ssl)
     end
 
     test "503 retried then :error" do
@@ -141,13 +141,13 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTPTest do
           }
         })
 
-      assert :error = Otel.OTLP.Metrics.MetricExporter.HTTP.export([@metric], state)
+      assert :error = Otel.OTLP.Metrics.MetricExporter.export([@metric], state)
     end
   end
 
   test "shutdown/1 and force_flush/1 return :ok" do
     state = init!()
-    assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.shutdown(state)
-    assert :ok = Otel.OTLP.Metrics.MetricExporter.HTTP.force_flush(state)
+    assert :ok = Otel.OTLP.Metrics.MetricExporter.shutdown(state)
+    assert :ok = Otel.OTLP.Metrics.MetricExporter.force_flush(state)
   end
 end

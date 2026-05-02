@@ -199,7 +199,7 @@ config :otel,
     readers: [
       {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
         %{
-          exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}},
+          exporter: {Otel.OTLP.Metrics.MetricExporter, %{}},
           temporality_mapping: %{counter: :delta}
         }}
     ]
