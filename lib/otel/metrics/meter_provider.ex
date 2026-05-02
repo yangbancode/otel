@@ -104,13 +104,22 @@ defmodule Otel.Metrics.MeterProvider do
   **SDK** (test cleanup) — Drops all named ETS tables and the
   persistent_term slot. Called from `Otel.TestSupport.stop_all/0`
   so each test starts from a clean slate.
+
+  Each `:ets.delete/1` is wrapped in a `try/rescue` because the
+  table's owning process may die concurrently with `stop_all`
+  (e.g., when `Application.stop(:otel)` happens just before this
+  runs and the app controller process owned the tables): the
+  `whereis/1` check sees a live table, but the table is gone by
+  the time `delete/1` fires. CI runs hit this race; local runs
+  rarely do.
   """
   @spec delete_storage() :: :ok
   def delete_storage do
     Enum.each(@ets_tables, fn name ->
-      case :ets.whereis(name) do
-        :undefined -> :ok
-        _tid -> :ets.delete(name)
+      try do
+        :ets.delete(name)
+      rescue
+        ArgumentError -> :ok
       end
     end)
 
