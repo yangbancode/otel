@@ -106,11 +106,11 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     end
 
     test "lifecycle + introspection facades stay graceful when the provider isn't running" do
-      # When `OTEL_SDK_DISABLED=true` (or the SDK Application is
-      # otherwise stopped), the provider GenServer is never
-      # started. Every public-facing facade that does
-      # `GenServer.call/3` MUST stay graceful so caller code can
-      # keep its plumbing in place without guarding each call.
+      # When the SDK Application is stopped, the provider
+      # GenServer is never started. Every public-facing facade
+      # that does `GenServer.call/3` MUST stay graceful so caller
+      # code can keep its plumbing in place without guarding
+      # each call.
       Application.stop(:otel)
       refute GenServer.whereis(Otel.SDK.Trace.TracerProvider)
 

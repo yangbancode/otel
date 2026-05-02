@@ -140,7 +140,6 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[x]` | 1 | `:disabled` Application env | `config :otel, disabled: true`; emit on all 3 pillars | All 3 backends: zero records for the e2e_id |
 | `[x]` | 2 | Provider shutdown then emit | call `TracerProvider.shutdown/1` etc., emit afterward | No new records appear in backends |
 
 ## Cross-signal / Resource
@@ -181,7 +180,7 @@ pass without touching `Application.put_env`).
 | C-3c | `metrics_exemplars_test.exs` | ~5 (rows 25–29) |
 | C-4 | `propagator_test.exs` | 5 |
 | C-5 | `resource_test.exs` | 4 |
-| C-6 | `disabled_test.exs` | 2 |
+| C-6 | `shutdown_test.exs` | 1 |
 | C-7 | `cross_signal_test.exs` | 4 |
 | C-8 | `concurrency_test.exs` | 4 |
 
