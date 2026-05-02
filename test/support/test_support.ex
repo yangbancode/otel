@@ -6,8 +6,8 @@ defmodule Otel.TestSupport do
   modules — there is no `Otel.Trace.TracerProvider` GenServer to
   swap out. Custom test config is delivered by:
 
-  1. Setting `Application.put_env(:otel, ...)` to override
-     `Otel.SDK.Config.{trace,metrics,logs}/0` outputs.
+  1. Setting `Application.put_env(:otel, ...)` to override the
+     user-facing `:resource` / `:exporter` keys.
   2. Re-seeding `:persistent_term` via `Provider.init/0`.
   3. Starting the supervised processor children
      (`SpanStorage`, `SpanProcessor`, `PeriodicExporting`,

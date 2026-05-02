@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Application do
+defmodule Otel.Application do
   @moduledoc false
 
   use Application
@@ -22,6 +22,6 @@ defmodule Otel.SDK.Application do
       Otel.Logs.LogRecordProcessor
     ]
 
-    Supervisor.start_link(children, strategy: :one_for_one, name: Otel.SDK.Supervisor)
+    Supervisor.start_link(children, strategy: :one_for_one, name: Otel.Supervisor)
   end
 end

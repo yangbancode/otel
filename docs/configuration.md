@@ -97,13 +97,13 @@ to inject a mock exporter (see "Advanced overrides" below).
 
 ## Trace pillar
 
-Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Trace.SpanExporter`).
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.Trace.SpanExporter`).
 No `exporter:` option, no Console exporter, no `:none` shortcut.
 
 Sampling is hardcoded to `parentbased_always_on`
-(`Otel.SDK.Trace.Sampler`); no `sampler:` option is accepted.
+(`Otel.Trace.Sampler`); no `sampler:` option is accepted.
 
-ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
+ID generation is hardcoded to `Otel.Trace.IdGenerator`
 (random non-zero 128-bit trace IDs / 64-bit span IDs); no
 `id_generator:` option is accepted.
 

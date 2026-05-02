@@ -15,7 +15,7 @@ defmodule Otel.Logs.LoggerProvider do
 
   | Function | Role |
   |---|---|
-  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` from `Otel.SDK.Config.logs/0` |
+  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` (resource + spec-default log_record_limits) |
   | `get_logger/1` | **Application** (OTel API MUST) — Get a Logger (`logs/api.md` L62-L97) |
   | `shutdown/1` | **Application** (OTel API MUST) — Shutdown (`logs/sdk.md` §Shutdown) |
   | `force_flush/1` | **Application** (OTel API MUST) — ForceFlush (`logs/sdk.md` §ForceFlush) |
@@ -43,16 +43,16 @@ defmodule Otel.Logs.LoggerProvider do
 
   @doc """
   **SDK** (boot hook) — Called once from
-  `Otel.SDK.Application.start/2` to seed the `:persistent_term`
-  slot from `Otel.SDK.Config.logs/0`.
+  `Otel.Application.start/2` to seed the `:persistent_term`
+  slot. `log_record_limits` is hardcoded to the spec defaults;
+  only the resource flows from the user's
+  `config :otel, resource: %{...}`.
   """
   @spec init() :: :ok
   def init do
-    config = Otel.SDK.Config.logs()
-
     :persistent_term.put(@persistent_key, %{
-      resource: config.resource,
-      log_record_limits: config.log_record_limits,
+      resource: Otel.Resource.from_app_env(),
+      log_record_limits: %Otel.Logs.LogRecordLimits{},
       shut_down: false
     })
 

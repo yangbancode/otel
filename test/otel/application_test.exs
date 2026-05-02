@@ -1,4 +1,4 @@
-defmodule Otel.SDK.ApplicationTest do
+defmodule Otel.ApplicationTest do
   # Restarts :otel — must not run async.
   use ExUnit.Case, async: false
 
@@ -13,7 +13,7 @@ defmodule Otel.SDK.ApplicationTest do
   end
 
   describe "Provider boot" do
-    test "providers seed persistent_term state from Otel.SDK.Config defaults" do
+    test "providers seed persistent_term state from spec defaults + user :resource env" do
       reboot()
 
       # TracerProvider state holds resource + span_limits + shut_down.
