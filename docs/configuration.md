@@ -112,10 +112,6 @@ Sampling is hardcoded to `parentbased_always_on`
 |---|---|---|---|---|
 | Exporter | `exporter:` | `OTEL_TRACES_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
 | Processor list | `processors:` | — | list of `{module, config}` (advanced override) | inferred |
-| Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BSP_SCHEDULE_DELAY` | non-negative integer (ms) | `5000` |
-| Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BSP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
-| Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BSP_MAX_QUEUE_SIZE` | positive integer | `2048` |
-| Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BSP_MAX_EXPORT_BATCH_SIZE` | positive integer | `512` |
 | Span attribute count | `span_limits: %{attribute_count_limit: _}` | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
 | Span attribute value length | `span_limits: %{attribute_value_length_limit: _}` | `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
 | Event count | `span_limits: %{event_count_limit: _}` | `OTEL_SPAN_EVENT_COUNT_LIMIT` | non-negative integer | `128` |
@@ -127,6 +123,12 @@ Sampling is hardcoded to `parentbased_always_on`
 ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
 (random non-zero 128-bit trace IDs / 64-bit span IDs); no
 `id_generator:` option is accepted.
+
+Span batch processor knobs (`max_queue_size: 2048`,
+`scheduled_delay_ms: 5000`, `export_timeout_ms: 30_000`,
+`max_export_batch_size: 512`) are hardcoded to spec defaults
+(`trace/sdk.md` L1109-L1118); `OTEL_BSP_*` env vars are not
+read.
 
 ## Metrics pillar
 
@@ -146,13 +148,13 @@ ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
 |---|---|---|---|---|
 | Exporter | `exporter:` | `OTEL_LOGS_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
 | Processor list | `processors:` | — | list of `{module, config}` (advanced override) | inferred |
-| Batch schedule delay | `processor_config: %{scheduled_delay_ms: _}` | `OTEL_BLRP_SCHEDULE_DELAY` | non-negative integer (ms) | `1000` |
-| Batch export timeout | `processor_config: %{export_timeout_ms: _}` | `OTEL_BLRP_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
-| Batch queue size | `processor_config: %{max_queue_size: _}` | `OTEL_BLRP_MAX_QUEUE_SIZE` | positive integer | `2048` |
-| Batch export batch size | `processor_config: %{max_export_batch_size: _}` | `OTEL_BLRP_MAX_EXPORT_BATCH_SIZE` | positive integer | `512` |
 | LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
 | LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
+
+LogRecord batch processor knobs (same shape as the trace
+pillar, with `scheduled_delay_ms` defaulting to `1000`) are
+hardcoded; `OTEL_BLRP_*` env vars are not read.
 
 ## Propagators
 

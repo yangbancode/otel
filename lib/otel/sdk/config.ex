@@ -122,7 +122,7 @@ defmodule Otel.SDK.Config do
   defp default_trace_processors(pillar) do
     case trace_exporter(pillar) do
       :none -> []
-      exporter -> [{Otel.SDK.Trace.SpanProcessor, trace_processor_config(pillar, exporter)}]
+      exporter -> [{Otel.SDK.Trace.SpanProcessor, %{exporter: exporter}}]
     end
   end
 
@@ -138,23 +138,6 @@ defmodule Otel.SDK.Config do
       true ->
         Otel.SDK.Config.Selector.trace_exporter(:otlp)
     end
-  end
-
-  # Forwards the OTEL_BSP_* knobs into the SpanProcessor's init
-  # config.
-  @spec trace_processor_config(pillar :: keyword(), exporter :: {module(), map()}) :: map()
-  defp trace_processor_config(pillar, exporter) do
-    overrides = Keyword.get(pillar, :processor_config, %{})
-
-    base = %{
-      exporter: exporter,
-      scheduled_delay_ms: Otel.SDK.Config.Env.duration_ms("OTEL_BSP_SCHEDULE_DELAY") || 5_000,
-      export_timeout_ms: Otel.SDK.Config.Env.timeout_ms("OTEL_BSP_EXPORT_TIMEOUT") || 30_000,
-      max_queue_size: Otel.SDK.Config.Env.integer("OTEL_BSP_MAX_QUEUE_SIZE") || 2_048,
-      max_export_batch_size: Otel.SDK.Config.Env.integer("OTEL_BSP_MAX_EXPORT_BATCH_SIZE") || 512
-    }
-
-    Map.merge(base, overrides)
   end
 
   @spec build_span_limits(pillar :: keyword()) :: Otel.SDK.Trace.SpanLimits.t()
@@ -297,7 +280,7 @@ defmodule Otel.SDK.Config do
   defp default_logs_processors(pillar) do
     case logs_exporter(pillar) do
       :none -> []
-      exporter -> [{Otel.SDK.Logs.LogRecordProcessor, logs_processor_config(pillar, exporter)}]
+      exporter -> [{Otel.SDK.Logs.LogRecordProcessor, %{exporter: exporter}}]
     end
   end
 
@@ -313,21 +296,6 @@ defmodule Otel.SDK.Config do
       true ->
         Otel.SDK.Config.Selector.logs_exporter(:otlp)
     end
-  end
-
-  @spec logs_processor_config(pillar :: keyword(), exporter :: {module(), map()}) :: map()
-  defp logs_processor_config(pillar, exporter) do
-    overrides = Keyword.get(pillar, :processor_config, %{})
-
-    base = %{
-      exporter: exporter,
-      scheduled_delay_ms: Otel.SDK.Config.Env.duration_ms("OTEL_BLRP_SCHEDULE_DELAY") || 1_000,
-      export_timeout_ms: Otel.SDK.Config.Env.timeout_ms("OTEL_BLRP_EXPORT_TIMEOUT") || 30_000,
-      max_queue_size: Otel.SDK.Config.Env.integer("OTEL_BLRP_MAX_QUEUE_SIZE") || 2_048,
-      max_export_batch_size: Otel.SDK.Config.Env.integer("OTEL_BLRP_MAX_EXPORT_BATCH_SIZE") || 512
-    }
-
-    Map.merge(base, overrides)
   end
 
   @spec build_log_record_limits(pillar :: keyword()) :: Otel.SDK.Logs.LogRecordLimits.t()

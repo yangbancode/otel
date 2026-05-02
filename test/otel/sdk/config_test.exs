@@ -7,10 +7,6 @@ defmodule Otel.SDK.ConfigTest do
     OTEL_SDK_DISABLED
     OTEL_TRACES_EXPORTER OTEL_METRICS_EXPORTER OTEL_LOGS_EXPORTER
     OTEL_TRACES_SAMPLER OTEL_TRACES_SAMPLER_ARG
-    OTEL_BSP_SCHEDULE_DELAY OTEL_BSP_EXPORT_TIMEOUT
-    OTEL_BSP_MAX_QUEUE_SIZE OTEL_BSP_MAX_EXPORT_BATCH_SIZE
-    OTEL_BLRP_SCHEDULE_DELAY OTEL_BLRP_EXPORT_TIMEOUT
-    OTEL_BLRP_MAX_QUEUE_SIZE OTEL_BLRP_MAX_EXPORT_BATCH_SIZE
     OTEL_METRIC_EXPORT_INTERVAL OTEL_METRIC_EXPORT_TIMEOUT
     OTEL_METRICS_EXEMPLAR_FILTER
     OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
@@ -81,7 +77,7 @@ defmodule Otel.SDK.ConfigTest do
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
     end
 
-    test "OTEL_TRACES_EXPORTER + OTEL_BSP_* knobs flow into Batch" do
+    test "OTEL_TRACES_EXPORTER selects the underlying exporter; :none yields empty processors" do
       System.put_env("OTEL_TRACES_EXPORTER", "console")
 
       assert [{_, %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}] =
@@ -89,18 +85,6 @@ defmodule Otel.SDK.ConfigTest do
 
       System.put_env("OTEL_TRACES_EXPORTER", "none")
       assert Otel.SDK.Config.trace().processors == []
-
-      System.delete_env("OTEL_TRACES_EXPORTER")
-      System.put_env("OTEL_BSP_SCHEDULE_DELAY", "100")
-      System.put_env("OTEL_BSP_EXPORT_TIMEOUT", "0")
-      System.put_env("OTEL_BSP_MAX_QUEUE_SIZE", "999")
-      System.put_env("OTEL_BSP_MAX_EXPORT_BATCH_SIZE", "111")
-
-      [{_, config}] = Otel.SDK.Config.trace().processors
-      assert config.scheduled_delay_ms == 100
-      assert config.export_timeout_ms == :infinity
-      assert config.max_queue_size == 999
-      assert config.max_export_batch_size == 111
     end
 
     # Spec sdk-environment-variables.md L389-L395.
@@ -155,13 +139,12 @@ defmodule Otel.SDK.ConfigTest do
       [{Otel.SDK.Logs.LogRecordProcessor, config}] = Otel.SDK.Config.logs().processors
 
       assert config.exporter == {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}
-      assert config.scheduled_delay_ms == 1_000
 
       assert %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 128} =
                Otel.SDK.Config.logs().log_record_limits
     end
 
-    test "OTEL_LOGS_EXPORTER (console / none) + OTEL_BLRP_* + LOGRECORD/ATTRIBUTE fallbacks" do
+    test "OTEL_LOGS_EXPORTER (console / none) + LOGRECORD/ATTRIBUTE limit fallbacks" do
       System.put_env("OTEL_LOGS_EXPORTER", "console")
 
       assert [{_, %{exporter: {Otel.SDK.Logs.LogRecordExporter.Console, %{}}}}] =
@@ -171,12 +154,6 @@ defmodule Otel.SDK.ConfigTest do
       assert Otel.SDK.Config.logs().processors == []
 
       System.delete_env("OTEL_LOGS_EXPORTER")
-      System.put_env("OTEL_BLRP_SCHEDULE_DELAY", "200")
-      System.put_env("OTEL_BLRP_MAX_QUEUE_SIZE", "100")
-      [{_, config}] = Otel.SDK.Config.logs().processors
-      assert config.scheduled_delay_ms == 200
-      assert config.max_queue_size == 100
-
       System.put_env("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", "16")
       assert Otel.SDK.Config.logs().log_record_limits.attribute_count_limit == 16
 
