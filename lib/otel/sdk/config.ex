@@ -113,7 +113,7 @@ defmodule Otel.SDK.Config do
   @spec default_trace_processors(pillar :: keyword()) ::
           [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
   defp default_trace_processors(_pillar) do
-    [{Otel.SDK.Trace.SpanProcessor, %{exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{}}}}]
+    [{Otel.SDK.Trace.SpanProcessor, %{exporter: {Otel.OTLP.Trace.SpanExporter, %{}}}}]
   end
 
   # Limits are hardcoded to spec defaults (`%Otel.SDK.Trace.SpanLimits{}`).
@@ -181,7 +181,7 @@ defmodule Otel.SDK.Config do
     [
       {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
        %{
-         exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}},
+         exporter: {Otel.OTLP.Metrics.MetricExporter, %{}},
          export_interval_ms: 60_000,
          export_timeout_ms: 30_000
        }}
@@ -227,8 +227,7 @@ defmodule Otel.SDK.Config do
           [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
   defp default_logs_processors(_pillar) do
     [
-      {Otel.SDK.Logs.LogRecordProcessor,
-       %{exporter: {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{}}}}
+      {Otel.SDK.Logs.LogRecordProcessor, %{exporter: {Otel.OTLP.Logs.LogRecordExporter, %{}}}}
     ]
   end
 

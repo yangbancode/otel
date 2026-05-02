@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Metrics.MetricExporter.HTTP do
+defmodule Otel.OTLP.Metrics.MetricExporter do
   @moduledoc """
   OTLP HTTP Exporter for metrics.
 
@@ -17,7 +17,7 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTP do
         metrics: [
           readers: [
             {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
-             %{exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{
+             %{exporter: {Otel.OTLP.Metrics.MetricExporter, %{
                endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
              }}}}
           ]

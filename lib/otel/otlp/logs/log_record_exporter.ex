@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Logs.LogRecordExporter.HTTP do
+defmodule Otel.OTLP.Logs.LogRecordExporter do
   @moduledoc """
   OTLP HTTP Exporter for logs.
 
@@ -15,7 +15,7 @@ defmodule Otel.OTLP.Logs.LogRecordExporter.HTTP do
       # config/runtime.exs
       config :otel,
         logs: [
-          exporter: {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{
+          exporter: {Otel.OTLP.Logs.LogRecordExporter, %{
             endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
           }}
         ]

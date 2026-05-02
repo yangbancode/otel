@@ -1,4 +1,4 @@
-defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
+defmodule Otel.OTLP.Trace.SpanExporter do
   @moduledoc """
   OTLP HTTP Exporter for traces.
 
@@ -15,7 +15,7 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTP do
       # config/runtime.exs
       config :otel,
         trace: [
-          exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{
+          exporter: {Otel.OTLP.Trace.SpanExporter, %{
             endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
           }}
         ]

@@ -56,18 +56,18 @@ config :otel,
   disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
   trace: [
     resource: resource,
-    exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{endpoint: endpoint}}
+    exporter: {Otel.OTLP.Trace.SpanExporter, %{endpoint: endpoint}}
   ],
   metrics: [
     resource: resource,
     readers: [
       {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
-       %{exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{endpoint: endpoint}}}}
+       %{exporter: {Otel.OTLP.Metrics.MetricExporter, %{endpoint: endpoint}}}}
     ]
   ],
   logs: [
     resource: resource,
-    exporter: {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{endpoint: endpoint}}
+    exporter: {Otel.OTLP.Logs.LogRecordExporter, %{endpoint: endpoint}}
   ]
 ```
 
@@ -78,7 +78,7 @@ stays active.
 
 ## Trace pillar
 
-Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Trace.SpanExporter.HTTP`).
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Trace.SpanExporter`).
 No `exporter:` option, no Console exporter, no `:none` shortcut. To stop
 emitting telemetry, set `config :otel, disabled: true`.
 
@@ -108,7 +108,7 @@ limit-enforcement code paths with small caps.
 
 ## Metrics pillar
 
-Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter.HTTP`).
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter`).
 
 | Option | `config :otel, metrics:` | Accepted values | Default |
 |---|---|---|---|
@@ -129,7 +129,7 @@ filter paths.
 
 ## Logs pillar
 
-Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Logs.LogRecordExporter.HTTP`).
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Logs.LogRecordExporter`).
 
 | Option | `config :otel, logs:` | Accepted values | Default |
 |---|---|---|---|
@@ -171,7 +171,7 @@ the exporter explicitly with an `ssl_options:` keyword list:
 config :otel,
   trace: [
     exporter:
-      {Otel.OTLP.Trace.SpanExporter.HTTP,
+      {Otel.OTLP.Trace.SpanExporter,
        %{
          endpoint: "https://collector.example.com:4318/v1/traces",
          ssl_options: [
@@ -193,5 +193,5 @@ Common patterns:
 | Disable verification (dev only) | `verify: :verify_none` |
 
 The same `{Module, opts}` shape works for `metrics:`
-(`Otel.OTLP.Metrics.MetricExporter.HTTP`) and `logs:`
-(`Otel.OTLP.Logs.LogRecordExporter.HTTP`).
+(`Otel.OTLP.Metrics.MetricExporter`) and `logs:`
+(`Otel.OTLP.Logs.LogRecordExporter`).
