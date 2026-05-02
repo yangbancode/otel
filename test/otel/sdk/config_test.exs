@@ -1,8 +1,6 @@
 defmodule Otel.SDK.ConfigTest do
   use ExUnit.Case, async: false
 
-  import ExUnit.CaptureLog
-
   @env_vars ~w(
     OTEL_SDK_DISABLED
     OTEL_TRACES_EXPORTER OTEL_METRICS_EXPORTER OTEL_LOGS_EXPORTER
