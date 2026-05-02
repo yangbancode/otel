@@ -203,17 +203,17 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
     # Regression: `function_exported?(module, :start_link, 1)` returns
     # false for an unloaded module, which silently demotes
-    # `SpanProcessor.Batch` to module-only. Code.ensure_loaded/1 in
+    # `SpanProcessor` to module-only. Code.ensure_loaded/1 in
     # `start_processor/2` prevents this. Resource must reach the
     # processor's init config so OTLP encoding finds non-empty
     # `attributes` at export time.
     test "Batch processor receives a pid and the provider resource via init config" do
-      :code.purge(Otel.SDK.Trace.SpanProcessor.Batch)
-      :code.delete(Otel.SDK.Trace.SpanProcessor.Batch)
+      :code.purge(Otel.SDK.Trace.SpanProcessor)
+      :code.delete(Otel.SDK.Trace.SpanProcessor)
 
       restart_sdk(trace: [processor: :batch, exporter: {FakeExporter, %{}}])
 
-      [%{module: Otel.SDK.Trace.SpanProcessor.Batch, pid: pid, callback_config: cb}] =
+      [%{module: Otel.SDK.Trace.SpanProcessor, pid: pid, callback_config: cb}] =
         :sys.get_state(Otel.SDK.Trace.TracerProvider).processors
 
       assert is_pid(pid) and Process.alive?(pid)

@@ -5,21 +5,15 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
 
   defmodule TestProcessor do
     @moduledoc false
-    @behaviour Otel.SDK.Trace.SpanProcessor
 
-    @impl true
     def on_start(_ctx, span, _config), do: span
 
-    @impl true
     def on_end(span, %{test_pid: pid}) do
       send(pid, {:on_end, span})
       :ok
     end
 
-    @impl true
     def shutdown(_config, _timeout \\ 5_000), do: :ok
-
-    @impl true
     def force_flush(_config, _timeout \\ 5_000), do: :ok
   end
 

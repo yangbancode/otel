@@ -49,8 +49,8 @@ defmodule Otel.Configuration.ComposerTest do
   end
 
   describe "compose span processors" do
-    test "batch and simple processors with their exporters" do
-      [{Otel.SDK.Trace.SpanProcessor.Batch, batch}] =
+    test "batch processor with its exporter" do
+      [{Otel.SDK.Trace.SpanProcessor, batch}] =
         processors([
           %{
             "batch" => %{
@@ -68,11 +68,6 @@ defmodule Otel.Configuration.ComposerTest do
       assert batch.max_queue_size == 50
       assert batch.export_timeout_ms == 30_000
       assert batch.max_export_batch_size == 512
-
-      [{Otel.SDK.Trace.SpanProcessor.Simple, simple}] =
-        processors([%{"simple" => %{"exporter" => %{"console" => nil}}}])
-
-      assert simple.exporter == {Otel.SDK.Trace.SpanExporter.Console, %{}}
     end
 
     test "concrete key alongside */development sibling — picks the concrete one" do
@@ -84,7 +79,7 @@ defmodule Otel.Configuration.ComposerTest do
           }
         ])
 
-      assert module == Otel.SDK.Trace.SpanProcessor.Batch
+      assert module == Otel.SDK.Trace.SpanProcessor
     end
 
     test "rejection cases: missing exporter / unknown exporter / unknown processor / all-development" do
@@ -93,7 +88,11 @@ defmodule Otel.Configuration.ComposerTest do
       end
 
       assert_raise ArgumentError, ~r/unsupported trace exporter/, fn ->
-        processors([%{"simple" => %{"exporter" => %{"otlp_grpc" => %{}}}}])
+        processors([%{"batch" => %{"exporter" => %{"otlp_grpc" => %{}}}}])
+      end
+
+      assert_raise ArgumentError, ~r/unsupported span processor/, fn ->
+        processors([%{"simple" => %{}}])
       end
 
       assert_raise ArgumentError, ~r/unsupported span processor/, fn ->
@@ -186,8 +185,8 @@ defmodule Otel.Configuration.ComposerTest do
   end
 
   describe "compose log processors" do
-    test "batch and simple processors with their exporters; spec default schedule_delay 1000" do
-      [{Otel.SDK.Logs.LogRecordProcessor.Batch, batch}] =
+    test "batch processor with its exporter; spec default schedule_delay 1000" do
+      [{Otel.SDK.Logs.LogRecordProcessor, batch}] =
         log_processors([
           %{
             "batch" => %{
@@ -204,9 +203,6 @@ defmodule Otel.Configuration.ComposerTest do
 
       [{_, default}] = log_processors([%{"batch" => %{"exporter" => %{"console" => nil}}}])
       assert default.scheduled_delay_ms == 1_000
-
-      [{Otel.SDK.Logs.LogRecordProcessor.Simple, _}] =
-        log_processors([%{"simple" => %{"exporter" => %{"console" => nil}}}])
     end
 
     test "rejection cases: unknown processor / missing exporter / unknown exporter" do
@@ -214,12 +210,16 @@ defmodule Otel.Configuration.ComposerTest do
         log_processors([%{"my_custom" => %{}}])
       end
 
-      assert_raise ArgumentError, ~r/processor.exporter is required/, fn ->
+      assert_raise ArgumentError, ~r/unsupported log processor/, fn ->
         log_processors([%{"simple" => %{}}])
       end
 
+      assert_raise ArgumentError, ~r/processor.exporter is required/, fn ->
+        log_processors([%{"batch" => %{}}])
+      end
+
       assert_raise ArgumentError, ~r/unsupported logs exporter/, fn ->
-        log_processors([%{"simple" => %{"exporter" => %{"otlp_grpc" => %{}}}}])
+        log_processors([%{"batch" => %{"exporter" => %{"otlp_grpc" => %{}}}}])
       end
     end
 
@@ -367,12 +367,12 @@ defmodule Otel.Configuration.ComposerTest do
     test "otel-getting-started.yaml composes the three pillars" do
       configs = e2e("otel-getting-started.yaml")
 
-      [{Otel.SDK.Trace.SpanProcessor.Batch, batch}] = configs.trace.processors
+      [{Otel.SDK.Trace.SpanProcessor, batch}] = configs.trace.processors
       assert {Otel.OTLP.Trace.SpanExporter.HTTP, %{endpoint: endpoint}} = batch.exporter
       assert endpoint =~ "/v1/traces"
 
       [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, _}] = configs.metrics.readers
-      [{Otel.SDK.Logs.LogRecordProcessor.Batch, _}] = configs.logs.processors
+      [{Otel.SDK.Logs.LogRecordProcessor, _}] = configs.logs.processors
     end
 
     test "otel-sdk-config.yaml ignores YAML sampler block; pillar limits still flow" do
