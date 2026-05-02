@@ -17,15 +17,9 @@ defmodule Otel.LoggerHandlerTest do
   @handler_id :otel_test_handler
 
   setup do
-    Application.stop(:otel)
-    Application.put_env(:otel, :logs, processors: [{CapturingProcessor, %{test_pid: self()}}])
-    Application.ensure_all_started(:otel)
+    Otel.TestSupport.restart_with(logs: [processors: [{CapturingProcessor, %{test_pid: self()}}]])
 
-    on_exit(fn ->
-      :logger.remove_handler(@handler_id)
-      Application.stop(:otel)
-      Application.delete_env(:otel, :logs)
-    end)
+    on_exit(fn -> :logger.remove_handler(@handler_id) end)
 
     :ok
   end

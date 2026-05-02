@@ -222,5 +222,5 @@ For tail sampling (latency / error / rate), configure your collector's
 ## Limits
 
 Hardcoded to spec defaults: 128 attributes / events / links per span,
-no string-length truncation. See [Configuration](configuration.md)
-§"Advanced overrides" for the test-only `:span_limits` key.
+no string-length truncation. Not user-configurable — see
+[Configuration](configuration.md) §"What's *not* user-configurable".

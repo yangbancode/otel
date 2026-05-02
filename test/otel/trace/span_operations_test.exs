@@ -22,16 +22,7 @@ defmodule Otel.Trace.SpanOperationsTest do
     :ok
   end
 
-  defp restart_sdk(env) do
-    Application.stop(:otel)
-    for {pillar, opts} <- env, do: Application.put_env(:otel, pillar, opts)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
-    end)
-  end
+  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp tracer_for(scope_name \\ "test_lib") do
     Otel.Trace.TracerProvider.get_tracer(

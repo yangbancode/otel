@@ -8,16 +8,7 @@ defmodule Otel.Logs.LoggerProviderTest do
     %{provider: Otel.Logs.LoggerProvider}
   end
 
-  defp restart_sdk(env) do
-    Application.stop(:otel)
-    for {pillar, opts} <- env, do: Application.put_env(:otel, pillar, opts)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
-    end)
-  end
+  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp logger_for(pid, scope_name) do
     Otel.Logs.LoggerProvider.get_logger(pid, %Otel.InstrumentationScope{name: scope_name})
@@ -93,7 +84,7 @@ defmodule Otel.Logs.LoggerProviderTest do
     end
 
     test "lifecycle + introspection facades stay graceful when the provider isn't running" do
-      Application.stop(:otel)
+      Otel.TestSupport.stop_all()
       refute GenServer.whereis(Otel.Logs.LoggerProvider)
 
       assert :ok =
@@ -220,7 +211,9 @@ defmodule Otel.Logs.LoggerProviderTest do
       :code.purge(Otel.Logs.LogRecordProcessor)
       :code.delete(Otel.Logs.LogRecordProcessor)
 
-      restart_sdk(logs: [processor: :batch, exporter: {FakeExporter, %{}}])
+      restart_sdk(
+        logs: [processors: [{Otel.Logs.LogRecordProcessor, %{exporter: {FakeExporter, %{}}}}]]
+      )
 
       [%{module: Otel.Logs.LogRecordProcessor, pid: pid, callback_config: cb}] =
         :sys.get_state(Otel.Logs.LoggerProvider).processors

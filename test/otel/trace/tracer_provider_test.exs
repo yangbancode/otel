@@ -30,16 +30,7 @@ defmodule Otel.Trace.TracerProviderTest do
     def force_flush(_cfg, _t \\ 5_000), do: :ok
   end
 
-  defp restart_sdk(env) do
-    Application.stop(:otel)
-    for {pillar, opts} <- env, do: Application.put_env(:otel, pillar, opts)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
-    end)
-  end
+  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   setup do
     restart_sdk(trace: [processors: []])
@@ -108,7 +99,7 @@ defmodule Otel.Trace.TracerProviderTest do
       # that does `GenServer.call/3` MUST stay graceful so caller
       # code can keep its plumbing in place without guarding
       # each call.
-      Application.stop(:otel)
+      Otel.TestSupport.stop_all()
       refute GenServer.whereis(Otel.Trace.TracerProvider)
 
       assert :ok =
@@ -203,7 +194,9 @@ defmodule Otel.Trace.TracerProviderTest do
       :code.purge(Otel.Trace.SpanProcessor)
       :code.delete(Otel.Trace.SpanProcessor)
 
-      restart_sdk(trace: [processor: :batch, exporter: {FakeExporter, %{}}])
+      restart_sdk(
+        trace: [processors: [{Otel.Trace.SpanProcessor, %{exporter: {FakeExporter, %{}}}}]]
+      )
 
       [%{module: Otel.Trace.SpanProcessor, pid: pid, callback_config: cb}] =
         :sys.get_state(Otel.Trace.TracerProvider).processors

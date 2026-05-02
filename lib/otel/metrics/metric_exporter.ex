@@ -25,7 +25,6 @@ defmodule Otel.Metrics.MetricExporter do
   | `:compression` | `:none` | `:gzip` or `:none` |
   | `:timeout` | `10_000` | Request timeout in milliseconds |
   | `:ssl_options` | system CAs for HTTPS | See "SSL/TLS" below |
-  | `:retry_opts` | Java OTLP defaults | See "Retry" below |
 
   ## SSL/TLS
 
@@ -38,10 +37,11 @@ defmodule Otel.Metrics.MetricExporter do
 
   Transient errors are retried with exponential backoff and
   jitter per `protocol/exporter.md` §Retry L181-L183. Retry
-  behavior is delegated to `Otel.OTLP.HTTP.Retry`; defaults
-  match the Java OTLP SDK (5 attempts, 1s → 5s capped, 1.5x
-  multiplier, ±20% jitter). Override via the `:retry_opts`
-  config key.
+  behavior is delegated to `Otel.OTLP.HTTP.Retry` and uses
+  the Java OTLP SDK defaults verbatim (5 attempts, 1s → 5s
+  capped, 1.5x multiplier, ±20% jitter). Not user-tunable —
+  the spec does not mandate values, and the Java defaults are
+  the de-facto OTLP standard.
   """
 
   @typedoc "Internal exporter state — opaque to callers."
@@ -58,7 +58,6 @@ defmodule Otel.Metrics.MetricExporter do
     compression = Map.get(config, :compression, :none)
     timeout = Map.get(config, :timeout, @default_timeout)
     ssl_options = build_ssl_options(endpoint, config)
-    retry_opts = Map.get(config, :retry_opts, %{})
 
     {:ok,
      %{
@@ -66,8 +65,7 @@ defmodule Otel.Metrics.MetricExporter do
        headers: headers,
        compression: compression,
        timeout: timeout,
-       ssl_options: ssl_options,
-       retry_opts: retry_opts
+       ssl_options: ssl_options
      }}
   end
 
@@ -88,8 +86,7 @@ defmodule Otel.Metrics.MetricExporter do
     case Otel.OTLP.HTTP.Retry.request(
            {url, headers, ~c"application/x-protobuf", body},
            http_options,
-           [],
-           state.retry_opts
+           []
          ) do
       :ok -> :ok
       {:error, _reason} -> :error

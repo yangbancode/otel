@@ -145,5 +145,5 @@ is inside a `with_span/4` block — same rule as the `:logger` bridge.
 ## Limits
 
 Hardcoded to spec defaults: 128 attributes per LogRecord, no
-string-length truncation. See [Configuration](configuration.md)
-§"Advanced overrides" for the test-only `:log_record_limits` key.
+string-length truncation. Not user-configurable — see
+[Configuration](configuration.md) §"What's *not* user-configurable".

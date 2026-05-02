@@ -101,13 +101,6 @@ defmodule Otel.Trace.SpanExporterTest do
     end
   end
 
-  describe "init/1 retry_opts" do
-    test "default %{}; stored from config" do
-      assert init!().retry_opts == %{}
-      assert init!(%{retry_opts: %{max_attempts: 7}}).retry_opts == %{max_attempts: 7}
-    end
-  end
-
   describe "export/3" do
     test "empty list short-circuits to :ok" do
       assert :ok = Otel.Trace.SpanExporter.export([], @resource, init!())
@@ -124,20 +117,12 @@ defmodule Otel.Trace.SpanExporterTest do
       assert :ok = Otel.Trace.SpanExporter.export([@span], @resource, ssl)
     end
 
-    test "503 retried then :error; 400 :error immediately" do
-      retry =
-        init!(%{
-          endpoint: server(503),
-          retry_opts: %{
-            max_attempts: 2,
-            initial_backoff_ms: 1,
-            max_backoff_ms: 5,
-            jitter_ratio: 0.0
-          }
-        })
-
-      assert :error = Otel.Trace.SpanExporter.export([@span], @resource, retry)
-
+    # Retryable / non-retryable status code handling is exercised
+    # comprehensively by `Otel.OTLP.HTTP.RetryTest`. The exporter
+    # delegates verbatim to that module with the hardcoded Java
+    # OTLP defaults, so a 5-attempt 503 loop here would just
+    # take ~10 seconds without adding coverage.
+    test "non-retryable 4xx → :error immediately" do
       bad = init!(%{endpoint: server(400)})
       assert :error = Otel.Trace.SpanExporter.export([@span], @resource, bad)
     end

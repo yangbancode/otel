@@ -22,16 +22,7 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
     end
   end
 
-  defp restart_sdk(env) do
-    Application.stop(:otel)
-    for {pillar, opts} <- env, do: Application.put_env(:otel, pillar, opts)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      for {pillar, _} <- env, do: Application.delete_env(:otel, pillar)
-    end)
-  end
+  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp meter_config do
     %Otel.Metrics.Meter{config: config} =

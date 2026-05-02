@@ -11,7 +11,7 @@ defmodule Otel.E2E.TraceLimitsTest do
 
   use Otel.E2E.Case, async: false
 
-  @small_limits %{
+  @small_limits %Otel.Trace.SpanLimits{
     attribute_count_limit: 2,
     attribute_value_length_limit: 8,
     event_count_limit: 2,
@@ -21,17 +21,7 @@ defmodule Otel.E2E.TraceLimitsTest do
   }
 
   setup_all do
-    prev = Application.get_env(:otel, :trace, [])
-    Application.stop(:otel)
-    Application.put_env(:otel, :trace, span_limits: @small_limits)
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      Application.put_env(:otel, :trace, prev)
-      Application.ensure_all_started(:otel)
-    end)
-
+    Otel.TestSupport.restart_with(trace: [span_limits: @small_limits])
     :ok
   end
 

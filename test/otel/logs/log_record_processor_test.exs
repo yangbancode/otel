@@ -205,20 +205,13 @@ defmodule Otel.Logs.LogRecordProcessorTest do
   end
 
   test "end-to-end emit through LoggerProvider exports via the batch processor" do
-    Application.stop(:otel)
-
-    Application.put_env(:otel, :logs,
-      processors: [
-        {Otel.Logs.LogRecordProcessor, %{exporter: {TestExporter, %{test_pid: self()}}}}
+    Otel.TestSupport.restart_with(
+      logs: [
+        processors: [
+          {Otel.Logs.LogRecordProcessor, %{exporter: {TestExporter, %{test_pid: self()}}}}
+        ]
       ]
     )
-
-    Application.ensure_all_started(:otel)
-
-    on_exit(fn ->
-      Application.stop(:otel)
-      Application.delete_env(:otel, :logs)
-    end)
 
     logger =
       Otel.Logs.LoggerProvider.get_logger(
