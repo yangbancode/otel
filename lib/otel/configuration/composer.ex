@@ -190,8 +190,7 @@ defmodule Otel.Configuration.Composer do
     %{
       resource: resource,
       processors: Enum.map(provider["processors"] || [], &compose_span_processor/1),
-      span_limits: compose_span_limits(provider["limits"] || %{}, global_limits),
-      id_generator: Otel.SDK.Trace.IdGenerator.Default
+      span_limits: compose_span_limits(provider["limits"] || %{}, global_limits)
     }
   end
 

@@ -43,7 +43,7 @@ defmodule Otel.SDK.ConfigTest do
   end
 
   describe "trace/0" do
-    test "defaults: Batch(OTLP HTTP) + SpanLimits + Default IdGenerator" do
+    test "defaults: Batch(OTLP HTTP) + SpanLimits" do
       config = Otel.SDK.Config.trace()
 
       assert [
@@ -52,7 +52,7 @@ defmodule Otel.SDK.ConfigTest do
              ] = config.processors
 
       assert %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 128} = config.span_limits
-      assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
+      refute Map.has_key?(config, :id_generator)
     end
 
     test "Application env: exporter / processor selectors swap underlying module" do

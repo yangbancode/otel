@@ -3,10 +3,11 @@ defmodule Otel.SDK.Trace.Tracer do
   SDK implementation of the `Otel.API.Trace.Tracer` behaviour
   (`trace/sdk.md` §Tracer L120-L228).
 
-  All configuration (id_generator, span_limits, processors, scope)
-  is stored in the tracer tuple at creation time. No GenServer
-  calls during span creation for performance. Sampling is hardcoded
-  to `Otel.SDK.Trace.Sampler` (parentbased_always_on).
+  All configuration (span_limits, processors, scope) is stored in
+  the tracer tuple at creation time. No GenServer calls during
+  span creation for performance. Sampling is hardcoded to
+  `Otel.SDK.Trace.Sampler` (parentbased_always_on); ID generation
+  to `Otel.SDK.Trace.IdGenerator` (random).
 
   All functions are safe for concurrent use, satisfying spec
   `trace/api.md` L843-L853 (Status: Stable, #4887) — *"Tracer —
@@ -33,11 +34,10 @@ defmodule Otel.SDK.Trace.Tracer do
   **SDK** (OTel API MUST) — Span Creation
   (`trace/api.md` §Span Creation L378-L414).
 
-  Delegates to `Otel.SDK.Trace.Span.start_span/5` for the
-  sampling and id-generator dance, then stamps tracer-resolved
-  fields (scope, limits, processors), runs `on_start/3` on
-  every registered processor, and inserts the span into ETS
-  storage.
+  Delegates to `Otel.SDK.Trace.Span.start_span/4` for sampling
+  and ID generation, then stamps tracer-resolved fields (scope,
+  limits, processors), runs `on_start/3` on every registered
+  processor, and inserts the span into ETS storage.
   """
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
@@ -48,13 +48,7 @@ defmodule Otel.SDK.Trace.Tracer do
   @impl true
   def start_span(ctx, {__MODULE__, config}, name, opts) do
     {span_ctx, span} =
-      Otel.SDK.Trace.Span.start_span(
-        ctx,
-        name,
-        config.id_generator,
-        config.span_limits,
-        opts
-      )
+      Otel.SDK.Trace.Span.start_span(ctx, name, config.span_limits, opts)
 
     if span do
       processors = :persistent_term.get(config.processors_key, [])

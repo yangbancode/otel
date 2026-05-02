@@ -1,9 +1,24 @@
 defmodule Otel.SDK.Trace.IdGenerator do
   @moduledoc """
-  Behaviour for trace ID and span ID generation.
+  Hardcoded random ID generator — the only generator this
+  SDK ships.
 
-  The SDK randomly generates IDs by default. Custom implementations
-  can be provided via TracerProvider configuration.
+  Generates non-zero random integers using `:rand.uniform/1`:
+  - trace_id: 128-bit (1 to 2^128 - 1)
+  - span_id: 64-bit (1 to 2^64 - 1)
+
+  Spec ref: `trace/sdk.md` §IdGenerator. The behaviour
+  abstraction (and a separate `Default` impl module) was
+  collapsed because the SDK ships only this generator and
+  users cannot substitute their own (per minikube-style
+  scope).
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `generate_trace_id/0` | **SDK** (OTel API MUST) — `trace/sdk.md` §IdGenerator |
+  | `generate_span_id/0` | **SDK** (OTel API MUST) — `trace/sdk.md` §IdGenerator |
 
   ## Deferred Development-status features
 
@@ -15,18 +30,33 @@ defmodule Otel.SDK.Trace.IdGenerator do
     (Status: Development) describes the SDK's responsibility
     to declare this property. Not implemented — `span.ex`
     currently sets only the Sampled bit (`0x01`) on the
-    in-memory `trace_flags`. When stabilised, the IdGenerator
-    behaviour will gain a method describing its randomness
-    profile and `span.ex` will set bit 1 accordingly.
+    in-memory `trace_flags`. When stabilised, this module
+    will gain a method describing its randomness profile and
+    `span.ex` will set bit 1 accordingly.
+
+  ## References
+
+  - OTel Trace SDK §IdGenerator: `opentelemetry-specification/specification/trace/sdk.md`
   """
 
-  @doc """
-  Generates a 128-bit trace ID.
-  """
-  @callback generate_trace_id() :: Otel.API.Trace.TraceId.t()
+  # `bsl(1, n) - 1` reads as "n bits all set" — clearer than
+  # the equivalent `bsl(2, n - 1) - 1`.
+  @trace_id_max Bitwise.bsl(1, 128) - 1
+  @span_id_max Bitwise.bsl(1, 64) - 1
 
   @doc """
-  Generates a 64-bit span ID.
+  **SDK** (OTel API MUST) — Generates a 128-bit trace ID.
   """
-  @callback generate_span_id() :: Otel.API.Trace.SpanId.t()
+  @spec generate_trace_id() :: Otel.API.Trace.TraceId.t()
+  def generate_trace_id do
+    Otel.API.Trace.TraceId.new(:rand.uniform(@trace_id_max))
+  end
+
+  @doc """
+  **SDK** (OTel API MUST) — Generates a 64-bit span ID.
+  """
+  @spec generate_span_id() :: Otel.API.Trace.SpanId.t()
+  def generate_span_id do
+    Otel.API.Trace.SpanId.new(:rand.uniform(@span_id_max))
+  end
 end

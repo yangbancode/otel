@@ -7,13 +7,10 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     :ok
   end
 
-  @id_gen Otel.SDK.Trace.IdGenerator.Default
-
   defp start(ctx, name, opts \\ []) do
     Otel.SDK.Trace.Span.start_span(
       ctx,
       name,
-      @id_gen,
       Keyword.get(opts, :limits, %Otel.SDK.Trace.SpanLimits{}),
       Keyword.delete(opts, :limits)
     )

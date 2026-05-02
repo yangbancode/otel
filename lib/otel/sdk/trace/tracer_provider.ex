@@ -4,7 +4,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   behaviour (`trace/sdk.md` §TracerProvider L36-L116).
 
   A `GenServer` that owns trace configuration (sampler,
-  processors, id_generator, resource, span_limits) and creates
+  processors, resource, span_limits) and creates
   tracers. Registers itself as the global TracerProvider on
   start.
 
@@ -102,8 +102,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @typedoc """
   Runtime state held by the TracerProvider GenServer.
 
-  - `:processors` / `:id_generator` / `:resource` / `:span_limits`
-    come from the user's `start_link/1` config (or defaults).
+  - `:processors` / `:resource` / `:span_limits` come from
+    the user's `start_link/1` config (or defaults).
   - `:shut_down` is the lifecycle flag flipped by
     `handle_call({:shutdown, _}, _, _)`. Once `true`,
     `get_tracer/2` returns the noop tracer and
@@ -114,12 +114,13 @@ defmodule Otel.SDK.Trace.TracerProvider do
     `[{module, callback_config}]` list on every `start_span`
     and `end_span`.
 
-  No `:sampler` field — sampling is hardcoded to
-  `Otel.SDK.Trace.Sampler` (parentbased_always_on).
+  No `:sampler` or `:id_generator` field — sampling is
+  hardcoded to `Otel.SDK.Trace.Sampler`
+  (parentbased_always_on) and ID generation to
+  `Otel.SDK.Trace.IdGenerator` (random).
   """
   @type config :: %{
           processors: [processor_entry()],
-          id_generator: module(),
           resource: Otel.SDK.Resource.t(),
           span_limits: Otel.SDK.Trace.SpanLimits.t(),
           shut_down: boolean(),
@@ -268,7 +269,6 @@ defmodule Otel.SDK.Trace.TracerProvider do
     warn_invalid_scope_name(instrumentation_scope)
 
     tracer_config = %{
-      id_generator: config.id_generator,
       span_limits: config.span_limits,
       processors_key: config.processors_key,
       resource: config.resource,
@@ -369,7 +369,6 @@ defmodule Otel.SDK.Trace.TracerProvider do
   defp default_config do
     %{
       processors: [],
-      id_generator: Otel.SDK.Trace.IdGenerator.Default,
       resource: Otel.SDK.Resource.default(),
       span_limits: %Otel.SDK.Trace.SpanLimits{}
     }

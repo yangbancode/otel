@@ -25,7 +25,7 @@ defmodule Otel.SDK.Trace.Span do
 
   | Callback | Role |
   |---|---|
-  | `start_span/5` | **SDK** (lifecycle) — sampler + id-generator + storage insert |
+  | `start_span/4` | **SDK** (lifecycle) — sampler + id-generator + storage insert |
   | `recording?/1`, `set_attribute/3`, `set_attributes/2`, `add_event/2`, `add_link/2`, `set_status/2`, `update_name/2`, `record_exception/4`, `end_span/2` | **SDK** (OTel API MUST/SHOULD) — `trace/api.md` §Span operations L449-L705 |
 
   ## Design notes
@@ -83,7 +83,7 @@ defmodule Otel.SDK.Trace.Span do
   does not define `dropped_attributes_count` on Event/Link.
 
   Counters are incremented at every callsite where
-  `SpanLimits` causes a discard: `start_span/6` (initial
+  `SpanLimits` causes a discard: `start_span/4` (initial
   attributes/events/links), `set_attribute/3`,
   `set_attributes/2`, `add_event/2`, and `add_link/2`. Per
   spec `common/README.md` L262-L274, value-length truncation
@@ -169,17 +169,16 @@ defmodule Otel.SDK.Trace.Span do
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
           name :: String.t(),
-          id_generator :: module(),
           span_limits :: Otel.SDK.Trace.SpanLimits.t(),
           opts :: Otel.API.Trace.Span.start_opts()
         ) :: {Otel.API.Trace.SpanContext.t(), t() | nil}
-  def start_span(ctx, name, id_generator, span_limits, opts) do
+  def start_span(ctx, name, span_limits, opts) do
     kind = Keyword.get(opts, :kind, :internal)
     attributes = Keyword.get(opts, :attributes, %{})
     links = Keyword.get(opts, :links, [])
     start_time = Keyword.get(opts, :start_time, System.system_time(:nanosecond))
 
-    {span_ctx, parent_span_id, parent_is_remote} = new_span_ctx(ctx, id_generator, opts)
+    {span_ctx, parent_span_id, parent_is_remote} = new_span_ctx(ctx, opts)
 
     trace_id = span_ctx.trace_id
     span_id = span_ctx.span_id
@@ -473,26 +472,23 @@ defmodule Otel.SDK.Trace.Span do
 
   @spec new_span_ctx(
           ctx :: Otel.API.Ctx.t(),
-          id_generator :: module(),
           opts :: Otel.API.Trace.Span.start_opts()
         ) :: {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t() | nil, boolean() | nil}
-  defp new_span_ctx(ctx, id_generator, opts) do
+  defp new_span_ctx(ctx, opts) do
     parent = Otel.API.Trace.current_span(ctx)
     is_root = Keyword.get(opts, :is_root, false)
 
     if is_root or not Otel.API.Trace.SpanContext.valid?(parent) do
-      root_span_ctx(id_generator)
+      root_span_ctx()
     else
-      child_span_ctx(parent, id_generator)
+      child_span_ctx(parent)
     end
   end
 
-  @spec child_span_ctx(
-          parent :: Otel.API.Trace.SpanContext.t(),
-          id_generator :: module()
-        ) :: {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t(), boolean()}
-  defp child_span_ctx(parent, id_generator) do
-    span_id = id_generator.generate_span_id()
+  @spec child_span_ctx(parent :: Otel.API.Trace.SpanContext.t()) ::
+          {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t(), boolean()}
+  defp child_span_ctx(parent) do
+    span_id = Otel.SDK.Trace.IdGenerator.generate_span_id()
 
     {
       %Otel.API.Trace.SpanContext{
@@ -506,11 +502,10 @@ defmodule Otel.SDK.Trace.Span do
     }
   end
 
-  @spec root_span_ctx(id_generator :: module()) ::
-          {Otel.API.Trace.SpanContext.t(), nil, nil}
-  defp root_span_ctx(id_generator) do
-    trace_id = id_generator.generate_trace_id()
-    span_id = id_generator.generate_span_id()
+  @spec root_span_ctx() :: {Otel.API.Trace.SpanContext.t(), nil, nil}
+  defp root_span_ctx do
+    trace_id = Otel.SDK.Trace.IdGenerator.generate_trace_id()
+    span_id = Otel.SDK.Trace.IdGenerator.generate_span_id()
 
     {
       %Otel.API.Trace.SpanContext{
