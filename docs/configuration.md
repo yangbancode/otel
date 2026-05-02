@@ -124,7 +124,6 @@ Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter.HTTP`)
 | Option | `config :otel, metrics:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Reader list | `readers:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Views | `views:` | — | list of `Otel.SDK.Metrics.View.t()` | `[]` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
 
 PeriodicExporting reader interval / timeout are hardcoded to

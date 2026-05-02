@@ -147,8 +147,7 @@ defmodule Otel.SDK.Config do
     %{
       resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
       readers: build_metrics_readers(pillar),
-      exemplar_filter: build_exemplar_filter(pillar),
-      views: Keyword.get(pillar, :views, [])
+      exemplar_filter: build_exemplar_filter(pillar)
     }
   end
 

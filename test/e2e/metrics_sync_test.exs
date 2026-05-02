@@ -4,10 +4,7 @@ defmodule Otel.E2E.MetricsSyncTest do
 
   Tracking matrix: `docs/e2e.md` §Metrics — sync instrument
   scenarios that work under the SDK's default configuration:
-  rows 1–4, 8, 16, 21, 30, 31. Aggregation overrides
-  (`record_min_max: false`, base2 exponential, drop, etc.) need
-  per-test View / temporality config and live in
-  `metrics_views_test.exs`.
+  rows 1–4, 8, 16, 21, 30, 31.
 
   Each test mints a metric name unique to the scenario + e2e_id
   and tags every measurement with `e2e.id` so Mimir's PromQL

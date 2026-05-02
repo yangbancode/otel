@@ -40,31 +40,13 @@ defmodule Otel.SDK.Metrics.Meter do
   matches the project's happy-path policy and will be revisited in
   the finalization error-handling pass.
 
-  ### View vs advisory precedence
+  ### Aggregation / bucket boundaries
 
-  When both a matching View and instrument advisory parameters
-  influence the same stream aspect, the View wins. Concretely:
-
-  - **Aggregation / bucket boundaries.** If a View explicitly
-    specifies an aggregation (e.g. `ExplicitBucketHistogram`),
-    advisory `:explicit_bucket_boundaries` are ignored entirely —
-    even when the View does not supply custom boundaries
-    (`metrics/sdk.md` L1003-L1005). Advisory boundaries only apply
-    when no View matched or the matching View uses default
-    aggregation (`stream.aggregation == nil`), resolved in
-    `Stream.from_view/2` → `Stream.resolve/1` and
-    `Stream.from_instrument/1`.
-  - **Attribute keys.** `Stream.from_view/2` falls back to advisory
-    `:attributes` only when the View has no `:attribute_keys`.
-
-  ### `enabled?/2` with Drop aggregation
-
-  `enabled?/2` returns `false` only when every resolved stream (for
-  a registered instrument) or every matching View (for an unregistered
-  instrument name) uses `Drop` aggregation. Any non-Drop stream/view
-  makes the instrument enabled. This matches `metrics/sdk.md` L1029
-  and L1037 and lets user code skip measurement computation cheaply
-  when the pipeline would discard the value anyway.
+  Each instrument produces exactly one stream resolved by
+  `Stream.from_instrument/1` → `Stream.resolve/1` against spec
+  defaults. `metrics/sdk.md` L1003-L1005 advisory
+  `:explicit_bucket_boundaries` flow into the histogram
+  aggregation when present.
 
   ### Async cardinality — first-observed across temporalities
 
@@ -105,10 +87,9 @@ defmodule Otel.SDK.Metrics.Meter do
     `metrics/sdk.md` L1029-L1037 (Status: Development on the
     `MeterConfig.enabled=false` bullet) — when set, the
     Meter's instruments MUST report `enabled?/2` as `false`.
-    Not implemented — there is no `MeterConfig` analogue on
-    the meter today, so the disabled-Meter leg cannot be
-    expressed. The Drop-aggregation leg of `enabled?/2` IS
-    honoured (above). Waits for spec stabilisation.
+    Not implemented. Waits for spec stabilisation. Without
+    Views, no Drop aggregation paths exist either, so
+    `enabled?/2` is unconditionally `true`.
 
   ## References
 
@@ -205,8 +186,7 @@ defmodule Otel.SDK.Metrics.Meter do
         now = System.system_time(:nanosecond)
 
         Enum.each(stream_entries, fn {_key, stream} ->
-          filtered_attrs = filter_stream_attributes(stream, attributes)
-          agg_key = {stream.name, stream.instrument.scope, stream.reader_id, filtered_attrs}
+          agg_key = {stream.name, stream.instrument.scope, stream.reader_id, attributes}
           agg_key = maybe_overflow(config.metrics_tab, stream, agg_key)
 
           stream.aggregation.aggregate(
@@ -216,8 +196,7 @@ defmodule Otel.SDK.Metrics.Meter do
             stream.aggregation_options
           )
 
-          dropped_attrs = Map.drop(attributes, Map.keys(filtered_attrs))
-          offer_exemplar(config, stream, agg_key, value, now, dropped_attrs, ctx)
+          offer_exemplar(config, stream, agg_key, value, now, %{}, ctx)
         end)
     end
   end
@@ -245,9 +224,7 @@ defmodule Otel.SDK.Metrics.Meter do
   # --- Enabled ---
 
   @impl true
-  def enabled?(%Otel.API.Metrics.Instrument{meter: {_module, config}, name: name}, _opts) do
-    instrument_enabled?(config, name)
-  end
+  def enabled?(%Otel.API.Metrics.Instrument{}, _opts), do: true
 
   # --- Private ---
 
@@ -317,36 +294,21 @@ defmodule Otel.SDK.Metrics.Meter do
       Logger.warning(
         "Otel.SDK.Metrics.Meter: duplicate instrument registration for " <>
           "#{inspect(new.name)} differs in #{inspect(diffs)} — " <>
-          "give the second instrument a distinct name or use a View to rename"
+          "give the second instrument a distinct name"
       )
 
       :ok
     end
   end
 
-  @doc false
-  @spec match_views(
-          views :: [Otel.SDK.Metrics.View.t()],
-          instrument :: Otel.API.Metrics.Instrument.t()
-        ) :: [Otel.SDK.Metrics.Stream.t()]
-  def match_views(views, instrument) do
-    streams =
-      views
-      |> Enum.filter(&Otel.SDK.Metrics.View.matches?(&1, instrument))
-      |> Enum.map(&Otel.SDK.Metrics.Stream.from_view(&1, instrument))
-
-    case streams do
-      [] -> [Otel.SDK.Metrics.Stream.from_instrument(instrument)]
-      matched -> matched
-    end
-  end
-
   @spec create_streams(config :: map(), instrument :: Otel.API.Metrics.Instrument.t()) :: :ok
   defp create_streams(config, instrument) do
     base_streams =
-      config.views
-      |> match_views(instrument)
-      |> Enum.map(&Otel.SDK.Metrics.Stream.resolve/1)
+      [
+        instrument
+        |> Otel.SDK.Metrics.Stream.from_instrument()
+        |> Otel.SDK.Metrics.Stream.resolve()
+      ]
 
     reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
     instrument_key = {config.scope, Otel.API.Metrics.Instrument.downcased_name(instrument.name)}
@@ -366,18 +328,6 @@ defmodule Otel.SDK.Metrics.Meter do
         :ets.insert(config.streams_tab, {instrument_key, reader_stream})
       end)
     end)
-  end
-
-  @spec filter_stream_attributes(
-          stream :: Otel.SDK.Metrics.Stream.t(),
-          attributes :: map()
-        ) :: map()
-  defp filter_stream_attributes(stream, attributes) do
-    case stream.attribute_keys do
-      {:include, keys} -> Map.take(attributes, keys)
-      {:exclude, keys} -> Map.drop(attributes, keys)
-      nil -> attributes
-    end
   end
 
   @overflow_attributes %{"otel.metric.overflow" => true}
@@ -571,8 +521,7 @@ defmodule Otel.SDK.Metrics.Meter do
       streams = lookup_streams_for_instrument(config, instrument)
 
       Enum.each(streams, fn stream ->
-        filtered_attrs = filter_stream_attributes(stream, attributes)
-        agg_key = {stream.name, stream.instrument.scope, stream.reader_id, filtered_attrs}
+        agg_key = {stream.name, stream.instrument.scope, stream.reader_id, attributes}
         agg_key = maybe_overflow_async(config.observed_attrs_tab, stream, agg_key)
 
         stream.aggregation.aggregate(
@@ -582,8 +531,7 @@ defmodule Otel.SDK.Metrics.Meter do
           stream.aggregation_options
         )
 
-        dropped_attrs = Map.drop(attributes, Map.keys(filtered_attrs))
-        offer_exemplar(config, stream, agg_key, value, now, dropped_attrs, ctx)
+        offer_exemplar(config, stream, agg_key, value, now, %{}, ctx)
       end)
     end)
   end
@@ -660,40 +608,6 @@ defmodule Otel.SDK.Metrics.Meter do
 
       _ ->
         %{size: 1}
-    end
-  end
-
-  @spec instrument_enabled?(config :: map(), name :: String.t()) :: boolean()
-  defp instrument_enabled?(config, name) do
-    instrument_key =
-      {config.scope, Otel.API.Metrics.Instrument.downcased_name(name)}
-
-    case :ets.lookup(config.streams_tab, instrument_key) do
-      [] ->
-        not all_views_drop?(config.views, name)
-
-      streams ->
-        not Enum.all?(streams, fn {_key, stream} ->
-          stream.aggregation == Otel.SDK.Metrics.Aggregation.Drop
-        end)
-    end
-  end
-
-  @spec all_views_drop?(views :: [Otel.SDK.Metrics.View.t()], name :: String.t()) :: boolean()
-  defp all_views_drop?(views, name) do
-    dummy = %Otel.API.Metrics.Instrument{name: name}
-
-    matching =
-      Enum.filter(views, &Otel.SDK.Metrics.View.matches?(&1, dummy))
-
-    case matching do
-      [] ->
-        false
-
-      matched ->
-        Enum.all?(matched, fn view ->
-          Map.get(view.config, :aggregation) == Otel.SDK.Metrics.Aggregation.Drop
-        end)
     end
   end
 

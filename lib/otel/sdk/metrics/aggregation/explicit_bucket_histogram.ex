@@ -15,8 +15,9 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
 
   ## Configuration parameters
 
-  Pass via `opts` (typically through
-  `Otel.SDK.Metrics.View.config.aggregation_options`):
+  Resolved by `Stream.resolve/1` from the instrument's
+  advisory `:explicit_bucket_boundaries` (when present); other
+  knobs use the spec defaults below.
 
   | Key | Default | Description |
   |---|---|---|

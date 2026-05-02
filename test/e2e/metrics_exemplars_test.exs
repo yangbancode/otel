@@ -3,9 +3,10 @@ defmodule Otel.E2E.MetricsExemplarsTest do
   E2E coverage for exemplar filter + reservoir.
 
   `exemplar_filter` is a provider-wide setting (each describe
-  restarts the SDK with a different filter). Reservoir choices
-  are stream-level — installed via `add_view/3` after the
-  provider boots.
+  restarts the SDK with a different filter). Reservoir is
+  derived from aggregation kind by `Stream.resolve/1` —
+  histogram → `AlignedHistogramBucket`, otherwise
+  `SimpleFixedSize`.
 
   Tracking matrix: `docs/e2e.md` §Metrics, scenarios 25–29.
 
@@ -73,16 +74,9 @@ defmodule Otel.E2E.MetricsExemplarsTest do
     end
   end
 
-  describe "reservoir overrides" do
+  describe "reservoir defaults by aggregation kind" do
     test "28: AlignedHistogramBucket reservoir on a histogram", %{e2e_id: e2e_id} do
       metric = "e2e_scenario_28_#{e2e_id}"
-
-      :ok =
-        Otel.SDK.Metrics.MeterProvider.add_view(
-          Otel.SDK.Metrics.MeterProvider,
-          %{name: metric},
-          %{exemplar_reservoir: Otel.SDK.Metrics.Exemplar.Reservoir.AlignedHistogramBucket}
-        )
 
       meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
       hist = Otel.API.Metrics.Meter.create_histogram(meter, metric)
@@ -96,13 +90,6 @@ defmodule Otel.E2E.MetricsExemplarsTest do
 
     test "29: SimpleFixedSize reservoir on a non-histogram", %{e2e_id: e2e_id} do
       metric = "e2e_scenario_29_#{e2e_id}"
-
-      :ok =
-        Otel.SDK.Metrics.MeterProvider.add_view(
-          Otel.SDK.Metrics.MeterProvider,
-          %{name: metric},
-          %{exemplar_reservoir: Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize}
-        )
 
       meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
       counter = Otel.API.Metrics.Meter.create_counter(meter, metric)

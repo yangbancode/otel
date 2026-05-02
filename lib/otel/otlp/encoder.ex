@@ -265,12 +265,7 @@ defmodule Otel.OTLP.Encoder do
           | {:exponential_histogram, Opentelemetry.Proto.Metrics.V1.ExponentialHistogram.t()}
   # Dispatch on the *datapoint shape* first, falling through to
   # the instrument `kind` only when the datapoint is a plain
-  # number. A View `aggregation:` override (e.g. Counter →
-  # ExplicitBucketHistogram) leaves `metric.kind` as the
-  # original `:counter` but rewrites every datapoint to the
-  # histogram shape, so kind-only dispatch sent histogram
-  # datapoints into the number-encoder and crashed in
-  # `encode_number_value/1`.
+  # number.
   defp encode_metric_data(%{datapoints: [%{value: %{scale: _}} | _]} = metric) do
     {:exponential_histogram,
      %Opentelemetry.Proto.Metrics.V1.ExponentialHistogram{

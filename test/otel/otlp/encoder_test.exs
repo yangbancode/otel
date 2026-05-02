@@ -377,15 +377,10 @@ defmodule Otel.OTLP.EncoderTest do
       assert dp.max == nil
     end
 
-    # Regression for the e2e §Metrics row 24 crash: a View
-    # `aggregation: ExplicitBucketHistogram` override on a
-    # Counter rewrites every datapoint to histogram shape but
-    # leaves `metric.kind` as `:counter`. Encoder used to
-    # dispatch on `kind` only, so the histogram-shaped
-    # datapoints went to `encode_number_data_point/1` and
-    # crashed in `encode_number_value/1`. Datapoint-shape
-    # dispatch handles the override without the SDK having to
-    # rewrite `metric.kind`.
+    # Defensive coverage for datapoint-shape dispatch — if a
+    # datapoint's value shape disagrees with `metric.kind`,
+    # the encoder routes by shape, not kind. (Reachable
+    # historically through Views; preserved as a guard.)
     test "histogram-shaped datapoints on a counter-kind metric encode as histogram" do
       counter_with_hist_dp = %{
         @counter

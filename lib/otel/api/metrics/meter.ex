@@ -7,7 +7,7 @@ defmodule Otel.API.Metrics.Meter do
   SHOULD NOT be responsible for the configuration. This
   should be the responsibility of the MeterProvider
   instead"* — we honour this by keeping configuration
-  (resource, views, etc.) in `Otel.API.Metrics.MeterProvider`
+  (resource, readers, etc.) in `Otel.API.Metrics.MeterProvider`
   and exposing no config-related functions on the Meter
   itself. Spec L166-L174 enumerates seven instruments the
   Meter MUST provide creation functions for; all seven are
