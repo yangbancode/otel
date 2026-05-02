@@ -65,7 +65,9 @@ defmodule Otel.Metrics.MeterProvider do
   **SDK** (OTel API MUST) — Get a Meter
   (`metrics/api.md` §Get a Meter).
 
-  Falls back to the Noop meter if `server` is no longer alive.
+  Falls back to an empty `%Otel.Metrics.Meter{}` if `server`
+  is no longer alive — the empty meter holds no processors,
+  so subsequent calls are no-ops.
   """
   @spec get_meter(
           server :: GenServer.server(),
@@ -75,7 +77,7 @@ defmodule Otel.Metrics.MeterProvider do
   def get_meter(server \\ __MODULE__, %Otel.InstrumentationScope{} = instrumentation_scope) do
     GenServer.call(server, {:get_meter, instrumentation_scope})
   catch
-    :exit, {:noproc, _} -> {Otel.Metrics.Meter.Noop, []}
+    :exit, {:noproc, _} -> %Otel.Metrics.Meter{}
   end
 
   @doc """
