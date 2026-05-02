@@ -190,38 +190,20 @@ View-based filter to drop attributes after the fact.
 
 ## Temporality
 
-Default `:cumulative` — counters report running totals. Switch a reader
-to `:delta` per kind:
-
-```elixir
-config :otel,
-  metrics: [
-    readers: [
-      {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
-        %{
-          exporter: {Otel.OTLP.Metrics.MetricExporter, %{}},
-          temporality_mapping: %{counter: :delta}
-        }}
-    ]
-  ]
-```
-
-Most Prometheus-derived backends (Mimir, Cortex) expect cumulative;
-delta works with backends that explicitly support delta-to-cumulative
-conversion.
+Default `:cumulative` — counters report running totals. Most
+Prometheus-derived backends (Mimir, Cortex) expect cumulative; delta
+requires backends that support delta-to-cumulative conversion. Override
+via the advanced reader override; see
+[Configuration](configuration.md) §"Advanced overrides".
 
 ## Exemplars
 
 Histograms and counters can attach trace exemplars (a sampled
-`trace_id` linked to the measurement). Default filter is
+`trace_id` linked to the measurement). Filter is hardcoded to
 `:trace_based` — only sampled spans contribute exemplars.
 
-```elixir
-config :otel, metrics: [exemplar_filter: :always_on]    # every measurement
-config :otel, metrics: [exemplar_filter: :always_off]   # none
-```
+## Defaults
 
-## Limits
-
-See [Configuration](configuration.md) §"Metrics pillar" for export
-interval, export timeout, exemplar filter, and other knobs.
+Export interval / timeout / exemplar filter are all hardcoded to
+spec defaults. See [Configuration](configuration.md) §"Metrics pillar"
+for the full list.

@@ -7,21 +7,14 @@ defmodule Otel.OTLP.Metrics.MetricExporter do
 
   ## Configuration
 
-  Pass options through `config :otel, metrics: [readers: [...]]` (the
-  reader carries `:exporter`) or directly to a provider's
-  `start_link`. The SDK reads no OS environment variables — bridge
-  any `OTEL_EXPORTER_OTLP_*` you need from `runtime.exs`:
+  Pass options through the top-level `:exporter` map — the same
+  map flows to all three OTLP exporters (trace / metrics / logs):
 
       # config/runtime.exs
       config :otel,
-        metrics: [
-          readers: [
-            {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
-             %{exporter: {Otel.OTLP.Metrics.MetricExporter, %{
-               endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
-             }}}}
-          ]
-        ]
+        exporter: %{
+          endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+        }
 
   Accepted keys (all optional):
 

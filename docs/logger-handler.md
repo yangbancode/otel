@@ -55,10 +55,13 @@ Reserved meta keys (never emitted as attributes): `:time`, `:gl`,
 
 ## Pairing with the SDK
 
-Pair with the SDK's processor pipeline (default `:batch`):
+Boot the SDK with the standard top-level config — the bridge attaches
+to whichever LoggerProvider the SDK installs:
 
 ```elixir
-config :otel, logs: [exporter: :otlp, processor: :batch]
+config :otel,
+  resource: %{"service.name" => "my_app"},
+  exporter: %{endpoint: "http://localhost:4318"}
 ```
 
-See [Configuration](configuration.md) for Logs-pillar knobs.
+See [Configuration](configuration.md) for the full surface.

@@ -8,22 +8,40 @@ The SDK reads only Application env. Sources, highest priority first:
 | 2 | `config :otel, ...` in `config/*.exs` |
 | 3 | Built-in defaults |
 
-## Application env
+## User-facing keys
+
+Three top-level keys cover everything most users need.
 
 ```elixir
 import Config
 
 config :otel,
-  trace: [
-    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
-  ],
-  metrics: [
-    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
-  ],
-  logs: [
-    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
-  ]
+  disabled: false,
+  resource: %{"service.name" => "my_app"},
+  exporter: %{endpoint: "http://localhost:4318"}
 ```
+
+| Key | Type | Default |
+|---|---|---|
+| `:disabled` | `boolean` | `false` |
+| `:resource` | `%{String.t() => term()}` (attribute pairs) | merges to `%{"service.name" => "unknown_service"}` |
+| `:exporter` | `%{endpoint, headers, ssl_options, ...}` | `%{}` (uses exporter defaults) |
+
+User-provided `:resource` attributes are merged on top of the SDK
+identity attributes (`telemetry.sdk.{name,language,version}`); user
+keys take precedence on conflict.
+
+The `:exporter` map is forwarded verbatim to all three OTLP/HTTP
+exporters (trace, metrics, logs). Common keys:
+
+| Exporter key | Default | Notes |
+|---|---|---|
+| `:endpoint` | `http://localhost:4318` | `/v1/traces`, `/v1/metrics`, `/v1/logs` are appended per signal |
+| `:headers` | `%{}` | `%{header_name => value}` — use for SaaS auth tokens |
+| `:ssl_options` | system CAs for HTTPS | Erlang `:ssl` client options |
+
+`:compression`, `:timeout`, `:retry_opts` are also accepted by the
+exporter modules but rarely need adjustment.
 
 ## Bridging OS environment variables (Phoenix pattern)
 
@@ -34,9 +52,7 @@ your `runtime.exs` — same pattern as Phoenix's `PHX_SERVER`:
 # config/runtime.exs
 import Config
 
-service_name = System.get_env("OTEL_SERVICE_NAME") || "my_app"
-
-extra_attrs =
+resource_attrs =
   "OTEL_RESOURCE_ATTRIBUTES"
   |> System.get_env("")
   |> String.split(",", trim: true)
@@ -44,31 +60,14 @@ extra_attrs =
     [k, v] = String.split(pair, "=", parts: 2)
     {k, v}
   end)
-
-resource =
-  extra_attrs
-  |> Map.put("service.name", service_name)
-  |> Otel.SDK.Resource.create()
-
-endpoint = System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+  |> Map.put("service.name", System.get_env("OTEL_SERVICE_NAME") || "my_app")
 
 config :otel,
   disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
-  trace: [
-    resource: resource,
-    exporter: {Otel.OTLP.Trace.SpanExporter, %{endpoint: endpoint}}
-  ],
-  metrics: [
-    resource: resource,
-    readers: [
-      {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
-       %{exporter: {Otel.OTLP.Metrics.MetricExporter, %{endpoint: endpoint}}}}
-    ]
-  ],
-  logs: [
-    resource: resource,
-    exporter: {Otel.OTLP.Logs.LogRecordExporter, %{endpoint: endpoint}}
-  ]
+  resource: resource_attrs,
+  exporter: %{
+    endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+  }
 ```
 
 ## Disable the SDK
@@ -85,11 +84,6 @@ emitting telemetry, set `config :otel, disabled: true`.
 Sampling is hardcoded to `parentbased_always_on`
 (`Otel.SDK.Trace.Sampler`); no `sampler:` option is accepted.
 
-| Option | `config :otel, trace:` | Accepted values | Default |
-|---|---|---|---|
-| Processor list | `processors:` | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Resource | `resource:` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes + `service.name=unknown_service` |
-
 ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
 (random non-zero 128-bit trace IDs / 64-bit span IDs); no
 `id_generator:` option is accepted.
@@ -101,19 +95,11 @@ Span batch processor knobs (`max_queue_size: 2048`,
 
 Span limits are hardcoded to spec defaults (all `128`,
 `attribute_value_length_limit: :infinity`, see
-`trace/sdk.md` L868-871 and `common/README.md` L305-306). The
-`:span_limits` Application-env keyword is retained as an
-advanced override for tests that need to exercise the
-limit-enforcement code paths with small caps.
+`trace/sdk.md` L868-871 and `common/README.md` L305-306).
 
 ## Metrics pillar
 
 Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter`).
-
-| Option | `config :otel, metrics:` | Accepted values | Default |
-|---|---|---|---|
-| Reader list | `readers:` | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Resource | `resource:` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes + `service.name=unknown_service` |
 
 PeriodicExporting reader interval / timeout are hardcoded to
 spec defaults (`metrics/sdk.md` L1450-L1453:
@@ -122,19 +108,11 @@ spec defaults (`metrics/sdk.md` L1450-L1453:
 
 Exemplar filter is hardcoded to **`:trace_based`** — the
 spec default per `metrics/sdk.md` L1123 (*"The default value
-SHOULD be `TraceBased`"*). The `:exemplar_filter`
-Application-env keyword is retained as an advanced override
-for tests that exercise the `:always_on` / `:always_off`
-filter paths.
+SHOULD be `TraceBased`"*).
 
 ## Logs pillar
 
 Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Logs.LogRecordExporter`).
-
-| Option | `config :otel, logs:` | Accepted values | Default |
-|---|---|---|---|
-| Processor list | `processors:` | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Resource | `resource:` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes + `service.name=unknown_service` |
 
 LogRecord batch processor knobs (same shape as the trace
 pillar, with `scheduled_delay_ms` defaulting to `1000`) are
@@ -143,9 +121,7 @@ hardcoded.
 LogRecord limits are hardcoded to spec defaults
 (`attribute_count_limit: 128`,
 `attribute_value_length_limit: :infinity`, see
-`logs/sdk.md` L321 and `common/README.md` L305-306). The
-`:log_record_limits` Application-env keyword is retained as
-an advanced override for tests.
+`logs/sdk.md` L321 and `common/README.md` L305-306).
 
 ## Propagators
 
@@ -165,21 +141,18 @@ certificate verification is enabled by default using system CA
 certificates (`:public_key.cacerts_get/0`).
 
 To override the defaults — custom CA bundle, mutual TLS, etc. — pass
-the exporter explicitly with an `ssl_options:` keyword list:
+options through the top-level `:exporter` map:
 
 ```elixir
 config :otel,
-  trace: [
-    exporter:
-      {Otel.OTLP.Trace.SpanExporter,
-       %{
-         endpoint: "https://collector.example.com:4318/v1/traces",
-         ssl_options: [
-           verify: :verify_peer,
-           cacertfile: "/etc/ssl/certs/ca.crt"
-         ]
-       }}
-  ]
+  resource: %{"service.name" => "my_app"},
+  exporter: %{
+    endpoint: "https://collector.example.com:4318",
+    ssl_options: [
+      verify: :verify_peer,
+      cacertfile: "/etc/ssl/certs/ca.crt"
+    ]
+  }
 ```
 
 `ssl_options:` accepts any
@@ -192,6 +165,23 @@ Common patterns:
 | Mutual TLS | add `certfile: "client.crt", keyfile: "client.key"` |
 | Disable verification (dev only) | `verify: :verify_none` |
 
-The same `{Module, opts}` shape works for `metrics:`
-(`Otel.OTLP.Metrics.MetricExporter`) and `logs:`
-(`Otel.OTLP.Logs.LogRecordExporter`).
+## Advanced overrides (test / power-user only)
+
+The per-pillar keys (`trace:`, `metrics:`, `logs:`) accept the
+underlying processor / reader / limits structures. They bypass
+the simple surface above and are mostly for tests.
+
+| Pillar | Key | Type |
+|---|---|---|
+| `trace:` | `:processors` | `[{module, config}]` |
+| `trace:` | `:resource` | `%Otel.SDK.Resource{}` (struct, not map) |
+| `trace:` | `:span_limits` | `%Otel.SDK.Trace.SpanLimits{}` or keyword |
+| `metrics:` | `:readers` | `[{module, config}]` |
+| `metrics:` | `:resource` | `%Otel.SDK.Resource{}` |
+| `metrics:` | `:exemplar_filter` | `:always_on` / `:always_off` / `:trace_based` |
+| `logs:` | `:processors` | `[{module, config}]` |
+| `logs:` | `:resource` | `%Otel.SDK.Resource{}` |
+| `logs:` | `:log_record_limits` | `%Otel.SDK.Logs.LogRecordLimits{}` or keyword |
+
+When a per-pillar override is set, the matching top-level key is
+bypassed for that pillar.

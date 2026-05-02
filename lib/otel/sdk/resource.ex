@@ -12,24 +12,10 @@ defmodule Otel.SDK.Resource do
   `default/0` returns the SDK-provided base
   (`telemetry.sdk.{name,language,version}`) plus a fallback
   `service.name` of `"unknown_service"`. The SDK reads no
-  OS environment variables; bridge `OTEL_SERVICE_NAME` /
-  `OTEL_RESOURCE_ATTRIBUTES` from your `runtime.exs`:
-
-      # config/runtime.exs
-      attrs =
-        "OTEL_RESOURCE_ATTRIBUTES"
-        |> System.get_env("")
-        |> String.split(",", trim: true)
-        |> Map.new(fn pair ->
-          [k, v] = String.split(pair, "=", parts: 2)
-          {k, v}
-        end)
-        |> Map.put("service.name", System.get_env("OTEL_SERVICE_NAME") || "my_app")
-
-      config :otel,
-        trace: [resource: Otel.SDK.Resource.create(attrs)],
-        metrics: [resource: Otel.SDK.Resource.create(attrs)],
-        logs: [resource: Otel.SDK.Resource.create(attrs)]
+  OS environment variables; user attributes are configured via
+  `config :otel, resource: %{...}` (a map, not a struct), and
+  `Otel.SDK.Config` merges them onto this base. See
+  `Otel.SDK.Config` for the bridging pattern from `runtime.exs`.
 
   ## References
 
