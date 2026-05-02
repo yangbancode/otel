@@ -153,6 +153,17 @@ defmodule Otel.SDK.Config do
     }
   end
 
+  # Hardcoded to `:trace_based` (spec default per
+  # `metrics/sdk.md` L1123). The `:exemplar_filter`
+  # Application-env keyword is retained as an advanced
+  # override for tests that exercise the `:always_on` /
+  # `:always_off` filter paths; it is not part of the
+  # documented user surface.
+  @spec build_exemplar_filter(pillar :: keyword()) :: Otel.SDK.Metrics.Exemplar.Filter.t()
+  defp build_exemplar_filter(pillar) do
+    Keyword.get(pillar, :exemplar_filter, :trace_based)
+  end
+
   @spec build_metrics_readers(pillar :: keyword()) ::
           [{module(), Otel.SDK.Metrics.MetricReader.config()}]
   defp build_metrics_readers(pillar) do
@@ -180,25 +191,6 @@ defmodule Otel.SDK.Config do
     }
 
     Map.merge(base, overrides)
-  end
-
-  @spec build_exemplar_filter(pillar :: keyword()) :: Otel.SDK.Metrics.Exemplar.Filter.t()
-  defp build_exemplar_filter(pillar) do
-    cond do
-      explicit = Keyword.get(pillar, :exemplar_filter) ->
-        explicit
-
-      from_env =
-          Otel.SDK.Config.Env.enum("OTEL_METRICS_EXEMPLAR_FILTER", [
-            :always_on,
-            :always_off,
-            :trace_based
-          ]) ->
-        from_env
-
-      true ->
-        :trace_based
-    end
   end
 
   # ====== Logs ======

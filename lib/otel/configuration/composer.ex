@@ -173,7 +173,7 @@ defmodule Otel.Configuration.Composer do
     %{
       resource: resource,
       readers: Enum.map(provider["readers"] || [], &compose_metric_reader/1),
-      exemplar_filter: compose_exemplar_filter(provider["exemplar_filter"]),
+      exemplar_filter: :trace_based,
       views: provider["views"] || []
     }
   end
@@ -216,16 +216,6 @@ defmodule Otel.Configuration.Composer do
         raise_unsupported_exporter!(key, "metrics")
     end
   end
-
-  @spec compose_exemplar_filter(value :: String.t() | nil) ::
-          Otel.SDK.Metrics.Exemplar.Filter.t()
-  defp compose_exemplar_filter("always_on"), do: :always_on
-  defp compose_exemplar_filter("always_off"), do: :always_off
-  defp compose_exemplar_filter("trace_based"), do: :trace_based
-  defp compose_exemplar_filter(nil), do: :trace_based
-
-  defp compose_exemplar_filter(other),
-    do: raise(ArgumentError, "unsupported exemplar_filter: #{inspect(other)}")
 
   # ====== Logs ======
 

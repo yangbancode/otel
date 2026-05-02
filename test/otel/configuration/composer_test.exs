@@ -147,16 +147,13 @@ defmodule Otel.Configuration.ComposerTest do
   end
 
   describe "compose exemplar_filter" do
-    test "always_on / always_off / trace_based pass through; default :trace_based" do
-      assert exemplar("always_on") == :always_on
-      assert exemplar("always_off") == :always_off
-      assert exemplar("trace_based") == :trace_based
-
+    test "hardcoded :trace_based; YAML exemplar_filter ignored" do
       assert compose!(%{}).metrics.exemplar_filter == :trace_based
 
-      assert_raise ArgumentError, ~r/unsupported exemplar_filter/, fn ->
-        exemplar("custom")
-      end
+      # YAML `meter_provider.exemplar_filter` block silently
+      # ignored — mirrors sampler / limits / propagator policy.
+      assert exemplar("always_on") == :trace_based
+      assert exemplar("custom") == :trace_based
     end
   end
 
