@@ -4,24 +4,40 @@ defmodule Otel.Logs.LoggerTest do
   import ExUnit.CaptureLog
 
   defmodule CollectorProcessor do
-    @moduledoc false
+    @moduledoc """
+    Test substitute for `Otel.Logs.LogRecordProcessor`. Receives
+    `:gen_statem.cast({:add_record, record})` from
+    `Otel.Logs.Logger.emit/3` via the hardcoded name and forwards
+    each record to the test pid. `handle_call/3` swallows
+    `LoggerProvider.shutdown/1` calls so tests can exercise the
+    shutdown path without a full Batch processor.
+    """
 
-    def on_emit(record, _ctx, %{test_pid: pid}) do
+    use GenServer
+
+    def start_link(%{test_pid: _pid} = config),
+      do: GenServer.start_link(__MODULE__, config, name: Otel.Logs.LogRecordProcessor)
+
+    @impl true
+    def init(config), do: {:ok, config}
+
+    @impl true
+    def handle_cast({:add_record, record}, %{test_pid: pid} = state) do
       send(pid, {:log_record, record})
-      :ok
+      {:noreply, state}
     end
 
-    def shutdown(_config, _timeout \\ 5000), do: :ok
-    def force_flush(_config, _timeout \\ 5000), do: :ok
+    @impl true
+    def handle_call(_msg, _from, state), do: {:reply, :ok, state}
   end
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp logger_for(scope_name, version \\ "1.0.0") do
-    Otel.Logs.LoggerProvider.get_logger(
-      Otel.Logs.LoggerProvider,
-      %Otel.InstrumentationScope{name: scope_name, version: version}
-    )
+    Otel.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
+      name: scope_name,
+      version: version
+    })
   end
 
   defp logger_with_limits(limit_overrides) do
@@ -136,11 +152,11 @@ defmodule Otel.Logs.LoggerTest do
   end
 
   describe "Logger.enabled?/2" do
-    test "true when at least one processor exists; false when none", %{logger: logger} do
+    test "true while LoggerProvider is up; false after shutdown", %{logger: logger} do
       assert Otel.Logs.Logger.enabled?(logger, [])
 
-      restart_sdk(logs: [processors: []])
-      refute Otel.Logs.Logger.enabled?(logger_for("lib"), [])
+      :ok = Otel.Logs.LoggerProvider.shutdown()
+      refute Otel.Logs.Logger.enabled?(logger, [])
     end
   end
 

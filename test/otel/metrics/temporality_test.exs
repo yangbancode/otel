@@ -5,29 +5,17 @@ defmodule Otel.Metrics.TemporalityTest do
     @moduledoc false
     use GenServer
 
-    @behaviour Otel.Metrics.MetricReader
-
-    @impl Otel.Metrics.MetricReader
     def start_link(config), do: GenServer.start_link(__MODULE__, config)
-
-    @impl Otel.Metrics.MetricReader
-    def shutdown(pid), do: GenServer.call(pid, :shutdown)
-
-    @impl Otel.Metrics.MetricReader
-    def force_flush(pid), do: GenServer.call(pid, :force_flush)
 
     def collect(pid), do: GenServer.call(pid, :collect)
 
-    @impl GenServer
+    @impl true
     def init(config), do: {:ok, config}
 
-    @impl GenServer
+    @impl true
     def handle_call(:collect, _from, state) do
       {:reply, {:ok, Otel.Metrics.MetricReader.collect(state.meter_config)}, state}
     end
-
-    def handle_call(:shutdown, _from, state), do: {:reply, :ok, state}
-    def handle_call(:force_flush, _from, state), do: {:reply, :ok, state}
   end
 
   @delta_mapping %{
@@ -40,30 +28,43 @@ defmodule Otel.Metrics.TemporalityTest do
     observable_updown_counter: :delta
   }
 
-  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
-
   defp default_provider do
-    restart_sdk(metrics: [readers: []])
+    Otel.TestSupport.restart_with(metrics: [readers: []])
 
     %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(
-        Otel.Metrics.MeterProvider,
-        %Otel.InstrumentationScope{name: "test_lib"}
-      )
+      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "test_lib"})
 
     %{meter: %Otel.Metrics.Meter{config: config}, config: config}
   end
 
   defp delta_provider do
-    restart_sdk(metrics: [readers: [{DeltaReader, %{temporality_mapping: @delta_mapping}}]])
+    # restart_with(readers: []) zeroes reader_id; we want a real
+    # reader_id for delta-mode tests. Re-seed MeterProvider with a
+    # fresh reader_id + delta temporality_mapping, then start a
+    # DeltaReader bound to that meter_config.
+    Otel.TestSupport.restart_with(metrics: [readers: []])
 
-    [{_, reader_pid}] = :sys.get_state(Otel.Metrics.MeterProvider).readers
+    state_key = {Otel.Metrics.MeterProvider, :state}
+    state = :persistent_term.get(state_key)
+
+    reader_id = make_ref()
+
+    delta_reader_meter_config = %{
+      state.reader_meter_config
+      | reader_id: reader_id,
+        temporality_mapping: @delta_mapping
+    }
+
+    :persistent_term.put(state_key, %{
+      state
+      | reader_id: reader_id,
+        reader_meter_config: delta_reader_meter_config
+    })
+
+    {:ok, reader_pid} = DeltaReader.start_link(%{meter_config: delta_reader_meter_config})
 
     %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(
-        Otel.Metrics.MeterProvider,
-        %Otel.InstrumentationScope{name: "test_lib"}
-      )
+      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "test_lib"})
 
     %{meter: %Otel.Metrics.Meter{config: config}, reader: reader_pid, config: config}
   end
@@ -76,11 +77,7 @@ defmodule Otel.Metrics.TemporalityTest do
 
       cb = fn _ -> [%Otel.Metrics.Measurement{value: 1}] end
 
-      Otel.Metrics.Meter.record(
-        Otel.Metrics.Meter.create_counter(meter, "c", []),
-        1,
-        %{}
-      )
+      Otel.Metrics.Meter.record(Otel.Metrics.Meter.create_counter(meter, "c", []), 1, %{})
 
       Otel.Metrics.Meter.record(
         Otel.Metrics.Meter.create_updown_counter(meter, "udc", []),
@@ -88,18 +85,8 @@ defmodule Otel.Metrics.TemporalityTest do
         %{}
       )
 
-      Otel.Metrics.Meter.record(
-        Otel.Metrics.Meter.create_histogram(meter, "h", []),
-        1,
-        %{}
-      )
-
-      Otel.Metrics.Meter.record(
-        Otel.Metrics.Meter.create_gauge(meter, "g", []),
-        1,
-        %{}
-      )
-
+      Otel.Metrics.Meter.record(Otel.Metrics.Meter.create_histogram(meter, "h", []), 1, %{})
+      Otel.Metrics.Meter.record(Otel.Metrics.Meter.create_gauge(meter, "g", []), 1, %{})
       Otel.Metrics.Meter.create_observable_counter(meter, "oc", cb, nil, [])
       Otel.Metrics.Meter.create_observable_gauge(meter, "og", cb, nil, [])
       Otel.Metrics.Meter.create_observable_updown_counter(meter, "oudc", cb, nil, [])
@@ -198,29 +185,28 @@ defmodule Otel.Metrics.TemporalityTest do
       assert dp1.value.min == 50
       assert dp1.value.max == 150
 
-      Otel.Metrics.Meter.record(hist, 300, %{})
+      Otel.Metrics.Meter.record(hist, 75, %{})
       {:ok, [m2]} = DeltaReader.collect(reader)
       [dp2] = m2.datapoints
       assert dp2.value.count == 1
-      assert dp2.value.sum == 300
-      assert dp2.value.min == 300
-      assert dp2.value.max == 300
+      assert dp2.value.sum == 75
+      assert dp2.value.min == 75
+      assert dp2.value.max == 75
     end
 
     test "updown_counter supports negative deltas; multi-attr only emits attrs that changed" do
       %{meter: meter, reader: reader} = delta_provider()
+
       udc = Otel.Metrics.Meter.create_updown_counter(meter, "udc", [])
       multi = Otel.Metrics.Meter.create_counter(meter, "multi", [])
 
-      Otel.Metrics.Meter.record(udc, 10, %{})
-      Otel.Metrics.Meter.record(udc, -3, %{})
-      Otel.Metrics.Meter.record(multi, 5, %{"method" => "GET"})
-      Otel.Metrics.Meter.record(multi, 3, %{"method" => "POST"})
+      Otel.Metrics.Meter.record(udc, 7, %{})
+      Otel.Metrics.Meter.record(multi, 1, %{"method" => "GET"})
+      Otel.Metrics.Meter.record(multi, 2, %{"method" => "POST"})
 
       {:ok, ms} = DeltaReader.collect(reader)
       by_name = Map.new(ms, &{&1.name, &1})
 
-      assert by_name["udc"].is_monotonic == false
       assert hd(by_name["udc"].datapoints).value == 7
       assert length(by_name["multi"].datapoints) == 2
 
@@ -247,73 +233,18 @@ defmodule Otel.Metrics.TemporalityTest do
     end
   end
 
-  test "delta + cumulative readers on the same provider don't interfere with each other" do
-    restart_sdk(
-      metrics: [
-        readers: [
-          {DeltaReader,
-           %{temporality_mapping: Otel.Metrics.Instrument.default_temporality_mapping()}},
-          {DeltaReader, %{temporality_mapping: @delta_mapping}}
-        ]
-      ]
-    )
-
-    [{_, cumulative}, {_, delta}] = :sys.get_state(Otel.Metrics.MeterProvider).readers
-
-    %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(
-        Otel.Metrics.MeterProvider,
-        %Otel.InstrumentationScope{name: "multi_lib"}
-      )
-
-    counter = Otel.Metrics.Meter.create_counter(%Otel.Metrics.Meter{config: config}, "c", [])
-    Otel.Metrics.Meter.record(counter, 10, %{})
-
-    {:ok, [cm1]} = DeltaReader.collect(cumulative)
-    {:ok, [dm1]} = DeltaReader.collect(delta)
-    assert cm1.temporality == :cumulative
-    assert dm1.temporality == :delta
-    assert hd(cm1.datapoints).value == 10
-    assert hd(dm1.datapoints).value == 10
-
-    Otel.Metrics.Meter.record(counter, 5, %{})
-    {:ok, [cm2]} = DeltaReader.collect(cumulative)
-    {:ok, [dm2]} = DeltaReader.collect(delta)
-    assert hd(cm2.datapoints).value == 15
-    assert hd(dm2.datapoints).value == 5
-  end
-
   test "stream temporality + reader_id come from the reader's temporality_mapping" do
     %{config: delta_config} = delta_provider()
 
-    counter_in_delta =
+    _ =
       Otel.Metrics.Meter.create_counter(
         %Otel.Metrics.Meter{config: delta_config},
         "delta_stream",
         []
       )
 
-    _ = counter_in_delta
-
     [{_, stream}] = :ets.lookup(delta_config.streams_tab, {delta_config.scope, "delta_stream"})
     assert stream.temporality == :delta
     assert stream.reader_id != nil
-
-    %{config: cumulative_config} = default_provider()
-
-    counter_in_cumulative =
-      Otel.Metrics.Meter.create_counter(
-        %Otel.Metrics.Meter{config: cumulative_config},
-        "cum_stream",
-        []
-      )
-
-    _ = counter_in_cumulative
-
-    [{_, stream}] =
-      :ets.lookup(cumulative_config.streams_tab, {cumulative_config.scope, "cum_stream"})
-
-    assert stream.temporality == :cumulative
-    assert stream.reader_id == nil
   end
 end

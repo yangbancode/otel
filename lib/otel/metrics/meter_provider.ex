@@ -1,278 +1,283 @@
 defmodule Otel.Metrics.MeterProvider do
   @moduledoc """
-  SDK implementation of the `Otel.Metrics.MeterProvider`
-  behaviour (`metrics/sdk.md` §MeterProvider L43-L155).
+  MeterProvider — minikube hardcoded.
 
-  A `GenServer` that owns metrics configuration (resource,
-  readers) and creates meters. Registers itself as the global
-  MeterProvider on start.
+  Issues `%Otel.Metrics.Meter{}` structs and forwards
+  `shutdown/1` / `force_flush/1` to the single hardcoded
+  `Otel.Metrics.MetricReader.PeriodicExporting` (60s/30s
+  interval/timeout). Configuration (`resource`,
+  `exemplar_filter`) is loaded once at boot via `init/0` and
+  stored in `:persistent_term` along with the named ETS
+  tables that hold metrics state.
 
-  All public functions are safe for concurrent use, satisfying
-  spec `metrics/sdk.md` L1875-L1876 (Status: Stable) —
-  *"MeterProvider — Meter creation, ForceFlush and Shutdown
-  MUST be safe to be called concurrently."*
-
-  ## Crash handling
-
-  `init/1` enables `trap_exit` so a reader crash is delivered to
-  the MeterProvider as `{:EXIT, pid, reason}` rather than
-  propagating along the link. The dead reader is removed from
-  the active list — graceful degradation, the other readers keep
-  working. Once removed, the reader is **not** re-added; if its
-  module is supervised by us, the MeterProvider's own crash
-  takes its linked readers with it (no orphans). Mirrors the
-  pattern in `Otel.Logs.LoggerProvider` and
-  `Otel.Trace.TracerProvider`.
+  Not a GenServer — `init/0` creates the named ETS tables and
+  seeds `:persistent_term`; the tables are owned by the
+  caller process (the SDK Application controller in
+  production, or the test process in tests).
 
   ## Public API
 
   | Function | Role |
   |---|---|
-  | `start_link/1` | **SDK** (lifecycle) |
-  | `get_meter/2` | **SDK** (OTel API MUST) — `metrics/api.md` §Get a Meter |
-  | `shutdown/2` | **SDK** (OTel API MUST) — `metrics/sdk.md` §Shutdown |
-  | `force_flush/2` | **SDK** (OTel API MUST) — `metrics/sdk.md` §ForceFlush |
+  | `init/0` | **SDK** (boot hook) — create ETS, seed `:persistent_term` |
+  | `get_meter/1` | **Application** (OTel API MUST) — Get a Meter |
+  | `shutdown/1` | **Application** (OTel API MUST) — Shutdown |
+  | `force_flush/1` | **Application** (OTel API MUST) — ForceFlush |
+  | `resource/0`, `config/0` | **Application** (introspection) |
+  | `shut_down?/0` | **SDK** — internal flag for instrument `enabled?` |
+  | `delete_storage/0` | **SDK** (test cleanup) — drop ETS tables |
 
   ## References
 
   - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
-  - OTel Metrics API §MeterProvider: `opentelemetry-specification/specification/metrics/api.md` L92-L156
   """
 
   require Logger
 
-  use GenServer
+  @persistent_key {__MODULE__, :state}
 
-  @type config :: %{
+  @ets_tables [
+    :otel_instruments,
+    :otel_streams,
+    :otel_metrics,
+    :otel_callbacks,
+    :otel_exemplars,
+    :otel_observed_attrs
+  ]
+
+  @typedoc "Internal provider state held in `:persistent_term`."
+  @type state :: %{
           resource: Otel.Resource.t(),
-          readers: [{module(), Otel.Metrics.MetricReader.config()}],
-          exemplar_filter: Otel.Metrics.Exemplar.Filter.t()
+          exemplar_filter: Otel.Metrics.Exemplar.Filter.t(),
+          base_meter_config: map(),
+          reader_meter_config: map(),
+          reader_id: reference() | nil,
+          shut_down: boolean()
         }
 
-  # --- Client API ---
-
   @doc """
-  **SDK** (lifecycle) — Starts the MeterProvider with the
-  given configuration.
+  **SDK** (boot hook) — Called once from
+  `Otel.SDK.Application.start/2` (or from `Otel.TestSupport`
+  for tests) to create the named ETS tables and seed the
+  `:persistent_term` slot from `Otel.SDK.Config.metrics/0`.
+
+  Idempotent: a second call replaces the persistent_term slot
+  and reuses the existing ETS tables (or creates them if
+  missing).
   """
-  @spec start_link(opts :: keyword()) :: GenServer.on_start()
-  def start_link(opts) do
-    config = Keyword.get(opts, :config, %{})
-    GenServer.start_link(__MODULE__, config, name: __MODULE__)
-  end
+  @spec init() :: :ok
+  def init do
+    config = Otel.SDK.Config.metrics()
+    ensure_tables!()
 
-  @doc """
-  **SDK** (OTel API MUST) — Get a Meter
-  (`metrics/api.md` §Get a Meter).
-
-  Falls back to an empty `%Otel.Metrics.Meter{}` if `server`
-  is no longer alive — the empty meter holds no processors,
-  so subsequent calls are no-ops.
-  """
-  @spec get_meter(
-          server :: GenServer.server(),
-          instrumentation_scope :: Otel.InstrumentationScope.t()
-        ) ::
-          Otel.Metrics.Meter.t()
-  def get_meter(server \\ __MODULE__, %Otel.InstrumentationScope{} = instrumentation_scope) do
-    GenServer.call(server, {:get_meter, instrumentation_scope})
-  catch
-    :exit, {:noproc, _} -> %Otel.Metrics.Meter{}
-  end
-
-  @doc """
-  **SDK** (OTel API MUST) — Shutdown
-  (`metrics/sdk.md` §Shutdown).
-
-  Invokes shutdown on all registered readers. After shutdown,
-  `get_meter/2` returns the noop meter. Can only be called
-  once; subsequent calls reply `{:error, :already_shutdown}`.
-  """
-  @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(server, timeout \\ 5000) do
-    GenServer.call(server, :shutdown, timeout)
-  catch
-    :exit, {:noproc, _} -> :ok
-  end
-
-  @doc """
-  **SDK** (OTel API MUST) — ForceFlush
-  (`metrics/sdk.md` §ForceFlush).
-
-  Forces all registered readers to collect and export metrics.
-  """
-  @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
-  def force_flush(server, timeout \\ 5000) do
-    GenServer.call(server, :force_flush, timeout)
-  catch
-    :exit, {:noproc, _} -> :ok
-  end
-
-  @doc """
-  **SDK** (introspection) — Returns the resource associated with
-  this provider, or `Otel.Resource.default/0` when the
-  provider isn't running.
-  """
-  @spec resource(server :: GenServer.server()) :: Otel.Resource.t()
-  def resource(server) do
-    GenServer.call(server, :resource)
-  catch
-    :exit, {:noproc, _} -> Otel.Resource.default()
-  end
-
-  @doc """
-  **SDK** (introspection) — Returns the current configuration
-  snapshot, or an empty map when the provider isn't running.
-  """
-  @spec config(server :: GenServer.server()) :: config() | %{}
-  def config(server) do
-    GenServer.call(server, :config)
-  catch
-    :exit, {:noproc, _} -> %{}
-  end
-
-  # --- Server Callbacks ---
-
-  def init(user_config) do
-    Process.flag(:trap_exit, true)
-
-    instruments_tab =
-      :ets.new(:otel_instruments, [:set, :public, read_concurrency: true, write_concurrency: true])
-
-    streams_tab =
-      :ets.new(:otel_streams, [:bag, :public, read_concurrency: true, write_concurrency: true])
-
-    metrics_tab =
-      :ets.new(:otel_metrics, [:set, :public, read_concurrency: true, write_concurrency: true])
-
-    callbacks_tab =
-      :ets.new(:otel_callbacks, [:bag, :public, read_concurrency: true, write_concurrency: true])
-
-    exemplars_tab =
-      :ets.new(:otel_exemplars, [:set, :public, read_concurrency: true, write_concurrency: true])
-
-    observed_attrs_tab =
-      :ets.new(:otel_observed_attrs, [
-        :set,
-        :public,
-        read_concurrency: true,
-        write_concurrency: true
-      ])
-
-    config =
-      default_config()
-      |> Map.merge(user_config)
-      |> Map.put(:shut_down, false)
-      |> Map.put(:instruments_tab, instruments_tab)
-      |> Map.put(:streams_tab, streams_tab)
-      |> Map.put(:metrics_tab, metrics_tab)
-      |> Map.put(:callbacks_tab, callbacks_tab)
-      |> Map.put(:exemplars_tab, exemplars_tab)
-      |> Map.put(:observed_attrs_tab, observed_attrs_tab)
+    reader_id = make_ref()
 
     base_meter_config = %{
       resource: config.resource,
-      instruments_tab: instruments_tab,
-      streams_tab: streams_tab,
-      metrics_tab: metrics_tab,
-      callbacks_tab: callbacks_tab,
-      exemplars_tab: exemplars_tab,
-      observed_attrs_tab: observed_attrs_tab,
+      instruments_tab: :otel_instruments,
+      streams_tab: :otel_streams,
+      metrics_tab: :otel_metrics,
+      callbacks_tab: :otel_callbacks,
+      exemplars_tab: :otel_exemplars,
+      observed_attrs_tab: :otel_observed_attrs,
       exemplar_filter: config.exemplar_filter
     }
 
-    {started_readers, reader_configs} = start_readers(config.readers, base_meter_config)
-    config = Map.put(config, :readers, started_readers)
-    config = Map.put(config, :reader_configs, reader_configs)
+    reader_meter_config =
+      base_meter_config
+      |> Map.put(:reader_id, reader_id)
+      |> Map.put(:temporality_mapping, Otel.Metrics.Instrument.default_temporality_mapping())
 
-    {:ok, config}
-  end
-
-  def handle_call({:get_meter, _instrumentation_scope}, _from, %{shut_down: true} = config) do
-    {:reply, %Otel.Metrics.Meter{}, config}
-  end
-
-  def handle_call(
-        {:get_meter, %Otel.InstrumentationScope{} = instrumentation_scope},
-        _from,
-        config
-      ) do
-    warn_invalid_scope_name(instrumentation_scope)
-
-    reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
-
-    meter_config = %{
-      scope: instrumentation_scope,
+    :persistent_term.put(@persistent_key, %{
       resource: config.resource,
-      instruments_tab: config.instruments_tab,
-      streams_tab: config.streams_tab,
-      metrics_tab: config.metrics_tab,
-      callbacks_tab: config.callbacks_tab,
-      exemplars_tab: config.exemplars_tab,
-      observed_attrs_tab: config.observed_attrs_tab,
       exemplar_filter: config.exemplar_filter,
-      reader_configs: reader_configs
-    }
+      base_meter_config: base_meter_config,
+      reader_meter_config: reader_meter_config,
+      reader_id: reader_id,
+      shut_down: false
+    })
 
-    meter = %Otel.Metrics.Meter{config: meter_config}
-    {:reply, meter, config}
+    :ok
   end
 
-  def handle_call(:shutdown, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :already_shutdown}, config}
+  @doc """
+  **SDK** (test cleanup) — Drops all named ETS tables and the
+  persistent_term slot. Called from `Otel.TestSupport.stop_all/0`
+  so each test starts from a clean slate.
+
+  Each `:ets.delete/1` is wrapped in a `try/rescue` because the
+  table's owning process may die concurrently with `stop_all`
+  (e.g., when `Application.stop(:otel)` happens just before this
+  runs and the app controller process owned the tables): the
+  `whereis/1` check sees a live table, but the table is gone by
+  the time `delete/1` fires. CI runs hit this race; local runs
+  rarely do.
+  """
+  @spec delete_storage() :: :ok
+  def delete_storage do
+    Enum.each(@ets_tables, fn name ->
+      try do
+        :ets.delete(name)
+      rescue
+        ArgumentError -> :ok
+      end
+    end)
+
+    :persistent_term.erase(@persistent_key)
+    :ok
   end
 
-  def handle_call(:shutdown, _from, config) do
-    result = invoke_all_readers(config.readers, :shutdown)
-    {:reply, result, %{config | shut_down: true}}
+  @doc """
+  **Application** (OTel API MUST) — Get a Meter
+  (`metrics/api.md` §Get a Meter).
+
+  Returns a configured `%Otel.Metrics.Meter{}` struct stamped
+  with the boot-time meter config and the caller's
+  instrumentation scope. After `shutdown/1`, returns an empty
+  Meter (no instruments, no readers).
+  """
+  @spec get_meter(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
+          Otel.Metrics.Meter.t()
+  def get_meter(%Otel.InstrumentationScope{} = instrumentation_scope) do
+    state = state()
+
+    if state.shut_down do
+      %Otel.Metrics.Meter{}
+    else
+      warn_invalid_scope_name(instrumentation_scope)
+
+      reader_meter_config = state.reader_meter_config
+      reader_opts = %{temporality_mapping: reader_meter_config.temporality_mapping}
+
+      meter_config =
+        Map.merge(state.base_meter_config, %{
+          scope: instrumentation_scope,
+          reader_configs: [{state.reader_id, reader_opts}]
+        })
+
+      %Otel.Metrics.Meter{config: meter_config}
+    end
   end
 
-  def handle_call(:force_flush, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :already_shutdown}, config}
-  end
+  @doc """
+  **Application** (OTel API MUST) — Shutdown
+  (`metrics/sdk.md` §Shutdown).
 
-  def handle_call(:force_flush, _from, config) do
-    result = invoke_all_readers(config.readers, :force_flush)
-    {:reply, result, config}
-  end
-
-  def handle_call(:resource, _from, config) do
-    {:reply, config.resource, config}
-  end
-
-  def handle_call(:config, _from, config) do
-    {:reply, config, config}
-  end
-
-  def handle_info({:EXIT, _pid, _reason}, %{shut_down: true} = config) do
-    # Already shutting down — ignore late EXIT signals from
-    # readers we just terminated.
-    {:noreply, config}
-  end
-
-  def handle_info({:EXIT, pid, reason}, config) do
-    case Enum.find(config.readers, fn {_module, p} -> p == pid end) do
+  Sets the shut-down flag and forwards to
+  `Otel.Metrics.MetricReader.PeriodicExporting.shutdown/0`.
+  """
+  @spec shutdown(timeout :: timeout()) :: :ok | {:error, term()}
+  def shutdown(_timeout \\ 5_000) do
+    case :persistent_term.get(@persistent_key, nil) do
       nil ->
-        # EXIT from a process we don't manage; ignore.
-        {:noreply, config}
+        :ok
 
-      {module, _pid} ->
-        warn_reader_exited(module, pid, reason)
-        new_readers = Enum.reject(config.readers, fn {_m, p} -> p == pid end)
-        {:noreply, %{config | readers: new_readers}}
+      %{shut_down: true} ->
+        {:error, :already_shutdown}
+
+      state ->
+        :persistent_term.put(@persistent_key, %{state | shut_down: true})
+        Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
+    end
+  end
+
+  @doc """
+  **Application** (OTel API MUST) — ForceFlush
+  (`metrics/sdk.md` §ForceFlush).
+
+  Returns `:ok` when the SDK isn't booted (no persistent_term
+  state) — matches the graceful "facade is always callable"
+  contract. Returns `{:error, :already_shutdown}` only after an
+  explicit `shutdown/1`.
+  """
+  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
+  def force_flush(_timeout \\ 5_000) do
+    case :persistent_term.get(@persistent_key, nil) do
+      nil -> :ok
+      %{shut_down: true} -> {:error, :already_shutdown}
+      _ -> Otel.Metrics.MetricReader.PeriodicExporting.force_flush()
+    end
+  end
+
+  @doc """
+  **Application** (introspection) — Returns the resource
+  associated with this provider, or `Otel.Resource.default/0`
+  when the SDK isn't booted.
+  """
+  @spec resource() :: Otel.Resource.t()
+  def resource, do: state().resource
+
+  @doc """
+  **Application** (introspection) — Returns the persistent_term
+  state, or an empty map when the SDK isn't booted.
+  """
+  @spec config() :: state() | %{}
+  def config, do: :persistent_term.get(@persistent_key, %{})
+
+  @doc """
+  **SDK** — Returns `true` when shutdown has been invoked.
+  """
+  @spec shut_down?() :: boolean()
+  def shut_down? do
+    state = :persistent_term.get(@persistent_key, nil)
+    state == nil or state.shut_down
+  end
+
+  @doc """
+  **SDK** — Returns the reader_meter_config seeded by `init/0`.
+  Used by `Otel.Metrics.MetricReader.PeriodicExporting.init/1`
+  to read the named ETS tables and reader_id.
+  """
+  @spec reader_meter_config() :: map() | nil
+  def reader_meter_config do
+    case :persistent_term.get(@persistent_key, nil) do
+      nil -> nil
+      state -> state.reader_meter_config
     end
   end
 
   # --- Private ---
 
-  # Spec `metrics/api.md` §Get a Meter — *"In the case where an
-  # invalid `name` (null or empty string) is specified, a working
-  # `Meter` MUST be returned as a fallback rather than returning
-  # null or throwing an exception, its `name` SHOULD keep the
-  # original invalid value, and a message reporting that the
-  # specified value is invalid SHOULD be logged."* The MUST is
-  # satisfied structurally — we always return the SDK Meter; the
-  # SHOULD log is enforced here.
+  @spec state() :: state()
+  defp state, do: :persistent_term.get(@persistent_key, default_state())
+
+  @spec default_state() :: state()
+  defp default_state do
+    %{
+      resource: Otel.Resource.default(),
+      exemplar_filter: :trace_based,
+      base_meter_config: %{},
+      reader_meter_config: %{},
+      reader_id: nil,
+      shut_down: false
+    }
+  end
+
+  @spec ensure_tables!() :: :ok
+  defp ensure_tables! do
+    table_specs = [
+      {:otel_instruments, [:set, :public, :named_table]},
+      {:otel_streams, [:bag, :public, :named_table]},
+      {:otel_metrics, [:set, :public, :named_table]},
+      {:otel_callbacks, [:bag, :public, :named_table]},
+      {:otel_exemplars, [:set, :public, :named_table]},
+      {:otel_observed_attrs, [:set, :public, :named_table]}
+    ]
+
+    Enum.each(table_specs, fn {name, opts} ->
+      case :ets.whereis(name) do
+        :undefined ->
+          :ets.new(name, opts ++ [read_concurrency: true, write_concurrency: true])
+          :ok
+
+        _tid ->
+          :ok
+      end
+    end)
+
+    :ok
+  end
+
   @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
   defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
     Logger.warning(
@@ -283,84 +288,4 @@ defmodule Otel.Metrics.MeterProvider do
   end
 
   defp warn_invalid_scope_name(_scope), do: :ok
-
-  # Emitted from `handle_info({:EXIT, ...})` when a managed
-  # MetricReader crashes. Not in spec — operational signal.
-  @spec warn_reader_exited(module :: module(), pid :: pid(), reason :: term()) :: :ok
-  defp warn_reader_exited(module, pid, reason) do
-    Logger.warning(
-      "Otel.Metrics.MeterProvider: MetricReader #{inspect(module)} " <>
-        "(#{inspect(pid)}) exited with #{inspect(reason)} — removed from active list"
-    )
-
-    :ok
-  end
-
-  @spec default_config() :: config()
-  defp default_config do
-    %{
-      resource: Otel.Resource.default(),
-      readers: [],
-      exemplar_filter: :trace_based
-    }
-  end
-
-  @spec start_readers(
-          readers :: [{module(), Otel.Metrics.MetricReader.config()}],
-          base_meter_config :: map()
-        ) :: {[{module(), pid()}], [{reference() | nil, map()}]}
-  defp start_readers([], base_meter_config) do
-    reader_meter_config = Map.put(base_meter_config, :reader_id, nil)
-    {[], [{nil, %{meter_config: reader_meter_config}}]}
-  end
-
-  defp start_readers(readers, base_meter_config) do
-    {started, reader_configs} =
-      Enum.reduce(readers, {[], []}, fn {reader_module, reader_config}, {started, configs} ->
-        reader_id = make_ref()
-
-        temporality_mapping =
-          Map.get(
-            reader_config,
-            :temporality_mapping,
-            Otel.Metrics.Instrument.default_temporality_mapping()
-          )
-
-        reader_opts = %{temporality_mapping: temporality_mapping}
-
-        reader_meter_config =
-          base_meter_config
-          |> Map.put(:reader_id, reader_id)
-          |> Map.put(:temporality_mapping, temporality_mapping)
-
-        full_config = Map.put(reader_config, :meter_config, reader_meter_config)
-        {:ok, pid} = reader_module.start_link(full_config)
-
-        {
-          [{reader_module, pid} | started],
-          [{reader_id, reader_opts} | configs]
-        }
-      end)
-
-    {Enum.reverse(started), Enum.reverse(reader_configs)}
-  end
-
-  @spec invoke_all_readers(
-          readers :: [{module(), pid()}],
-          function :: :shutdown | :force_flush
-        ) :: :ok | {:error, [{module(), term()}]}
-  defp invoke_all_readers(readers, function) do
-    results =
-      Enum.reduce(readers, [], fn {reader_module, reader_pid}, errors ->
-        case apply(reader_module, function, [reader_pid]) do
-          :ok -> errors
-          {:error, reason} -> [{reader_module, reason} | errors]
-        end
-      end)
-
-    case results do
-      [] -> :ok
-      errors -> {:error, Enum.reverse(errors)}
-    end
-  end
 end

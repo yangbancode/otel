@@ -2,15 +2,10 @@ defmodule Otel.Trace.TracerTest do
   use ExUnit.Case, async: false
 
   setup do
-    # `enabled?` tests below depend on the no-processor leg, so boot
-    # the TracerProvider with an empty processor list.
-    Otel.TestSupport.restart_with(trace: [processors: []])
+    Otel.TestSupport.restart_with()
 
     tracer =
-      Otel.Trace.TracerProvider.get_tracer(
-        Otel.Trace.TracerProvider,
-        %Otel.InstrumentationScope{name: "test_lib"}
-      )
+      Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{name: "test_lib"})
 
     %{tracer: tracer}
   end
@@ -27,20 +22,18 @@ defmodule Otel.Trace.TracerTest do
     assert span.instrumentation_scope.name == "test_lib"
   end
 
-  # Spec trace/sdk.md L223-L227 MUST: enabled?/2 returns false iff
-  # the Tracer has no SpanProcessors registered.
+  # Spec trace/sdk.md L223-L227 MUST: minikube hardcodes a single
+  # SpanProcessor, so `enabled?/2` is true while the SDK is up and
+  # false after `TracerProvider.shutdown/1`.
   describe "enabled?/2" do
-    test "false when no SpanProcessors are registered (any opts)", %{tracer: tracer} do
-      refute Otel.Trace.Tracer.enabled?(tracer)
-      refute Otel.Trace.Tracer.enabled?(tracer, span_name: "test")
+    test "true while SDK is up", %{tracer: tracer} do
+      assert Otel.Trace.Tracer.enabled?(tracer)
+      assert Otel.Trace.Tracer.enabled?(tracer, span_name: "test")
     end
 
-    test "true when at least one SpanProcessor is registered" do
-      key = {__MODULE__, :test_processors, make_ref()}
-      :persistent_term.put(key, [{Otel.Trace.SpanProcessor.Simple, %{pid: self()}}])
-      on_exit(fn -> :persistent_term.erase(key) end)
-
-      assert Otel.Trace.Tracer.enabled?(%Otel.Trace.Tracer{processors_key: key})
+    test "false after TracerProvider.shutdown/1", %{tracer: tracer} do
+      :ok = Otel.Trace.TracerProvider.shutdown()
+      refute Otel.Trace.Tracer.enabled?(tracer)
     end
   end
 end

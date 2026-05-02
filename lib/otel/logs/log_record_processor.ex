@@ -167,14 +167,15 @@ defmodule Otel.Logs.LogRecordProcessor do
   end
 
   @typedoc """
-  `start_link/1` configuration map. Only `:exporter` is honoured —
-  the four batch knobs (`max_queue_size`, `scheduled_delay_ms`,
+  `start_link/1` configuration map. `:exporter` is optional and
+  defaults to `Otel.SDK.Config.exporter(:logs)` when absent —
+  tests that need a substitute exporter override it. The four
+  batch knobs (`max_queue_size`, `scheduled_delay_ms`,
   `export_timeout_ms`, `max_export_batch_size`) are hardcoded
-  module attributes per minikube-style scope, see attributes
-  defined just below.
+  module attributes per minikube-style scope.
   """
   @type start_link_config :: %{
-          required(:exporter) => {module(), term()}
+          optional(:exporter) => {module(), term()}
         }
 
   # Hardcoded batch knobs — the SDK ships only these values and
@@ -206,11 +207,10 @@ defmodule Otel.Logs.LogRecordProcessor do
   """
   @spec on_emit(
           log_record :: Otel.Logs.LogRecord.t(),
-          ctx :: Otel.Ctx.t(),
-          config :: Otel.Logs.LogRecordProcessor.config()
+          ctx :: Otel.Ctx.t()
         ) :: :ok
-  def on_emit(log_record, _ctx, %{pid: pid}) do
-    :gen_statem.cast(pid, {:add_record, log_record})
+  def on_emit(log_record, _ctx) do
+    :gen_statem.cast(__MODULE__, {:add_record, log_record})
     :ok
   end
 
@@ -222,10 +222,9 @@ defmodule Otel.Logs.LogRecordProcessor do
   @spec enabled?(
           ctx :: Otel.Ctx.t(),
           scope :: Otel.InstrumentationScope.t(),
-          opts :: Otel.Logs.LogRecordProcessor.enabled_opts(),
-          config :: Otel.Logs.LogRecordProcessor.config()
+          opts :: Otel.Logs.LogRecordProcessor.enabled_opts()
         ) :: boolean()
-  def enabled?(_ctx, _scope, _opts, _config), do: true
+  def enabled?(_ctx, _scope, _opts), do: true
 
   @doc """
   **SDK** (Batch implementation) — Drain the queue, invoke the
@@ -244,13 +243,10 @@ defmodule Otel.Logs.LogRecordProcessor do
   already terminated — spec L466-L467 classifies this as failed
   rather than silently succeeded.
   """
-  @spec shutdown(
-          config :: Otel.Logs.LogRecordProcessor.config(),
-          timeout :: timeout()
-        ) :: :ok | {:error, term()}
-  def shutdown(%{pid: pid}, timeout \\ @default_shutdown_timeout_ms) do
+  @spec shutdown(timeout :: timeout()) :: :ok | {:error, term()}
+  def shutdown(timeout \\ @default_shutdown_timeout_ms) do
     deadline = compute_deadline(timeout)
-    :gen_statem.call(pid, {:shutdown, deadline}, timeout)
+    :gen_statem.call(__MODULE__, {:shutdown, deadline}, timeout)
   catch
     :exit, {:noproc, _} -> {:error, :already_shutdown}
     :exit, {:timeout, _} -> {:error, :timeout}
@@ -271,13 +267,10 @@ defmodule Otel.Logs.LogRecordProcessor do
   the gen_statem has already terminated — spec L492-L493
   classifies this as failed.
   """
-  @spec force_flush(
-          config :: Otel.Logs.LogRecordProcessor.config(),
-          timeout :: timeout()
-        ) :: :ok | {:error, term()}
-  def force_flush(%{pid: pid}, timeout \\ @default_force_flush_timeout_ms) do
+  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
+  def force_flush(timeout \\ @default_force_flush_timeout_ms) do
     deadline = compute_deadline(timeout)
-    :gen_statem.call(pid, {:force_flush, deadline}, timeout)
+    :gen_statem.call(__MODULE__, {:force_flush, deadline}, timeout)
   catch
     :exit, {:noproc, _} -> {:error, :already_shutdown}
     :exit, {:timeout, _} -> {:error, :timeout}
@@ -285,9 +278,25 @@ defmodule Otel.Logs.LogRecordProcessor do
 
   # --- gen_statem lifecycle ---
 
-  @spec start_link(config :: start_link_config()) :: :gen_statem.start_ret()
-  def start_link(config) do
-    :gen_statem.start_link(__MODULE__, config, [])
+  @spec start_link(config :: start_link_config() | []) :: :gen_statem.start_ret()
+  def start_link(config \\ %{}) do
+    :gen_statem.start_link({:local, __MODULE__}, __MODULE__, normalize(config), [])
+  end
+
+  @spec normalize(config :: start_link_config() | []) :: map()
+  defp normalize([]), do: %{}
+  defp normalize(map) when is_map(map), do: map
+
+  @doc false
+  @spec child_spec(arg :: term()) :: Supervisor.child_spec()
+  def child_spec(arg) do
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [arg]},
+      type: :worker,
+      restart: :permanent,
+      shutdown: 5000
+    }
   end
 
   @impl :gen_statem
@@ -297,8 +306,14 @@ defmodule Otel.Logs.LogRecordProcessor do
   @impl :gen_statem
   @spec init(config :: start_link_config()) :: {:ok, :idle, State.t()}
   def init(config) do
+    # `Otel.SDK.Application` supervises this child with `[]` config —
+    # exporter is read from `Otel.SDK.Config` here. Tests that want a
+    # custom exporter override via the args.
+    exporter =
+      Map.get_lazy(config, :exporter, fn -> Otel.SDK.Config.exporter(:logs) end)
+
     state = %State{
-      exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter))
+      exporter: Otel.SDK.Exporter.Init.call(exporter)
     }
 
     schedule_periodic_export()

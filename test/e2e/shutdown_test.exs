@@ -21,7 +21,7 @@ defmodule Otel.E2E.ShutdownTest do
       restart_for_shutdown_test()
 
       tracer = Otel.Trace.TracerProvider.get_tracer(scope())
-      :ok = Otel.Trace.TracerProvider.shutdown(Otel.Trace.TracerProvider)
+      :ok = Otel.Trace.TracerProvider.shutdown()
 
       Otel.Trace.with_span(
         tracer,

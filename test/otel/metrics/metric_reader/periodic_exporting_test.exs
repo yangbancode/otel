@@ -22,108 +22,90 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
     end
   end
 
-  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
-
-  defp meter_config do
+  defp meter_config(scope_name \\ "test_lib") do
     %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(
-        Otel.Metrics.MeterProvider,
-        %Otel.InstrumentationScope{name: "test_lib"}
-      )
+      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: scope_name})
 
     config
   end
 
-  defp start_reader(opts) do
-    base = %{meter_config: meter_config(), exporter: nil, export_interval_ms: 60_000}
-    # `start_link` links the reader to the test process; ExUnit
-    # exits the test process with :shutdown before on_exit fires,
-    # so the link cascade tears the reader down deterministically
-    # without needing a manual `GenServer.stop` (which races
-    # against the cascade and was the source of intermittent
-    # `:noproc` failures on CI).
-    {:ok, pid} = Otel.Metrics.MetricReader.PeriodicExporting.start_link(Map.merge(base, opts))
-    pid
+  defp restart_with_reader(opts) do
+    base = %{exporter: nil, export_interval_ms: 60_000}
+    config = Map.merge(base, opts)
+
+    Otel.TestSupport.restart_with(
+      metrics: [readers: [{Otel.Metrics.MetricReader.PeriodicExporting, config}]]
+    )
   end
 
   defp record_one(scope_name \\ nil, name) do
-    config = if scope_name, do: meter_config_for(scope_name), else: meter_config()
+    config = if scope_name, do: meter_config(scope_name), else: meter_config()
     counter = Otel.Metrics.Meter.create_counter(%Otel.Metrics.Meter{config: config}, name, [])
     Otel.Metrics.Meter.record(counter, 1, %{})
     config
   end
 
-  defp meter_config_for(scope_name) do
-    %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(
-        Otel.Metrics.MeterProvider,
-        %Otel.InstrumentationScope{name: scope_name}
-      )
-
-    config
-  end
-
   setup do
-    restart_sdk(metrics: [readers: []])
+    Otel.TestSupport.restart_with(metrics: [readers: []])
     :ok
   end
 
-  describe "force_flush/1" do
+  describe "force_flush/0" do
     test "collects pending metrics, exports the batch, and calls exporter.force_flush" do
+      restart_with_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
       record_one("force_flush")
 
-      reader =
-        start_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
-
-      assert :ok = Otel.Metrics.MetricReader.PeriodicExporting.force_flush(reader)
+      assert :ok = Otel.Metrics.MetricReader.PeriodicExporting.force_flush()
       assert_receive {:exported, [%{name: "force_flush"}]}
       assert_receive :force_flushed
     end
 
     test "after shutdown → {:error, :already_shutdown}" do
-      reader = start_reader(%{})
-      Otel.Metrics.MetricReader.PeriodicExporting.shutdown(reader)
+      restart_with_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
+      Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
 
       assert {:error, :already_shutdown} =
-               Otel.Metrics.MetricReader.PeriodicExporting.force_flush(reader)
+               Otel.Metrics.MetricReader.PeriodicExporting.force_flush()
     end
   end
 
-  describe "shutdown/1" do
+  describe "shutdown/0" do
     test "performs a final export and calls exporter.shutdown" do
+      restart_with_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
       record_one("shutdown")
 
-      reader =
-        start_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
-
-      assert :ok = Otel.Metrics.MetricReader.PeriodicExporting.shutdown(reader)
+      assert :ok = Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
       assert_receive {:exported, [%{name: "shutdown"}]}
       assert_receive :shut_down
     end
 
     test "second shutdown → {:error, :already_shutdown}" do
-      reader = start_reader(%{})
-      assert :ok = Otel.Metrics.MetricReader.PeriodicExporting.shutdown(reader)
+      restart_with_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
+
+      assert :ok = Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
 
       assert {:error, :already_shutdown} =
-               Otel.Metrics.MetricReader.PeriodicExporting.shutdown(reader)
+               Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
     end
   end
 
   describe ":collect call + :collect timer message" do
     test "GenServer.call(:collect) returns metrics; after shutdown returns {:error, :already_shutdown}" do
+      restart_with_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
       record_one("collect_counter")
-      reader = start_reader(%{})
 
+      reader = Process.whereis(Otel.Metrics.MetricReader.PeriodicExporting)
       assert {:ok, [%{name: "collect_counter"}]} = GenServer.call(reader, :collect)
 
-      Otel.Metrics.MetricReader.PeriodicExporting.shutdown(reader)
+      Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
       assert {:error, :already_shutdown} = GenServer.call(reader, :collect)
     end
 
     test "stray :collect message after shutdown is absorbed (process stays alive)" do
-      reader = start_reader(%{})
-      Otel.Metrics.MetricReader.PeriodicExporting.shutdown(reader)
+      restart_with_reader(%{exporter: {TestExporter, %{test_pid: self()}}})
+
+      reader = Process.whereis(Otel.Metrics.MetricReader.PeriodicExporting)
+      Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
 
       send(reader, :collect)
       assert Process.alive?(reader)
@@ -131,14 +113,12 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
   end
 
   test "periodic timer exports on every export_interval_ms tick" do
+    restart_with_reader(%{
+      exporter: {TestExporter, %{test_pid: self()}},
+      export_interval_ms: 50
+    })
+
     record_one("periodic_counter")
-
-    _ =
-      start_reader(%{
-        exporter: {TestExporter, %{test_pid: self()}},
-        export_interval_ms: 50
-      })
-
     assert_receive {:exported, _}, 200
   end
 
@@ -165,44 +145,40 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
 
     # Regression: PeriodicExporting used to store `config.exporter`
     # verbatim, so the exporter's `init/1` (where OTLP HTTP populates
-    # `:compression` / `:headers` / `:retry_opts` defaults) never
-    # ran and `export/2` crashed on the first batch with `KeyError
-    # :compression not found in: %{}`.
+    # `:compression` / `:headers` defaults) never ran and `export/2`
+    # crashed on the first batch with `KeyError :compression not
+    # found in: %{}`.
     test "calls exporter.init/1 once at startup; stored state replaces raw opts" do
-      reader =
-        start_reader(%{
-          exporter: {InitTrackingExporter, %{test_pid: self(), seed: :ok}}
-        })
+      restart_with_reader(%{exporter: {InitTrackingExporter, %{test_pid: self(), seed: :ok}}})
 
       assert_receive {:exporter_init_called, %{seed: :ok}}
 
+      reader = Process.whereis(Otel.Metrics.MetricReader.PeriodicExporting)
       state = :sys.get_state(reader)
       assert {InitTrackingExporter, exporter_state} = state.exporter
       assert exporter_state.compression == :gzip
     end
 
     test ":ignore reply from exporter.init demotes exporter to nil" do
-      reader = start_reader(%{exporter: {IgnoringExporter, %{}}})
+      restart_with_reader(%{exporter: {IgnoringExporter, %{}}})
+
+      reader = Process.whereis(Otel.Metrics.MetricReader.PeriodicExporting)
       assert :sys.get_state(reader).exporter == nil
     end
   end
 
   test "end-to-end: MeterProvider supervises the reader; force_flush + shutdown propagate" do
-    restart_sdk(
-      metrics: [
-        readers: [
-          {Otel.Metrics.MetricReader.PeriodicExporting,
-           %{exporter: {TestExporter, %{test_pid: self()}}, export_interval_ms: 60_000}}
-        ]
-      ]
-    )
+    restart_with_reader(%{
+      exporter: {TestExporter, %{test_pid: self()}},
+      export_interval_ms: 60_000
+    })
 
     record_one("lib", "provider_counter")
 
-    assert :ok = Otel.Metrics.MeterProvider.force_flush(Otel.Metrics.MeterProvider)
+    assert :ok = Otel.Metrics.MeterProvider.force_flush()
     assert_receive {:exported, [%{name: "provider_counter"}]}
 
-    assert :ok = Otel.Metrics.MeterProvider.shutdown(Otel.Metrics.MeterProvider)
+    assert :ok = Otel.Metrics.MeterProvider.shutdown()
     assert_receive :shut_down
   end
 end

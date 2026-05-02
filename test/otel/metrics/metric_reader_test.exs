@@ -5,10 +5,7 @@ defmodule Otel.Metrics.MetricReaderTest do
 
   defp meter_config(scope_name \\ "test_lib") do
     %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(
-        Otel.Metrics.MeterProvider,
-        %Otel.InstrumentationScope{name: scope_name}
-      )
+      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: scope_name})
 
     config
   end

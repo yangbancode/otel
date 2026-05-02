@@ -10,29 +10,50 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
 
   @default_export_interval_ms 60_000
 
-  @spec start_link(config :: Otel.Metrics.MetricReader.config()) :: GenServer.on_start()
-  def start_link(config) do
-    GenServer.start_link(__MODULE__, config)
+  @spec start_link(config :: Otel.Metrics.MetricReader.config() | []) :: GenServer.on_start()
+  def start_link(config \\ %{}) do
+    GenServer.start_link(__MODULE__, normalize(config), name: __MODULE__)
   end
 
-  @spec shutdown(server :: GenServer.server()) :: :ok | {:error, term()}
-  def shutdown(server) do
-    GenServer.call(server, :shutdown)
+  @spec normalize(config :: Otel.Metrics.MetricReader.config() | []) :: map()
+  defp normalize([]), do: %{}
+  defp normalize(map) when is_map(map), do: map
+
+  @spec shutdown() :: :ok | {:error, term()}
+  def shutdown do
+    GenServer.call(__MODULE__, :shutdown)
+  catch
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
   end
 
-  @spec force_flush(server :: GenServer.server()) :: :ok | {:error, term()}
-  def force_flush(server) do
-    GenServer.call(server, :force_flush)
+  @spec force_flush() :: :ok | {:error, term()}
+  def force_flush do
+    GenServer.call(__MODULE__, :force_flush)
+  catch
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
   end
 
   @impl GenServer
   def init(config) do
+    # `Otel.SDK.Application` supervises this child with `[]` config
+    # — meter_config (ETS table refs, reader_id) is seeded by
+    # `Otel.Metrics.MeterProvider.init/0` and read from
+    # persistent_term here. Tests that want a custom exporter or
+    # interval override via the args.
+    meter_config =
+      Map.get_lazy(config, :meter_config, fn ->
+        Otel.Metrics.MeterProvider.reader_meter_config()
+      end)
+
+    exporter =
+      Map.get_lazy(config, :exporter, fn -> Otel.SDK.Config.exporter(:metrics) end)
+
     interval = Map.get(config, :export_interval_ms, @default_export_interval_ms)
     timer_ref = schedule_collect(interval)
 
     state = %{
-      meter_config: config.meter_config,
-      exporter: Otel.SDK.Exporter.Init.call(config.exporter),
+      meter_config: meter_config,
+      exporter: Otel.SDK.Exporter.Init.call(exporter),
       export_interval_ms: interval,
       timer_ref: timer_ref,
       shut_down: false

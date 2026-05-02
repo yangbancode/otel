@@ -26,9 +26,9 @@ defmodule Otel.E2E.Case do
   @doc "Force-flushes all three SDK providers (Tracer / Logger / Meter)."
   @spec flush() :: :ok
   def flush do
-    Otel.Trace.TracerProvider.force_flush(Otel.Trace.TracerProvider)
-    Otel.Logs.LoggerProvider.force_flush(Otel.Logs.LoggerProvider)
-    Otel.Metrics.MeterProvider.force_flush(Otel.Metrics.MeterProvider)
+    Otel.Trace.TracerProvider.force_flush()
+    Otel.Logs.LoggerProvider.force_flush()
+    Otel.Metrics.MeterProvider.force_flush()
     :ok
   end
 
