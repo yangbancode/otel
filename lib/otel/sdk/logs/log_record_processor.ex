@@ -152,20 +152,12 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
             exporter: {module(), Otel.SDK.Logs.LogRecordExporter.state()},
             queue: [Otel.SDK.Logs.LogRecord.t()],
             queue_size: non_neg_integer(),
-            max_queue_size: pos_integer(),
-            scheduled_delay_ms: non_neg_integer(),
-            export_timeout_ms: non_neg_integer(),
-            max_export_batch_size: pos_integer(),
             runner: {pid(), reference()} | nil,
             pending_call: pending_call() | nil,
             dropped_since_last_report: non_neg_integer()
           }
     defstruct [
       :exporter,
-      :max_queue_size,
-      :scheduled_delay_ms,
-      :export_timeout_ms,
-      :max_export_batch_size,
       queue: [],
       queue_size: 0,
       runner: nil,
@@ -175,38 +167,24 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   end
 
   @typedoc """
-  `start_link/1` configuration map. All keys except `:exporter`
-  default to the spec-defined values from §Batching processor
-  L540-L547.
-
-  - `:exporter` (**required**) — `{module, opts}`; `opts` is
-    passed to `module.init/1` once at startup.
-  - `:max_queue_size` (optional) — spec L540-L541, default 2048.
-  - `:scheduled_delay_ms` (optional) — spec L542-L543, default 1000.
-  - `:export_timeout_ms` (optional) — spec L544-L545, default 30000.
-  - `:max_export_batch_size` (optional) — spec L546-L547, default 512.
-    MUST be ≤ `max_queue_size`.
+  `start_link/1` configuration map. Only `:exporter` is honoured —
+  the four batch knobs (`max_queue_size`, `scheduled_delay_ms`,
+  `export_timeout_ms`, `max_export_batch_size`) are hardcoded
+  module attributes per minikube-style scope, see attributes
+  defined just below.
   """
   @type start_link_config :: %{
-          required(:exporter) => {module(), term()},
-          optional(:max_queue_size) => pos_integer(),
-          optional(:scheduled_delay_ms) => non_neg_integer(),
-          optional(:export_timeout_ms) => non_neg_integer(),
-          optional(:max_export_batch_size) => pos_integer()
+          required(:exporter) => {module(), term()}
         }
 
-  # Spec §Batching processor L540-L541: `maxQueueSize` default 2048.
-  @default_max_queue_size 2048
-
-  # Spec L542-L543: `scheduledDelayMillis` default 1000.
-  @default_scheduled_delay_ms 1000
-
-  # Spec L544-L545: `exportTimeoutMillis` default 30000.
-  @default_export_timeout_ms 30_000
-
-  # Spec L546-L547: `maxExportBatchSize` default 512.
-  # MUST be ≤ `maxQueueSize`.
-  @default_max_export_batch_size 512
+  # Hardcoded batch knobs — the SDK ships only these values and
+  # users cannot override them (per minikube-style scope). Numbers
+  # follow the spec defaults at `logs/sdk.md` §Batching processor
+  # L540-L547.
+  @max_queue_size 2048
+  @scheduled_delay_ms 1000
+  @export_timeout_ms 30_000
+  @max_export_batch_size 512
 
   # Default timeout for `force_flush/2` and `shutdown/2`. Matches
   # spec `OTEL_BLRP_EXPORT_TIMEOUT` default (30000ms) — the same
@@ -319,15 +297,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   @spec init(config :: start_link_config()) :: {:ok, :idle, State.t()}
   def init(config) do
     state = %State{
-      exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter)),
-      max_queue_size: Map.get(config, :max_queue_size, @default_max_queue_size),
-      scheduled_delay_ms: Map.get(config, :scheduled_delay_ms, @default_scheduled_delay_ms),
-      export_timeout_ms: Map.get(config, :export_timeout_ms, @default_export_timeout_ms),
-      max_export_batch_size:
-        Map.get(config, :max_export_batch_size, @default_max_export_batch_size)
+      exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter))
     }
 
-    schedule_periodic_export(state.scheduled_delay_ms)
+    schedule_periodic_export()
     {:ok, :idle, state}
   end
 
@@ -351,7 +324,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   def idle(:cast, {:add_record, log_record}, state) do
     state = enqueue(state, log_record)
 
-    if state.queue_size >= state.max_export_batch_size do
+    if state.queue_size >= @max_export_batch_size do
       {:next_state, :exporting, state}
     else
       {:keep_state, state}
@@ -392,7 +365,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   end
 
   def idle(:info, :export_timer, state) do
-    schedule_periodic_export(state.scheduled_delay_ms)
+    schedule_periodic_export()
     state = report_drops_if_any(state)
 
     if state.queue_size > 0 do
@@ -431,7 +404,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
         ) :: :gen_statem.event_handler_result(State.t())
   def exporting(:enter, _old_state, state) do
     state = start_export(state)
-    {:keep_state, state, [{:state_timeout, state.export_timeout_ms, :export_timeout}]}
+    {:keep_state, state, [{:state_timeout, @export_timeout_ms, :export_timeout}]}
   end
 
   def exporting(:cast, {:add_record, log_record}, state) do
@@ -472,7 +445,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   end
 
   def exporting(:info, :export_timer, state) do
-    schedule_periodic_export(state.scheduled_delay_ms)
+    schedule_periodic_export()
     {:keep_state, report_drops_if_any(state)}
   end
 
@@ -489,7 +462,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   def exporting(:state_timeout, :export_timeout, %State{runner: {pid, ref}} = state) do
     Process.demonitor(ref, [:flush])
     Process.exit(pid, :kill)
-    warn_exporter_timeout(state.export_timeout_ms)
+    warn_exporter_timeout(@export_timeout_ms)
     after_runner(%State{state | runner: nil})
   end
 
@@ -524,7 +497,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   # --- Private helpers ---
 
   @spec enqueue(state :: State.t(), log_record :: Otel.SDK.Logs.LogRecord.t()) :: State.t()
-  defp enqueue(state, _log_record) when state.queue_size >= state.max_queue_size do
+  defp enqueue(state, _log_record) when state.queue_size >= @max_queue_size do
     # Queue full — drop record (spec L540-L541). Count it; the next
     # `:export_timer` cycle will surface the throttled total via
     # `report_drops_if_any/1` so operators can observe sustained
@@ -587,7 +560,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
 
   @spec start_export(state :: State.t()) :: State.t()
   defp start_export(state) do
-    {batch_reversed, remaining} = Enum.split(state.queue, state.max_export_batch_size)
+    {batch_reversed, remaining} = Enum.split(state.queue, @max_export_batch_size)
     batch = Enum.reverse(batch_reversed)
     {pid, ref} = spawn_runner(self(), state.exporter, batch)
 
@@ -627,7 +600,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
 
   defp next_after_export(state) do
     state = start_export(state)
-    {:keep_state, state, [{:state_timeout, state.export_timeout_ms, :export_timeout}]}
+    {:keep_state, state, [{:state_timeout, @export_timeout_ms, :export_timeout}]}
   end
 
   # Drain whatever fits in the deadline, then run the exporter's
@@ -728,7 +701,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
     if deadline_exceeded?(deadline) do
       state
     else
-      {batch_reversed, remaining} = Enum.split(state.queue, state.max_export_batch_size)
+      {batch_reversed, remaining} = Enum.split(state.queue, @max_export_batch_size)
       batch = Enum.reverse(batch_reversed)
       {module, exporter_state} = state.exporter
       module.export(batch, exporter_state)
@@ -740,8 +713,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
     end
   end
 
-  @spec schedule_periodic_export(delay_ms :: non_neg_integer()) :: reference()
-  defp schedule_periodic_export(delay_ms) do
-    Process.send_after(self(), :export_timer, delay_ms)
+  @spec schedule_periodic_export() :: reference()
+  defp schedule_periodic_export do
+    Process.send_after(self(), :export_timer, @scheduled_delay_ms)
   end
 end

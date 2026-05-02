@@ -54,10 +54,13 @@ defmodule Otel.SDK.Trace.SpanProcessor do
 
   @type config :: term()
 
-  @default_max_queue_size 2048
-  @default_scheduled_delay_ms 5000
-  @default_export_timeout_ms 30_000
-  @default_max_export_batch_size 512
+  # Hardcoded batch knobs — the SDK ships only these values and
+  # users cannot override them (per minikube-style scope). Numbers
+  # follow the spec defaults at `trace/sdk.md` L1109-L1118.
+  @max_queue_size 2048
+  @scheduled_delay_ms 5000
+  @export_timeout_ms 30_000
+  @max_export_batch_size 512
 
   # --- Public API ---
 
@@ -93,7 +96,7 @@ defmodule Otel.SDK.Trace.SpanProcessor do
   `trace/sdk.md` §Shutdown.
   """
   @spec shutdown(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(%{pid: pid}, timeout \\ @default_export_timeout_ms) do
+  def shutdown(%{pid: pid}, timeout \\ @export_timeout_ms) do
     GenServer.call(pid, :shutdown, timeout)
   catch
     :exit, {:noproc, _} -> {:error, :already_shutdown}
@@ -106,7 +109,7 @@ defmodule Otel.SDK.Trace.SpanProcessor do
   `trace/sdk.md` §ForceFlush.
   """
   @spec force_flush(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
-  def force_flush(%{pid: pid}, timeout \\ @default_export_timeout_ms) do
+  def force_flush(%{pid: pid}, timeout \\ @export_timeout_ms) do
     GenServer.call(pid, :force_flush, timeout)
   catch
     :exit, {:noproc, _} -> {:error, :already_shutdown}
@@ -123,33 +126,26 @@ defmodule Otel.SDK.Trace.SpanProcessor do
   @impl GenServer
   @spec init(config :: config()) :: {:ok, map()}
   def init(config) do
-    scheduled_delay = Map.get(config, :scheduled_delay_ms, @default_scheduled_delay_ms)
-
     state = %{
       exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter)),
       resource: Map.get(config, :resource, %{}),
       queue: [],
-      queue_size: 0,
-      max_queue_size: Map.get(config, :max_queue_size, @default_max_queue_size),
-      scheduled_delay_ms: scheduled_delay,
-      export_timeout_ms: Map.get(config, :export_timeout_ms, @default_export_timeout_ms),
-      max_export_batch_size:
-        Map.get(config, :max_export_batch_size, @default_max_export_batch_size)
+      queue_size: 0
     }
 
-    schedule_export(scheduled_delay)
+    schedule_export()
     {:ok, state}
   end
 
   @impl GenServer
   @spec handle_cast(msg :: term(), state :: map()) :: {:noreply, map()}
   def handle_cast({:add_span, span}, state) do
-    if state.queue_size >= state.max_queue_size do
+    if state.queue_size >= @max_queue_size do
       {:noreply, state}
     else
       new_state = %{state | queue: [span | state.queue], queue_size: state.queue_size + 1}
 
-      if new_state.queue_size >= state.max_export_batch_size do
+      if new_state.queue_size >= @max_export_batch_size do
         {:noreply, export_batch(new_state)}
       else
         {:noreply, new_state}
@@ -186,7 +182,7 @@ defmodule Otel.SDK.Trace.SpanProcessor do
   @spec handle_info(msg :: term(), state :: map()) :: {:noreply, map()}
   def handle_info(:export_timer, state) do
     new_state = export_batch(state)
-    schedule_export(state.scheduled_delay_ms)
+    schedule_export()
     {:noreply, new_state}
   end
 
@@ -206,7 +202,7 @@ defmodule Otel.SDK.Trace.SpanProcessor do
   # is the exporter's contract to satisfy (L1156).
   @spec export_batch(state :: map()) :: map()
   defp export_batch(state) do
-    deadline = System.monotonic_time(:millisecond) + state.export_timeout_ms
+    deadline = System.monotonic_time(:millisecond) + @export_timeout_ms
     export_until(state, deadline)
   end
 
@@ -219,7 +215,7 @@ defmodule Otel.SDK.Trace.SpanProcessor do
 
   defp export_until(state, deadline) do
     if System.monotonic_time(:millisecond) < deadline do
-      {batch, remaining} = Enum.split(state.queue, state.max_export_batch_size)
+      {batch, remaining} = Enum.split(state.queue, @max_export_batch_size)
       {exporter_module, exporter_state} = state.exporter
       exporter_module.export(Enum.reverse(batch), state.resource, exporter_state)
       new_state = %{state | queue: remaining, queue_size: length(remaining)}
@@ -229,8 +225,8 @@ defmodule Otel.SDK.Trace.SpanProcessor do
     end
   end
 
-  @spec schedule_export(delay_ms :: non_neg_integer()) :: reference()
-  defp schedule_export(delay_ms) do
-    Process.send_after(self(), :export_timer, delay_ms)
+  @spec schedule_export() :: reference()
+  defp schedule_export do
+    Process.send_after(self(), :export_timer, @scheduled_delay_ms)
   end
 end
