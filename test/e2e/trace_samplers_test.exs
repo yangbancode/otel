@@ -1,6 +1,6 @@
 defmodule Otel.E2E.TraceSamplersTest do
   @moduledoc """
-  E2E coverage for `Otel.SDK.Trace.Sampler` (hardcoded
+  E2E coverage for `Otel.Trace.Sampler` (hardcoded
   `parentbased_always_on`) against Tempo.
 
   The SDK ships only one sampler — there is no per-test
@@ -15,9 +15,9 @@ defmodule Otel.E2E.TraceSamplersTest do
 
   describe "parentbased_always_on (hardcoded)" do
     test "30: root span is sampled (no parent)", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-30-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
@@ -29,11 +29,11 @@ defmodule Otel.E2E.TraceSamplersTest do
     end
 
     test "31: child of sampled remote parent is sampled", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
       <<trace_id::128>> = :crypto.strong_rand_bytes(16)
       <<span_id::64>> = :crypto.strong_rand_bytes(8)
 
-      sampled_parent = %Otel.API.Trace.SpanContext{
+      sampled_parent = %Otel.Trace.SpanContext{
         trace_id: trace_id,
         span_id: span_id,
         # 0x01 = sampled
@@ -41,9 +41,9 @@ defmodule Otel.E2E.TraceSamplersTest do
         is_remote: true
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), sampled_parent)
+      ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), sampled_parent)
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         ctx,
         tracer,
         "scenario-31-#{e2e_id}",
@@ -56,11 +56,11 @@ defmodule Otel.E2E.TraceSamplersTest do
     end
 
     test "32: child of not-sampled remote parent is dropped", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
       <<trace_id::128>> = :crypto.strong_rand_bytes(16)
       <<span_id::64>> = :crypto.strong_rand_bytes(8)
 
-      not_sampled_parent = %Otel.API.Trace.SpanContext{
+      not_sampled_parent = %Otel.Trace.SpanContext{
         trace_id: trace_id,
         span_id: span_id,
         # 0x00 = not sampled
@@ -68,9 +68,9 @@ defmodule Otel.E2E.TraceSamplersTest do
         is_remote: true
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), not_sampled_parent)
+      ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), not_sampled_parent)
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         ctx,
         tracer,
         "scenario-32-#{e2e_id}",

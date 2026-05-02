@@ -55,12 +55,12 @@ defmodule Otel.E2E.MetricsExemplarsTest do
     end
 
     test "27: trace_based records inside a sampled span", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
       meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
       metric = "e2e_scenario_27_#{e2e_id}"
       counter = Otel.API.Metrics.Meter.create_counter(meter, metric)
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-27-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],

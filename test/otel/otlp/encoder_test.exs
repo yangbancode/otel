@@ -7,25 +7,25 @@ defmodule Otel.OTLP.EncoderTest do
             })
 
   describe "encode_traces/2" do
-    @span %Otel.SDK.Trace.Span{
+    @span %Otel.Trace.Span.Impl{
       trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
       span_id: 0xB7AD6B7169203331,
       parent_span_id: nil,
-      tracestate: Otel.API.Trace.TraceState.new(),
+      tracestate: Otel.Trace.TraceState.new(),
       name: "test_span",
       kind: :server,
       start_time: 1_000_000_000,
       end_time: 2_000_000_000,
       attributes: %{"http.method" => "GET", "http.status_code" => 200},
       events: [
-        %Otel.SDK.Trace.Event{
+        %Otel.Trace.Event.Impl{
           name: "event1",
           timestamp: 1_500_000_000,
           attributes: %{"key" => "val"}
         }
       ],
       links: [],
-      status: %Otel.API.Trace.Status{code: :ok},
+      status: %Otel.Trace.Status{code: :ok},
       trace_flags: 1,
       is_recording: false,
       instrumentation_scope: %Otel.InstrumentationScope{
@@ -105,8 +105,8 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "encodes links with linked context" do
-      linked = Otel.API.Trace.SpanContext.new(100, 200, 1)
-      link_span = %{@span | links: [%Otel.SDK.Trace.Link{context: linked, attributes: %{}}]}
+      linked = Otel.Trace.SpanContext.new(100, 200, 1)
+      link_span = %{@span | links: [%Otel.Trace.Link.Impl{context: linked, attributes: %{}}]}
 
       link = hd(first_span([link_span]).links)
       assert link.trace_id == <<100::128>>
@@ -118,13 +118,13 @@ defmodule Otel.OTLP.EncoderTest do
 
       err =
         first_span([
-          %{@span | status: %Otel.API.Trace.Status{code: :error, description: "boom"}}
+          %{@span | status: %Otel.Trace.Status{code: :error, description: "boom"}}
         ])
 
       assert err.status.code == :STATUS_CODE_ERROR
       assert err.status.message == "boom"
 
-      unset = first_span([%{@span | status: %Otel.API.Trace.Status{code: :unset}}])
+      unset = first_span([%{@span | status: %Otel.Trace.Status{code: :unset}}])
       assert unset.status == nil
     end
 
@@ -135,15 +135,15 @@ defmodule Otel.OTLP.EncoderTest do
           dropped_events_count: 3,
           dropped_links_count: 5,
           events: [
-            %Otel.SDK.Trace.Event{
+            %Otel.Trace.Event.Impl{
               name: "ev",
               timestamp: 1_500_000_000,
               dropped_attributes_count: 2
             }
           ],
           links: [
-            %Otel.SDK.Trace.Link{
-              context: Otel.API.Trace.SpanContext.new(1, 2, 1),
+            %Otel.Trace.Link.Impl{
+              context: Otel.Trace.SpanContext.new(1, 2, 1),
               dropped_attributes_count: 4
             }
           ]

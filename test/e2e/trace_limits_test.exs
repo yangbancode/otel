@@ -1,6 +1,6 @@
 defmodule Otel.E2E.TraceLimitsTest do
   @moduledoc """
-  E2E coverage for `Otel.SDK.Trace.SpanLimits` against Tempo.
+  E2E coverage for `Otel.Trace.SpanLimits` against Tempo.
 
   All scenarios share a single SDK restart with deliberately
   small limits so emit-time enforcement (drop counters,
@@ -57,15 +57,15 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "26: event_count_limit (2) drops excess events", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-26-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
           for n <- 1..5 do
-            Otel.API.Trace.Span.add_event(span_ctx, Otel.API.Trace.Event.new("evt-#{n}"))
+            Otel.Trace.Span.add_event(span_ctx, Otel.Trace.Event.new("evt-#{n}"))
           end
         end
       )
@@ -77,20 +77,20 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "27: link_count_limit (2) drops excess links", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
       links =
         for n <- 1..5 do
           ctx =
-            Otel.API.Trace.start_span(tracer, "target-27-#{n}-#{e2e_id}",
+            Otel.Trace.start_span(tracer, "target-27-#{n}-#{e2e_id}",
               attributes: %{"e2e.id" => e2e_id}
             )
 
-          Otel.API.Trace.Span.end_span(ctx)
-          %Otel.API.Trace.Link{context: ctx}
+          Otel.Trace.Span.end_span(ctx)
+          %Otel.Trace.Link{context: ctx}
         end
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-27-#{e2e_id}",
         [links: links, attributes: %{"e2e.id" => e2e_id}],
@@ -104,17 +104,17 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "28: attribute_per_event_limit (1) drops excess event attrs", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-28-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
           event =
-            Otel.API.Trace.Event.new("over", %{"a" => "1", "b" => "2", "c" => "3"})
+            Otel.Trace.Event.new("over", %{"a" => "1", "b" => "2", "c" => "3"})
 
-          Otel.API.Trace.Span.add_event(span_ctx, event)
+          Otel.Trace.Span.add_event(span_ctx, event)
         end
       )
 
@@ -126,21 +126,19 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "29: attribute_per_link_limit (1) drops excess link attrs", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
       target =
-        Otel.API.Trace.start_span(tracer, "target-29-#{e2e_id}",
-          attributes: %{"e2e.id" => e2e_id}
-        )
+        Otel.Trace.start_span(tracer, "target-29-#{e2e_id}", attributes: %{"e2e.id" => e2e_id})
 
-      Otel.API.Trace.Span.end_span(target)
+      Otel.Trace.Span.end_span(target)
 
-      link = %Otel.API.Trace.Link{
+      link = %Otel.Trace.Link{
         context: target,
         attributes: %{"a" => "1", "b" => "2", "c" => "3"}
       }
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-29-#{e2e_id}",
         [links: [link], attributes: %{"e2e.id" => e2e_id}],
@@ -158,9 +156,9 @@ defmodule Otel.E2E.TraceLimitsTest do
   # ---- helpers ----
 
   defp emit_with_attrs(name, e2e_id, attrs) do
-    tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+    tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-    Otel.API.Trace.with_span(
+    Otel.Trace.with_span(
       tracer,
       name,
       [attributes: Map.put(attrs, "e2e.id", e2e_id)],

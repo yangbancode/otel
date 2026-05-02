@@ -20,10 +20,10 @@ defmodule Otel.E2E.ShutdownTest do
       # working order on `on_exit`.
       restart_for_shutdown_test()
 
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
-      :ok = Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider)
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
+      :ok = Otel.Trace.TracerProvider.shutdown(Otel.Trace.TracerProvider)
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-2-after-shutdown-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],

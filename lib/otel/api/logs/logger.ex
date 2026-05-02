@@ -7,7 +7,7 @@ defmodule Otel.API.Logs.Logger do
 
   A `Logger` emits `LogRecord`s. It is represented as a
   `{module, config}` tuple where `module` implements this
-  behaviour — the same pattern used by `Otel.API.Trace.Tracer`.
+  behaviour — the same pattern used by `Otel.Trace.Tracer.Behaviour`.
   Per spec L188-L189 (trace) and by analogy for logs,
   configuration (resource, log limits, processors) belongs to
   the `LoggerProvider`, not the Logger itself; obtain a
@@ -58,7 +58,7 @@ defmodule Otel.API.Logs.Logger do
   - `:ctx` — evaluation context (L137-L140; defaults to
     `Otel.Ctx.current/0` when omitted)
 
-  Unlike `Otel.API.Trace.Tracer.enabled_opt/0` which is left
+  Unlike `Otel.Trace.Tracer.Behaviour.enabled_opt/0` which is left
   open (`keyword()`) because the Trace spec does not define
   common keys, Logs §Enabled enumerates these three keys at
   the API level — enumeration is appropriate here because it

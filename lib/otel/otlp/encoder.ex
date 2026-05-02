@@ -6,7 +6,7 @@ defmodule Otel.OTLP.Encoder do
   ExportTraceServiceRequest protobuf binary.
   """
   @spec encode_traces(
-          spans :: [Otel.SDK.Trace.Span.t()],
+          spans :: [Otel.Trace.Span.Impl.t()],
           resource :: Otel.Resource.t()
         ) :: binary()
   def encode_traces(spans, resource) do
@@ -19,7 +19,7 @@ defmodule Otel.OTLP.Encoder do
   end
 
   @spec build_resource_spans(
-          spans :: [Otel.SDK.Trace.Span.t()],
+          spans :: [Otel.Trace.Span.Impl.t()],
           resource :: Otel.Resource.t()
         ) :: [Opentelemetry.Proto.Trace.V1.ResourceSpans.t()]
   defp build_resource_spans(spans, resource) do
@@ -34,7 +34,7 @@ defmodule Otel.OTLP.Encoder do
     ]
   end
 
-  @spec group_by_scope(spans :: [Otel.SDK.Trace.Span.t()]) ::
+  @spec group_by_scope(spans :: [Otel.Trace.Span.Impl.t()]) ::
           [Opentelemetry.Proto.Trace.V1.ScopeSpans.t()]
   defp group_by_scope(spans) do
     spans
@@ -73,14 +73,14 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Span ---
 
-  @spec encode_span(span :: Otel.SDK.Trace.Span.t()) ::
+  @spec encode_span(span :: Otel.Trace.Span.Impl.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.t()
   defp encode_span(span) do
     %Opentelemetry.Proto.Trace.V1.Span{
       trace_id: encode_id(span.trace_id, 16),
       span_id: encode_id(span.span_id, 8),
       parent_span_id: encode_parent_span_id(span.parent_span_id),
-      trace_state: Otel.API.Trace.TraceState.encode(span.tracestate),
+      trace_state: Otel.Trace.TraceState.encode(span.tracestate),
       name: span.name,
       kind: encode_span_kind(span.kind),
       start_time_unix_nano: span.start_time,
@@ -98,9 +98,9 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Event ---
 
-  @spec encode_event(event :: Otel.SDK.Trace.Event.t()) ::
+  @spec encode_event(event :: Otel.Trace.Event.Impl.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.Event.t()
-  defp encode_event(%Otel.SDK.Trace.Event{} = event) do
+  defp encode_event(%Otel.Trace.Event.Impl{} = event) do
     %Opentelemetry.Proto.Trace.V1.Span.Event{
       time_unix_nano: event.timestamp,
       name: event.name,
@@ -111,13 +111,13 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Link ---
 
-  @spec encode_link(link :: Otel.SDK.Trace.Link.t()) ::
+  @spec encode_link(link :: Otel.Trace.Link.Impl.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.Link.t()
-  defp encode_link(%Otel.SDK.Trace.Link{} = link) do
+  defp encode_link(%Otel.Trace.Link.Impl{} = link) do
     %Opentelemetry.Proto.Trace.V1.Span.Link{
       trace_id: encode_id(link.context.trace_id, 16),
       span_id: encode_id(link.context.span_id, 8),
-      trace_state: Otel.API.Trace.TraceState.encode(link.context.tracestate),
+      trace_state: Otel.Trace.TraceState.encode(link.context.tracestate),
       attributes: encode_attributes(link.attributes),
       dropped_attributes_count: link.dropped_attributes_count
     }
@@ -125,15 +125,15 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Status ---
 
-  @spec encode_status(status :: Otel.API.Trace.Status.t()) ::
+  @spec encode_status(status :: Otel.Trace.Status.t()) ::
           Opentelemetry.Proto.Trace.V1.Status.t() | nil
-  defp encode_status(%Otel.API.Trace.Status{code: :unset}), do: nil
+  defp encode_status(%Otel.Trace.Status{code: :unset}), do: nil
 
-  defp encode_status(%Otel.API.Trace.Status{code: :ok}) do
+  defp encode_status(%Otel.Trace.Status{code: :ok}) do
     %Opentelemetry.Proto.Trace.V1.Status{code: :STATUS_CODE_OK, message: ""}
   end
 
-  defp encode_status(%Otel.API.Trace.Status{code: :error, description: message}) do
+  defp encode_status(%Otel.Trace.Status{code: :error, description: message}) do
     %Opentelemetry.Proto.Trace.V1.Status{code: :STATUS_CODE_ERROR, message: message}
   end
 

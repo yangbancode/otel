@@ -2,9 +2,9 @@ defmodule Otel.E2E.SmokeTest do
   use Otel.E2E.Case, async: false
 
   test "trace lands in Tempo", %{e2e_id: e2e_id} do
-    tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+    tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-    Otel.API.Trace.with_span(
+    Otel.Trace.with_span(
       tracer,
       "e2e-smoke",
       [attributes: %{"e2e.id" => e2e_id}],

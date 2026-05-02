@@ -35,10 +35,10 @@ defmodule Otel.E2E.CrossSignalTest do
   describe "cross-signal correlation" do
     test "1: log emitted inside with_span carries the same trace_id to Loki",
          %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
       logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-1-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
@@ -62,12 +62,12 @@ defmodule Otel.E2E.CrossSignalTest do
 
     test "2: counter add inside with_span carries the trace_id to Mimir",
          %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
       meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
       metric = "e2e_cross_signal_2_#{e2e_id}"
       counter = Otel.API.Metrics.Meter.create_counter(meter, metric)
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-2-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
@@ -95,12 +95,12 @@ defmodule Otel.E2E.CrossSignalTest do
     end
 
     test "3: service.name is consistent across all 3 pillars", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
       logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
       meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
       metric = "e2e_cross_signal_3_#{e2e_id}"
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-3-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
@@ -148,12 +148,12 @@ defmodule Otel.E2E.CrossSignalTest do
         version: "0.1.0"
       }
 
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(shared_scope)
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(shared_scope)
       logger = Otel.API.Logs.LoggerProvider.get_logger(shared_scope)
       meter = Otel.API.Metrics.MeterProvider.get_meter(shared_scope)
       metric = "e2e_cross_signal_4_#{e2e_id}"
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-4-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],

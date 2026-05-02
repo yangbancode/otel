@@ -33,9 +33,9 @@ defmodule Otel.E2E.PropagatorTest do
       carrier = [{"traceparent", "00-#{trace_id_hex}-#{parent_id_hex}-01"}]
       ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         ctx,
         tracer,
         "scenario-1-#{e2e_id}",
@@ -64,9 +64,9 @@ defmodule Otel.E2E.PropagatorTest do
       carrier = [{"traceparent", "00-#{trace_id_hex}-#{parent_id_hex}-01"}]
       ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         ctx,
         tracer,
         "scenario-2-#{e2e_id}",
@@ -98,9 +98,9 @@ defmodule Otel.E2E.PropagatorTest do
       ]
 
       ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         ctx,
         tracer,
         "scenario-3-#{e2e_id}",
@@ -123,9 +123,9 @@ defmodule Otel.E2E.PropagatorTest do
       carrier = Otel.API.Propagator.TextMap.inject(sender_ctx, [])
       receiver_ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         receiver_ctx,
         tracer,
         "scenario-4-#{e2e_id}",
@@ -163,9 +163,9 @@ defmodule Otel.E2E.PropagatorTest do
       ]
 
       ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         ctx,
         tracer,
         "scenario-5-#{e2e_id}",

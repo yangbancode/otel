@@ -9,9 +9,9 @@
 
 ```elixir
 scope = %Otel.InstrumentationScope{name: "my_app"}
-tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
+tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope)
 
-Otel.API.Trace.with_span(tracer, "checkout", fn _span_ctx ->
+Otel.Trace.with_span(tracer, "checkout", fn _span_ctx ->
   process_order()
 end)
 ```
@@ -27,7 +27,7 @@ module).
 
 ```elixir
 scope = %Otel.InstrumentationScope{name: "my_app", version: "1.0.0"}
-tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
+tracer = Otel.Trace.Tracer.BehaviourProvider.get_tracer(scope)
 ```
 
 ## `with_span/4` — automatic lifecycle
@@ -36,7 +36,7 @@ The recommended form. Starts the span, makes it the current span for
 the block, ends it on exit, and records any exception that escapes.
 
 ```elixir
-Otel.API.Trace.with_span(tracer, "checkout", fn span_ctx ->
+Otel.Trace.with_span(tracer, "checkout", fn span_ctx ->
   process_order()
 end)
 ```
@@ -44,7 +44,7 @@ end)
 With options:
 
 ```elixir
-Otel.API.Trace.with_span(
+Otel.Trace.with_span(
   tracer,
   "checkout",
   [
@@ -62,17 +62,17 @@ Otel.API.Trace.with_span(
 For spans that don't fit a single function scope.
 
 ```elixir
-span_ctx = Otel.API.Trace.start_span(tracer, "checkout", kind: :server)
+span_ctx = Otel.Trace.start_span(tracer, "checkout", kind: :server)
 # … do work, possibly across processes / messages …
-Otel.API.Trace.Span.end_span(span_ctx)
+Otel.Trace.Span.end_span(span_ctx)
 ```
 
 ## Attributes
 
 ```elixir
-Otel.API.Trace.Span.set_attribute(span_ctx, "http.method", "GET")
+Otel.Trace.Span.set_attribute(span_ctx, "http.method", "GET")
 
-Otel.API.Trace.Span.set_attributes(span_ctx, %{
+Otel.Trace.Span.set_attributes(span_ctx, %{
   "http.status_code" => 200,
   "http.url" => "/orders/42"
 })
@@ -81,26 +81,26 @@ Otel.API.Trace.Span.set_attributes(span_ctx, %{
 ## Events
 
 ```elixir
-event = Otel.API.Trace.Event.new("cart.validated", %{"item.count" => 3})
-Otel.API.Trace.Span.add_event(span_ctx, event)
+event = Otel.Trace.Event.new("cart.validated", %{"item.count" => 3})
+Otel.Trace.Span.add_event(span_ctx, event)
 ```
 
 ## Links
 
 ```elixir
-linked_ctx = Otel.API.Trace.SpanContext.new(trace_id, span_id, 1)
-link = %Otel.API.Trace.Link{context: linked_ctx, attributes: %{"reason" => "fork"}}
-Otel.API.Trace.Span.add_link(span_ctx, link)
+linked_ctx = Otel.Trace.SpanContext.new(trace_id, span_id, 1)
+link = %Otel.Trace.Link{context: linked_ctx, attributes: %{"reason" => "fork"}}
+Otel.Trace.Span.add_link(span_ctx, link)
 ```
 
 ## Status
 
 ```elixir
-Otel.API.Trace.Span.set_status(span_ctx, Otel.API.Trace.Status.new(:ok))
+Otel.Trace.Span.set_status(span_ctx, Otel.Trace.Status.new(:ok))
 
-Otel.API.Trace.Span.set_status(
+Otel.Trace.Span.set_status(
   span_ctx,
-  Otel.API.Trace.Status.new(:error, "payment declined")
+  Otel.Trace.Status.new(:error, "payment declined")
 )
 ```
 
@@ -115,7 +115,7 @@ try do
   process_order()
 rescue
   exception ->
-    Otel.API.Trace.Span.record_exception(span_ctx, exception, __STACKTRACE__)
+    Otel.Trace.Span.record_exception(span_ctx, exception, __STACKTRACE__)
     reraise exception, __STACKTRACE__
 end
 ```
@@ -126,7 +126,7 @@ only inside manual lifecycle code or when recording without re-raising.
 ## Update name
 
 ```elixir
-Otel.API.Trace.Span.update_name(span_ctx, "checkout (premium tier)")
+Otel.Trace.Span.update_name(span_ctx, "checkout (premium tier)")
 ```
 
 ## Span kinds
@@ -148,12 +148,12 @@ current span context doesn't follow `Task.async/spawn` automatically.
 Capture and re-attach explicitly:
 
 ```elixir
-Otel.API.Trace.with_span(tracer, "parent", fn _ ->
+Otel.Trace.with_span(tracer, "parent", fn _ ->
   ctx = Otel.Ctx.current()
 
   Task.async(fn ->
     Otel.Ctx.attach(ctx)
-    Otel.API.Trace.with_span(tracer, "child", fn _ -> :work end)
+    Otel.Trace.with_span(tracer, "child", fn _ -> :work end)
   end)
 end)
 ```
@@ -180,7 +180,7 @@ HTTPClient.post("https://api.example.com/orders", body, headers)
 ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), conn.req_headers)
 Otel.Ctx.attach(ctx)
 
-Otel.API.Trace.with_span(tracer, "POST /orders", [kind: :server], fn _ ->
+Otel.Trace.with_span(tracer, "POST /orders", [kind: :server], fn _ ->
   handle_request()
 end)
 ```
