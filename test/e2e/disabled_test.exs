@@ -9,9 +9,9 @@ defmodule Otel.E2E.DisabledTest do
 
   use Otel.E2E.Case, async: false
 
-  describe "OTEL_SDK_DISABLED" do
-    test "1: OTEL_SDK_DISABLED=true silences all 3 pillars", %{e2e_id: e2e_id} do
-      restart_with_env(%{"OTEL_SDK_DISABLED" => "true"})
+  describe ":disabled Application env" do
+    test "1: config :otel, disabled: true silences all 3 pillars", %{e2e_id: e2e_id} do
+      restart_with_disabled(true)
 
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
       logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
@@ -76,23 +76,20 @@ defmodule Otel.E2E.DisabledTest do
 
   # ---- helpers ----
 
-  defp restart_with_env(env_vars) do
-    prev = Map.new(env_vars, fn {k, _} -> {k, System.get_env(k)} end)
+  defp restart_with_disabled(value) do
+    prev = Application.get_env(:otel, :disabled, false)
     Application.stop(:otel)
-    for {k, v} <- env_vars, do: System.put_env(k, v)
+    Application.put_env(:otel, :disabled, value)
     Application.ensure_all_started(:otel)
 
     on_exit(fn ->
       Application.stop(:otel)
-      for {k, v} <- prev, do: restore_env(k, v)
+      Application.put_env(:otel, :disabled, prev)
       Application.ensure_all_started(:otel)
     end)
 
     :ok
   end
-
-  defp restore_env(key, nil), do: System.delete_env(key)
-  defp restore_env(key, value), do: System.put_env(key, value)
 
   defp restart_for_shutdown_test do
     Application.stop(:otel)

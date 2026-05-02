@@ -134,16 +134,13 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[x]` | 1 | `OTEL_SERVICE_NAME` env var | set then SDK restart | All 3 backends: `service.name` matches env value |
-| `[x]` | 2 | `OTEL_RESOURCE_ATTRIBUTES` env var | set `deployment.environment=test,…` | Tempo / Loki / Mimir: resource carries those attrs |
-| `[x]` | 3 | `OTEL_SERVICE_NAME` precedence | both env vars set with conflicting `service.name` | `service.name` matches `OTEL_SERVICE_NAME` (spec MUST) |
 | `[x]` | 4 | Mix Config `:resource` | `config :otel, trace: [resource: …]` | Tempo: resource overridden by Mix value |
 
 ## Global SDK control
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[x]` | 1 | `OTEL_SDK_DISABLED=true` | restart with env set; emit on all 3 pillars | All 3 backends: zero records for the e2e_id |
+| `[x]` | 1 | `:disabled` Application env | `config :otel, disabled: true`; emit on all 3 pillars | All 3 backends: zero records for the e2e_id |
 | `[x]` | 2 | Provider shutdown then emit | call `TracerProvider.shutdown/1` etc., emit afterward | No new records appear in backends |
 
 ## Cross-signal / Resource

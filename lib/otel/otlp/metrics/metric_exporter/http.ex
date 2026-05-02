@@ -5,18 +5,34 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTP do
   Exports metrics as binary protobuf over HTTP POST to an OTLP endpoint.
   Implements the MetricExporter behaviour.
 
-  Default endpoint: http://localhost:4318/v1/metrics
+  ## Configuration
 
-  ## Environment Variables
+  Pass options through `config :otel, metrics: [readers: [...]]` (the
+  reader carries `:exporter`) or directly to a provider's
+  `start_link`. The SDK reads no OS environment variables — bridge
+  any `OTEL_EXPORTER_OTLP_*` you need from `runtime.exs`:
 
-  Configuration priority: signal-specific env > general env > code config > defaults.
+      # config/runtime.exs
+      config :otel,
+        metrics: [
+          readers: [
+            {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
+             %{exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{
+               endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+             }}}}
+          ]
+        ]
 
-  | Signal-specific | General | Default |
+  Accepted keys (all optional):
+
+  | Key | Default | Notes |
   |---|---|---|
-  | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | `OTEL_EXPORTER_OTLP_ENDPOINT` | `http://localhost:4318` |
-  | `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | `OTEL_EXPORTER_OTLP_HEADERS` | none |
-  | `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | `OTEL_EXPORTER_OTLP_COMPRESSION` | none |
-  | `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` | `OTEL_EXPORTER_OTLP_TIMEOUT` | 10000 ms |
+  | `:endpoint` | `http://localhost:4318` | Base URL; `/v1/metrics` is appended |
+  | `:headers` | `%{}` | `%{header_name => value}` map of additional headers |
+  | `:compression` | `:none` | `:gzip` or `:none` |
+  | `:timeout` | `10_000` | Request timeout in milliseconds |
+  | `:ssl_options` | system CAs for HTTPS | See "SSL/TLS" below |
+  | `:retry_opts` | Java OTLP defaults | See "Retry" below |
 
   ## SSL/TLS
 
@@ -46,8 +62,8 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTP do
   def init(config) do
     endpoint = resolve_endpoint(config)
     headers = resolve_headers(config)
-    compression = resolve_compression(config)
-    timeout = resolve_timeout(config)
+    compression = Map.get(config, :compression, :none)
+    timeout = Map.get(config, :timeout, @default_timeout)
     ssl_options = build_ssl_options(endpoint, config)
     retry_opts = Map.get(config, :retry_opts, %{})
 
@@ -96,122 +112,25 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTP do
   @spec shutdown(state :: Otel.SDK.Metrics.MetricExporter.state()) :: :ok
   def shutdown(_state), do: :ok
 
-  # --- Env var resolution (signal-specific > general > code config > default) ---
+  # --- Private ---
 
   @spec resolve_endpoint(config :: map()) :: String.t()
   defp resolve_endpoint(config) do
-    case resolve_env("OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "OTEL_EXPORTER_OTLP_ENDPOINT") do
-      {value, :signal} ->
-        value
-
-      {value, :general} ->
-        String.trim_trailing(value, "/") <> @metrics_path
-
-      nil ->
-        String.trim_trailing(Map.get(config, :endpoint, @default_endpoint), "/") <> @metrics_path
-    end
+    String.trim_trailing(Map.get(config, :endpoint, @default_endpoint), "/") <> @metrics_path
   end
 
   @spec resolve_headers(config :: map()) :: [{charlist(), charlist()}]
   defp resolve_headers(config) do
     user_headers =
-      case resolve_env_value(
-             "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
-             "OTEL_EXPORTER_OTLP_HEADERS"
-           ) do
-        nil ->
-          config
-          |> Map.get(:headers, %{})
-          |> Enum.map(fn {k, v} -> {String.to_charlist(k), String.to_charlist(v)} end)
-
-        header_string ->
-          parse_headers(header_string)
-      end
+      config
+      |> Map.get(:headers, %{})
+      |> Enum.map(fn {k, v} -> {String.to_charlist(k), String.to_charlist(v)} end)
 
     [{~c"user-agent", String.to_charlist(user_agent())} | user_headers]
   end
 
   @spec user_agent() :: String.t()
   defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
-
-  @spec resolve_compression(config :: map()) :: :gzip | :none
-  defp resolve_compression(config) do
-    case resolve_env_value(
-           "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION",
-           "OTEL_EXPORTER_OTLP_COMPRESSION"
-         ) do
-      "gzip" -> :gzip
-      nil -> Map.get(config, :compression, :none)
-      _ -> :none
-    end
-  end
-
-  @spec resolve_timeout(config :: map()) :: pos_integer()
-  defp resolve_timeout(config) do
-    case resolve_env_value("OTEL_EXPORTER_OTLP_METRICS_TIMEOUT", "OTEL_EXPORTER_OTLP_TIMEOUT") do
-      nil ->
-        Map.get(config, :timeout, @default_timeout)
-
-      value ->
-        case Integer.parse(value) do
-          {ms, ""} -> ms
-          _ -> @default_timeout
-        end
-    end
-  end
-
-  # --- Env var helpers ---
-
-  @spec resolve_env(signal_var :: String.t(), general_var :: String.t()) ::
-          {String.t(), :signal | :general} | nil
-  defp resolve_env(signal_var, general_var) do
-    case get_env(signal_var) do
-      nil ->
-        case get_env(general_var) do
-          nil -> nil
-          value -> {value, :general}
-        end
-
-      value ->
-        {value, :signal}
-    end
-  end
-
-  @spec resolve_env_value(signal_var :: String.t(), general_var :: String.t()) ::
-          String.t() | nil
-  defp resolve_env_value(signal_var, general_var) do
-    get_env(signal_var) || get_env(general_var)
-  end
-
-  @spec get_env(name :: String.t()) :: String.t() | nil
-  defp get_env(name) do
-    case System.get_env(name) do
-      nil -> nil
-      "" -> nil
-      value -> String.trim(value)
-    end
-  end
-
-  # --- Header parsing ---
-
-  @spec parse_headers(header_string :: String.t()) :: [{charlist(), charlist()}]
-  defp parse_headers(header_string) do
-    header_string
-    |> String.split(",")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.flat_map(fn pair ->
-      case String.split(pair, "=", parts: 2) do
-        [key, value] when key != "" ->
-          [{String.to_charlist(String.trim(key)), String.to_charlist(String.trim(value))}]
-
-        _ ->
-          []
-      end
-    end)
-  end
-
-  # --- SSL ---
 
   @spec build_ssl_options(endpoint :: String.t(), config :: map()) :: keyword()
   defp build_ssl_options(endpoint, config) do
@@ -239,8 +158,6 @@ defmodule Otel.OTLP.Metrics.MetricExporter.HTTP do
       customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
     ]
   end
-
-  # --- HTTP options ---
 
   @spec build_http_options(state :: map()) :: keyword()
   defp build_http_options(state) do

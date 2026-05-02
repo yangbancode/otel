@@ -1,11 +1,10 @@
 defmodule Otel.SDK.ApplicationTest do
-  # Restarts :otel and mutates env vars — must not run async.
+  # Restarts :otel and mutates Application env — must not run async.
   use ExUnit.Case, async: false
 
   setup do
     on_exit(fn ->
-      System.delete_env("OTEL_SDK_DISABLED")
-      System.delete_env("OTEL_PROPAGATORS")
+      Application.delete_env(:otel, :disabled)
       Application.delete_env(:otel, :propagators)
       reboot()
     end)
@@ -43,9 +42,9 @@ defmodule Otel.SDK.ApplicationTest do
     end
 
     # Spec sdk-environment-variables.md L113 — propagators MUST be
-    # installed even when OTEL_SDK_DISABLED disables provider boot.
-    test "OTEL_SDK_DISABLED=true installs the propagator but not the provider GenServers" do
-      System.put_env("OTEL_SDK_DISABLED", "true")
+    # installed even when the SDK is disabled.
+    test ":disabled true installs the propagator but not the provider GenServers" do
+      Application.put_env(:otel, :disabled, true)
       reboot()
 
       assert {Otel.API.Propagator.TextMap.Composite, _} =

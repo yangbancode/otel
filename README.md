@@ -20,12 +20,9 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/)
   - W3C TraceContext
   - W3C Baggage
 - **Exporters**
-  - Console (stdout)
   - OTLP HTTP
 - **Configuration**
-  - Declarative YAML (`OTEL_CONFIG_FILE`)
-  - Environment variables (`OTEL_*`)
-  - Programmatic (`Application` env)
+  - `Application` env only — bridge `OTEL_*` from `runtime.exs` (Phoenix pattern)
 - **Integrations**
   - `:logger` bridge
 
@@ -40,7 +37,6 @@ Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/)
 |---|---|
 | OpenTelemetry Specification | `v1.55.0` (Stable signals only) |
 | OpenTelemetry Protocol (OTLP) | `v1.10.0` |
-| OpenTelemetry Configuration | `v1.0.0` |
 | W3C Trace Context | Level 2 (REC) |
 | W3C Baggage | wire format per OTel's Stable Baggage Propagator |
 
