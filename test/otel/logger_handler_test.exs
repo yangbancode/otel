@@ -232,7 +232,7 @@ defmodule Otel.LoggerHandlerTest do
     end
   end
 
-  # Per current semantic-conventions registry — `code.function.name`,
+  # OTel canonical attribute names — `code.function.name`,
   # `code.file.path`, `code.line.number`. Deprecated keys MUST NOT
   # be emitted.
   describe "attribute extraction (semconv-mapped)" do

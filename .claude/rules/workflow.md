@@ -41,7 +41,6 @@ When a user requests a task that involves code changes:
    - OTel Specification — `references/opentelemetry-specification/`
    - W3C Trace Context — `references/w3c-trace-context/` (wire format for `traceparent` / `tracestate`)
    - W3C Baggage — `references/w3c-baggage/` (wire format for `baggage`)
-   - Semantic Conventions — `references/semantic-conventions/`
    - OTLP Proto — `references/opentelemetry-proto/`
 
    Per the references-only rule above: the spec text you act on

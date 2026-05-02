@@ -7,9 +7,6 @@
 [submodule "references/opentelemetry-proto"]
 	path = references/opentelemetry-proto
 	url = https://github.com/open-telemetry/opentelemetry-proto.git
-[submodule "references/semantic-conventions"]
-	path = references/semantic-conventions
-	url = https://github.com/open-telemetry/semantic-conventions.git
 [submodule "references/weaver"]
 	path = references/weaver
 	url = https://github.com/open-telemetry/weaver
