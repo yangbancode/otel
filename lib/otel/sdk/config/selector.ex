@@ -5,11 +5,11 @@ defmodule Otel.SDK.Config.Selector do
 
   Three input forms are accepted everywhere a module is selected:
 
-  - **shortcut atom** (`:otlp`, `:console`, `:batch`, `:always_on`, ...) —
+  - **shortcut atom** (`:otlp`, `:console`, `:batch`, ...) —
     spec-blessed enum names mapped through built-in tables to project
     modules. The shortcut set is closed; only spec values defined in
-    `configuration/sdk-environment-variables.md` L122-L131, L243-L265,
-    and L143-L152 are accepted.
+    `configuration/sdk-environment-variables.md` L122-L131, L243-L265
+    are accepted.
   - **module atom** (e.g. `Otel.OTLP.Trace.SpanExporter.HTTP`) — direct
     module reference, normalized to `{Module, %{}}`.
   - **{module, config} tuple** — passed through unchanged. Always the
@@ -29,17 +29,16 @@ defmodule Otel.SDK.Config.Selector do
   | `logs_exporter/1` | L245 |
   | `trace_processor/1` | `trace/sdk.md` §SpanProcessor (no env var) |
   | `logs_processor/1` | `logs/sdk.md` §LogRecordProcessor (no env var) |
-  | `sampler/1` | L143-L152 |
   | `propagator/1` | L122-L131 (`OTEL_PROPAGATORS`) |
+
+  Sampler selection is intentionally absent — sampling is hardcoded
+  to `parentbased_always_on` (`Otel.SDK.Trace.Sampler`).
 
   ## Out of scope (future PRs)
 
   - `:zipkin`, `:prometheus` — exporters not implemented in this repo.
   - `:logging` — spec L254 deprecated, *"SHOULD NOT be supported by new
     implementations"*.
-  - `:jaeger_remote` / `:parentbased_jaeger_remote` samplers — depend
-    on a remote sampling protocol not yet implemented.
-  - `:xray` sampler — third-party.
   """
 
   # ====== Trace exporters ======
@@ -111,44 +110,6 @@ defmodule Otel.SDK.Config.Selector do
   def logs_processor(:batch), do: Otel.SDK.Logs.LogRecordProcessor.Batch
   def logs_processor(:simple), do: Otel.SDK.Logs.LogRecordProcessor.Simple
   def logs_processor(module) when is_atom(module), do: module
-
-  # ====== Trace samplers ======
-
-  @doc """
-  Normalizes a sampler selector to `{module, opts}` (the shape the
-  built-in `Otel.SDK.Trace.Sampler.new/1` consumes).
-
-  Accepts spec enum atoms (`:always_on`, `:parentbased_always_on`, ...),
-  the parameterized `{:traceidratio, ratio}` /
-  `{:parentbased_traceidratio, ratio}` tuples, a custom module, or a
-  `{module, opts}` tuple passed through unchanged.
-  """
-  @spec sampler(value :: atom() | {atom() | module(), term()}) :: {module(), term()}
-  def sampler(:always_on), do: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}
-  def sampler(:always_off), do: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}}
-
-  def sampler(:parentbased_always_on),
-    do: {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-
-  def sampler(:parentbased_always_off),
-    do: {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}}}}
-
-  # Spec L147: traceidratio defaults to 1.0 when no arg is supplied.
-  def sampler(:traceidratio), do: sampler({:traceidratio, 1.0})
-
-  def sampler(:parentbased_traceidratio),
-    do: sampler({:parentbased_traceidratio, 1.0})
-
-  def sampler({:traceidratio, ratio}) when is_float(ratio),
-    do: {Otel.SDK.Trace.Sampler.TraceIdRatioBased, ratio}
-
-  def sampler({:parentbased_traceidratio, ratio}) when is_float(ratio),
-    do:
-      {Otel.SDK.Trace.Sampler.ParentBased,
-       %{root: {Otel.SDK.Trace.Sampler.TraceIdRatioBased, ratio}}}
-
-  def sampler({module, opts}) when is_atom(module), do: {module, opts}
-  def sampler(module) when is_atom(module), do: {module, %{}}
 
   # ====== Propagators ======
 

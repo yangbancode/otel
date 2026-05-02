@@ -17,8 +17,9 @@ defmodule Otel.SDK.Config do
      [])`. Lets users configure the SDK declaratively from
      `config/runtime.exs` or `config/<env>.exs`.
   4. **Built-in defaults** — defined inline below; mirror the spec
-     defaults (sampler `parentbased_always_on`, exporter `otlp`,
-     processor `batch`, etc.).
+     defaults (exporter `otlp`, processor `batch`, etc.). Sampling
+     is hardcoded to `parentbased_always_on` (`Otel.SDK.Trace.Sampler`)
+     and is not configurable.
 
   ## Configuration UX
 
@@ -26,7 +27,6 @@ defmodule Otel.SDK.Config do
   # config/runtime.exs
   config :otel,
     trace: [
-      sampler: :parentbased_always_on,
       exporter: :otlp,                       # short form, blessed names
       processor: :batch,
       span_limits: %{attribute_count_limit: 256}
@@ -41,8 +41,8 @@ defmodule Otel.SDK.Config do
     ]
   ```
 
-  All exporter / processor / sampler values accept the three forms
-  documented in `Otel.SDK.Config.Selector`.
+  All exporter / processor values accept the three forms documented
+  in `Otel.SDK.Config.Selector`.
 
   ## Public API
 
@@ -103,67 +103,10 @@ defmodule Otel.SDK.Config do
 
     %{
       resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
-      sampler: build_sampler(pillar),
       processors: build_trace_processors(pillar),
       span_limits: build_span_limits(pillar),
       id_generator: Keyword.get(pillar, :id_generator, Otel.SDK.Trace.IdGenerator.Default)
     }
-  end
-
-  @spec build_sampler(pillar :: keyword()) :: {module(), term()}
-  defp build_sampler(pillar) do
-    cond do
-      explicit = Keyword.get(pillar, :sampler) ->
-        Otel.SDK.Config.Selector.sampler(explicit)
-
-      from_env = sampler_from_env() ->
-        Otel.SDK.Config.Selector.sampler(from_env)
-
-      true ->
-        Otel.SDK.Config.Selector.sampler(:parentbased_always_on)
-    end
-  end
-
-  # `OTEL_TRACES_SAMPLER` enum + `OTEL_TRACES_SAMPLER_ARG` paired
-  # parsing per spec L143-L152. Returns the selector input expected
-  # by `Selector.sampler/1` (atom or `{atom, ratio}` tuple).
-  @spec sampler_from_env() :: atom() | {atom(), float()} | nil
-  defp sampler_from_env do
-    case Otel.SDK.Config.Env.enum("OTEL_TRACES_SAMPLER", [
-           :always_on,
-           :always_off,
-           :traceidratio,
-           :parentbased_always_on,
-           :parentbased_always_off,
-           :parentbased_traceidratio
-         ]) do
-      nil ->
-        nil
-
-      sampler when sampler in [:traceidratio, :parentbased_traceidratio] ->
-        {sampler, sampler_ratio_arg()}
-
-      sampler ->
-        sampler
-    end
-  end
-
-  # Spec L147 — for `traceidratio` / `parentbased_traceidratio`,
-  # `OTEL_TRACES_SAMPLER_ARG` is a float in [0..1] with default 1.0.
-  @spec sampler_ratio_arg() :: float()
-  defp sampler_ratio_arg do
-    case Otel.SDK.Config.Env.string("OTEL_TRACES_SAMPLER_ARG") do
-      nil -> 1.0
-      raw -> parse_ratio(raw)
-    end
-  end
-
-  @spec parse_ratio(raw :: String.t()) :: float()
-  defp parse_ratio(raw) do
-    case Float.parse(raw) do
-      {n, ""} when n >= 0.0 and n <= 1.0 -> n
-      _ -> 1.0
-    end
   end
 
   @spec build_trace_processors(pillar :: keyword()) ::

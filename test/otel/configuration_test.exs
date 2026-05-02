@@ -33,8 +33,7 @@ defmodule Otel.ConfigurationTest do
 
       assert %{trace: trace, metrics: metrics, logs: logs} = Otel.Configuration.load!()
 
-      # Trace pipeline produced parent_based(always_on) + batch(otlp_http)
-      assert {Otel.SDK.Trace.Sampler.ParentBased, _} = trace.sampler
+      # Trace pipeline produced batch(otlp_http) processor
       assert [{Otel.SDK.Trace.SpanProcessor.Batch, _}] = trace.processors
 
       # Metrics produced periodic reader

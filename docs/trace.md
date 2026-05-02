@@ -17,8 +17,7 @@ end)
 ```
 
 The SDK ships traces to `http://localhost:4318/v1/traces` by default.
-See [Configuration](configuration.md) to change endpoint, sampler, or
-limits.
+See [Configuration](configuration.md) to change endpoint or limits.
 
 ## Get a tracer
 
@@ -210,17 +209,14 @@ ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), headers)
 
 ## Sampling
 
-Default sampler `:parentbased_always_on` — root spans always sample,
-children inherit the parent's decision. Common overrides:
+Hardcoded `parentbased_always_on` — root spans always sample, children
+inherit the parent's decision (sampled flag set → record; not set →
+drop). Not configurable.
 
-```elixir
-config :otel, trace: [sampler: :always_on]
-config :otel, trace: [sampler: :always_off]
-config :otel, trace: [sampler: {:traceidratio, 0.1}]   # 10 % head sampling
-config :otel, trace: [sampler: {:parentbased_traceidratio, 0.1}]
-```
-
-See [Configuration](configuration.md) §"Trace pillar".
+For finer control (head ratio sampling, custom samplers), use
+[`opentelemetry-erlang`](https://github.com/open-telemetry/opentelemetry-erlang).
+For tail sampling (latency / error / rate), configure your collector's
+`tail_sampling_processor`.
 
 ## Limits
 

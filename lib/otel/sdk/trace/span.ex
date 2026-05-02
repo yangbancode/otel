@@ -25,7 +25,7 @@ defmodule Otel.SDK.Trace.Span do
 
   | Callback | Role |
   |---|---|
-  | `start_span/6` | **SDK** (lifecycle) — sampler + id-generator + storage insert |
+  | `start_span/5` | **SDK** (lifecycle) — sampler + id-generator + storage insert |
   | `recording?/1`, `set_attribute/3`, `set_attributes/2`, `add_event/2`, `add_link/2`, `set_status/2`, `update_name/2`, `record_exception/4`, `end_span/2` | **SDK** (OTel API MUST/SHOULD) — `trace/api.md` §Span operations L449-L705 |
 
   ## Design notes
@@ -169,12 +169,11 @@ defmodule Otel.SDK.Trace.Span do
   @spec start_span(
           ctx :: Otel.API.Ctx.t(),
           name :: String.t(),
-          sampler :: Otel.SDK.Trace.Sampler.t(),
           id_generator :: module(),
           span_limits :: Otel.SDK.Trace.SpanLimits.t(),
           opts :: Otel.API.Trace.Span.start_opts()
         ) :: {Otel.API.Trace.SpanContext.t(), t() | nil}
-  def start_span(ctx, name, sampler, id_generator, span_limits, opts) do
+  def start_span(ctx, name, id_generator, span_limits, opts) do
     kind = Keyword.get(opts, :kind, :internal)
     attributes = Keyword.get(opts, :attributes, %{})
     links = Keyword.get(opts, :links, [])
@@ -186,7 +185,7 @@ defmodule Otel.SDK.Trace.Span do
     span_id = span_ctx.span_id
 
     {trace_flags, is_recording, sampler_attributes, tracestate} =
-      sample(ctx, sampler, trace_id, links, name, kind, attributes)
+      sample(ctx, trace_id, links, name, kind, attributes)
 
     span_ctx = %Otel.API.Trace.SpanContext{
       span_ctx
@@ -526,7 +525,6 @@ defmodule Otel.SDK.Trace.Span do
 
   @spec sample(
           ctx :: Otel.API.Ctx.t(),
-          sampler :: Otel.SDK.Trace.Sampler.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
@@ -535,21 +533,12 @@ defmodule Otel.SDK.Trace.Span do
         ) ::
           {Otel.API.Trace.SpanContext.trace_flags(), boolean(), %{String.t() => primitive_any()},
            Otel.API.Trace.TraceState.t()}
-  defp sample(ctx, sampler, trace_id, links, name, kind, attributes) do
+  defp sample(ctx, trace_id, links, name, kind, attributes) do
     {decision, new_attributes, tracestate} =
-      Otel.SDK.Trace.Sampler.should_sample(
-        sampler,
-        ctx,
-        trace_id,
-        links,
-        name,
-        kind,
-        attributes
-      )
+      Otel.SDK.Trace.Sampler.should_sample(ctx, trace_id, links, name, kind, attributes)
 
     case decision do
       :drop -> {0, false, new_attributes, tracestate}
-      :record_only -> {0, true, new_attributes, tracestate}
       :record_and_sample -> {1, true, new_attributes, tracestate}
     end
   end

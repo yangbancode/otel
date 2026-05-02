@@ -49,50 +49,6 @@ defmodule Otel.SDK.Config.SelectorTest do
     end
   end
 
-  describe "sampler/1" do
-    # Spec sdk-environment-variables.md L143-L155 — five enum values
-    # plus optional traceidratio arg.
-    test "spec enum values; parentbased variants wrap a root sampler" do
-      assert Otel.SDK.Config.Selector.sampler(:always_on) ==
-               {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}
-
-      assert Otel.SDK.Config.Selector.sampler(:always_off) ==
-               {Otel.SDK.Trace.Sampler.AlwaysOff, %{}}
-
-      assert Otel.SDK.Config.Selector.sampler(:parentbased_always_on) ==
-               {Otel.SDK.Trace.Sampler.ParentBased,
-                %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}}
-
-      assert Otel.SDK.Config.Selector.sampler(:parentbased_always_off) ==
-               {Otel.SDK.Trace.Sampler.ParentBased,
-                %{root: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}}}}
-    end
-
-    # Spec L147 — traceidratio without an arg defaults the ratio to 1.0.
-    test "traceidratio variants — explicit ratio passthrough; bare → 1.0 default" do
-      assert Otel.SDK.Config.Selector.sampler({:traceidratio, 0.25}) ==
-               {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 0.25}
-
-      assert Otel.SDK.Config.Selector.sampler(:traceidratio) ==
-               {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0}
-
-      assert Otel.SDK.Config.Selector.sampler({:parentbased_traceidratio, 0.5}) ==
-               {Otel.SDK.Trace.Sampler.ParentBased,
-                %{root: {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 0.5}}}
-
-      assert Otel.SDK.Config.Selector.sampler(:parentbased_traceidratio) ==
-               {Otel.SDK.Trace.Sampler.ParentBased,
-                %{root: {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0}}}
-    end
-
-    test "bare module → {Module, %{}}; {module, opts} passes through" do
-      assert Otel.SDK.Config.Selector.sampler(MyApp.Sampler) == {MyApp.Sampler, %{}}
-
-      assert Otel.SDK.Config.Selector.sampler({MyApp.Sampler, %{rate: 10}}) ==
-               {MyApp.Sampler, %{rate: 10}}
-    end
-  end
-
   describe "propagator/1" do
     test "implemented atoms map to project modules; custom modules pass through" do
       assert Otel.SDK.Config.Selector.propagator(:tracecontext) ==

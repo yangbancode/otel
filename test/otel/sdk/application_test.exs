@@ -31,10 +31,13 @@ defmodule Otel.SDK.ApplicationTest do
 
         reboot()
 
-        # Default sampler is parent_based(always_on) per spec L143
-        # + Otel.SDK.Config.trace defaults.
-        assert {Otel.SDK.Trace.Sampler.ParentBased, _} =
-                 :sys.get_state(Otel.SDK.Trace.TracerProvider).sampler
+        # Tracer state has the four default keys (no :sampler — sampling
+        # is hardcoded to `Otel.SDK.Trace.Sampler` and not stored in
+        # provider state).
+        state = :sys.get_state(Otel.SDK.Trace.TracerProvider)
+
+        for key <- [:processors, :id_generator, :resource, :span_limits],
+            do: assert(Map.has_key?(state, key))
       end
     end
 
@@ -44,9 +47,9 @@ defmodule Otel.SDK.ApplicationTest do
 
       tracer_state = :sys.get_state(Otel.SDK.Trace.TracerProvider)
 
-      # Fixture pins sampler to always_off, console exporter only,
-      # and a distinctive resource service.name.
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, _} = tracer_state.sampler
+      # Fixture pins console exporter only and a distinctive
+      # resource service.name. Any sampler block in the YAML is
+      # silently ignored — sampling is hardcoded.
       assert tracer_state.resource.attributes["service.name"] == "otel_config_wiring_test"
 
       logs_state = :sys.get_state(Otel.SDK.Logs.LoggerProvider)

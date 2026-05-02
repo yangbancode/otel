@@ -36,11 +36,15 @@ defmodule Otel.Configuration.Composer do
 
   ## Component coverage
 
-  | Pillar | Sampler | Processor / Reader | Exporter |
-  |---|---|---|---|
-  | Trace | always_on, always_off, trace_id_ratio_based, parent_based | batch, simple | otlp_http, console |
-  | Metrics | n/a | periodic | otlp_http, console |
-  | Logs | n/a | batch, simple | otlp_http, console |
+  | Pillar | Processor / Reader | Exporter |
+  |---|---|---|
+  | Trace | batch, simple | otlp_http, console |
+  | Metrics | periodic | otlp_http, console |
+  | Logs | batch, simple | otlp_http, console |
+
+  Sampler is hardcoded to `parentbased_always_on`
+  (`Otel.SDK.Trace.Sampler`); any `tracer_provider.sampler`
+  block in the YAML is silently ignored.
 
   ## Resource
 
@@ -185,59 +189,10 @@ defmodule Otel.Configuration.Composer do
 
     %{
       resource: resource,
-      sampler: compose_sampler(provider["sampler"] || default_sampler()),
       processors: Enum.map(provider["processors"] || [], &compose_span_processor/1),
       span_limits: compose_span_limits(provider["limits"] || %{}, global_limits),
       id_generator: Otel.SDK.Trace.IdGenerator.Default
     }
-  end
-
-  @spec default_sampler() :: map()
-  defp default_sampler, do: %{"parent_based" => %{"root" => %{"always_on" => nil}}}
-
-  @spec compose_sampler(spec :: map()) :: {module(), term()}
-  defp compose_sampler(spec) when is_map(spec) do
-    spec |> sole_key() |> sampler_from_keyed_pair()
-  end
-
-  @spec sampler_from_keyed_pair({String.t(), term()}) :: {module(), term()}
-  defp sampler_from_keyed_pair({"always_on", _}),
-    do: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}
-
-  defp sampler_from_keyed_pair({"always_off", _}),
-    do: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}}
-
-  defp sampler_from_keyed_pair({"trace_id_ratio_based", inner}) do
-    ratio = (is_map(inner) && Map.get(inner, "ratio")) || 1.0
-    {Otel.SDK.Trace.Sampler.TraceIdRatioBased, ratio * 1.0}
-  end
-
-  defp sampler_from_keyed_pair({"parent_based", inner}),
-    do: compose_parent_based(inner || %{})
-
-  defp sampler_from_keyed_pair({key, _}) do
-    if development?(key) do
-      warn_development(key, "sampler")
-      compose_sampler(default_sampler())
-    else
-      raise ArgumentError, "unsupported sampler: #{inspect(key)}"
-    end
-  end
-
-  @spec compose_parent_based(opts :: map()) :: {module(), map()}
-  defp compose_parent_based(opts) do
-    {Otel.SDK.Trace.Sampler.ParentBased,
-     %{
-       root: compose_sampler(opts["root"] || %{"always_on" => nil}),
-       remote_parent_sampled:
-         compose_sampler(opts["remote_parent_sampled"] || %{"always_on" => nil}),
-       remote_parent_not_sampled:
-         compose_sampler(opts["remote_parent_not_sampled"] || %{"always_off" => nil}),
-       local_parent_sampled:
-         compose_sampler(opts["local_parent_sampled"] || %{"always_on" => nil}),
-       local_parent_not_sampled:
-         compose_sampler(opts["local_parent_not_sampled"] || %{"always_off" => nil})
-     }}
   end
 
   @spec compose_span_processor(spec :: map()) ::
@@ -538,8 +493,8 @@ defmodule Otel.Configuration.Composer do
 
   # ====== Utilities ======
 
-  # Schema constraint: each `oneOf`-discriminated map (sampler,
-  # processor, exporter, reader) has exactly one populated key.
+  # Schema constraint: each `oneOf`-discriminated map (processor,
+  # exporter, reader) has exactly one populated key.
   # The map may also contain `additionalProperties` from the
   # schema's `additionalProperties: { type: ['object', 'null'] }`
   # pattern (which is how the schema models `*/development`

@@ -56,15 +56,13 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
       assert_receive {:on_start, "multi"}
     end
 
-    test "sampler-dropped spans do NOT trigger on_start" do
-      restart_sdk(
-        trace: [
-          sampler: {Otel.SDK.Trace.Sampler.AlwaysOff, %{}},
-          processors: [processor()]
-        ]
-      )
+    test "sampler-dropped spans (not-sampled parent) do NOT trigger on_start" do
+      restart_sdk(trace: [processors: [processor()]])
 
-      Otel.SDK.Trace.Tracer.start_span(Otel.API.Ctx.new(), tracer_for("lib"), "dropped", [])
+      not_sampled_parent = Otel.API.Trace.SpanContext.new(123, 456, 0)
+      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), not_sampled_parent)
+
+      Otel.SDK.Trace.Tracer.start_span(ctx, tracer_for("lib"), "dropped", [])
 
       refute_receive {:on_start, _}
     end

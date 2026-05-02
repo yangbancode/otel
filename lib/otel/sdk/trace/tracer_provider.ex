@@ -102,9 +102,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @typedoc """
   Runtime state held by the TracerProvider GenServer.
 
-  - `:sampler` / `:processors` / `:id_generator` / `:resource`
-    / `:span_limits` come from the user's `start_link/1` config
-    (or defaults).
+  - `:processors` / `:id_generator` / `:resource` / `:span_limits`
+    come from the user's `start_link/1` config (or defaults).
   - `:shut_down` is the lifecycle flag flipped by
     `handle_call({:shutdown, _}, _, _)`. Once `true`,
     `get_tracer/2` returns the noop tracer and
@@ -114,9 +113,11 @@ defmodule Otel.SDK.Trace.TracerProvider do
     which `Otel.SDK.Trace.Tracer` reads the projected
     `[{module, callback_config}]` list on every `start_span`
     and `end_span`.
+
+  No `:sampler` field — sampling is hardcoded to
+  `Otel.SDK.Trace.Sampler` (parentbased_always_on).
   """
   @type config :: %{
-          sampler: {module(), term()},
           processors: [processor_entry()],
           id_generator: module(),
           resource: Otel.SDK.Resource.t(),
@@ -266,10 +267,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
       ) do
     warn_invalid_scope_name(instrumentation_scope)
 
-    sampler = Otel.SDK.Trace.Sampler.new(config.sampler)
-
     tracer_config = %{
-      sampler: sampler,
       id_generator: config.id_generator,
       span_limits: config.span_limits,
       processors_key: config.processors_key,
@@ -370,8 +368,6 @@ defmodule Otel.SDK.Trace.TracerProvider do
   @spec default_config() :: %{atom() => term()}
   defp default_config do
     %{
-      sampler:
-        {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}},
       processors: [],
       id_generator: Otel.SDK.Trace.IdGenerator.Default,
       resource: Otel.SDK.Resource.default(),

@@ -44,10 +44,9 @@ mix test --only e2e test/e2e/
 | `[x]` | 27 | Span limits — `link_count_limit` | exceed via `add_link` | Tempo: `dropped_links_count > 0` |
 | `[x]` | 28 | Span limits — `attribute_per_event_limit` | event w/ excess attrs | Tempo: event `dropped_attributes_count` |
 | `[x]` | 29 | Span limits — `attribute_per_link_limit` | link w/ excess attrs | Tempo: link `dropped_attributes_count` |
-| `[x]` | 30 | Sampler `always_on` | configured then emit | Tempo: span present |
-| `[x]` | 31 | Sampler `always_off` | configured then emit | Tempo: span absent |
-| `[x]` | 32 | Sampler `parentbased_always_on` | inherit parent decision | Tempo: span present iff parent sampled |
-| `[x]` | 33 | Sampler `traceidratio` (e.g. 1.0) | configured then emit | Tempo: span present |
+| `[x]` | 30 | Sampler — root span is sampled | emit without parent | Tempo: span present |
+| `[x]` | 31 | Sampler — child of sampled remote parent | inject sampled `traceparent`, then emit | Tempo: span present |
+| `[x]` | 32 | Sampler — child of not-sampled remote parent | inject not-sampled `traceparent`, then emit | Tempo: span absent |
 
 ## Log — SDK API (`Otel.API.Logs.Logger.emit/2`)
 
