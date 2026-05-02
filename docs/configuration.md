@@ -10,20 +10,18 @@ The SDK reads only Application env. Sources, highest priority first:
 
 ## User-facing keys
 
-Three top-level keys cover everything most users need.
+Two top-level keys cover everything most users need.
 
 ```elixir
 import Config
 
 config :otel,
-  disabled: false,
   resource: %{"service.name" => "my_app"},
   exporter: %{endpoint: "http://localhost:4318"}
 ```
 
 | Key | Type | Default |
 |---|---|---|
-| `:disabled` | `boolean` | `false` |
 | `:resource` | `%{String.t() => term()}` (attribute pairs) | merges to `%{"service.name" => "unknown_service"}` |
 | `:exporter` | `%{endpoint, headers, ssl_options, ...}` | `%{}` (uses exporter defaults) |
 
@@ -63,23 +61,42 @@ resource_attrs =
   |> Map.put("service.name", System.get_env("OTEL_SERVICE_NAME") || "my_app")
 
 config :otel,
-  disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
   resource: resource_attrs,
   exporter: %{
     endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
   }
 ```
 
-## Disable the SDK
+## Disabling the SDK
 
-`config :otel, disabled: true` makes telemetry calls no-ops. Propagator
-stays active.
+There is no runtime kill switch. To disable telemetry — typically in
+test environments or CI without a collector — exclude `:otel` from
+your application's `extra_applications`:
+
+```elixir
+# mix.exs
+def application do
+  [extra_applications: extra_apps()]
+end
+
+defp extra_apps do
+  base = [:logger]
+  if Mix.env() == :test, do: base, else: base ++ [:otel]
+end
+```
+
+When `:otel` isn't loaded, no providers start and telemetry calls
+will raise (`UndefinedFunctionError` on the unloaded modules) — wrap
+your call sites or scope `:otel` per environment as above.
+
+For tests that want to assert telemetry behaviour without hitting a
+real collector, use the advanced `:processors` / `:readers` overrides
+to inject a mock exporter (see "Advanced overrides" below).
 
 ## Trace pillar
 
 Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Trace.SpanExporter`).
-No `exporter:` option, no Console exporter, no `:none` shortcut. To stop
-emitting telemetry, set `config :otel, disabled: true`.
+No `exporter:` option, no Console exporter, no `:none` shortcut.
 
 Sampling is hardcoded to `parentbased_always_on`
 (`Otel.SDK.Trace.Sampler`); no `sampler:` option is accepted.

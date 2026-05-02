@@ -4,19 +4,17 @@ defmodule Otel.SDK.Config do
 
   ## Configuration UX
 
-  Three top-level keys cover the entire user-facing surface:
+  Two top-level keys cover the entire user-facing surface:
 
   ```elixir
   # config/runtime.exs
   config :otel,
-    disabled: false,
     resource: %{"service.name" => "my_app"},
     exporter: %{endpoint: "http://localhost:4318"}
   ```
 
   | Key | Type | Default |
   |---|---|---|
-  | `:disabled` | `boolean` | `false` |
   | `:resource` | `%{String.t() => term()}` | `%{"service.name" => "unknown_service"}` |
   | `:exporter` | `%{endpoint: String.t(), headers: map(), ssl_options: keyword(), ...}` | `%{}` (uses exporter defaults) |
 
@@ -26,13 +24,16 @@ defmodule Otel.SDK.Config do
       import Config
 
       config :otel,
-        disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
         resource: %{
           "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
         },
         exporter: %{
           endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
         }
+
+  To disable telemetry (test environments, CI, etc.), exclude
+  `:otel` from your application's `extra_applications` rather
+  than leaving it loaded — there is no runtime kill switch.
 
   ## Advanced overrides (test / power-user only)
 
@@ -66,7 +67,6 @@ defmodule Otel.SDK.Config do
 
   | Function | Returns |
   |---|---|
-  | `disabled?/0` | `Application.get_env(:otel, :disabled) == true`; `Application.start/2` skips registering providers when true |
   | `resource/0` | Resolved `%Otel.SDK.Resource{}` from top-level `:resource` map merged with SDK identity attrs |
   | `exporter/1` | `{module, config}` tuple for the given signal (`:trace` / `:metrics` / `:logs`) |
   | `trace/0` | TracerProvider config map |
@@ -82,27 +82,6 @@ defmodule Otel.SDK.Config do
   """
 
   require Logger
-
-  # ====== General ======
-
-  @doc """
-  Returns `true` when `config :otel, disabled: true`.
-
-  Bridge `OTEL_SDK_DISABLED` from `runtime.exs` if you need to
-  toggle via OS env (Phoenix-style):
-
-      # config/runtime.exs
-      config :otel, disabled: System.get_env("OTEL_SDK_DISABLED") == "true"
-
-  Spec L113-L114 — *"Disable the SDK for all signals... If `true`,
-  a no-op SDK implementation will be used for all telemetry signals.
-  Any propagators set via the `OTEL_PROPAGATORS` environment variable
-  will be non-no-op."*
-  """
-  @spec disabled?() :: boolean()
-  def disabled? do
-    Application.get_env(:otel, :disabled, false) == true
-  end
 
   @doc """
   Resolves the user-configured Resource by merging

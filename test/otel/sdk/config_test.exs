@@ -3,23 +3,11 @@ defmodule Otel.SDK.ConfigTest do
 
   setup do
     on_exit(fn ->
-      for k <- [:trace, :metrics, :logs, :propagators, :disabled, :resource, :exporter],
+      for k <- [:trace, :metrics, :logs, :propagators, :resource, :exporter],
           do: Application.delete_env(:otel, k)
     end)
 
     :ok
-  end
-
-  describe "disabled?/0" do
-    test "default false; :disabled Application env true → true" do
-      assert Otel.SDK.Config.disabled?() == false
-
-      Application.put_env(:otel, :disabled, false)
-      assert Otel.SDK.Config.disabled?() == false
-
-      Application.put_env(:otel, :disabled, true)
-      assert Otel.SDK.Config.disabled?() == true
-    end
   end
 
   describe "resource/0" do

@@ -4,7 +4,6 @@ defmodule Otel.SDK.ApplicationTest do
 
   setup do
     on_exit(fn ->
-      Application.delete_env(:otel, :disabled)
       Application.delete_env(:otel, :propagators)
       reboot()
     end)
@@ -39,20 +38,6 @@ defmodule Otel.SDK.ApplicationTest do
       assert {Otel.API.Propagator.TextMap.Composite,
               [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
                Otel.API.Propagator.TextMap.get_propagator()
-    end
-
-    # Spec sdk-environment-variables.md L113 — propagators MUST be
-    # installed even when the SDK is disabled.
-    test ":disabled true installs the propagator but not the provider GenServers" do
-      Application.put_env(:otel, :disabled, true)
-      reboot()
-
-      assert {Otel.API.Propagator.TextMap.Composite, _} =
-               Otel.API.Propagator.TextMap.get_propagator()
-
-      refute Process.whereis(Otel.SDK.Trace.TracerProvider)
-      refute Process.whereis(Otel.SDK.Metrics.MeterProvider)
-      refute Process.whereis(Otel.SDK.Logs.LoggerProvider)
     end
   end
 end
