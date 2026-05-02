@@ -83,12 +83,11 @@ defmodule Otel.Configuration.Composer do
         }
   def compose!(model) when is_map(model) do
     resource = compose_resource(model)
-    global_attribute_limits = Map.get(model, "attribute_limits") || %{}
 
     %{
-      trace: compose_trace(model, resource, global_attribute_limits),
+      trace: compose_trace(model, resource),
       metrics: compose_metrics(model, resource),
-      logs: compose_logs(model, resource, global_attribute_limits),
+      logs: compose_logs(model, resource),
       propagator: compose_propagator(model)
     }
   end
@@ -182,15 +181,14 @@ defmodule Otel.Configuration.Composer do
 
   # ====== Trace ======
 
-  @spec compose_trace(model :: map(), resource :: Otel.SDK.Resource.t(), global_limits :: map()) ::
-          map()
-  defp compose_trace(model, resource, global_limits) do
+  @spec compose_trace(model :: map(), resource :: Otel.SDK.Resource.t()) :: map()
+  defp compose_trace(model, resource) do
     provider = Map.get(model, "tracer_provider") || %{}
 
     %{
       resource: resource,
       processors: Enum.map(provider["processors"] || [], &compose_span_processor/1),
-      span_limits: compose_span_limits(provider["limits"] || %{}, global_limits)
+      span_limits: %Otel.SDK.Trace.SpanLimits{}
     }
   end
 
@@ -242,22 +240,6 @@ defmodule Otel.Configuration.Composer do
       {key, _} ->
         raise_unsupported_exporter!(key, "trace")
     end
-  end
-
-  @spec compose_span_limits(pillar_limits :: map(), global :: map()) ::
-          Otel.SDK.Trace.SpanLimits.t()
-  defp compose_span_limits(pillar_limits, global) do
-    struct(Otel.SDK.Trace.SpanLimits, %{
-      attribute_count_limit:
-        pillar_limits["attribute_count_limit"] || global["attribute_count_limit"] || 128,
-      attribute_value_length_limit:
-        pillar_limits["attribute_value_length_limit"] ||
-          global["attribute_value_length_limit"] || :infinity,
-      event_count_limit: pillar_limits["event_count_limit"] || 128,
-      link_count_limit: pillar_limits["link_count_limit"] || 128,
-      attribute_per_event_limit: pillar_limits["event_attribute_count_limit"] || 128,
-      attribute_per_link_limit: pillar_limits["link_attribute_count_limit"] || 128
-    })
   end
 
   # ====== Metrics ======
@@ -325,15 +307,14 @@ defmodule Otel.Configuration.Composer do
 
   # ====== Logs ======
 
-  @spec compose_logs(model :: map(), resource :: Otel.SDK.Resource.t(), global_limits :: map()) ::
-          map()
-  defp compose_logs(model, resource, global_limits) do
+  @spec compose_logs(model :: map(), resource :: Otel.SDK.Resource.t()) :: map()
+  defp compose_logs(model, resource) do
     provider = Map.get(model, "logger_provider") || %{}
 
     %{
       resource: resource,
       processors: Enum.map(provider["processors"] || [], &compose_log_processor/1),
-      log_record_limits: compose_log_record_limits(provider["limits"] || %{}, global_limits)
+      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{}
     }
   end
 
@@ -361,18 +342,6 @@ defmodule Otel.Configuration.Composer do
       {key, _} ->
         raise_unsupported_exporter!(key, "logs")
     end
-  end
-
-  @spec compose_log_record_limits(pillar_limits :: map(), global :: map()) ::
-          Otel.SDK.Logs.LogRecordLimits.t()
-  defp compose_log_record_limits(pillar_limits, global) do
-    struct(Otel.SDK.Logs.LogRecordLimits, %{
-      attribute_count_limit:
-        pillar_limits["attribute_count_limit"] || global["attribute_count_limit"] || 128,
-      attribute_value_length_limit:
-        pillar_limits["attribute_value_length_limit"] ||
-          global["attribute_value_length_limit"] || :infinity
-    })
   end
 
   # ====== Resource ======
