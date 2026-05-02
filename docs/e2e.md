@@ -134,7 +134,7 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[x]` | 4 | Mix Config `:resource` | `config :otel, trace: [resource: …]` | Tempo: resource overridden by Mix value |
+| `[x]` | 4 | Mix Config `:resource` | `config :otel, resource: %{...}` | Tempo: resource attributes flow to all signals |
 
 ## Global SDK control
 

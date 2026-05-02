@@ -3,7 +3,7 @@ defmodule Otel.SDK.ConfigTest do
 
   setup do
     on_exit(fn ->
-      for k <- [:trace, :metrics, :logs, :propagators, :disabled],
+      for k <- [:trace, :metrics, :logs, :propagators, :disabled, :resource, :exporter],
           do: Application.delete_env(:otel, k)
     end)
 
@@ -22,8 +22,50 @@ defmodule Otel.SDK.ConfigTest do
     end
   end
 
+  describe "resource/0" do
+    test "no :resource set → SDK identity + service.name=\"unknown_service\"" do
+      attrs = Otel.SDK.Config.resource().attributes
+      assert attrs["telemetry.sdk.name"] == "otel"
+      assert attrs["service.name"] == "unknown_service"
+    end
+
+    test ":resource map merges on top of SDK identity; user service.name wins" do
+      Application.put_env(:otel, :resource, %{
+        "service.name" => "my_app",
+        "deployment.environment" => "prod"
+      })
+
+      attrs = Otel.SDK.Config.resource().attributes
+      assert attrs["service.name"] == "my_app"
+      assert attrs["deployment.environment"] == "prod"
+      assert attrs["telemetry.sdk.name"] == "otel"
+    end
+  end
+
+  describe "exporter/1" do
+    test "no :exporter set → empty config map for each signal" do
+      assert Otel.SDK.Config.exporter(:trace) == {Otel.OTLP.Trace.SpanExporter, %{}}
+      assert Otel.SDK.Config.exporter(:metrics) == {Otel.OTLP.Metrics.MetricExporter, %{}}
+      assert Otel.SDK.Config.exporter(:logs) == {Otel.OTLP.Logs.LogRecordExporter, %{}}
+    end
+
+    test ":exporter map forwarded verbatim to all three signals" do
+      Application.put_env(:otel, :exporter, %{
+        endpoint: "https://collector:4318",
+        headers: %{"x-api-key" => "secret"}
+      })
+
+      assert {Otel.OTLP.Trace.SpanExporter, config} = Otel.SDK.Config.exporter(:trace)
+      assert config.endpoint == "https://collector:4318"
+      assert config.headers == %{"x-api-key" => "secret"}
+
+      assert {Otel.OTLP.Metrics.MetricExporter, ^config} = Otel.SDK.Config.exporter(:metrics)
+      assert {Otel.OTLP.Logs.LogRecordExporter, ^config} = Otel.SDK.Config.exporter(:logs)
+    end
+  end
+
   describe "trace/0" do
-    test "defaults: Batch(OTLP HTTP) + SpanLimits" do
+    test "defaults: Batch(OTLP HTTP) + SpanLimits + identity Resource" do
       config = Otel.SDK.Config.trace()
 
       assert [
@@ -31,13 +73,37 @@ defmodule Otel.SDK.ConfigTest do
              ] = config.processors
 
       assert %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 128} = config.span_limits
+      assert config.resource.attributes["service.name"] == "unknown_service"
       refute Map.has_key?(config, :id_generator)
+    end
+
+    test "top-level :resource flows into trace pillar" do
+      Application.put_env(:otel, :resource, %{"service.name" => "from_top"})
+      assert Otel.SDK.Config.trace().resource.attributes["service.name"] == "from_top"
+    end
+
+    test "top-level :exporter flows into the default processor's exporter config" do
+      Application.put_env(:otel, :exporter, %{endpoint: "https://collector:4318"})
+
+      [{_, %{exporter: {Otel.OTLP.Trace.SpanExporter, exp_config}}}] =
+        Otel.SDK.Config.trace().processors
+
+      assert exp_config.endpoint == "https://collector:4318"
     end
 
     test "Application env: explicit :processors list bypasses implicit build" do
       processors = [{MyApp.CustomProcessor, %{x: 1}}]
       Application.put_env(:otel, :trace, processors: processors)
       assert Otel.SDK.Config.trace().processors == processors
+    end
+
+    test "pillar :resource (advanced override) bypasses top-level :resource" do
+      Application.put_env(:otel, :resource, %{"service.name" => "from_top"})
+
+      override = %Otel.SDK.Resource{attributes: %{"service.name" => "from_pillar"}}
+      Application.put_env(:otel, :trace, resource: override)
+
+      assert Otel.SDK.Config.trace().resource == override
     end
 
     test "span_limits accepts map and keyword forms; untouched fields keep defaults" do

@@ -7,18 +7,14 @@ defmodule Otel.OTLP.Trace.SpanExporter do
 
   ## Configuration
 
-  Pass options through `config :otel, trace: [exporter: {__MODULE__, %{...}}]`
-  or directly to a provider's `start_link`. The SDK reads no
-  OS environment variables — bridge any `OTEL_EXPORTER_OTLP_*` you
-  need from `runtime.exs`:
+  Pass options through the top-level `:exporter` map — the same
+  map flows to all three OTLP exporters (trace / metrics / logs):
 
       # config/runtime.exs
       config :otel,
-        trace: [
-          exporter: {Otel.OTLP.Trace.SpanExporter, %{
-            endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
-          }}
-        ]
+        exporter: %{
+          endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+        }
 
   Accepted keys (all optional):
 

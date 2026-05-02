@@ -1,58 +1,78 @@
 defmodule Otel.SDK.Config do
   @moduledoc """
-  Composes provider configuration from two layers, in precedence
-  order from highest to lowest:
-
-  1. **Programmatic** — anything the caller passes directly to a
-     provider's `start_link(config: ...)` overrides the layers
-     below. (Outside this module's scope: providers receive the
-     map this module produces and merge it with the caller's
-     `start_link` config.)
-  2. **Application env** — `Application.get_env(:otel, pillar,
-     [])`. Configure the SDK declaratively from
-     `config/runtime.exs` or `config/<env>.exs`.
-  3. **Built-in defaults** — defined inline below. Several
-     components are *hardcoded* and not configurable:
-     Sampler (`parentbased_always_on`), IdGenerator (random),
-     SpanProcessor / LogRecordProcessor (batch), and **exporter
-     (OTLP/HTTP)**. To stop emitting telemetry, set
-     `config :otel, disabled: true`.
+  Composes provider configuration from the user's Application env.
 
   ## Configuration UX
 
-  The SDK reads *only* Application env. Bridge any OS env vars
-  you need from `runtime.exs` — the Phoenix `PHX_SERVER` pattern:
+  Three top-level keys cover the entire user-facing surface:
 
   ```elixir
   # config/runtime.exs
   config :otel,
-    disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
+    disabled: false,
+    resource: %{"service.name" => "my_app"},
+    exporter: %{endpoint: "http://localhost:4318"}
+  ```
+
+  | Key | Type | Default |
+  |---|---|---|
+  | `:disabled` | `boolean` | `false` |
+  | `:resource` | `%{String.t() => term()}` | `%{"service.name" => "unknown_service"}` |
+  | `:exporter` | `%{endpoint: String.t(), headers: map(), ssl_options: keyword(), ...}` | `%{}` (uses exporter defaults) |
+
+  Bridge OS env vars from `runtime.exs` (Phoenix `PHX_SERVER` pattern):
+
+      # config/runtime.exs
+      import Config
+
+      config :otel,
+        disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
+        resource: %{
+          "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
+        },
+        exporter: %{
+          endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+        }
+
+  ## Advanced overrides (test / power-user only)
+
+  Per-pillar keys (`trace:`, `metrics:`, `logs:`) accept the
+  underlying processor / reader / limits structures. These are
+  retained for tests that exercise specific code paths and
+  power users who need full control; they bypass the simple
+  surface above.
+
+  ```elixir
+  config :otel,
     trace: [
-      resource: Otel.SDK.Resource.create(%{
-        "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
-      })
+      processors: [{MyApp.CustomProcessor, %{...}}],
+      span_limits: %{attribute_count_limit: 32}
     ],
     metrics: [
-      resource: Otel.SDK.Resource.create(%{
-        "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
-      })
+      readers: [{MyApp.CustomReader, %{...}}],
+      exemplar_filter: :always_on
     ],
     logs: [
-      resource: Otel.SDK.Resource.create(%{
-        "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
-      })
+      processors: [{MyApp.CustomProcessor, %{...}}],
+      log_record_limits: %{attribute_count_limit: 32}
     ]
   ```
+
+  When a per-pillar override is set, the matching top-level
+  key is bypassed for that pillar. Per-pillar `:resource`
+  expects an `%Otel.SDK.Resource{}` struct, not a map.
 
   ## Public API
 
   | Function | Returns |
   |---|---|
   | `disabled?/0` | `Application.get_env(:otel, :disabled) == true`; `Application.start/2` skips registering providers when true |
+  | `resource/0` | Resolved `%Otel.SDK.Resource{}` from top-level `:resource` map merged with SDK identity attrs |
+  | `exporter/1` | `{module, config}` tuple for the given signal (`:trace` / `:metrics` / `:logs`) |
   | `trace/0` | TracerProvider config map |
   | `metrics/0` | MeterProvider config map |
   | `logs/0` | LoggerProvider config map |
-  | `propagator/0` | Global TextMap propagator (single module or `{Composite, [...]}`) |
+  | `propagator/0` | Global TextMap propagator (`{Composite, [TraceContext, Baggage]}`) |
 
   ## References
 
@@ -84,18 +104,54 @@ defmodule Otel.SDK.Config do
     Application.get_env(:otel, :disabled, false) == true
   end
 
+  @doc """
+  Resolves the user-configured Resource by merging
+  `config :otel, resource: %{...}` (a map of attribute pairs)
+  on top of the SDK identity attributes
+  (`telemetry.sdk.{name,language,version}` + the
+  `service.name = "unknown_service"` fallback).
+
+  User attributes take precedence on key conflicts. The
+  `service.name` fallback is only applied when no value is
+  provided.
+  """
+  @spec resource() :: Otel.SDK.Resource.t()
+  def resource do
+    user_attrs = Application.get_env(:otel, :resource, %{})
+    Otel.SDK.Resource.merge(Otel.SDK.Resource.default(), Otel.SDK.Resource.create(user_attrs))
+  end
+
+  @doc """
+  Returns the OTLP/HTTP exporter `{module, config}` tuple for
+  the given signal. The same `config :otel, exporter: %{...}`
+  map is forwarded verbatim to all three exporters.
+
+  Common keys: `:endpoint`, `:headers`, `:ssl_options`. See
+  the exporter modules for the full list.
+  """
+  @spec exporter(signal :: :trace | :metrics | :logs) :: {module(), map()}
+  def exporter(:trace), do: {Otel.OTLP.Trace.SpanExporter, exporter_config()}
+  def exporter(:metrics), do: {Otel.OTLP.Metrics.MetricExporter, exporter_config()}
+  def exporter(:logs), do: {Otel.OTLP.Logs.LogRecordExporter, exporter_config()}
+
+  @spec exporter_config() :: map()
+  defp exporter_config do
+    Application.get_env(:otel, :exporter, %{})
+  end
+
   # ====== Trace ======
 
   @doc """
-  Builds the TracerProvider config map by composing defaults,
-  Application env, and `OTEL_*` env vars.
+  Builds the TracerProvider config map by composing top-level
+  `:resource` / `:exporter` and the per-pillar advanced
+  overrides on `config :otel, trace: [...]`.
   """
   @spec trace() :: map()
   def trace do
     pillar = Application.get_env(:otel, :trace, [])
 
     %{
-      resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
+      resource: Keyword.get(pillar, :resource, resource()),
       processors: build_trace_processors(pillar),
       span_limits: build_span_limits(pillar)
     }
@@ -113,7 +169,7 @@ defmodule Otel.SDK.Config do
   @spec default_trace_processors(pillar :: keyword()) ::
           [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
   defp default_trace_processors(_pillar) do
-    [{Otel.SDK.Trace.SpanProcessor, %{exporter: {Otel.OTLP.Trace.SpanExporter, %{}}}}]
+    [{Otel.SDK.Trace.SpanProcessor, %{exporter: exporter(:trace)}}]
   end
 
   # Limits are hardcoded to spec defaults (`%Otel.SDK.Trace.SpanLimits{}`).
@@ -143,7 +199,7 @@ defmodule Otel.SDK.Config do
     pillar = Application.get_env(:otel, :metrics, [])
 
     %{
-      resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
+      resource: Keyword.get(pillar, :resource, resource()),
       readers: build_metrics_readers(pillar),
       exemplar_filter: build_exemplar_filter(pillar)
     }
@@ -172,16 +228,13 @@ defmodule Otel.SDK.Config do
   # Reader interval / timeout are hardcoded to spec defaults
   # (`metrics/sdk.md` L1450-L1453: `exportIntervalMillis`
   # `60000`, `exportTimeoutMillis` `30000`).
-  # `OTEL_METRIC_EXPORT_INTERVAL` / `OTEL_METRIC_EXPORT_TIMEOUT`
-  # env vars and the `:reader_config` Application-env keyword
-  # are no longer read.
   @spec default_metrics_readers(pillar :: keyword()) ::
           [{module(), Otel.SDK.Metrics.MetricReader.config()}]
   defp default_metrics_readers(_pillar) do
     [
       {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
        %{
-         exporter: {Otel.OTLP.Metrics.MetricExporter, %{}},
+         exporter: exporter(:metrics),
          export_interval_ms: 60_000,
          export_timeout_ms: 30_000
        }}
@@ -198,7 +251,7 @@ defmodule Otel.SDK.Config do
     pillar = Application.get_env(:otel, :logs, [])
 
     %{
-      resource: Keyword.get(pillar, :resource, Otel.SDK.Resource.default()),
+      resource: Keyword.get(pillar, :resource, resource()),
       processors: build_logs_processors(pillar),
       log_record_limits: build_log_record_limits(pillar)
     }
@@ -226,9 +279,7 @@ defmodule Otel.SDK.Config do
   @spec default_logs_processors(pillar :: keyword()) ::
           [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
   defp default_logs_processors(_pillar) do
-    [
-      {Otel.SDK.Logs.LogRecordProcessor, %{exporter: {Otel.OTLP.Logs.LogRecordExporter, %{}}}}
-    ]
+    [{Otel.SDK.Logs.LogRecordProcessor, %{exporter: exporter(:logs)}}]
   end
 
   # ====== Propagator ======
@@ -240,10 +291,8 @@ defmodule Otel.SDK.Config do
   (`OTEL_PROPAGATORS` default `"tracecontext,baggage"`) and
   `context/api-propagators.md` L329-331.
 
-  Not configurable per minikube-style scope. The
-  `:propagators` Application-env keyword is no longer read,
-  and `OTEL_PROPAGATORS` env var is no longer parsed. Power
-  users wanting B3 / Jaeger / X-Ray propagators should use
+  Not configurable per minikube-style scope. Power users
+  wanting B3 / Jaeger / X-Ray propagators should use
   `opentelemetry-erlang`.
   """
   @spec propagator() :: {module(), [module()]}

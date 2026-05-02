@@ -144,17 +144,6 @@ is inside a `with_span/4` block — same rule as the `:logger` bridge.
 
 ## Limits
 
-Defaults: 128 attributes per LogRecord, no string-length truncation.
-
-```elixir
-config :otel,
-  logs: [
-    log_record_limits: %{
-      attribute_count_limit: 256,
-      attribute_value_length_limit: 1024
-    }
-  ]
-```
-
-See [Configuration](configuration.md) §"Logs pillar" for processor,
-batch, and environment-variable knobs.
+Hardcoded to spec defaults: 128 attributes per LogRecord, no
+string-length truncation. See [Configuration](configuration.md)
+§"Advanced overrides" for the test-only `:log_record_limits` key.

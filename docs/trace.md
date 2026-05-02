@@ -221,20 +221,6 @@ For tail sampling (latency / error / rate), configure your collector's
 
 ## Limits
 
-Defaults: 128 attributes / events / links per span, no string-length
-truncation. Override per-pillar:
-
-```elixir
-config :otel,
-  trace: [
-    span_limits: %{
-      attribute_count_limit: 256,
-      attribute_value_length_limit: 1024,
-      event_count_limit: 256,
-      link_count_limit: 256
-    }
-  ]
-```
-
-See [Configuration](configuration.md) §"Trace pillar" for environment
-variables and per-event / per-link limits.
+Hardcoded to spec defaults: 128 attributes / events / links per span,
+no string-length truncation. See [Configuration](configuration.md)
+§"Advanced overrides" for the test-only `:span_limits` key.
