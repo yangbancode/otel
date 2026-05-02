@@ -1,5 +1,5 @@
 defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case, async: true
 
   @span %Otel.SDK.Trace.Span{
     trace_id: 1,
@@ -14,29 +14,10 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
 
   @resource Otel.SDK.Resource.create(%{"service.name" => "test"})
 
-  @env_vars [
-    "OTEL_EXPORTER_OTLP_ENDPOINT",
-    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
-    "OTEL_EXPORTER_OTLP_HEADERS",
-    "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
-    "OTEL_EXPORTER_OTLP_COMPRESSION",
-    "OTEL_EXPORTER_OTLP_TRACES_COMPRESSION",
-    "OTEL_EXPORTER_OTLP_TIMEOUT",
-    "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT"
-  ]
-
-  setup do
-    Enum.each(@env_vars, &System.delete_env/1)
-    on_exit(fn -> Enum.each(@env_vars, &System.delete_env/1) end)
-    :ok
-  end
-
   defp init!(opts \\ %{}) do
     {:ok, state} = Otel.OTLP.Trace.SpanExporter.HTTP.init(opts)
     state
   end
-
-  defp put_env(pairs), do: Enum.each(pairs, fn {k, v} -> System.put_env(k, v) end)
 
   defp server(status_code) do
     {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
@@ -69,95 +50,42 @@ defmodule Otel.OTLP.Trace.SpanExporter.HTTPTest do
   end
 
   describe "init/1 endpoint" do
-    test "default and code-config both append /v1/traces" do
+    test "default appends /v1/traces" do
       assert init!().endpoint == "http://localhost:4318/v1/traces"
+    end
+
+    test "config :endpoint trims trailing slash and appends /v1/traces" do
       assert init!(%{endpoint: "http://custom:4318"}).endpoint == "http://custom:4318/v1/traces"
-    end
-
-    test "general env appends /v1/traces and overrides code config" do
-      System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://env:4318")
-      assert init!(%{endpoint: "http://code:4318"}).endpoint == "http://env:4318/v1/traces"
-    end
-
-    test "signal-specific env used as-is; overrides general" do
-      put_env([
-        {"OTEL_EXPORTER_OTLP_ENDPOINT", "http://general:4318"},
-        {"OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "http://traces:4318/custom/path"}
-      ])
-
-      assert init!().endpoint == "http://traces:4318/custom/path"
-    end
-
-    test "empty env var treated as unset" do
-      System.put_env("OTEL_EXPORTER_OTLP_ENDPOINT", "")
-      assert init!().endpoint == "http://localhost:4318/v1/traces"
+      assert init!(%{endpoint: "http://custom:4318/"}).endpoint == "http://custom:4318/v1/traces"
     end
   end
 
   describe "init/1 headers" do
-    test "general env parsed; user-agent always included" do
-      System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "key1=val1,key2=val2")
-      headers = init!().headers
+    test "user-agent always included; config :headers map flow through" do
+      headers = init!(%{headers: %{"key1" => "val1", "key2" => "val2"}}).headers
 
       assert {~c"key1", ~c"val1"} in headers
       assert {~c"key2", ~c"val2"} in headers
       assert Enum.any?(headers, fn {k, _} -> k == ~c"user-agent" end)
     end
 
-    test "signal-specific overrides general; env overrides code" do
-      put_env([
-        {"OTEL_EXPORTER_OTLP_HEADERS", "general=yes"},
-        {"OTEL_EXPORTER_OTLP_TRACES_HEADERS", "traces=yes"}
-      ])
-
-      headers = init!(%{headers: %{"code" => "yes"}}).headers
-
-      assert {~c"traces", ~c"yes"} in headers
-      refute Enum.any?(headers, fn {k, _} -> k in [~c"general", ~c"code"] end)
-    end
-
-    test "skips invalid pairs" do
-      System.put_env("OTEL_EXPORTER_OTLP_HEADERS", "valid=yes,=invalid,also=ok")
+    test "empty headers map → only user-agent" do
       headers = init!().headers
-
-      assert {~c"valid", ~c"yes"} in headers
-      assert {~c"also", ~c"ok"} in headers
+      assert [{~c"user-agent", _}] = headers
     end
   end
 
   describe "init/1 compression" do
-    test "general env" do
-      System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "gzip")
-      assert init!().compression == :gzip
-    end
-
-    test "signal-specific overrides general and code" do
-      put_env([
-        {"OTEL_EXPORTER_OTLP_COMPRESSION", "gzip"},
-        {"OTEL_EXPORTER_OTLP_TRACES_COMPRESSION", "none"}
-      ])
-
-      assert init!(%{compression: :gzip}).compression == :none
-    end
-
-    test "unknown value defaults to none" do
-      System.put_env("OTEL_EXPORTER_OTLP_COMPRESSION", "unknown")
+    test "default :none; explicit :gzip flows through" do
       assert init!().compression == :none
+      assert init!(%{compression: :gzip}).compression == :gzip
     end
   end
 
   describe "init/1 timeout" do
-    test "general env; signal-specific overrides" do
-      System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "5000")
-      assert init!().timeout == 5000
-
-      System.put_env("OTEL_EXPORTER_OTLP_TRACES_TIMEOUT", "3000")
-      assert init!().timeout == 3000
-    end
-
-    test "unparseable falls back to default" do
-      System.put_env("OTEL_EXPORTER_OTLP_TIMEOUT", "not_a_number")
+    test "default 10_000ms; explicit value flows through" do
       assert init!().timeout == 10_000
+      assert init!(%{timeout: 5000}).timeout == 5000
     end
   end
 

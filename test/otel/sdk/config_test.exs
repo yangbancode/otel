@@ -1,36 +1,23 @@
 defmodule Otel.SDK.ConfigTest do
   use ExUnit.Case, async: false
 
-  @env_vars ~w(
-    OTEL_SDK_DISABLED
-    OTEL_TRACES_EXPORTER OTEL_METRICS_EXPORTER OTEL_LOGS_EXPORTER
-    OTEL_TRACES_SAMPLER OTEL_TRACES_SAMPLER_ARG
-    OTEL_METRIC_EXPORT_INTERVAL OTEL_METRIC_EXPORT_TIMEOUT
-    OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT
-    OTEL_SPAN_EVENT_COUNT_LIMIT OTEL_SPAN_LINK_COUNT_LIMIT
-    OTEL_EVENT_ATTRIBUTE_COUNT_LIMIT OTEL_LINK_ATTRIBUTE_COUNT_LIMIT
-    OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT
-    OTEL_ATTRIBUTE_COUNT_LIMIT OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT
-    OTEL_PROPAGATORS
-  )
-
   setup do
     on_exit(fn ->
-      Enum.each(@env_vars, &System.delete_env/1)
-      for k <- [:trace, :metrics, :logs, :propagators], do: Application.delete_env(:otel, k)
+      for k <- [:trace, :metrics, :logs, :propagators, :disabled],
+          do: Application.delete_env(:otel, k)
     end)
 
     :ok
   end
 
   describe "disabled?/0" do
-    test "default false; env var \"true\" → true" do
+    test "default false; :disabled Application env true → true" do
       assert Otel.SDK.Config.disabled?() == false
 
-      System.put_env("OTEL_SDK_DISABLED", "false")
+      Application.put_env(:otel, :disabled, false)
       assert Otel.SDK.Config.disabled?() == false
 
-      System.put_env("OTEL_SDK_DISABLED", "true")
+      Application.put_env(:otel, :disabled, true)
       assert Otel.SDK.Config.disabled?() == true
     end
   end
@@ -76,18 +63,6 @@ defmodule Otel.SDK.ConfigTest do
       assert Otel.SDK.Config.metrics().exemplar_filter == :trace_based
     end
 
-    test "ignores OTEL_METRIC_EXPORT_INTERVAL (no longer read)" do
-      System.put_env("OTEL_METRIC_EXPORT_INTERVAL", "5000")
-      [{_, config}] = Otel.SDK.Config.metrics().readers
-      assert config.export_interval_ms == 60_000
-    end
-
-    test "ignores OTEL_METRIC_EXPORT_TIMEOUT (no longer read)" do
-      System.put_env("OTEL_METRIC_EXPORT_TIMEOUT", "1000")
-      [{_, config}] = Otel.SDK.Config.metrics().readers
-      assert config.export_timeout_ms == 30_000
-    end
-
     test "Application :readers shortcut (advanced override; for tests)" do
       Application.put_env(:otel, :metrics, readers: [{MyApp.Reader, %{}}])
       assert Otel.SDK.Config.metrics().readers == [{MyApp.Reader, %{}}]
@@ -119,12 +94,6 @@ defmodule Otel.SDK.ConfigTest do
 
     test "ignores Application env :propagators (no longer read)" do
       Application.put_env(:otel, :propagators, [:tracecontext])
-
-      assert {Otel.API.Propagator.TextMap.Composite, _} = Otel.SDK.Config.propagator()
-    end
-
-    test "ignores OTEL_PROPAGATORS env var (no longer read)" do
-      System.put_env("OTEL_PROPAGATORS", "baggage")
 
       assert {Otel.API.Propagator.TextMap.Composite, _} = Otel.SDK.Config.propagator()
     end

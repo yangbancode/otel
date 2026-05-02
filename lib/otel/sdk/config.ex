@@ -1,22 +1,17 @@
 defmodule Otel.SDK.Config do
   @moduledoc """
-  Composes provider configuration from three layers, in precedence
+  Composes provider configuration from two layers, in precedence
   order from highest to lowest:
 
   1. **Programmatic** — anything the caller passes directly to a
-     provider's `start_link(config: ...)` overrides every layer
+     provider's `start_link(config: ...)` overrides the layers
      below. (Outside this module's scope: providers receive the
      map this module produces and merge it with the caller's
      `start_link` config.)
-  2. **OS env (`OTEL_*`)** — spec
-     `configuration/sdk-environment-variables.md` L48-L50:
-     *"Implementations MAY choose to allow configuration via the
-     environment variables ... they SHOULD use the names and
-     value parsing behavior specified in this document."*
-  3. **Application env** — `Application.get_env(:otel, pillar,
-     [])`. Lets users configure the SDK declaratively from
+  2. **Application env** — `Application.get_env(:otel, pillar,
+     [])`. Configure the SDK declaratively from
      `config/runtime.exs` or `config/<env>.exs`.
-  4. **Built-in defaults** — defined inline below. Several
+  3. **Built-in defaults** — defined inline below. Several
      components are *hardcoded* and not configurable:
      Sampler (`parentbased_always_on`), IdGenerator (random),
      SpanProcessor / LogRecordProcessor (batch), and **exporter
@@ -25,17 +20,27 @@ defmodule Otel.SDK.Config do
 
   ## Configuration UX
 
+  The SDK reads *only* Application env. Bridge any OS env vars
+  you need from `runtime.exs` — the Phoenix `PHX_SERVER` pattern:
+
   ```elixir
   # config/runtime.exs
   config :otel,
+    disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
     trace: [
-      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
+      resource: Otel.SDK.Resource.create(%{
+        "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
+      })
     ],
     metrics: [
-      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
+      resource: Otel.SDK.Resource.create(%{
+        "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
+      })
     ],
     logs: [
-      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
+      resource: Otel.SDK.Resource.create(%{
+        "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
+      })
     ]
   ```
 
@@ -43,22 +48,14 @@ defmodule Otel.SDK.Config do
 
   | Function | Returns |
   |---|---|
-  | `disabled?/0` | `OTEL_SDK_DISABLED == true`; `Application.start/2` skips registering providers when true |
+  | `disabled?/0` | `Application.get_env(:otel, :disabled) == true`; `Application.start/2` skips registering providers when true |
   | `trace/0` | TracerProvider config map |
   | `metrics/0` | MeterProvider config map |
   | `logs/0` | LoggerProvider config map |
   | `propagator/0` | Global TextMap propagator (single module or `{Composite, [...]}`) |
 
-  ## Out of scope
-
-  - **OTLP exporter knobs** (`OTEL_EXPORTER_OTLP_*`) — already read
-    by each `Otel.OTLP.<Pillar>.Exporter.HTTP` module on its own.
-    The SDK config layer only selects *which* exporter; the chosen
-    exporter parses its own env vars at `init/1`.
-
   ## References
 
-  - OTel SDK env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md`
   - OTel Trace SDK: `opentelemetry-specification/specification/trace/sdk.md`
   - OTel Metrics SDK: `opentelemetry-specification/specification/metrics/sdk.md`
   - OTel Logs SDK: `opentelemetry-specification/specification/logs/sdk.md`
@@ -69,7 +66,13 @@ defmodule Otel.SDK.Config do
   # ====== General ======
 
   @doc """
-  Returns `true` when `OTEL_SDK_DISABLED=true` (case-insensitive).
+  Returns `true` when `config :otel, disabled: true`.
+
+  Bridge `OTEL_SDK_DISABLED` from `runtime.exs` if you need to
+  toggle via OS env (Phoenix-style):
+
+      # config/runtime.exs
+      config :otel, disabled: System.get_env("OTEL_SDK_DISABLED") == "true"
 
   Spec L113-L114 — *"Disable the SDK for all signals... If `true`,
   a no-op SDK implementation will be used for all telemetry signals.
@@ -78,7 +81,7 @@ defmodule Otel.SDK.Config do
   """
   @spec disabled?() :: boolean()
   def disabled? do
-    Otel.SDK.Config.Env.boolean("OTEL_SDK_DISABLED") == true
+    Application.get_env(:otel, :disabled, false) == true
   end
 
   # ====== Trace ======

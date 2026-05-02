@@ -1,11 +1,11 @@
 # Configuration
 
-Sources, highest priority first:
+The SDK reads only Application env. Sources, highest priority first:
 
 | # | Source |
 |---|---|
-| 1 | `config :otel, ...` in `config/*.exs` |
-| 2 | `OTEL_*` environment variables |
+| 1 | `start_link(config: ...)` passed directly to a provider |
+| 2 | `config :otel, ...` in `config/*.exs` |
 | 3 | Built-in defaults |
 
 ## Application env
@@ -18,39 +18,77 @@ config :otel,
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
   ],
   metrics: [
-    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-    reader_config: %{export_interval_ms: 30_000}
+    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
   ],
   logs: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
   ]
 ```
 
-## OS environment
+## Bridging OS environment variables (Phoenix pattern)
 
-```bash
-export OTEL_SERVICE_NAME=my_app
-export OTEL_RESOURCE_ATTRIBUTES="deployment.environment=prod,service.version=1.2.3"
+The SDK does not read `OTEL_*` env vars directly. Bridge them in
+your `runtime.exs` — same pattern as Phoenix's `PHX_SERVER`:
+
+```elixir
+# config/runtime.exs
+import Config
+
+service_name = System.get_env("OTEL_SERVICE_NAME") || "my_app"
+
+extra_attrs =
+  "OTEL_RESOURCE_ATTRIBUTES"
+  |> System.get_env("")
+  |> String.split(",", trim: true)
+  |> Map.new(fn pair ->
+    [k, v] = String.split(pair, "=", parts: 2)
+    {k, v}
+  end)
+
+resource =
+  extra_attrs
+  |> Map.put("service.name", service_name)
+  |> Otel.SDK.Resource.create()
+
+endpoint = System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+
+config :otel,
+  disabled: System.get_env("OTEL_SDK_DISABLED") == "true",
+  trace: [
+    resource: resource,
+    exporter: {Otel.OTLP.Trace.SpanExporter.HTTP, %{endpoint: endpoint}}
+  ],
+  metrics: [
+    resource: resource,
+    readers: [
+      {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
+       %{exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{endpoint: endpoint}}}}
+    ]
+  ],
+  logs: [
+    resource: resource,
+    exporter: {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{endpoint: endpoint}}
+  ]
 ```
 
 ## Disable the SDK
 
-`OTEL_SDK_DISABLED=true` makes telemetry calls no-ops. Propagator stays active.
+`config :otel, disabled: true` makes telemetry calls no-ops. Propagator
+stays active.
 
 ## Trace pillar
 
 Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Trace.SpanExporter.HTTP`).
 No `exporter:` option, no Console exporter, no `:none` shortcut. To stop
-emitting telemetry, set `config :otel, disabled: true` (or
-`OTEL_SDK_DISABLED=true`).
+emitting telemetry, set `config :otel, disabled: true`.
 
 Sampling is hardcoded to `parentbased_always_on`
 (`Otel.SDK.Trace.Sampler`); no `sampler:` option is accepted.
 
-| Option | `config :otel, trace:` | `OTEL_*` | Accepted values | Default |
-|---|---|---|---|---|
-| Processor list | `processors:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
+| Option | `config :otel, trace:` | Accepted values | Default |
+|---|---|---|---|
+| Processor list | `processors:` | list of `{module, config}` (advanced override; mostly for tests) | inferred |
+| Resource | `resource:` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes + `service.name=unknown_service` |
 
 ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
 (random non-zero 128-bit trace IDs / 64-bit span IDs); no
@@ -59,14 +97,11 @@ ID generation is hardcoded to `Otel.SDK.Trace.IdGenerator`
 Span batch processor knobs (`max_queue_size: 2048`,
 `scheduled_delay_ms: 5000`, `export_timeout_ms: 30_000`,
 `max_export_batch_size: 512`) are hardcoded to spec defaults
-(`trace/sdk.md` L1109-L1118); `OTEL_BSP_*` env vars are not
-read.
+(`trace/sdk.md` L1109-L1118).
 
 Span limits are hardcoded to spec defaults (all `128`,
 `attribute_value_length_limit: :infinity`, see
-`trace/sdk.md` L868-871 and `common/README.md` L305-306);
-`OTEL_SPAN_*_LIMIT` / `OTEL_EVENT_*` / `OTEL_LINK_*` /
-`OTEL_ATTRIBUTE_*` env vars are not read. The
+`trace/sdk.md` L868-871 and `common/README.md` L305-306). The
 `:span_limits` Application-env keyword is retained as an
 advanced override for tests that need to exercise the
 limit-enforcement code paths with small caps.
@@ -75,22 +110,19 @@ limit-enforcement code paths with small caps.
 
 Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter.HTTP`).
 
-| Option | `config :otel, metrics:` | `OTEL_*` | Accepted values | Default |
-|---|---|---|---|---|
-| Reader list | `readers:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
+| Option | `config :otel, metrics:` | Accepted values | Default |
+|---|---|---|---|
+| Reader list | `readers:` | list of `{module, config}` (advanced override; mostly for tests) | inferred |
+| Resource | `resource:` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes + `service.name=unknown_service` |
 
 PeriodicExporting reader interval / timeout are hardcoded to
 spec defaults (`metrics/sdk.md` L1450-L1453:
 `exportIntervalMillis` `60000`, `exportTimeoutMillis`
-`30000`). `OTEL_METRIC_EXPORT_INTERVAL` /
-`OTEL_METRIC_EXPORT_TIMEOUT` env vars and the
-`:reader_config` Application-env keyword are no longer read.
+`30000`).
 
 Exemplar filter is hardcoded to **`:trace_based`** — the
 spec default per `metrics/sdk.md` L1123 (*"The default value
-SHOULD be `TraceBased`"*). `OTEL_METRICS_EXEMPLAR_FILTER`
-env var is no longer read. The `:exemplar_filter`
+SHOULD be `TraceBased`"*). The `:exemplar_filter`
 Application-env keyword is retained as an advanced override
 for tests that exercise the `:always_on` / `:always_off`
 filter paths.
@@ -99,22 +131,21 @@ filter paths.
 
 Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Logs.LogRecordExporter.HTTP`).
 
-| Option | `config :otel, logs:` | `OTEL_*` | Accepted values | Default |
-|---|---|---|---|---|
-| Processor list | `processors:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
+| Option | `config :otel, logs:` | Accepted values | Default |
+|---|---|---|---|
+| Processor list | `processors:` | list of `{module, config}` (advanced override; mostly for tests) | inferred |
+| Resource | `resource:` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes + `service.name=unknown_service` |
 
 LogRecord batch processor knobs (same shape as the trace
 pillar, with `scheduled_delay_ms` defaulting to `1000`) are
-hardcoded; `OTEL_BLRP_*` env vars are not read.
+hardcoded.
 
 LogRecord limits are hardcoded to spec defaults
 (`attribute_count_limit: 128`,
 `attribute_value_length_limit: :infinity`, see
-`logs/sdk.md` L321 and `common/README.md` L305-306);
-`OTEL_LOGRECORD_*_LIMIT` / `OTEL_ATTRIBUTE_*` env vars
-are not read. The `:log_record_limits` Application-env
-keyword is retained as an advanced override for tests.
+`logs/sdk.md` L321 and `common/README.md` L305-306). The
+`:log_record_limits` Application-env keyword is retained as
+an advanced override for tests.
 
 ## Propagators
 
@@ -123,9 +154,7 @@ Propagators are hardcoded to
 default per `sdk-environment-variables.md` L118 and
 `context/api-propagators.md` L329-331. Not configurable.
 
-The `:propagators` Application-env keyword and
-`OTEL_PROPAGATORS` env var are no longer read. Other
-spec-listed propagators (`:b3`, `:b3multi`, `:jaeger`,
+Other spec-listed propagators (`:b3`, `:b3multi`, `:jaeger`,
 `:xray`, `:ottrace`) are not supported in this SDK; users
 needing them should use `opentelemetry-erlang`.
 
