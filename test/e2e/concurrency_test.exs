@@ -84,7 +84,7 @@ defmodule Otel.E2E.ConcurrencyTest do
     test "3: trace + log + metric emitted concurrently — each backend receives",
          %{e2e_id: e2e_id} do
       tracer = Otel.Trace.TracerProvider.get_tracer(scope())
-      logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
+      logger = Otel.Logs.LoggerProvider.get_logger(scope())
       meter = Otel.Metrics.MeterProvider.get_meter(scope())
       counter = Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_conc_3_#{e2e_id}")
 
@@ -98,7 +98,7 @@ defmodule Otel.E2E.ConcurrencyTest do
           )
         end),
         Task.async(fn ->
-          Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+          Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
             severity_number: 9,
             body: "scenario-conc-3-#{e2e_id}",
             attributes: %{"e2e.id" => e2e_id}

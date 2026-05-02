@@ -27,7 +27,7 @@ defmodule Otel.E2E.Case do
   @spec flush() :: :ok
   def flush do
     Otel.Trace.TracerProvider.force_flush(Otel.Trace.TracerProvider)
-    Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
+    Otel.Logs.LoggerProvider.force_flush(Otel.Logs.LoggerProvider)
     Otel.Metrics.MeterProvider.force_flush(Otel.Metrics.MeterProvider)
     :ok
   end

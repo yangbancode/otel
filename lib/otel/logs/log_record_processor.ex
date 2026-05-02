@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.LogRecordProcessor do
+defmodule Otel.Logs.LogRecordProcessor do
   @moduledoc """
   Hardcoded batching `LogRecordProcessor` — the only
   LogRecordProcessor this SDK ships.
@@ -124,7 +124,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   @type config :: term()
 
   @typedoc """
-  Subset of `Otel.API.Logs.Logger.enabled_opts/0` excluding
+  Subset of `Otel.Logs.Logger.enabled_opts/0` excluding
   `:ctx`. Spec §LogRecordProcessor L423-L426 lists the four
   `Enabled` parameters (Context, Instrumentation Scope, Severity
   Number, Event Name) as separate inputs, so this layer surfaces
@@ -136,7 +136,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   only ever pass this subset.
   """
   @type enabled_opts :: [
-          {:severity_number, Otel.API.Logs.severity_number()}
+          {:severity_number, Otel.Logs.severity_number()}
           | {:event_name, String.t()}
         ]
 
@@ -149,8 +149,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
 
     @typedoc false
     @type t :: %__MODULE__{
-            exporter: {module(), Otel.SDK.Logs.LogRecordExporter.state()},
-            queue: [Otel.SDK.Logs.LogRecord.t()],
+            exporter: {module(), Otel.Logs.LogRecordExporter.state()},
+            queue: [Otel.Logs.LogRecord.t()],
             queue_size: non_neg_integer(),
             runner: {pid(), reference()} | nil,
             pending_call: pending_call() | nil,
@@ -205,9 +205,9 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   `max_export_batch_size`.
   """
   @spec on_emit(
-          log_record :: Otel.SDK.Logs.LogRecord.t(),
+          log_record :: Otel.Logs.LogRecord.t(),
           ctx :: Otel.Ctx.t(),
-          config :: Otel.SDK.Logs.LogRecordProcessor.config()
+          config :: Otel.Logs.LogRecordProcessor.config()
         ) :: :ok
   def on_emit(log_record, _ctx, %{pid: pid}) do
     :gen_statem.cast(pid, {:add_record, log_record})
@@ -222,8 +222,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   @spec enabled?(
           ctx :: Otel.Ctx.t(),
           scope :: Otel.InstrumentationScope.t(),
-          opts :: Otel.SDK.Logs.LogRecordProcessor.enabled_opts(),
-          config :: Otel.SDK.Logs.LogRecordProcessor.config()
+          opts :: Otel.Logs.LogRecordProcessor.enabled_opts(),
+          config :: Otel.Logs.LogRecordProcessor.config()
         ) :: boolean()
   def enabled?(_ctx, _scope, _opts, _config), do: true
 
@@ -245,7 +245,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   rather than silently succeeded.
   """
   @spec shutdown(
-          config :: Otel.SDK.Logs.LogRecordProcessor.config(),
+          config :: Otel.Logs.LogRecordProcessor.config(),
           timeout :: timeout()
         ) :: :ok | {:error, term()}
   def shutdown(%{pid: pid}, timeout \\ @default_shutdown_timeout_ms) do
@@ -272,7 +272,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   classifies this as failed.
   """
   @spec force_flush(
-          config :: Otel.SDK.Logs.LogRecordProcessor.config(),
+          config :: Otel.Logs.LogRecordProcessor.config(),
           timeout :: timeout()
         ) :: :ok | {:error, term()}
   def force_flush(%{pid: pid}, timeout \\ @default_force_flush_timeout_ms) do
@@ -312,7 +312,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
           event_content ::
             :idle
             | :exporting
-            | {:add_record, Otel.SDK.Logs.LogRecord.t()}
+            | {:add_record, Otel.Logs.LogRecord.t()}
             | {:force_flush | :shutdown, integer() | :infinity}
             | :export_timer
             | :pending_deadline
@@ -394,7 +394,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
           event_content ::
             :idle
             | :exporting
-            | {:add_record, Otel.SDK.Logs.LogRecord.t()}
+            | {:add_record, Otel.Logs.LogRecord.t()}
             | {:force_flush | :shutdown, integer() | :infinity}
             | :export_timer
             | :export_timeout
@@ -497,7 +497,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
 
   # --- Private helpers ---
 
-  @spec enqueue(state :: State.t(), log_record :: Otel.SDK.Logs.LogRecord.t()) :: State.t()
+  @spec enqueue(state :: State.t(), log_record :: Otel.Logs.LogRecord.t()) :: State.t()
   defp enqueue(state, _log_record) when state.queue_size >= @max_queue_size do
     # Queue full — drop record (spec L540-L541). Count it; the next
     # `:export_timer` cycle will surface the throttled total via
@@ -526,7 +526,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   @spec warn_queue_full_drops(count :: pos_integer()) :: :ok
   defp warn_queue_full_drops(count) do
     Logger.warning(
-      "Otel.SDK.Logs.LogRecordProcessor: queue full — dropped #{count} " <>
+      "Otel.Logs.LogRecordProcessor: queue full — dropped #{count} " <>
         "log record#{if count == 1, do: "", else: "s"} since last report"
     )
 
@@ -539,7 +539,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   @spec warn_exporter_crashed(reason :: term()) :: :ok
   defp warn_exporter_crashed(reason) do
     Logger.warning(
-      "Otel.SDK.Logs.LogRecordProcessor: exporter crashed with " <>
+      "Otel.Logs.LogRecordProcessor: exporter crashed with " <>
         "#{inspect(reason)} — batch dropped, processor remains active"
     )
 
@@ -552,7 +552,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   @spec warn_exporter_timeout(timeout_ms :: pos_integer()) :: :ok
   defp warn_exporter_timeout(timeout_ms) do
     Logger.warning(
-      "Otel.SDK.Logs.LogRecordProcessor: exporter timed out after " <>
+      "Otel.Logs.LogRecordProcessor: exporter timed out after " <>
         "#{timeout_ms}ms — runner killed, batch dropped"
     )
 
@@ -575,8 +575,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
 
   @spec spawn_runner(
           parent :: pid(),
-          exporter :: {module(), Otel.SDK.Logs.LogRecordExporter.state()},
-          batch :: [Otel.SDK.Logs.LogRecord.t()]
+          exporter :: {module(), Otel.Logs.LogRecordExporter.state()},
+          batch :: [Otel.Logs.LogRecord.t()]
         ) :: {pid(), reference()}
   defp spawn_runner(parent, {module, exporter_state}, batch) do
     spawn_monitor(fn ->

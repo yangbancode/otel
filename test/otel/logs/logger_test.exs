@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.LoggerTest do
+defmodule Otel.Logs.LoggerTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
@@ -27,20 +27,17 @@ defmodule Otel.SDK.Logs.LoggerTest do
   end
 
   defp logger_for(scope_name, version \\ "1.0.0") do
-    {_mod, config} =
-      Otel.SDK.Logs.LoggerProvider.get_logger(
-        Otel.SDK.Logs.LoggerProvider,
-        %Otel.InstrumentationScope{name: scope_name, version: version}
-      )
-
-    {Otel.SDK.Logs.Logger, config}
+    Otel.Logs.LoggerProvider.get_logger(
+      Otel.Logs.LoggerProvider,
+      %Otel.InstrumentationScope{name: scope_name, version: version}
+    )
   end
 
   defp logger_with_limits(limit_overrides) do
     restart_sdk(
       logs: [
         processors: [{CollectorProcessor, %{test_pid: self()}}],
-        log_record_limits: struct(Otel.SDK.Logs.LogRecordLimits, limit_overrides)
+        log_record_limits: struct(Otel.Logs.LogRecordLimits, limit_overrides)
       ]
     )
 
@@ -58,11 +55,11 @@ defmodule Otel.SDK.Logs.LoggerTest do
       ctx = Otel.Ctx.current()
 
       before = System.system_time(:nanosecond)
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "auto"})
+      Otel.Logs.Logger.emit(logger, ctx, %Otel.Logs.LogRecord{body: "auto"})
       assert_receive {:log_record, auto}
       assert auto.observed_timestamp >= before
 
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, ctx, %Otel.Logs.LogRecord{
         body: "manual",
         observed_timestamp: 42
       })
@@ -72,7 +69,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "decorates with scope, resource, trace context, and proto3 defaults", %{logger: logger} do
-      Otel.SDK.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.API.Logs.LogRecord{})
+      Otel.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.Logs.LogRecord{})
       assert_receive {:log_record, record}
 
       assert record.scope.name == "test_lib"
@@ -91,7 +88,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "passes user-provided fields through verbatim", %{logger: logger} do
-      Otel.SDK.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.Logs.LogRecord{
         timestamp: 1_000_000,
         severity_number: 9,
         severity_text: "INFO",
@@ -110,8 +107,8 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
   end
 
-  test "emit via Otel.API.Logs.Logger dispatch reaches the SDK Logger", %{logger: logger} do
-    Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{body: "via API"})
+  test "emit via Otel.Logs.Logger dispatch reaches the SDK Logger", %{logger: logger} do
+    Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{body: "via API"})
     assert_receive {:log_record, %{body: "via API"}}
   end
 
@@ -121,12 +118,12 @@ defmodule Otel.SDK.Logs.LoggerTest do
       ctx = Otel.Ctx.current()
       ex = %RuntimeError{message: "auto"}
 
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "e", exception: ex})
+      Otel.Logs.Logger.emit(logger, ctx, %Otel.Logs.LogRecord{body: "e", exception: ex})
       assert_receive {:log_record, auto}
       assert auto.attributes["exception.type"] == "Elixir.RuntimeError"
       assert auto.attributes["exception.message"] == "auto"
 
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, ctx, %Otel.Logs.LogRecord{
         body: "e",
         exception: ex,
         attributes: %{"exception.message" => "user override"}
@@ -138,7 +135,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "no exception → no exception attributes injected", %{logger: logger} do
-      Otel.SDK.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.Logs.LogRecord{
         body: "normal"
       })
 
@@ -149,10 +146,10 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
   describe "Logger.enabled?/2" do
     test "true when at least one processor exists; false when none", %{logger: logger} do
-      assert Otel.SDK.Logs.Logger.enabled?(logger, [])
+      assert Otel.Logs.Logger.enabled?(logger, [])
 
       restart_sdk(logs: [processors: []])
-      refute Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
+      refute Otel.Logs.Logger.enabled?(logger_for("lib"), [])
     end
   end
 
@@ -161,7 +158,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
       logger = logger_with_limits(attribute_value_length_limit: 5)
       ctx = Otel.Ctx.current()
 
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, ctx, %Otel.Logs.LogRecord{
         attributes: %{"key" => "abcdefgh"}
       })
 
@@ -171,7 +168,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
       logger = logger_with_limits(attribute_count_limit: 2)
 
-      Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, ctx, %Otel.Logs.LogRecord{
         attributes: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
       })
 
@@ -183,10 +180,10 @@ defmodule Otel.SDK.Logs.LoggerTest do
     test "warns once with the right phrase when limits trim; silent when within limits" do
       drop_log =
         capture_log(fn ->
-          Otel.SDK.Logs.Logger.emit(
+          Otel.Logs.Logger.emit(
             logger_with_limits(attribute_count_limit: 1),
             Otel.Ctx.current(),
-            %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => 2, "c" => 3}}
+            %Otel.Logs.LogRecord{attributes: %{"a" => 1, "b" => 2, "c" => 3}}
           )
         end)
 
@@ -195,10 +192,10 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
       truncate_log =
         capture_log(fn ->
-          Otel.SDK.Logs.Logger.emit(
+          Otel.Logs.Logger.emit(
             logger_with_limits(attribute_value_length_limit: 3),
             Otel.Ctx.current(),
-            %Otel.API.Logs.LogRecord{attributes: %{"key" => "abcdefg"}}
+            %Otel.Logs.LogRecord{attributes: %{"key" => "abcdefg"}}
           )
         end)
 
@@ -208,10 +205,10 @@ defmodule Otel.SDK.Logs.LoggerTest do
       # When both effects occur in one record, drop wins; only one warning.
       both_log =
         capture_log(fn ->
-          Otel.SDK.Logs.Logger.emit(
+          Otel.Logs.Logger.emit(
             logger_with_limits(attribute_count_limit: 1, attribute_value_length_limit: 3),
             Otel.Ctx.current(),
-            %Otel.API.Logs.LogRecord{attributes: %{"a" => "abcdef", "b" => "ghijkl"}}
+            %Otel.Logs.LogRecord{attributes: %{"a" => "abcdef", "b" => "ghijkl"}}
           )
         end)
 
@@ -228,10 +225,10 @@ defmodule Otel.SDK.Logs.LoggerTest do
 
       silent_log =
         capture_log(fn ->
-          Otel.SDK.Logs.Logger.emit(
+          Otel.Logs.Logger.emit(
             logger_for("lib"),
             Otel.Ctx.current(),
-            %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => "short"}}
+            %Otel.Logs.LogRecord{attributes: %{"a" => 1, "b" => "short"}}
           )
         end)
 

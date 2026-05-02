@@ -5,7 +5,7 @@ defmodule Otel.E2E.LogHandlerTest do
 
   `setup_all` registers `:otel_e2e` as a `:logger` handler so
   `:logger.log/3` calls flow through `Otel.LoggerHandler` →
-  `Otel.API.Logs.Logger.emit/2` → the SDK pipeline → Loki. The
+  `Otel.Logs.Logger.emit/2` → the SDK pipeline → Loki. The
   handler is removed in `on_exit` so subsequent e2e modules
   don't see duplicated emits.
 

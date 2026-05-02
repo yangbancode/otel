@@ -5,11 +5,10 @@ defmodule Otel.LoggerHandler do
   §How to Create a Log4J Log Appender).
 
   Converts `:logger.log_event/0` into an
-  `Otel.API.Logs.LogRecord.t/0` and emits it via
-  `Otel.API.Logs.Logger.emit/3`. When an SDK is installed,
-  records flow through processors to exporters; without an
-  SDK, `emit/3` routes to `Otel.API.Logs.Logger.Noop` and
-  becomes a silent no-op.
+  `Otel.Logs.LogRecord.t/0` and emits it via
+  `Otel.Logs.Logger.emit/3`. Records flow through registered
+  processors to exporters; if no processors are registered
+  the emit is a silent no-op.
 
   ## Usage
 
@@ -35,19 +34,12 @@ defmodule Otel.LoggerHandler do
 
   `log/2` builds an `%Otel.InstrumentationScope{}` from the
   four `scope_*` keys on every event and resolves the Logger
-  through `Otel.API.Logs.LoggerProvider.get_logger/1`. Resolution
-  is deliberately done per-event rather than cached at
-  `adding_handler/1` time — caching the resolved Logger would
-  lock in whatever was registered when the handler was added
-  (typically Noop during kernel start-up, before any SDK
-  `LoggerProvider.set_provider/1` runs), and every subsequent
-  event would silently drop through that stale Noop even after
-  the SDK comes up.
-
-  To use a custom Logger implementation (e.g. for testing),
-  register a custom `Otel.API.Logs.LoggerProvider` via
-  `Otel.API.Logs.LoggerProvider.set_provider/1` — `log/2` will
-  obtain the Logger through that provider on every call.
+  through `Otel.Logs.LoggerProvider.get_logger/1`. Resolution
+  is per-event rather than cached at `adding_handler/1`
+  time so that a Logger obtained before the SDK started — or
+  before its processor list was finalised — does not lock the
+  handler into stale state for the rest of the system's
+  lifetime.
 
   Batching and export are handled by the SDK's processor
   pipeline, not by this handler. Pair with `BatchProcessor`
@@ -88,7 +80,7 @@ defmodule Otel.LoggerHandler do
   is not what the `SeverityText` field is for.
 
   The mapping is internal to this module rather than shared
-  in `otel_api` — `Otel.API.Logs` owns the two **types**
+  in `otel_api` — `Otel.Logs` owns the two **types**
   (`severity_number/0`, `severity_level/0`) but the
   `:logger`-specific conversion lives where it is consumed.
   Other bridges targeting non-`:logger` sources (e.g. a
@@ -252,7 +244,7 @@ defmodule Otel.LoggerHandler do
   halves of the tuple land in two OTel-aligned destinations:
 
   - **`exception` struct** → `log_record.exception` field
-    (`t:Otel.API.Logs.LogRecord.t/0`). API-layer MAY-accepted
+    (`t:Otel.Logs.LogRecord.t/0`). API-layer MAY-accepted
     sidecar per `api.md` L131. SDK converts this to the
     stable `exception.type` and `exception.message`
     attributes (reading `.__struct__` and calling
@@ -360,9 +352,9 @@ defmodule Otel.LoggerHandler do
   def log(log_event, config) do
     ctx = Otel.Ctx.current()
     instrumentation_scope = build_instrumentation_scope(config)
-    logger = Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
+    logger = Otel.Logs.LoggerProvider.get_logger(instrumentation_scope)
     log_record = build_log_record(log_event)
-    Otel.API.Logs.Logger.emit(logger, ctx, log_record)
+    Otel.Logs.Logger.emit(logger, ctx, log_record)
     :ok
   end
 
@@ -396,9 +388,9 @@ defmodule Otel.LoggerHandler do
   end
 
   @spec build_log_record(log_event :: :logger.log_event()) ::
-          Otel.API.Logs.LogRecord.t()
+          Otel.Logs.LogRecord.t()
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
-    %Otel.API.Logs.LogRecord{
+    %Otel.Logs.LogRecord{
       timestamp: to_timestamp(meta),
       severity_number: to_severity_number(level),
       severity_text: to_severity_text(level),
@@ -656,7 +648,7 @@ defmodule Otel.LoggerHandler do
   # because only this handler consumes it — other bridges
   # define their own mapping from their source format.
   @spec to_severity_number(level :: :logger.level()) ::
-          Otel.API.Logs.severity_number()
+          Otel.Logs.severity_number()
   defp to_severity_number(:emergency), do: 21
   defp to_severity_number(:alert), do: 19
   defp to_severity_number(:critical), do: 18
@@ -676,13 +668,13 @@ defmodule Otel.LoggerHandler do
   # §Displaying Severity L334-L363, not what `SeverityText`
   # is for.
   #
-  # Return type is `Otel.API.Logs.severity_level()` rather
+  # Return type is `Otel.Logs.severity_level()` rather
   # than `String.t()` to document that the output is one of
   # the 8 valid `:logger`-level strings, not arbitrary text.
   # `severity_level()` is a `String.t()` alias under the
   # hood (Elixir typespecs cannot express a literal string
   # union), so Dialyzer inference is unchanged — the tighter
   # name is for readers.
-  @spec to_severity_text(level :: :logger.level()) :: Otel.API.Logs.severity_level()
+  @spec to_severity_text(level :: :logger.level()) :: Otel.Logs.severity_level()
   defp to_severity_text(level), do: Atom.to_string(level)
 end

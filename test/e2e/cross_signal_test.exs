@@ -36,14 +36,14 @@ defmodule Otel.E2E.CrossSignalTest do
     test "1: log emitted inside with_span carries the same trace_id to Loki",
          %{e2e_id: e2e_id} do
       tracer = Otel.Trace.TracerProvider.get_tracer(scope())
-      logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
+      logger = Otel.Logs.LoggerProvider.get_logger(scope())
 
       Otel.Trace.with_span(
         tracer,
         "scenario-1-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
-          Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+          Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
             body: "scenario-1-log-#{e2e_id}",
             severity_number: 9,
             attributes: %{"e2e.id" => e2e_id}
@@ -96,7 +96,7 @@ defmodule Otel.E2E.CrossSignalTest do
 
     test "3: service.name is consistent across all 3 pillars", %{e2e_id: e2e_id} do
       tracer = Otel.Trace.TracerProvider.get_tracer(scope())
-      logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
+      logger = Otel.Logs.LoggerProvider.get_logger(scope())
       meter = Otel.Metrics.MeterProvider.get_meter(scope())
       metric = "e2e_cross_signal_3_#{e2e_id}"
 
@@ -107,7 +107,7 @@ defmodule Otel.E2E.CrossSignalTest do
         fn _ -> :ok end
       )
 
-      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
         body: "scenario-3-log-#{e2e_id}",
         severity_number: 9,
         attributes: %{"e2e.id" => e2e_id}
@@ -149,7 +149,7 @@ defmodule Otel.E2E.CrossSignalTest do
       }
 
       tracer = Otel.Trace.TracerProvider.get_tracer(shared_scope)
-      logger = Otel.API.Logs.LoggerProvider.get_logger(shared_scope)
+      logger = Otel.Logs.LoggerProvider.get_logger(shared_scope)
       meter = Otel.Metrics.MeterProvider.get_meter(shared_scope)
       metric = "e2e_cross_signal_4_#{e2e_id}"
 
@@ -160,7 +160,7 @@ defmodule Otel.E2E.CrossSignalTest do
         fn _ -> :ok end
       )
 
-      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
         body: "scenario-4-log-#{e2e_id}",
         severity_number: 9,
         attributes: %{"e2e.id" => e2e_id}

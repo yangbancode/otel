@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Logs.LoggerProvider do
+defmodule Otel.Logs.LoggerProvider do
   @moduledoc """
   SDK implementation of the LoggerProvider.
 
@@ -65,7 +65,6 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   require Logger
 
   use GenServer
-  @behaviour Otel.API.Logs.LoggerProvider
 
   @typedoc """
   A registered processor in the provider state.
@@ -82,7 +81,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   @type processor_entry :: %{
           module: module(),
           pid: pid() | nil,
-          callback_config: Otel.SDK.Logs.LogRecordProcessor.config()
+          callback_config: Otel.Logs.LogRecordProcessor.config()
         }
 
   @typedoc """
@@ -96,13 +95,13 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     `force_flush/2` / `shutdown/2` reply with
     `{:error, :already_shutdown}`.
   - `:processors_key` is the `:persistent_term` key under
-    which `Otel.SDK.Logs.Logger` reads the projected
+    which `Otel.Logs.Logger` reads the projected
     `[{module, callback_config}]` list on every emit.
   """
   @type config :: %{
           resource: Otel.Resource.t(),
           processors: [processor_entry()],
-          log_record_limits: Otel.SDK.Logs.LogRecordLimits.t(),
+          log_record_limits: Otel.Logs.LogRecordLimits.t(),
           shut_down: boolean(),
           processors_key: {module(), :processors, reference()}
         }
@@ -129,12 +128,9 @@ defmodule Otel.SDK.Logs.LoggerProvider do
           server :: GenServer.server(),
           instrumentation_scope :: Otel.InstrumentationScope.t()
         ) ::
-          Otel.API.Logs.Logger.t()
-  @impl Otel.API.Logs.LoggerProvider
-  def get_logger(server, %Otel.InstrumentationScope{} = instrumentation_scope) do
+          Otel.Logs.Logger.t()
+  def get_logger(server \\ __MODULE__, %Otel.InstrumentationScope{} = instrumentation_scope) do
     GenServer.call(server, {:get_logger, instrumentation_scope})
-  catch
-    :exit, {:noproc, _} -> {Otel.API.Logs.Logger.Noop, []}
   end
 
   @doc """
@@ -205,7 +201,6 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   # --- Server Callbacks ---
 
-  @impl true
   def init(user_config) do
     Process.flag(:trap_exit, true)
 
@@ -223,21 +218,11 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
     :persistent_term.put(processors_key, project_processors(started))
 
-    Otel.API.Logs.LoggerProvider.set_provider({__MODULE__, self_ref()})
     {:ok, config}
   end
 
-  @spec self_ref() :: atom() | pid()
-  defp self_ref do
-    case Process.info(self(), :registered_name) do
-      {:registered_name, name} when is_atom(name) -> name
-      _ -> self()
-    end
-  end
-
-  @impl true
   def handle_call({:get_logger, _instrumentation_scope}, _from, %{shut_down: true} = config) do
-    {:reply, {Otel.API.Logs.Logger.Noop, []}, config}
+    {:reply, %Otel.Logs.Logger{}, config}
   end
 
   def handle_call(
@@ -254,8 +239,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
       log_record_limits: config.log_record_limits
     }
 
-    logger = {Otel.SDK.Logs.Logger, logger_config}
-    {:reply, logger, config}
+    {:reply, %Otel.Logs.Logger{config: logger_config}, config}
   end
 
   def handle_call({:shutdown, _timeout}, _from, %{shut_down: true} = config) do
@@ -284,7 +268,6 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     {:reply, config, config}
   end
 
-  @impl true
   def handle_info({:EXIT, _pid, _reason}, %{shut_down: true} = config) do
     # Already shutting down — ignore late EXIT signals from
     # processors we just terminated.
@@ -316,7 +299,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     %{
       resource: Otel.Resource.default(),
       processors: [],
-      log_record_limits: %Otel.SDK.Logs.LogRecordLimits{}
+      log_record_limits: %Otel.Logs.LogRecordLimits{}
     }
   end
 
@@ -341,7 +324,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   @spec project_processors([processor_entry()]) ::
-          [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
+          [{module(), Otel.Logs.LogRecordProcessor.config()}]
   defp project_processors(processors) do
     Enum.map(processors, fn %{module: m, callback_config: c} -> {m, c} end)
   end
@@ -379,7 +362,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
   defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
     Logger.warning(
-      "Otel.SDK.Logs.LoggerProvider: invalid Logger name (empty string) — returning a working Logger as fallback per spec L78-L81"
+      "Otel.Logs.LoggerProvider: invalid Logger name (empty string) — returning a working Logger as fallback per spec L78-L81"
     )
 
     :ok
@@ -392,7 +375,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   @spec warn_processor_exited(module :: module(), pid :: pid(), reason :: term()) :: :ok
   defp warn_processor_exited(module, pid, reason) do
     Logger.warning(
-      "Otel.SDK.Logs.LoggerProvider: LogRecordProcessor #{inspect(module)} " <>
+      "Otel.Logs.LoggerProvider: LogRecordProcessor #{inspect(module)} " <>
         "(#{inspect(pid)}) exited with #{inspect(reason)} — removed from active list"
     )
 
