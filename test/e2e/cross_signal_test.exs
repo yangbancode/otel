@@ -143,7 +143,7 @@ defmodule Otel.E2E.CrossSignalTest do
          %{e2e_id: e2e_id} do
       scope_name = "e2e-cross-signal-4-#{e2e_id}"
 
-      shared_scope = %Otel.API.InstrumentationScope{
+      shared_scope = %Otel.InstrumentationScope{
         name: scope_name,
         version: "0.1.0"
       }

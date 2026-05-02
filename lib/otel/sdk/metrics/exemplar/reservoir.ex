@@ -18,7 +18,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
   concurrency options.
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @callback new(opts :: map()) :: state :: term()
 
@@ -27,7 +27,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
               value :: number(),
               time :: non_neg_integer(),
               filtered_attributes :: %{String.t() => primitive_any()},
-              ctx :: Otel.API.Ctx.t()
+              ctx :: Otel.Ctx.t()
             ) :: state :: term()
 
   @callback collect(state :: term()) :: {[Otel.SDK.Metrics.Exemplar.t()], state :: term()}
@@ -38,7 +38,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir do
           value :: number(),
           time :: non_neg_integer(),
           filtered_attributes :: %{String.t() => primitive_any()},
-          ctx :: Otel.API.Ctx.t()
+          ctx :: Otel.Ctx.t()
         ) :: {module(), term()} | nil
   def offer(nil, _filter, _value, _time, _attrs, _ctx), do: nil
 

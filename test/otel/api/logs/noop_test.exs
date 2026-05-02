@@ -5,7 +5,7 @@ defmodule Otel.API.Logs.Logger.NoopTest do
   # MUST NOT return any non-empty error or log any message."
 
   @logger {Otel.API.Logs.Logger.Noop, []}
-  @ctx Otel.API.Ctx.current()
+  @ctx Otel.Ctx.current()
 
   describe "emit/3 — silently discards every shape of log record" do
     test "minimal record" do

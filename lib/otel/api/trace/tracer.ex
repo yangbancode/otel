@@ -29,7 +29,7 @@ defmodule Otel.API.Trace.Tracer do
   ## Lifecycle-ownership invariant
 
   `with_span/5` is a callback, not an API-layer helper, because
-  the operation attaches a new `Otel.API.Ctx` to the process and
+  the operation attaches a new `Otel.Ctx` to the process and
   must guarantee detach + span end on every exit path (normal,
   throw, error, exit). The invariant is *"whichever layer
   performs the attach is responsible for detaching and for
@@ -100,7 +100,7 @@ defmodule Otel.API.Trace.Tracer do
   Options are documented by `Otel.API.Trace.Span.start_opts/0`.
   """
   @callback start_span(
-              ctx :: Otel.API.Ctx.t(),
+              ctx :: Otel.Ctx.t(),
               tracer :: t(),
               name :: String.t(),
               opts :: Otel.API.Trace.Span.start_opts()
@@ -127,7 +127,7 @@ defmodule Otel.API.Trace.Tracer do
   `fun.(span_ctx)` plus lifecycle side effects.
   """
   @callback with_span(
-              ctx :: Otel.API.Ctx.t(),
+              ctx :: Otel.Ctx.t(),
               tracer :: t(),
               name :: String.t(),
               opts :: Otel.API.Trace.Span.start_opts(),

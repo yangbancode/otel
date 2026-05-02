@@ -100,7 +100,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
     `[{module, callback_config}]` list on every emit.
   """
   @type config :: %{
-          resource: Otel.SDK.Resource.t(),
+          resource: Otel.Resource.t(),
           processors: [processor_entry()],
           log_record_limits: Otel.SDK.Logs.LogRecordLimits.t(),
           shut_down: boolean(),
@@ -127,11 +127,11 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   """
   @spec get_logger(
           server :: GenServer.server(),
-          instrumentation_scope :: Otel.API.InstrumentationScope.t()
+          instrumentation_scope :: Otel.InstrumentationScope.t()
         ) ::
           Otel.API.Logs.Logger.t()
   @impl Otel.API.Logs.LoggerProvider
-  def get_logger(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
+  def get_logger(server, %Otel.InstrumentationScope{} = instrumentation_scope) do
     GenServer.call(server, {:get_logger, instrumentation_scope})
   catch
     :exit, {:noproc, _} -> {Otel.API.Logs.Logger.Noop, []}
@@ -139,14 +139,14 @@ defmodule Otel.SDK.Logs.LoggerProvider do
 
   @doc """
   **SDK** (introspection) — Returns the resource associated
-  with this provider, or `Otel.SDK.Resource.default/0` when the
+  with this provider, or `Otel.Resource.default/0` when the
   provider isn't running.
   """
-  @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
+  @spec resource(server :: GenServer.server()) :: Otel.Resource.t()
   def resource(server) do
     GenServer.call(server, :resource)
   catch
-    :exit, {:noproc, _} -> Otel.SDK.Resource.default()
+    :exit, {:noproc, _} -> Otel.Resource.default()
   end
 
   @doc """
@@ -241,7 +241,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   end
 
   def handle_call(
-        {:get_logger, %Otel.API.InstrumentationScope{} = instrumentation_scope},
+        {:get_logger, %Otel.InstrumentationScope{} = instrumentation_scope},
         _from,
         config
       ) do
@@ -314,7 +314,7 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   @spec default_config() :: %{atom() => term()}
   defp default_config do
     %{
-      resource: Otel.SDK.Resource.default(),
+      resource: Otel.Resource.default(),
       processors: [],
       log_record_limits: %Otel.SDK.Logs.LogRecordLimits{}
     }
@@ -376,8 +376,8 @@ defmodule Otel.SDK.Logs.LoggerProvider do
   # logger) and the original-value SHOULD are satisfied
   # structurally — we always return the SDK Logger and never
   # rewrite the scope name. The warning SHOULD is enforced here.
-  @spec warn_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
-  defp warn_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+  @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
+  defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
     Logger.warning(
       "Otel.SDK.Logs.LoggerProvider: invalid Logger name (empty string) — returning a working Logger as fallback per spec L78-L81"
     )

@@ -16,7 +16,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     {_mod, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(
         Otel.SDK.Metrics.MeterProvider,
-        %Otel.API.InstrumentationScope{name: scope_name}
+        %Otel.InstrumentationScope{name: scope_name}
       )
 
     config
@@ -47,7 +47,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       assert metric.unit == "1"
       assert metric.kind == :counter
       assert metric.scope.name == "test_lib"
-      assert %Otel.SDK.Resource{} = metric.resource
+      assert %Otel.Resource{} = metric.resource
 
       [dp] = metric.datapoints
       assert dp.value == 8

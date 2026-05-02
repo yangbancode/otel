@@ -71,7 +71,7 @@ defmodule Otel.API.Propagator.TextMapTest do
 
   describe "inject/2 + extract/2 convenience" do
     test "pass through when no propagator is registered (Noop dispatch)" do
-      ctx = Otel.API.Ctx.new()
+      ctx = Otel.Ctx.new()
       carrier = [{"traceparent", "00-0af7651916cd43dd8448eb211c80319c-b7ad6b7169203331-01"}]
 
       assert Otel.API.Propagator.TextMap.inject(ctx, carrier) == carrier
@@ -82,12 +82,12 @@ defmodule Otel.API.Propagator.TextMapTest do
       Otel.API.Propagator.TextMap.set_propagator(Otel.API.Propagator.TextMap.TraceContext)
 
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx_with_span = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      ctx_with_span = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       injected = Otel.API.Propagator.TextMap.inject(ctx_with_span, [])
       assert Enum.any?(injected, fn {k, _v} -> k == "traceparent" end)
 
-      extracted = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), injected)
+      extracted = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), injected)
       assert Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.current_span(extracted))
     end
   end

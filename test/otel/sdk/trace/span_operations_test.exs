@@ -37,7 +37,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     {_, config} =
       Otel.SDK.Trace.TracerProvider.get_tracer(
         Otel.SDK.Trace.TracerProvider,
-        %Otel.API.InstrumentationScope{name: scope_name}
+        %Otel.InstrumentationScope{name: scope_name}
       )
 
     {Otel.SDK.Trace.Tracer, config}
@@ -48,7 +48,7 @@ defmodule Otel.SDK.Trace.SpanOperationsTest do
     span_limits = Keyword.get(opts, :span_limits, %Otel.SDK.Trace.SpanLimits{})
     restart_sdk(trace: [processors: processors, span_limits: span_limits])
 
-    Otel.SDK.Trace.Tracer.start_span(Otel.API.Ctx.new(), tracer_for(), "test_span", opts)
+    Otel.SDK.Trace.Tracer.start_span(Otel.Ctx.new(), tracer_for(), "test_span", opts)
   end
 
   defp stored(span_ctx), do: Otel.SDK.Trace.SpanStorage.get(span_ctx.span_id)

@@ -55,7 +55,7 @@ defmodule Otel.API.Logs.LogRecord do
   L199-L213. They are present on the struct for data-model
   parity with the wire format and the SDK LogRecord — the
   SDK populates the SDK-side LogRecord from the resolved
-  `Otel.API.Ctx.t/0` per spec L208-L213 (*"trace context
+  `Otel.Ctx.t/0` per spec L208-L213 (*"trace context
   fields MUST be populated from the resolved Context (either
   the explicitly passed Context or the current Context)"*),
   not from these input fields. Callers do not need to set
@@ -69,7 +69,7 @@ defmodule Otel.API.Logs.LogRecord do
   - OTLP proto `AnyValue` nil: `opentelemetry-proto/opentelemetry/proto/common/v1/common.proto` L25-L53
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   A LogRecord — the data model flowing through the Logs API.

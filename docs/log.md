@@ -101,7 +101,7 @@ extra wiring needed.
 ## SDK API
 
 ```elixir
-scope = %Otel.API.InstrumentationScope{name: "my_app", version: "1.0.0"}
+scope = %Otel.InstrumentationScope{name: "my_app", version: "1.0.0"}
 logger = Otel.API.Logs.LoggerProvider.get_logger(scope)
 ```
 

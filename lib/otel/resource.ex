@@ -1,4 +1,4 @@
-defmodule Otel.SDK.Resource do
+defmodule Otel.Resource do
   @moduledoc """
   Immutable representation of the entity producing telemetry
   (`resource/sdk.md` §"SDK").
@@ -23,7 +23,7 @@ defmodule Otel.SDK.Resource do
   - OTLP proto Resource: `opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto`
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @type t :: %__MODULE__{
           attributes: %{String.t() => primitive_any()},

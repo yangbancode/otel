@@ -191,13 +191,13 @@ the simple surface above and are mostly for tests.
 | Pillar | Key | Type |
 |---|---|---|
 | `trace:` | `:processors` | `[{module, config}]` |
-| `trace:` | `:resource` | `%Otel.SDK.Resource{}` (struct, not map) |
+| `trace:` | `:resource` | `%Otel.Resource{}` (struct, not map) |
 | `trace:` | `:span_limits` | `%Otel.SDK.Trace.SpanLimits{}` or keyword |
 | `metrics:` | `:readers` | `[{module, config}]` |
-| `metrics:` | `:resource` | `%Otel.SDK.Resource{}` |
+| `metrics:` | `:resource` | `%Otel.Resource{}` |
 | `metrics:` | `:exemplar_filter` | `:always_on` / `:always_off` / `:trace_based` |
 | `logs:` | `:processors` | `[{module, config}]` |
-| `logs:` | `:resource` | `%Otel.SDK.Resource{}` |
+| `logs:` | `:resource` | `%Otel.Resource{}` |
 | `logs:` | `:log_record_limits` | `%Otel.SDK.Logs.LogRecordLimits{}` or keyword |
 
 When a per-pillar override is set, the matching top-level key is

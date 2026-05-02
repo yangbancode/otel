@@ -92,9 +92,9 @@ defmodule Otel.API.Trace.TracerProvider do
   no API-level cache, see the module's *"No API-level
   Tracer cache"* section.
   """
-  @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec get_tracer(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
           Otel.API.Trace.Tracer.t()
-  def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+  def get_tracer(%Otel.InstrumentationScope{} = instrumentation_scope) do
     # Spec trace/api.md L125-L130 invalid-name SHOULD-log is
     # enforced at the SDK provider — see
     # `Otel.SDK.Trace.TracerProvider.warn_invalid_scope_name/1`.
@@ -125,7 +125,7 @@ defmodule Otel.API.Trace.TracerProvider do
   """
   @callback get_tracer(
               state :: term(),
-              instrumentation_scope :: Otel.API.InstrumentationScope.t()
+              instrumentation_scope :: Otel.InstrumentationScope.t()
             ) :: Otel.API.Trace.Tracer.t()
 
   # --- SDK installation hooks ---

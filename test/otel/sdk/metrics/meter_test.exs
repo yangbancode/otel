@@ -18,7 +18,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
     {_, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(
         Otel.SDK.Metrics.MeterProvider,
-        %Otel.API.InstrumentationScope{name: scope_name}
+        %Otel.InstrumentationScope{name: scope_name}
       )
 
     {Otel.SDK.Metrics.Meter, config}

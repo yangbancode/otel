@@ -73,7 +73,7 @@ defmodule Otel.OTLP.Trace.SpanExporter do
 
   @spec export(
           spans :: [Otel.SDK.Trace.Span.t()],
-          resource :: Otel.SDK.Resource.t(),
+          resource :: Otel.Resource.t(),
           state :: Otel.SDK.Trace.SpanExporter.state()
         ) :: :ok | :error
   @impl true

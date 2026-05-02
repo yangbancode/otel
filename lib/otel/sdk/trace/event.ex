@@ -36,7 +36,7 @@ defmodule Otel.SDK.Trace.Event do
     §"Dropped Attributes Count" L73-L80
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @type t :: %__MODULE__{
           name: String.t(),

@@ -126,13 +126,13 @@ defmodule Otel.E2E.LogSdkTest do
   describe "multi-logger" do
     test "13: distinct scopes both land, disambiguated by scope_name", %{e2e_id: e2e_id} do
       logger_a =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
           name: "lib-a-13",
           version: "0.1.0"
         })
 
       logger_b =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.API.InstrumentationScope{
+        Otel.API.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
           name: "lib-b-13",
           version: "0.1.0"
         })

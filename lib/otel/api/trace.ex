@@ -59,9 +59,9 @@ defmodule Otel.API.Trace do
   set, returns an empty `SpanContext` struct — the invalid
   sentinel (W3C §trace-id L103 + §parent-id L114).
   """
-  @spec current_span(ctx :: Otel.API.Ctx.t()) :: Otel.API.Trace.SpanContext.t()
+  @spec current_span(ctx :: Otel.Ctx.t()) :: Otel.API.Trace.SpanContext.t()
   def current_span(ctx) do
-    Otel.API.Ctx.get_value(ctx, @span_key) || %Otel.API.Trace.SpanContext{}
+    Otel.Ctx.get_value(ctx, @span_key) || %Otel.API.Trace.SpanContext{}
   end
 
   @doc """
@@ -72,22 +72,22 @@ defmodule Otel.API.Trace do
   Returns a new context with `span_ctx` stored under the Tracing
   API's private key. `ctx` is not modified.
   """
-  @spec set_current_span(ctx :: Otel.API.Ctx.t(), span_ctx :: Otel.API.Trace.SpanContext.t()) ::
-          Otel.API.Ctx.t()
+  @spec set_current_span(ctx :: Otel.Ctx.t(), span_ctx :: Otel.API.Trace.SpanContext.t()) ::
+          Otel.Ctx.t()
   def set_current_span(ctx, span_ctx) do
-    Otel.API.Ctx.set_value(ctx, @span_key, span_ctx)
+    Otel.Ctx.set_value(ctx, @span_key, span_ctx)
   end
 
   @doc """
   **Application** (OTel API SHOULD) — "Get the currently active
   span from the implicit context" (`trace/api.md` L177).
 
-  Equivalent to `current_span(Otel.API.Ctx.current())` reading
+  Equivalent to `current_span(Otel.Ctx.current())` reading
   from the process-local ambient context.
   """
   @spec current_span() :: Otel.API.Trace.SpanContext.t()
   def current_span do
-    Otel.API.Ctx.get_value(@span_key) || %Otel.API.Trace.SpanContext{}
+    Otel.Ctx.get_value(@span_key) || %Otel.API.Trace.SpanContext{}
   end
 
   @doc """
@@ -100,7 +100,7 @@ defmodule Otel.API.Trace do
   """
   @spec set_current_span(span_ctx :: Otel.API.Trace.SpanContext.t()) :: :ok
   def set_current_span(span_ctx) do
-    Otel.API.Ctx.set_value(@span_key, span_ctx)
+    Otel.Ctx.set_value(@span_key, span_ctx)
   end
 
   # --- Span Creation ---
@@ -122,7 +122,7 @@ defmodule Otel.API.Trace do
   @spec start_span(tracer :: Otel.API.Trace.Tracer.t(), name :: String.t(), opts :: start_opts()) ::
           Otel.API.Trace.SpanContext.t()
   def start_span(tracer, name, opts \\ []) do
-    start_span(Otel.API.Ctx.current(), tracer, name, opts)
+    start_span(Otel.Ctx.current(), tracer, name, opts)
   end
 
   @doc """
@@ -134,7 +134,7 @@ defmodule Otel.API.Trace do
   newly created span is not set as the current span.
   """
   @spec start_span(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
           name :: String.t(),
           opts :: start_opts()
@@ -162,7 +162,7 @@ defmodule Otel.API.Trace do
         ) :: result
         when result: term()
   def with_span(tracer, name, opts \\ [], fun) do
-    with_span(Otel.API.Ctx.current(), tracer, name, opts, fun)
+    with_span(Otel.Ctx.current(), tracer, name, opts, fun)
   end
 
   @doc """
@@ -170,7 +170,7 @@ defmodule Otel.API.Trace do
   with an explicit parent context (`trace/api.md` L385).
   """
   @spec with_span(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
           name :: String.t(),
           opts :: start_opts(),
@@ -209,15 +209,15 @@ defmodule Otel.API.Trace do
       end
 
   Internally composes `set_current_span/2` with
-  `Otel.API.Ctx.attach/1`. Stacked calls are LIFO — nested
+  `Otel.Ctx.attach/1`. Stacked calls are LIFO — nested
   `make_current`/`detach` pairs restore the prior active
   span in reverse order.
   """
-  @spec make_current(span_ctx :: Otel.API.Trace.SpanContext.t()) :: Otel.API.Ctx.t()
+  @spec make_current(span_ctx :: Otel.API.Trace.SpanContext.t()) :: Otel.Ctx.t()
   def make_current(%Otel.API.Trace.SpanContext{} = span_ctx) do
-    old_ctx = Otel.API.Ctx.current()
+    old_ctx = Otel.Ctx.current()
     new_ctx = set_current_span(old_ctx, span_ctx)
-    Otel.API.Ctx.attach(new_ctx)
+    Otel.Ctx.attach(new_ctx)
   end
 
   @doc """
@@ -226,10 +226,10 @@ defmodule Otel.API.Trace do
 
   Restores the previous ambient context, undoing the most
   recent `make_current/1` whose token is passed. Delegates
-  to `Otel.API.Ctx.detach/1`.
+  to `Otel.Ctx.detach/1`.
   """
-  @spec detach(token :: Otel.API.Ctx.t()) :: :ok
-  def detach(token), do: Otel.API.Ctx.detach(token)
+  @spec detach(token :: Otel.Ctx.t()) :: :ok
+  def detach(token), do: Otel.Ctx.detach(token)
 
   # --- Convenience ---
 
@@ -242,9 +242,9 @@ defmodule Otel.API.Trace do
   directly but exposed on `Otel.API.Trace` as the user-facing
   entry point.
   """
-  @spec get_tracer(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec get_tracer(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
           Otel.API.Trace.Tracer.t()
-  def get_tracer(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+  def get_tracer(%Otel.InstrumentationScope{} = instrumentation_scope) do
     Otel.API.Trace.TracerProvider.get_tracer(instrumentation_scope)
   end
 end

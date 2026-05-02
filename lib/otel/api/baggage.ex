@@ -12,7 +12,7 @@ defmodule Otel.API.Baggage do
   - **Operations on Baggage** — pure functions on a Baggage value
     (§Operations, L87-L136).
   - **Context interaction** — read/write the Baggage stored under
-    this module's reserved key inside a `Otel.API.Ctx.t()`
+    this module's reserved key inside a `Otel.Ctx.t()`
     (§Context Interaction, L138-L167). Arity-1/2 are the MUST
     explicit forms; arity-0/1 are the SHOULD implicit forms for
     languages with an ambient context (Elixir).
@@ -166,11 +166,11 @@ defmodule Otel.API.Baggage do
 
   Returns the Baggage stored under this module's reserved key in
   the implicit process Context, or an empty Baggage when none is
-  attached. Equivalent to `current(Otel.API.Ctx.current())`.
+  attached. Equivalent to `current(Otel.Ctx.current())`.
   """
   @spec current() :: t()
   def current do
-    Otel.API.Ctx.get_value(@current_key) || %{}
+    Otel.Ctx.get_value(@current_key) || %{}
   end
 
   @doc """
@@ -183,9 +183,9 @@ defmodule Otel.API.Baggage do
   the Baggage API implementation"* — the key is a private module
   attribute.
   """
-  @spec current(ctx :: Otel.API.Ctx.t()) :: t()
+  @spec current(ctx :: Otel.Ctx.t()) :: t()
   def current(ctx) do
-    Otel.API.Ctx.get_value(ctx, @current_key) || %{}
+    Otel.Ctx.get_value(ctx, @current_key) || %{}
   end
 
   @doc """
@@ -197,7 +197,7 @@ defmodule Otel.API.Baggage do
   """
   @spec set_current(baggage :: t()) :: :ok
   def set_current(baggage) do
-    Otel.API.Ctx.set_value(@current_key, baggage)
+    Otel.Ctx.set_value(@current_key, baggage)
   end
 
   @doc """
@@ -207,8 +207,8 @@ defmodule Otel.API.Baggage do
   Returns a new Context with `baggage` set under this module's
   reserved key, replacing any existing Baggage.
   """
-  @spec set_current(ctx :: Otel.API.Ctx.t(), baggage :: t()) :: Otel.API.Ctx.t()
+  @spec set_current(ctx :: Otel.Ctx.t(), baggage :: t()) :: Otel.Ctx.t()
   def set_current(ctx, baggage) do
-    Otel.API.Ctx.set_value(ctx, @current_key, baggage)
+    Otel.Ctx.set_value(ctx, @current_key, baggage)
   end
 end

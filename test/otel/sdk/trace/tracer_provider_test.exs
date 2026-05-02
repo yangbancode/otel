@@ -55,7 +55,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     test "returns {SDK.Tracer, config} carrying scope, span_limits",
          %{provider: p} do
       {module, config} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{
+        Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.InstrumentationScope{
           name: "my_lib",
           version: "1.0.0",
           schema_url: "https://example.com"
@@ -63,7 +63,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
       assert module == Otel.SDK.Trace.Tracer
 
-      assert %Otel.API.InstrumentationScope{
+      assert %Otel.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com"
@@ -79,14 +79,14 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
     test "empty Tracer name → warns; valid name is silent", %{provider: p} do
       log =
         capture_log(fn ->
-          Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: ""})
+          Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.InstrumentationScope{name: ""})
         end)
 
       assert log =~ "invalid Tracer name"
 
       silent =
         capture_log(fn ->
-          Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: "ok"})
+          Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.InstrumentationScope{name: "ok"})
         end)
 
       refute silent =~ "invalid Tracer name"
@@ -102,7 +102,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
       assert {:error, :already_shutdown} = Otel.SDK.Trace.TracerProvider.force_flush(p)
 
       {Otel.API.Trace.Tracer.Noop, _} =
-        Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.API.InstrumentationScope{name: "lib"})
+        Otel.SDK.Trace.TracerProvider.get_tracer(p, %Otel.InstrumentationScope{name: "lib"})
     end
 
     test "lifecycle + introspection facades stay graceful when the provider isn't running" do
@@ -119,7 +119,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
       assert :ok = Otel.SDK.Trace.TracerProvider.shutdown(Otel.SDK.Trace.TracerProvider, 1_000)
 
-      assert %Otel.SDK.Resource{} =
+      assert %Otel.Resource{} =
                Otel.SDK.Trace.TracerProvider.resource(Otel.SDK.Trace.TracerProvider)
 
       assert %{} = Otel.SDK.Trace.TracerProvider.config(Otel.SDK.Trace.TracerProvider)
@@ -180,7 +180,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
   end
 
   test "resource/1 + config/1 return the boot-time provider state", %{provider: p} do
-    assert %Otel.SDK.Resource{} = Otel.SDK.Trace.TracerProvider.resource(p)
+    assert %Otel.Resource{} = Otel.SDK.Trace.TracerProvider.resource(p)
 
     config = Otel.SDK.Trace.TracerProvider.config(p)
 
@@ -218,7 +218,7 @@ defmodule Otel.SDK.Trace.TracerProviderTest do
 
       assert is_pid(pid) and Process.alive?(pid)
       assert cb == %{pid: pid}
-      assert %Otel.SDK.Resource{} = :sys.get_state(pid).resource
+      assert %Otel.Resource{} = :sys.get_state(pid).resource
     end
   end
 end

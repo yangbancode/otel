@@ -17,7 +17,7 @@ defmodule Otel.SDK.Trace.TracerTest do
     {_module, tracer_config} =
       Otel.SDK.Trace.TracerProvider.get_tracer(
         Otel.SDK.Trace.TracerProvider,
-        %Otel.API.InstrumentationScope{name: "test_lib"}
+        %Otel.InstrumentationScope{name: "test_lib"}
       )
 
     %{tracer: {Otel.SDK.Trace.Tracer, tracer_config}}
@@ -25,7 +25,7 @@ defmodule Otel.SDK.Trace.TracerTest do
 
   test "start_span/4 returns a valid SpanContext, stores the span in ETS with the scope",
        %{tracer: tracer} do
-    span_ctx = Otel.SDK.Trace.Tracer.start_span(Otel.API.Ctx.new(), tracer, "test_span", [])
+    span_ctx = Otel.SDK.Trace.Tracer.start_span(Otel.Ctx.new(), tracer, "test_span", [])
 
     assert %Otel.API.Trace.SpanContext{} = span_ctx
     assert Otel.API.Trace.SpanContext.valid?(span_ctx)

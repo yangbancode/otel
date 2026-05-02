@@ -68,7 +68,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
   @impl true
   @spec collect(
           metrics_tab :: :ets.table(),
-          stream_key :: {String.t(), Otel.API.InstrumentationScope.t()},
+          stream_key :: {String.t(), Otel.InstrumentationScope.t()},
           opts :: map()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   def collect(metrics_tab, {stream_name, scope}, opts) do
@@ -136,7 +136,7 @@ defmodule Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram do
           metrics_tab :: :ets.table(),
           entries :: [tuple()],
           stream_name :: String.t(),
-          scope :: Otel.API.InstrumentationScope.t(),
+          scope :: Otel.InstrumentationScope.t(),
           reader_id :: reference() | nil,
           boundaries :: [number()],
           num_buckets :: pos_integer(),

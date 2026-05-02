@@ -206,7 +206,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   """
   @spec on_emit(
           log_record :: Otel.SDK.Logs.LogRecord.t(),
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: :ok
   def on_emit(log_record, _ctx, %{pid: pid}) do
@@ -220,8 +220,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   (`logs/sdk.md` §LogRecordProcessor L420 *"MAY implement"*).
   """
   @spec enabled?(
-          ctx :: Otel.API.Ctx.t(),
-          scope :: Otel.API.InstrumentationScope.t(),
+          ctx :: Otel.Ctx.t(),
+          scope :: Otel.InstrumentationScope.t(),
           opts :: Otel.SDK.Logs.LogRecordProcessor.enabled_opts(),
           config :: Otel.SDK.Logs.LogRecordProcessor.config()
         ) :: boolean()

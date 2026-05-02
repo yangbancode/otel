@@ -45,7 +45,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
   end
 
   defp meter_for(pid, scope_name) do
-    Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: scope_name})
+    Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.InstrumentationScope{name: scope_name})
   end
 
   setup do
@@ -57,7 +57,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     assert Process.alive?(Process.whereis(p))
     assert Otel.API.Metrics.MeterProvider.get_provider() == {Otel.SDK.Metrics.MeterProvider, p}
 
-    custom = Otel.SDK.Resource.create(%{"service.name" => "test"})
+    custom = Otel.Resource.create(%{"service.name" => "test"})
     restart_sdk(metrics: [readers: [], resource: custom])
 
     {_, %{resource: resource}} = meter_for(Otel.SDK.Metrics.MeterProvider, "lib")
@@ -67,7 +67,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
   describe "get_meter/2" do
     test "returns {SDK.Meter, config} carrying scope and SDK identity resource", %{provider: p} do
       {module, config} =
-        Otel.SDK.Metrics.MeterProvider.get_meter(p, %Otel.API.InstrumentationScope{
+        Otel.SDK.Metrics.MeterProvider.get_meter(p, %Otel.InstrumentationScope{
           name: "my_lib",
           version: "1.0.0",
           schema_url: "https://example.com"
@@ -75,13 +75,13 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
       assert module == Otel.SDK.Metrics.Meter
 
-      assert %Otel.API.InstrumentationScope{
+      assert %Otel.InstrumentationScope{
                name: "my_lib",
                version: "1.0.0",
                schema_url: "https://example.com"
              } = config.scope
 
-      assert %Otel.SDK.Resource{} = config.resource
+      assert %Otel.Resource{} = config.resource
       assert config.resource.attributes["telemetry.sdk.name"] == "otel"
     end
 
@@ -115,7 +115,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
       assert :ok = Otel.SDK.Metrics.MeterProvider.shutdown(Otel.SDK.Metrics.MeterProvider, 1_000)
 
-      assert %Otel.SDK.Resource{} =
+      assert %Otel.Resource{} =
                Otel.SDK.Metrics.MeterProvider.resource(Otel.SDK.Metrics.MeterProvider)
 
       assert %{} = Otel.SDK.Metrics.MeterProvider.config(Otel.SDK.Metrics.MeterProvider)
@@ -171,7 +171,7 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
   end
 
   test "resource/1 + config/1 return the boot-time provider state", %{provider: p} do
-    assert %Otel.SDK.Resource{} = Otel.SDK.Metrics.MeterProvider.resource(p)
+    assert %Otel.Resource{} = Otel.SDK.Metrics.MeterProvider.resource(p)
 
     config = Otel.SDK.Metrics.MeterProvider.config(p)
 

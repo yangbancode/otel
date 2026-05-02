@@ -53,7 +53,7 @@ defmodule Otel.API.Propagator.TextMap.Noop do
   """
   @impl true
   @spec inject(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           setter :: Otel.API.Propagator.TextMap.setter()
         ) :: Otel.API.Propagator.TextMap.carrier()
@@ -71,10 +71,10 @@ defmodule Otel.API.Propagator.TextMap.Noop do
   """
   @impl true
   @spec extract(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           getter :: Otel.API.Propagator.TextMap.getter()
-        ) :: Otel.API.Ctx.t()
+        ) :: Otel.Ctx.t()
   def extract(ctx, _carrier, _getter), do: ctx
 
   @doc """

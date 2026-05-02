@@ -46,7 +46,7 @@ defmodule Otel.API.Metrics.UpDownCounter do
   - no implicit context threaded through `add/3` —
     synchronous metric measurements are not
     context-associated at the API boundary; the SDK
-    attaches context per `Otel.API.Ctx` if relevant
+    attaches context per `Otel.Ctx` if relevant
 
   Erlang also does not expose `enabled?/2` on sync
   instruments; we add it per spec L475-L477 (SHOULD
@@ -71,7 +71,7 @@ defmodule Otel.API.Metrics.UpDownCounter do
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @doc """
   **Application** (OTel API MUST) — "UpDownCounter creation"

@@ -105,7 +105,7 @@ defmodule Otel.SDK.Trace.Span do
   - OTLP proto Span: `opentelemetry-proto/opentelemetry/proto/trace/v1/trace.proto`
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   require Logger
 
@@ -130,7 +130,7 @@ defmodule Otel.SDK.Trace.Span do
           status: Otel.API.Trace.Status.t(),
           trace_flags: Otel.API.Trace.SpanContext.trace_flags(),
           is_recording: boolean(),
-          instrumentation_scope: Otel.API.InstrumentationScope.t() | nil,
+          instrumentation_scope: Otel.InstrumentationScope.t() | nil,
           span_limits: Otel.SDK.Trace.SpanLimits.t(),
           processors_key: term() | nil
         }
@@ -167,7 +167,7 @@ defmodule Otel.SDK.Trace.Span do
   Returns `{span_ctx, span | nil}` where span is nil for dropped spans.
   """
   @spec start_span(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           name :: String.t(),
           span_limits :: Otel.SDK.Trace.SpanLimits.t(),
           opts :: Otel.API.Trace.Span.start_opts()
@@ -471,7 +471,7 @@ defmodule Otel.SDK.Trace.Span do
   # --- Private helpers ---
 
   @spec new_span_ctx(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           opts :: Otel.API.Trace.Span.start_opts()
         ) :: {Otel.API.Trace.SpanContext.t(), Otel.API.Trace.SpanId.t() | nil, boolean() | nil}
   defp new_span_ctx(ctx, opts) do
@@ -519,7 +519,7 @@ defmodule Otel.SDK.Trace.Span do
   end
 
   @spec sample(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),

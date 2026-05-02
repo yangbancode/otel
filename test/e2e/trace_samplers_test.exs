@@ -41,7 +41,7 @@ defmodule Otel.E2E.TraceSamplersTest do
         is_remote: true
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), sampled_parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), sampled_parent)
 
       Otel.API.Trace.with_span(
         ctx,
@@ -68,7 +68,7 @@ defmodule Otel.E2E.TraceSamplersTest do
         is_remote: true
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), not_sampled_parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), not_sampled_parent)
 
       Otel.API.Trace.with_span(
         ctx,

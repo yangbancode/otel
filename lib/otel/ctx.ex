@@ -1,4 +1,4 @@
-defmodule Otel.API.Ctx do
+defmodule Otel.Ctx do
   @moduledoc """
   OTel Context (spec `context/README.md`, Status: **Stable**).
 

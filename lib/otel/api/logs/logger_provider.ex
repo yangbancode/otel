@@ -97,11 +97,11 @@ defmodule Otel.API.Logs.LoggerProvider do
 
   Without arguments, uses a default empty scope.
   """
-  @spec get_logger(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec get_logger(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
           Otel.API.Logs.Logger.t()
-  def get_logger(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
+  def get_logger(instrumentation_scope \\ %Otel.InstrumentationScope{})
 
-  def get_logger(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+  def get_logger(%Otel.InstrumentationScope{} = instrumentation_scope) do
     case get_provider() do
       nil ->
         @default_logger
@@ -125,7 +125,7 @@ defmodule Otel.API.Logs.LoggerProvider do
   """
   @callback get_logger(
               state :: term(),
-              instrumentation_scope :: Otel.API.InstrumentationScope.t()
+              instrumentation_scope :: Otel.InstrumentationScope.t()
             ) :: Otel.API.Logs.Logger.t()
 
   # --- SDK installation hooks ---

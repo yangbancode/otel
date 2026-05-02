@@ -36,7 +36,7 @@ defmodule Otel.SDK.Trace.Link do
     §"Dropped Attributes Count" L73-L80
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @type t :: %__MODULE__{
           context: Otel.API.Trace.SpanContext.t(),

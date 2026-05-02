@@ -12,7 +12,7 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
     def extract(ctx, carrier, getter) do
       case getter.(carrier, "x-fake") do
         nil -> ctx
-        value -> Otel.API.Ctx.set_value(ctx, :fake_value, value)
+        value -> Otel.Ctx.set_value(ctx, :fake_value, value)
       end
     end
 
@@ -32,7 +32,7 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
   describe "inject/4 + extract/4 — dispatches through every propagator" do
     test "inject runs each propagator in order; extract threads context through them" do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier =
         Otel.API.Propagator.TextMap.Composite.inject(
@@ -49,13 +49,13 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
       extracted =
         Otel.API.Propagator.TextMap.Composite.extract(
           [@trace_context, @fake],
-          Otel.API.Ctx.new(),
+          Otel.Ctx.new(),
           [{"traceparent", @valid_traceparent}, {"x-fake", "hello"}],
           &Otel.API.Propagator.TextMap.default_getter/2
         )
 
       assert Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.current_span(extracted))
-      assert Otel.API.Ctx.get_value(extracted, :fake_value) == "hello"
+      assert Otel.Ctx.get_value(extracted, :fake_value) == "hello"
     end
   end
 
@@ -76,7 +76,7 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
 
     test "inject + extract round-trip through the facade reach every propagator" do
       span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.inject(ctx, [])
       keys = Enum.map(carrier, fn {k, _v} -> k end)
@@ -84,13 +84,13 @@ defmodule Otel.API.Propagator.TextMap.CompositeTest do
       assert "x-fake" in keys
 
       extracted =
-        Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), [
+        Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), [
           {"traceparent", @valid_traceparent},
           {"x-fake", "hello"}
         ])
 
       assert Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.current_span(extracted))
-      assert Otel.API.Ctx.get_value(extracted, :fake_value) == "hello"
+      assert Otel.Ctx.get_value(extracted, :fake_value) == "hello"
     end
   end
 

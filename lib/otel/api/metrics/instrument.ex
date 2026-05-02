@@ -82,7 +82,7 @@ defmodule Otel.API.Metrics.Instrument do
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_instrument.erl`
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   Instrument kind. Enumerated per `metrics/api.md`
@@ -207,7 +207,7 @@ defmodule Otel.API.Metrics.Instrument do
           unit: String.t(),
           description: String.t(),
           advisory: advisory(),
-          scope: Otel.API.InstrumentationScope.t()
+          scope: Otel.InstrumentationScope.t()
         }
 
   defstruct meter: {Otel.API.Metrics.Meter.Noop, []},
@@ -216,7 +216,7 @@ defmodule Otel.API.Metrics.Instrument do
             unit: "",
             description: "",
             advisory: [],
-            scope: %Otel.API.InstrumentationScope{}
+            scope: %Otel.InstrumentationScope{}
 
   @doc """
   **SDK** (SDK helper) — case-insensitive comparison key.

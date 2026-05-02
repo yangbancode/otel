@@ -9,7 +9,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize do
 
   @behaviour Otel.SDK.Metrics.Exemplar.Reservoir
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @default_size 1
 
@@ -35,7 +35,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Reservoir.SimpleFixedSize do
           value :: number(),
           time :: non_neg_integer(),
           filtered_attributes :: %{String.t() => primitive_any()},
-          ctx :: Otel.API.Ctx.t()
+          ctx :: Otel.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
     exemplar = Otel.SDK.Metrics.Exemplar.new(value, time, filtered_attributes, ctx)

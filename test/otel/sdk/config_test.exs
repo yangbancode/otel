@@ -88,7 +88,7 @@ defmodule Otel.SDK.ConfigTest do
     test "pillar :resource (advanced override) bypasses top-level :resource" do
       Application.put_env(:otel, :resource, %{"service.name" => "from_top"})
 
-      override = %Otel.SDK.Resource{attributes: %{"service.name" => "from_pillar"}}
+      override = %Otel.Resource{attributes: %{"service.name" => "from_pillar"}}
       Application.put_env(:otel, :trace, resource: override)
 
       assert Otel.SDK.Config.trace().resource == override

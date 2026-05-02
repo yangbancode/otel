@@ -17,7 +17,7 @@ defmodule Otel.API.Trace.Link do
 
   No dedicated constructor is provided; there is no construction-
   time normalisation or opaque boundary that would require one
-  (same rationale as `Otel.API.InstrumentationScope`).
+  (same rationale as `Otel.InstrumentationScope`).
 
   Per spec L853 Links are immutable; an Elixir struct satisfies
   that naturally. All functions on this module are safe for
@@ -64,7 +64,7 @@ defmodule Otel.API.Trace.Link do
   - OTel Trace API §Link: `opentelemetry-specification/specification/trace/api.md` L803-L834
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   A Link struct (spec `trace/api.md` §Link, L809-L813).

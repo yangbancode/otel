@@ -1,13 +1,13 @@
 defmodule Otel.OTLP.Metrics.MetricExporterTest do
   use ExUnit.Case, async: true
 
-  @resource Otel.SDK.Resource.create(%{"service.name" => "test"})
+  @resource Otel.Resource.create(%{"service.name" => "test"})
 
   @metric %{
     name: "http.requests",
     description: "Number of HTTP requests",
     unit: "1",
-    scope: %Otel.API.InstrumentationScope{name: "test_lib"},
+    scope: %Otel.InstrumentationScope{name: "test_lib"},
     resource: @resource,
     kind: :counter,
     temporality: :cumulative,

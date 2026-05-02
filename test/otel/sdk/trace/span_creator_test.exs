@@ -20,9 +20,9 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     test "no parent → root span; valid parent → child inherits trace_id and tracestate" do
       ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor", "value")
       parent = Otel.API.Trace.SpanContext.new(123, 456, 1, ts)
-      ctx_with_parent = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx_with_parent = Otel.API.Trace.set_current_span(Otel.Ctx.new(), parent)
 
-      {root_ctx, root} = start(Otel.API.Ctx.new(), "root_span")
+      {root_ctx, root} = start(Otel.Ctx.new(), "root_span")
       assert root_ctx.trace_id != 0
       assert Otel.API.Trace.SpanContext.valid?(root_ctx)
       assert root.name == "root_span"
@@ -39,8 +39,8 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       bad_trace_id = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 1}
       bad_span_id = %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 0}
 
-      {ctx_a, _} = start(Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), bad_trace_id), "n")
-      {ctx_b, _} = start(Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), bad_span_id), "n")
+      {ctx_a, _} = start(Otel.API.Trace.set_current_span(Otel.Ctx.new(), bad_trace_id), "n")
+      {ctx_b, _} = start(Otel.API.Trace.set_current_span(Otel.Ctx.new(), bad_span_id), "n")
 
       assert ctx_a.trace_id != 0
       assert ctx_b.trace_id != 123
@@ -49,7 +49,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     test "is_root option overrides a valid parent" do
       parent_ctx =
         Otel.API.Trace.set_current_span(
-          Otel.API.Ctx.new(),
+          Otel.Ctx.new(),
           Otel.API.Trace.SpanContext.new(123, 456, 1)
         )
 
@@ -70,7 +70,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
     #   - root or sampled parent → record_and_sample
     #   - not-sampled parent     → drop
     test "root span → record_and_sample (flags=1, recording, span emitted)" do
-      {sampled_ctx, sampled} = start(Otel.API.Ctx.new(), "sampled")
+      {sampled_ctx, sampled} = start(Otel.Ctx.new(), "sampled")
       assert Bitwise.band(sampled_ctx.trace_flags, 1) == 1
       assert sampled.is_recording == true
       assert sampled.trace_flags == 1
@@ -80,7 +80,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       not_sampled_parent = Otel.API.Trace.SpanContext.new(123, 456, 0)
 
       ctx =
-        Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), not_sampled_parent)
+        Otel.API.Trace.set_current_span(Otel.Ctx.new(), not_sampled_parent)
 
       {dropped_ctx, dropped} = start(ctx, "dropped")
       assert Bitwise.band(dropped_ctx.trace_flags, 1) == 0
@@ -92,7 +92,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
   describe "start_span options" do
     test "kind, attributes, start_time pass through to the span" do
       {_, span} =
-        start(Otel.API.Ctx.new(), "span",
+        start(Otel.Ctx.new(), "span",
           kind: :server,
           attributes: %{"key" => "val"},
           start_time: 1_000_000_000
@@ -105,7 +105,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
 
     test "start_time defaults to System.system_time(:nanosecond)" do
       before = System.system_time(:nanosecond)
-      {_, span} = start(Otel.API.Ctx.new(), "span")
+      {_, span} = start(Otel.Ctx.new(), "span")
       after_time = System.system_time(:nanosecond)
 
       assert span.start_time in before..after_time
@@ -117,7 +117,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 2}
 
       {_, span} =
-        start(Otel.API.Ctx.new(), "span",
+        start(Otel.Ctx.new(), "span",
           limits: limits,
           attributes: %{"a" => 1, "b" => 2, "c" => 3, "d" => 4}
         )
@@ -133,7 +133,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       tight = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 1}
 
       {_, sized} =
-        start(Otel.API.Ctx.new(), "n",
+        start(Otel.Ctx.new(), "n",
           limits: strict,
           attributes: %{"key" => "hello world"}
         )
@@ -143,16 +143,16 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       long = String.duplicate("a", 10_000)
 
       {_, unbounded} =
-        start(Otel.API.Ctx.new(), "n", limits: infinite, attributes: %{"key" => long})
+        start(Otel.Ctx.new(), "n", limits: infinite, attributes: %{"key" => long})
 
       assert unbounded.attributes["key"] == long
 
-      {_, num} = start(Otel.API.Ctx.new(), "n", limits: tight, attributes: %{"num" => 12_345})
+      {_, num} = start(Otel.Ctx.new(), "n", limits: tight, attributes: %{"num" => 12_345})
 
       assert num.attributes["num"] == 12_345
 
       {_, arrs} =
-        start(Otel.API.Ctx.new(), "n",
+        start(Otel.Ctx.new(), "n",
           limits: arr_limit,
           attributes: %{"tags" => ["hello", "world"]}
         )
@@ -164,7 +164,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       limits = %Otel.SDK.Trace.SpanLimits{attribute_value_length_limit: 5}
 
       {_, span} =
-        start(Otel.API.Ctx.new(), "n",
+        start(Otel.Ctx.new(), "n",
           limits: limits,
           attributes: %{
             "envelope" => %{"name" => "abcdefghij", "nested" => %{"deep" => "wxyzabcdef"}},
@@ -188,7 +188,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ]
 
       {_, capped} =
-        start(Otel.API.Ctx.new(), "n",
+        start(Otel.Ctx.new(), "n",
           limits: %Otel.SDK.Trace.SpanLimits{link_count_limit: 1},
           links: links
         )
@@ -205,7 +205,7 @@ defmodule Otel.SDK.Trace.SpanCreatorTest do
       ]
 
       {_, attr_capped} =
-        start(Otel.API.Ctx.new(), "n",
+        start(Otel.Ctx.new(), "n",
           limits: %Otel.SDK.Trace.SpanLimits{
             attribute_per_link_limit: 2,
             attribute_value_length_limit: 3

@@ -121,7 +121,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   """
   @type config :: %{
           processors: [processor_entry()],
-          resource: Otel.SDK.Resource.t(),
+          resource: Otel.Resource.t(),
           span_limits: Otel.SDK.Trace.SpanLimits.t(),
           shut_down: boolean(),
           processors_key: {module(), :processors, reference()}
@@ -157,11 +157,11 @@ defmodule Otel.SDK.Trace.TracerProvider do
   """
   @spec get_tracer(
           server :: GenServer.server(),
-          instrumentation_scope :: Otel.API.InstrumentationScope.t()
+          instrumentation_scope :: Otel.InstrumentationScope.t()
         ) ::
           Otel.API.Trace.Tracer.t()
   @impl Otel.API.Trace.TracerProvider
-  def get_tracer(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
+  def get_tracer(server, %Otel.InstrumentationScope{} = instrumentation_scope) do
     GenServer.call(server, {:get_tracer, instrumentation_scope})
   catch
     :exit, {:noproc, _} -> {Otel.API.Trace.Tracer.Noop, []}
@@ -203,14 +203,14 @@ defmodule Otel.SDK.Trace.TracerProvider do
 
   @doc """
   **SDK** (introspection) — Returns the resource associated with
-  this provider, or `Otel.SDK.Resource.default/0` when the
+  this provider, or `Otel.Resource.default/0` when the
   provider isn't running.
   """
-  @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
+  @spec resource(server :: GenServer.server()) :: Otel.Resource.t()
   def resource(server) do
     GenServer.call(server, :resource)
   catch
-    :exit, {:noproc, _} -> Otel.SDK.Resource.default()
+    :exit, {:noproc, _} -> Otel.Resource.default()
   end
 
   @doc """
@@ -262,7 +262,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   end
 
   def handle_call(
-        {:get_tracer, %Otel.API.InstrumentationScope{} = instrumentation_scope},
+        {:get_tracer, %Otel.InstrumentationScope{} = instrumentation_scope},
         _from,
         config
       ) do
@@ -341,8 +341,8 @@ defmodule Otel.SDK.Trace.TracerProvider do
   # invalid SHOULD be logged."* The MUST is satisfied
   # structurally — we always return the SDK Tracer; the SHOULD
   # log is enforced here.
-  @spec warn_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
-  defp warn_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+  @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
+  defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
     Logger.warning(
       "Otel.SDK.Trace.TracerProvider: invalid Tracer name (empty string) — returning a working Tracer as fallback"
     )
@@ -369,7 +369,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   defp default_config do
     %{
       processors: [],
-      resource: Otel.SDK.Resource.default(),
+      resource: Otel.Resource.default(),
       span_limits: %Otel.SDK.Trace.SpanLimits{}
     }
   end
@@ -380,7 +380,7 @@ defmodule Otel.SDK.Trace.TracerProvider do
   # An unloaded module makes `function_exported?/3` return false, which
   # would silently demote a process-backed `start_link/1` to module-only
   # (callback_config without `:pid`) and crash every callback dispatch.
-  @spec start_processor({module(), term()}, resource :: Otel.SDK.Resource.t()) ::
+  @spec start_processor({module(), term()}, resource :: Otel.Resource.t()) ::
           processor_entry()
   defp start_processor({module, init_config}, resource) do
     init_config = Map.put(init_config, :resource, resource)

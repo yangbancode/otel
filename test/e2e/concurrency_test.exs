@@ -131,7 +131,7 @@ defmodule Otel.E2E.ConcurrencyTest do
         parent_name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
-          parent_ctx = Otel.API.Ctx.current()
+          parent_ctx = Otel.Ctx.current()
 
           1..10
           |> Task.async_stream(
@@ -139,7 +139,7 @@ defmodule Otel.E2E.ConcurrencyTest do
               # Children run in fresh processes; explicitly
               # attach the captured parent context so the SDK
               # links the child span to the parent.
-              Otel.API.Ctx.attach(parent_ctx)
+              Otel.Ctx.attach(parent_ctx)
 
               Otel.API.Trace.with_span(
                 tracer,

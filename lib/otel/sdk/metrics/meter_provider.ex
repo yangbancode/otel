@@ -45,7 +45,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @behaviour Otel.API.Metrics.MeterProvider
 
   @type config :: %{
-          resource: Otel.SDK.Resource.t(),
+          resource: Otel.Resource.t(),
           readers: [{module(), Otel.SDK.Metrics.MetricReader.config()}],
           exemplar_filter: Otel.SDK.Metrics.Exemplar.Filter.t()
         }
@@ -70,11 +70,11 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   """
   @spec get_meter(
           server :: GenServer.server(),
-          instrumentation_scope :: Otel.API.InstrumentationScope.t()
+          instrumentation_scope :: Otel.InstrumentationScope.t()
         ) ::
           Otel.API.Metrics.Meter.t()
   @impl Otel.API.Metrics.MeterProvider
-  def get_meter(server, %Otel.API.InstrumentationScope{} = instrumentation_scope) do
+  def get_meter(server, %Otel.InstrumentationScope{} = instrumentation_scope) do
     GenServer.call(server, {:get_meter, instrumentation_scope})
   catch
     :exit, {:noproc, _} -> {Otel.API.Metrics.Meter.Noop, []}
@@ -110,14 +110,14 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @doc """
   **SDK** (introspection) — Returns the resource associated with
-  this provider, or `Otel.SDK.Resource.default/0` when the
+  this provider, or `Otel.Resource.default/0` when the
   provider isn't running.
   """
-  @spec resource(server :: GenServer.server()) :: Otel.SDK.Resource.t()
+  @spec resource(server :: GenServer.server()) :: Otel.Resource.t()
   def resource(server) do
     GenServer.call(server, :resource)
   catch
-    :exit, {:noproc, _} -> Otel.SDK.Resource.default()
+    :exit, {:noproc, _} -> Otel.Resource.default()
   end
 
   @doc """
@@ -204,7 +204,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   end
 
   def handle_call(
-        {:get_meter, %Otel.API.InstrumentationScope{} = instrumentation_scope},
+        {:get_meter, %Otel.InstrumentationScope{} = instrumentation_scope},
         _from,
         config
       ) do
@@ -285,8 +285,8 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   # specified value is invalid SHOULD be logged."* The MUST is
   # satisfied structurally — we always return the SDK Meter; the
   # SHOULD log is enforced here.
-  @spec warn_invalid_scope_name(scope :: Otel.API.InstrumentationScope.t()) :: :ok
-  defp warn_invalid_scope_name(%Otel.API.InstrumentationScope{name: ""}) do
+  @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
+  defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
     Logger.warning(
       "Otel.SDK.Metrics.MeterProvider: invalid Meter name (empty string) — returning a working Meter as fallback"
     )
@@ -311,7 +311,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   @spec default_config() :: config()
   defp default_config do
     %{
-      resource: Otel.SDK.Resource.default(),
+      resource: Otel.Resource.default(),
       readers: [],
       exemplar_filter: :trace_based
     }
