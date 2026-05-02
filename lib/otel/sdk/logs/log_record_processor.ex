@@ -186,9 +186,10 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   @export_timeout_ms 30_000
   @max_export_batch_size 512
 
-  # Default timeout for `force_flush/2` and `shutdown/2`. Matches
-  # spec `OTEL_BLRP_EXPORT_TIMEOUT` default (30000ms) — the same
-  # per-export budget the runner enforces via `state_timeout`.
+  # Default timeout for the public `force_flush/2` and
+  # `shutdown/2` argument — matches `@export_timeout_ms`, the
+  # same per-export budget the runner enforces via
+  # `state_timeout`. Callers may override per call.
   @default_force_flush_timeout_ms 30_000
   @default_shutdown_timeout_ms 30_000
 
@@ -231,8 +232,8 @@ defmodule Otel.SDK.Logs.LogRecordProcessor do
   exporter's `force_flush/1` then `shutdown/1`, and exit the
   gen_statem.
 
-  `timeout` (default 30_000ms, matching spec
-  `OTEL_BLRP_EXPORT_TIMEOUT`) is converted to an absolute
+  `timeout` (default 30_000ms, matching the hardcoded
+  `@export_timeout_ms`) is converted to an absolute
   deadline and forwarded to the gen_statem. Per spec
   §LogRecordProcessor L487-L491 the processor MUST honor that
   deadline over finishing all calls — drain, exporter
