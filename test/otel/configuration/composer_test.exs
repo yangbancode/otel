@@ -7,10 +7,6 @@ defmodule Otel.Configuration.ComposerTest do
 
   defp compose!(model), do: Otel.Configuration.Composer.compose!(model)
 
-  defp sampler(spec) do
-    compose!(%{"tracer_provider" => %{"sampler" => spec}}).trace.sampler
-  end
-
   defp processors(specs) do
     compose!(%{"tracer_provider" => %{"processors" => specs}}).trace.processors
   end
@@ -41,7 +37,6 @@ defmodule Otel.Configuration.ComposerTest do
     test "minimal model returns three pillars with sensible defaults" do
       %{trace: trace, metrics: metrics, logs: logs} = compose!(%{"file_format" => "1.0"})
 
-      assert {Otel.SDK.Trace.Sampler.ParentBased, _} = trace.sampler
       assert trace.processors == []
       assert %Otel.SDK.Trace.SpanLimits{} = trace.span_limits
       assert trace.id_generator == Otel.SDK.Trace.IdGenerator.Default
@@ -51,60 +46,6 @@ defmodule Otel.Configuration.ComposerTest do
 
       assert logs.processors == []
       assert %Otel.SDK.Logs.LogRecordLimits{} = logs.log_record_limits
-    end
-  end
-
-  describe "compose sampler" do
-    test "primitive samplers and ratio default" do
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, %{}} = sampler(%{"always_on" => nil})
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, %{}} = sampler(%{"always_off" => nil})
-
-      assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 0.25} =
-               sampler(%{"trace_id_ratio_based" => %{"ratio" => 0.25}})
-
-      assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0} =
-               sampler(%{"trace_id_ratio_based" => nil})
-    end
-
-    test "parent_based: defaults and overrides" do
-      assert {Otel.SDK.Trace.Sampler.ParentBased, defaults} =
-               sampler(%{"parent_based" => %{"root" => %{"always_on" => nil}}})
-
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, %{}} = defaults.root
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, %{}} = defaults.remote_parent_sampled
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, %{}} = defaults.remote_parent_not_sampled
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, %{}} = defaults.local_parent_sampled
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, %{}} = defaults.local_parent_not_sampled
-
-      assert {Otel.SDK.Trace.Sampler.ParentBased, custom} =
-               sampler(%{
-                 "parent_based" => %{
-                   "root" => %{"trace_id_ratio_based" => %{"ratio" => 0.5}},
-                   "remote_parent_sampled" => %{"always_off" => nil},
-                   "remote_parent_not_sampled" => %{"always_on" => nil}
-                 }
-               })
-
-      assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 0.5} = custom.root
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, %{}} = custom.remote_parent_sampled
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, %{}} = custom.remote_parent_not_sampled
-    end
-
-    test "raises on unsupported sampler" do
-      assert_raise ArgumentError, ~r/unsupported sampler/, fn ->
-        sampler(%{"jaeger_remote" => nil})
-      end
-    end
-
-    test "warns + falls back when sampler is */development" do
-      log =
-        capture_log(fn ->
-          assert {Otel.SDK.Trace.Sampler.ParentBased, _} =
-                   sampler(%{"my_experimental/development" => nil})
-        end)
-
-      assert log =~ "ignoring"
-      assert log =~ "my_experimental/development"
     end
   end
 
@@ -427,9 +368,6 @@ defmodule Otel.Configuration.ComposerTest do
     test "otel-getting-started.yaml composes the three pillars" do
       configs = e2e("otel-getting-started.yaml")
 
-      assert {Otel.SDK.Trace.Sampler.ParentBased, %{root: {Otel.SDK.Trace.Sampler.AlwaysOn, %{}}}} =
-               configs.trace.sampler
-
       [{Otel.SDK.Trace.SpanProcessor.Batch, batch}] = configs.trace.processors
       assert {Otel.OTLP.Trace.SpanExporter.HTTP, %{endpoint: endpoint}} = batch.exporter
       assert endpoint =~ "/v1/traces"
@@ -438,13 +376,8 @@ defmodule Otel.Configuration.ComposerTest do
       [{Otel.SDK.Logs.LogRecordProcessor.Batch, _}] = configs.logs.processors
     end
 
-    test "otel-sdk-config.yaml wires all five parent_based children + pillar limits" do
+    test "otel-sdk-config.yaml ignores YAML sampler block; pillar limits still flow" do
       configs = e2e("otel-sdk-config.yaml")
-
-      {Otel.SDK.Trace.Sampler.ParentBased, parent_opts} = configs.trace.sampler
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, %{}} = parent_opts.root
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, %{}} = parent_opts.remote_parent_sampled
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, %{}} = parent_opts.remote_parent_not_sampled
 
       assert configs.trace.span_limits.attribute_count_limit == 128
       assert configs.trace.span_limits.event_count_limit == 128

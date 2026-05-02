@@ -1,120 +1,97 @@
 defmodule Otel.SDK.Trace.Sampler do
   @moduledoc """
-  Sampler behaviour and dispatch
-  (`trace/sdk.md` §Sampler L329-L460).
+  Hard-coded `ParentBased(root=AlwaysOn)` sampler — the spec
+  default per `trace/sdk.md` L421 and the only sampler this
+  SDK ships.
 
-  A sampler decides whether a span should be recorded and/or sampled
-  (propagated). Custom samplers implement this behaviour.
+  Decision matrix (`trace/sdk.md` §ParentBased L584-590 with
+  default delegates L579-582):
 
-  All sampler methods are safe for concurrent use, satisfying spec
-  `trace/sdk.md` L1284 — *"Sampler — ShouldSample and
-  GetDescription MUST be safe to be called concurrently."*
+  | Parent              | Decision           |
+  |---------------------|--------------------|
+  | absent (root)       | `record_and_sample`|
+  | sampled (any)       | `record_and_sample`|
+  | not sampled (any)   | `drop`             |
+
+  The full 5-branch ParentBased decorator is collapsed because
+  every branch resolves to `AlwaysOn` (sampled) or `AlwaysOff`
+  (not sampled) — local/remote distinction has no behavioural
+  effect with default delegates.
 
   ## Public API
 
-  | Function / Callback | Role |
+  | Function | Role |
   |---|---|
-  | `new/1` | **SDK** (lifecycle) — initialises a sampler from `{module, opts}` |
-  | `should_sample/7` | **SDK** (OTel API MUST) — `trace/sdk.md` §ShouldSample L342-L406 |
-  | `description/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §GetDescription L408-L417 |
-  | `@callback setup/1` | **SDK** (lifecycle) |
-  | `@callback should_sample/7` | **SDK** (OTel API MUST) |
-  | `@callback description/1` | **SDK** (OTel API MUST) |
+  | `should_sample/6` | **SDK** (OTel API MUST) — `trace/sdk.md` §ShouldSample L342-L406 |
+  | `description/0` | **SDK** (OTel API MUST) — `trace/sdk.md` §GetDescription L408-L417 |
 
-  ## Built-in samplers
-
-  - `Otel.SDK.Trace.Sampler.AlwaysOn` — every span sampled
-  - `Otel.SDK.Trace.Sampler.AlwaysOff` — every span dropped
-  - `Otel.SDK.Trace.Sampler.ParentBased` — defer to parent's sampled bit
-  - `Otel.SDK.Trace.Sampler.TraceIdRatioBased` — probabilistic by trace_id
-
-  ## Deferred Development-status features
-
-  - **AlwaysRecord sampler decorator.** Spec
-    `trace/sdk.md` L608-L630 (Status: Development, added
-    v1.51 #4699) defines a sampler decorator that wraps any
-    sampler and forces `record_only` (recording without
-    propagation) when the inner sampler returns `drop`. Not
-    implemented — no in-tree consumer. When stabilised it
-    will live as `Otel.SDK.Trace.Sampler.AlwaysRecord`.
+  All functions are safe for concurrent use, satisfying spec
+  `trace/sdk.md` L1284 — *"Sampler — ShouldSample and
+  GetDescription MUST be safe to be called concurrently."*
 
   ## References
 
   - OTel Trace SDK §Sampler: `opentelemetry-specification/specification/trace/sdk.md` L329-L460
+  - OTel Trace SDK §Built-in samplers: same file L418-L590
   """
 
   use Otel.API.Common.Types
 
   @type sampling_decision :: :drop | :record_only | :record_and_sample
-
-  @type attributes :: %{String.t() => primitive_any()}
-
   @type sampling_result :: {
           sampling_decision(),
-          attributes(),
+          %{String.t() => primitive_any()},
           Otel.API.Trace.TraceState.t()
         }
 
-  @type config :: term()
-  @type opts :: term()
-  @type description :: String.t()
-
-  @type t :: {module(), description(), config()}
-
   @doc """
-  Initializes sampler configuration from options.
+  **SDK** (OTel API MUST) — `GetDescription`
+  (`trace/sdk.md` §GetDescription L408-L417).
+
+  Returns the spec-style ParentBased descriptor with all five
+  delegate branches enumerated. ParentBased itself has no MUST
+  format; this format mirrors the description the previous
+  composable implementation produced, so external observers
+  (debug pages, log lines) see no string change.
   """
-  @callback setup(opts :: opts()) :: config()
+  @spec description() :: String.t()
+  def description,
+    do:
+      "ParentBased{root:AlwaysOnSampler,remoteParentSampled:AlwaysOnSampler,remoteParentNotSampled:AlwaysOffSampler,localParentSampled:AlwaysOnSampler,localParentNotSampled:AlwaysOffSampler}"
 
   @doc """
-  Returns a human-readable description of the sampler.
-  """
-  @callback description(config :: config()) :: description()
+  **SDK** (OTel API MUST) — `ShouldSample`
+  (`trace/sdk.md` §ShouldSample L342-L406).
 
-  @doc """
-  Returns a sampling decision for a span to be created.
-  """
-  @callback should_sample(
-              ctx :: Otel.API.Ctx.t(),
-              trace_id :: Otel.API.Trace.TraceId.t(),
-              links :: [Otel.API.Trace.Link.t()],
-              name :: String.t(),
-              kind :: Otel.API.Trace.SpanKind.t(),
-              attributes :: attributes(),
-              config :: config()
-            ) :: sampling_result()
-
-  @doc """
-  Creates a sampler from a spec.
-
-  Accepts `{module, opts}` and returns `{module, description, config}`.
-  """
-  @spec new(spec :: {module(), opts()}) :: t()
-  def new({module, sampler_opts}) do
-    config = module.setup(sampler_opts)
-    {module, module.description(config), config}
-  end
-
-  @doc """
-  Invokes the sampler's should_sample callback.
+  Returns `record_and_sample` for root spans and any span
+  whose parent has the sampled bit set; `drop` for spans whose
+  parent has the bit unset. Tracestate is propagated from the
+  parent unchanged.
   """
   @spec should_sample(
-          sampler :: t(),
           ctx :: Otel.API.Ctx.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),
           kind :: Otel.API.Trace.SpanKind.t(),
-          attributes :: attributes()
-        ) ::
-          sampling_result()
-  def should_sample({module, _description, config}, ctx, trace_id, links, name, kind, attributes) do
-    module.should_sample(ctx, trace_id, links, name, kind, attributes, config)
+          attributes :: %{String.t() => primitive_any()}
+        ) :: sampling_result()
+  def should_sample(ctx, _trace_id, _links, _name, _kind, _attributes) do
+    parent = Otel.API.Trace.current_span(ctx)
+    tracestate = Map.get(parent, :tracestate, Otel.API.Trace.TraceState.new())
+    {decide(parent), %{}, tracestate}
   end
 
-  @doc """
-  Returns the sampler's description.
-  """
-  @spec description(sampler :: t()) :: description()
-  def description({_module, desc, _config}), do: desc
+  @spec decide(parent :: Otel.API.Trace.SpanContext.t()) :: sampling_decision()
+  defp decide(parent) do
+    cond do
+      not Otel.API.Trace.SpanContext.valid?(parent) -> :record_and_sample
+      sampled?(parent) -> :record_and_sample
+      true -> :drop
+    end
+  end
+
+  @spec sampled?(parent :: Otel.API.Trace.SpanContext.t()) :: boolean()
+  defp sampled?(%Otel.API.Trace.SpanContext{trace_flags: flags}),
+    do: Bitwise.band(flags, 1) != 0
 end

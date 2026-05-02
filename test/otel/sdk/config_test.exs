@@ -43,10 +43,8 @@ defmodule Otel.SDK.ConfigTest do
   end
 
   describe "trace/0" do
-    test "defaults: ParentBased + Batch(OTLP HTTP) + SpanLimits + Default IdGenerator" do
+    test "defaults: Batch(OTLP HTTP) + SpanLimits + Default IdGenerator" do
       config = Otel.SDK.Config.trace()
-
-      assert {Otel.SDK.Trace.Sampler.ParentBased, _} = config.sampler
 
       assert [
                {Otel.SDK.Trace.SpanProcessor.Batch,
@@ -57,10 +55,7 @@ defmodule Otel.SDK.ConfigTest do
       assert config.id_generator == Otel.SDK.Trace.IdGenerator.Default
     end
 
-    test "Application env: sampler / exporter / processor selectors swap underlying module" do
-      Application.put_env(:otel, :trace, sampler: :always_off)
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, %{}} = Otel.SDK.Config.trace().sampler
-
+    test "Application env: exporter / processor selectors swap underlying module" do
       Application.put_env(:otel, :trace, exporter: :console)
 
       assert [{_, %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}] =
@@ -87,23 +82,6 @@ defmodule Otel.SDK.ConfigTest do
 
       Application.put_env(:otel, :trace, span_limits: [attribute_count_limit: 64])
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
-    end
-
-    test "OTEL_TRACES_SAMPLER + SAMPLER_ARG; missing/bad/out-of-range → 1.0" do
-      System.put_env("OTEL_TRACES_SAMPLER", "always_off")
-      assert {Otel.SDK.Trace.Sampler.AlwaysOff, _} = Otel.SDK.Config.trace().sampler
-
-      System.put_env("OTEL_TRACES_SAMPLER", "traceidratio")
-      System.put_env("OTEL_TRACES_SAMPLER_ARG", "0.25")
-      assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 0.25} = Otel.SDK.Config.trace().sampler
-
-      for arg <- [nil, "bad-ratio", "1.5"] do
-        if arg,
-          do: System.put_env("OTEL_TRACES_SAMPLER_ARG", arg),
-          else: System.delete_env("OTEL_TRACES_SAMPLER_ARG")
-
-        assert {Otel.SDK.Trace.Sampler.TraceIdRatioBased, 1.0} = Otel.SDK.Config.trace().sampler
-      end
     end
 
     test "OTEL_TRACES_EXPORTER + OTEL_BSP_* knobs flow into Batch" do
@@ -141,10 +119,6 @@ defmodule Otel.SDK.ConfigTest do
     end
 
     test "Application env wins over OS env" do
-      System.put_env("OTEL_TRACES_SAMPLER", "always_off")
-      Application.put_env(:otel, :trace, sampler: :always_on)
-      assert {Otel.SDK.Trace.Sampler.AlwaysOn, _} = Otel.SDK.Config.trace().sampler
-
       System.put_env("OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT", "64")
       Application.put_env(:otel, :trace, span_limits: %{attribute_count_limit: 256})
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 256

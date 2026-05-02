@@ -14,9 +14,8 @@ defmodule Otel.API.Trace.TraceId do
   Per spec L266 *"The API SHOULD NOT expose details about how
   they are internally stored"* — callers go through `to_hex/1`
   / `to_bytes/1` rather than the raw integer. The
-  `to_integer/1` escape hatch exists specifically for SDK
-  samplers that perform bit arithmetic on the id (see
-  `Otel.SDK.Trace.Sampler.TraceIdRatioBased`).
+  `to_integer/1` escape hatch exists for SDK code that needs
+  to perform bit arithmetic on the id.
 
   ## Public API
 

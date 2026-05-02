@@ -17,7 +17,6 @@ import Config
 config :otel,
   trace: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-    sampler: :parentbased_always_on,
     exporter: :otlp,
     processor: :batch,
     span_limits: %{attribute_count_limit: 256}
@@ -65,10 +64,6 @@ propagator:
     - baggage:
 
 tracer_provider:
-  sampler:
-    parent_based:
-      root:
-        always_on:
   processors:
     - batch:
         exporter:
@@ -103,7 +98,7 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 
 ## Selectors
 
-Module-valued options (`exporter:`, `processor:`, `sampler:`, items in
+Module-valued options (`exporter:`, `processor:`, items in
 `propagators:`) accept:
 
 - a shortcut atom (see tables below)
@@ -112,10 +107,11 @@ Module-valued options (`exporter:`, `processor:`, `sampler:`, items in
 
 ## Trace pillar
 
+Sampling is hardcoded to `parentbased_always_on`
+(`Otel.SDK.Trace.Sampler`); no `sampler:` option is accepted.
+
 | Option | `config :otel, trace:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
-| Sampler | `sampler:` | `OTEL_TRACES_SAMPLER` | `:always_on` / `:always_off` / `:parentbased_always_on` / `:parentbased_always_off` / `:traceidratio` / `:parentbased_traceidratio` / `{:traceidratio, 0.5}` / `{Module, opts}` | `:parentbased_always_on` |
-| Sampler arg | via `{:traceidratio, n}` tuple | `OTEL_TRACES_SAMPLER_ARG` | float in `0.0..1.0` | `1.0` |
 | Exporter | `exporter:` | `OTEL_TRACES_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
 | Processor | `processor:` | — | `:batch` / `:simple` / `Module` | `:batch` |
 | Processor list | `processors:` | — | list of `{module, config}` | inferred |
