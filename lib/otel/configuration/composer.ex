@@ -194,12 +194,16 @@ defmodule Otel.Configuration.Composer do
     end
   end
 
+  # YAML `interval` / `timeout` are silently ignored — mirrors
+  # the sampler / limits / propagator / exemplar_filter ignore
+  # policy. Reader interval / timeout are hardcoded to spec
+  # defaults (`metrics/sdk.md` L1450-L1453).
   @spec periodic_reader_config(inner :: map()) :: map()
   defp periodic_reader_config(inner) do
     %{
       exporter: compose_metric_exporter(inner["exporter"]),
-      export_interval_ms: inner["interval"] || 60_000,
-      export_timeout_ms: inner["timeout"] || 30_000
+      export_interval_ms: 60_000,
+      export_timeout_ms: 30_000
     }
   end
 

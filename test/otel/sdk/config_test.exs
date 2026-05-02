@@ -76,11 +76,19 @@ defmodule Otel.SDK.ConfigTest do
       assert Otel.SDK.Config.metrics().exemplar_filter == :trace_based
     end
 
-    test "env-var overrides + Application :readers shortcut" do
+    test "ignores OTEL_METRIC_EXPORT_INTERVAL (no longer read)" do
       System.put_env("OTEL_METRIC_EXPORT_INTERVAL", "5000")
       [{_, config}] = Otel.SDK.Config.metrics().readers
-      assert config.export_interval_ms == 5000
+      assert config.export_interval_ms == 60_000
+    end
 
+    test "ignores OTEL_METRIC_EXPORT_TIMEOUT (no longer read)" do
+      System.put_env("OTEL_METRIC_EXPORT_TIMEOUT", "1000")
+      [{_, config}] = Otel.SDK.Config.metrics().readers
+      assert config.export_timeout_ms == 30_000
+    end
+
+    test "Application :readers shortcut (advanced override; for tests)" do
       Application.put_env(:otel, :metrics, readers: [{MyApp.Reader, %{}}])
       assert Otel.SDK.Config.metrics().readers == [{MyApp.Reader, %{}}]
     end

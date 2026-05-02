@@ -32,8 +32,6 @@ config :otel,
 ```bash
 export OTEL_SERVICE_NAME=my_app
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment=prod,service.version=1.2.3"
-export OTEL_TRACES_SAMPLER=parentbased_always_on
-export OTEL_METRIC_EXPORT_INTERVAL=30000
 ```
 
 ## Declarative YAML (`OTEL_CONFIG_FILE`)
@@ -126,10 +124,15 @@ Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter.HTTP`)
 | Option | `config :otel, metrics:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
 | Reader list | `readers:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
-| Reader export interval | `reader_config: %{export_interval_ms: _}` | `OTEL_METRIC_EXPORT_INTERVAL` | non-negative integer (ms) | `60000` |
-| Reader export timeout | `reader_config: %{export_timeout_ms: _}` | `OTEL_METRIC_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Views | `views:` | — | list of `Otel.SDK.Metrics.View.t()` | `[]` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |
+
+PeriodicExporting reader interval / timeout are hardcoded to
+spec defaults (`metrics/sdk.md` L1450-L1453:
+`exportIntervalMillis` `60000`, `exportTimeoutMillis`
+`30000`). `OTEL_METRIC_EXPORT_INTERVAL` /
+`OTEL_METRIC_EXPORT_TIMEOUT` env vars and the
+`:reader_config` Application-env keyword are no longer read.
 
 Exemplar filter is hardcoded to **`:trace_based`** — the
 spec default per `metrics/sdk.md` L1123 (*"The default value

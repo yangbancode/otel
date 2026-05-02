@@ -32,8 +32,7 @@ defmodule Otel.SDK.Config do
       resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
     ],
     metrics: [
-      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-      reader_config: %{export_interval_ms: 30_000}
+      resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
     ],
     logs: [
       resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
@@ -173,24 +172,23 @@ defmodule Otel.SDK.Config do
     end
   end
 
+  # Reader interval / timeout are hardcoded to spec defaults
+  # (`metrics/sdk.md` L1450-L1453: `exportIntervalMillis`
+  # `60000`, `exportTimeoutMillis` `30000`).
+  # `OTEL_METRIC_EXPORT_INTERVAL` / `OTEL_METRIC_EXPORT_TIMEOUT`
+  # env vars and the `:reader_config` Application-env keyword
+  # are no longer read.
   @spec default_metrics_readers(pillar :: keyword()) ::
           [{module(), Otel.SDK.Metrics.MetricReader.config()}]
-  defp default_metrics_readers(pillar) do
-    [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, reader_config(pillar)}]
-  end
-
-  @spec reader_config(pillar :: keyword()) :: map()
-  defp reader_config(pillar) do
-    overrides = Keyword.get(pillar, :reader_config, %{})
-
-    base = %{
-      exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}},
-      export_interval_ms:
-        Otel.SDK.Config.Env.duration_ms("OTEL_METRIC_EXPORT_INTERVAL") || 60_000,
-      export_timeout_ms: Otel.SDK.Config.Env.timeout_ms("OTEL_METRIC_EXPORT_TIMEOUT") || 30_000
-    }
-
-    Map.merge(base, overrides)
+  defp default_metrics_readers(_pillar) do
+    [
+      {Otel.SDK.Metrics.MetricReader.PeriodicExporting,
+       %{
+         exporter: {Otel.OTLP.Metrics.MetricExporter.HTTP, %{}},
+         export_interval_ms: 60_000,
+         export_timeout_ms: 30_000
+       }}
+    ]
   end
 
   # ====== Logs ======
