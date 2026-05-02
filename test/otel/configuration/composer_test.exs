@@ -74,7 +74,7 @@ defmodule Otel.Configuration.ComposerTest do
       [{module, _}] =
         processors([
           %{
-            "batch" => %{"exporter" => %{"console" => nil}},
+            "batch" => %{"exporter" => %{"otlp_http" => %{}}},
             "experimental_xyz/development" => %{"some" => "data"}
           }
         ])
@@ -129,7 +129,7 @@ defmodule Otel.Configuration.ComposerTest do
   end
 
   describe "compose metric readers" do
-    test "periodic reader with otlp_http and console exporters" do
+    test "periodic reader with otlp_http exporter" do
       [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, http}] =
         readers([
           %{
@@ -146,9 +146,6 @@ defmodule Otel.Configuration.ComposerTest do
 
       assert http.exporter ==
                {Otel.OTLP.Metrics.MetricExporter.HTTP, %{endpoint: "http://x:4318/v1/metrics"}}
-
-      [{_, console}] = readers([%{"periodic" => %{"exporter" => %{"console" => nil}}}])
-      assert console.exporter == {Otel.SDK.Metrics.MetricExporter.Console, %{}}
     end
 
     test "rejection cases: pull / unknown reader / missing exporter / unknown exporter" do
@@ -201,7 +198,7 @@ defmodule Otel.Configuration.ComposerTest do
       assert batch.exporter ==
                {Otel.OTLP.Logs.LogRecordExporter.HTTP, %{endpoint: "http://x:4318/v1/logs"}}
 
-      [{_, default}] = log_processors([%{"batch" => %{"exporter" => %{"console" => nil}}}])
+      [{_, default}] = log_processors([%{"batch" => %{"exporter" => %{"otlp_http" => %{}}}}])
       assert default.scheduled_delay_ms == 1_000
     end
 

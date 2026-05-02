@@ -51,16 +51,6 @@ defmodule Otel.SDK.ConfigTest do
       refute Map.has_key?(config, :id_generator)
     end
 
-    test "Application env: exporter selector swaps underlying module" do
-      Application.put_env(:otel, :trace, exporter: :console)
-
-      assert [{_, %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}] =
-               Otel.SDK.Config.trace().processors
-
-      Application.put_env(:otel, :trace, exporter: :none)
-      assert Otel.SDK.Config.trace().processors == []
-    end
-
     test "Application env: explicit :processors list bypasses implicit build" do
       processors = [{MyApp.CustomProcessor, %{x: 1}}]
       Application.put_env(:otel, :trace, processors: processors)
@@ -75,16 +65,6 @@ defmodule Otel.SDK.ConfigTest do
 
       Application.put_env(:otel, :trace, span_limits: [attribute_count_limit: 64])
       assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
-    end
-
-    test "OTEL_TRACES_EXPORTER selects the underlying exporter; :none yields empty processors" do
-      System.put_env("OTEL_TRACES_EXPORTER", "console")
-
-      assert [{_, %{exporter: {Otel.SDK.Trace.SpanExporter.Console, %{}}}}] =
-               Otel.SDK.Config.trace().processors
-
-      System.put_env("OTEL_TRACES_EXPORTER", "none")
-      assert Otel.SDK.Config.trace().processors == []
     end
 
     # Spec sdk-environment-variables.md L389-L395.
@@ -118,10 +98,6 @@ defmodule Otel.SDK.ConfigTest do
     end
 
     test "env-var overrides + Application :readers shortcut" do
-      System.put_env("OTEL_METRICS_EXPORTER", "none")
-      assert Otel.SDK.Config.metrics().readers == []
-
-      System.delete_env("OTEL_METRICS_EXPORTER")
       System.put_env("OTEL_METRIC_EXPORT_INTERVAL", "5000")
       [{_, config}] = Otel.SDK.Config.metrics().readers
       assert config.export_interval_ms == 5000
@@ -144,16 +120,7 @@ defmodule Otel.SDK.ConfigTest do
                Otel.SDK.Config.logs().log_record_limits
     end
 
-    test "OTEL_LOGS_EXPORTER (console / none) + LOGRECORD/ATTRIBUTE limit fallbacks" do
-      System.put_env("OTEL_LOGS_EXPORTER", "console")
-
-      assert [{_, %{exporter: {Otel.SDK.Logs.LogRecordExporter.Console, %{}}}}] =
-               Otel.SDK.Config.logs().processors
-
-      System.put_env("OTEL_LOGS_EXPORTER", "none")
-      assert Otel.SDK.Config.logs().processors == []
-
-      System.delete_env("OTEL_LOGS_EXPORTER")
+    test "LOGRECORD/ATTRIBUTE limit env-var fallbacks" do
       System.put_env("OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT", "16")
       assert Otel.SDK.Config.logs().log_record_limits.attribute_count_limit == 16
 

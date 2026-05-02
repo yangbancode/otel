@@ -17,17 +17,14 @@ import Config
 config :otel,
   trace: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-    exporter: :otlp,
     span_limits: %{attribute_count_limit: 256}
   ],
   metrics: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-    exporter: :otlp,
     reader_config: %{export_interval_ms: 30_000}
   ],
   logs: [
-    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"}),
-    exporter: :otlp
+    resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
   ],
   propagators: [:tracecontext, :baggage]
 ```
@@ -38,10 +35,7 @@ config :otel,
 export OTEL_SERVICE_NAME=my_app
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment=prod,service.version=1.2.3"
 export OTEL_TRACES_SAMPLER=parentbased_always_on
-export OTEL_TRACES_EXPORTER=otlp
-export OTEL_METRICS_EXPORTER=otlp
 export OTEL_METRIC_EXPORT_INTERVAL=30000
-export OTEL_LOGS_EXPORTER=otlp
 export OTEL_PROPAGATORS=tracecontext,baggage
 ```
 
@@ -94,24 +88,19 @@ export OTEL_CONFIG_FILE=/etc/otel/config.yaml
 
 `OTEL_SDK_DISABLED=true` makes telemetry calls no-ops. Propagator stays active.
 
-## Selectors
-
-Module-valued options (`exporter:`, items in `propagators:`)
-accept:
-
-- a shortcut atom (see tables below)
-- a module — same as `{Module, %{}}`
-- a `{module, %{...}}` tuple
-
 ## Trace pillar
+
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Trace.SpanExporter.HTTP`).
+No `exporter:` option, no Console exporter, no `:none` shortcut. To stop
+emitting telemetry, set `config :otel, disabled: true` (or
+`OTEL_SDK_DISABLED=true`).
 
 Sampling is hardcoded to `parentbased_always_on`
 (`Otel.SDK.Trace.Sampler`); no `sampler:` option is accepted.
 
 | Option | `config :otel, trace:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
-| Exporter | `exporter:` | `OTEL_TRACES_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
-| Processor list | `processors:` | — | list of `{module, config}` (advanced override) | inferred |
+| Processor list | `processors:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
 | Span attribute count | `span_limits: %{attribute_count_limit: _}` | `OTEL_SPAN_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
 | Span attribute value length | `span_limits: %{attribute_value_length_limit: _}` | `OTEL_SPAN_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
 | Event count | `span_limits: %{event_count_limit: _}` | `OTEL_SPAN_EVENT_COUNT_LIMIT` | non-negative integer | `128` |
@@ -132,10 +121,11 @@ read.
 
 ## Metrics pillar
 
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter.HTTP`).
+
 | Option | `config :otel, metrics:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
-| Exporter | `exporter:` | `OTEL_METRICS_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
-| Reader list | `readers:` | — | list of `{module, config}` | inferred from `exporter:` |
+| Reader list | `readers:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
 | Reader export interval | `reader_config: %{export_interval_ms: _}` | `OTEL_METRIC_EXPORT_INTERVAL` | non-negative integer (ms) | `60000` |
 | Reader export timeout | `reader_config: %{export_timeout_ms: _}` | `OTEL_METRIC_EXPORT_TIMEOUT` | integer (ms); `0` ⇒ `:infinity` | `30000` |
 | Exemplar filter | `exemplar_filter:` | `OTEL_METRICS_EXEMPLAR_FILTER` | `:always_on` / `:always_off` / `:trace_based` | `:trace_based` |
@@ -144,10 +134,11 @@ read.
 
 ## Logs pillar
 
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Logs.LogRecordExporter.HTTP`).
+
 | Option | `config :otel, logs:` | `OTEL_*` | Accepted values | Default |
 |---|---|---|---|---|
-| Exporter | `exporter:` | `OTEL_LOGS_EXPORTER` | `:otlp` / `:console` / `:none` / `Module` / `{Module, %{}}` | `:otlp` |
-| Processor list | `processors:` | — | list of `{module, config}` (advanced override) | inferred |
+| Processor list | `processors:` | — | list of `{module, config}` (advanced override; mostly for tests) | inferred |
 | LogRecord attribute count | `log_record_limits: %{attribute_count_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` (or `OTEL_ATTRIBUTE_COUNT_LIMIT`) | non-negative integer | `128` |
 | LogRecord attribute value length | `log_record_limits: %{attribute_value_length_limit: _}` | `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` (or `OTEL_ATTRIBUTE_VALUE_LENGTH_LIMIT`) | non-negative integer or `:infinity` | `:infinity` |
 | Resource | `resource:` | `OTEL_RESOURCE_ATTRIBUTES`, `OTEL_SERVICE_NAME` | `%Otel.SDK.Resource{}` | `telemetry.sdk.*` attributes |

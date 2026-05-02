@@ -239,9 +239,6 @@ defmodule Otel.Configuration.Composer do
       {"otlp_http", inner} ->
         {Otel.OTLP.Trace.SpanExporter.HTTP, otlp_http_config(inner || %{})}
 
-      {"console", _} ->
-        {Otel.SDK.Trace.SpanExporter.Console, %{}}
-
       {key, _} ->
         raise_unsupported_exporter!(key, "trace")
     end
@@ -311,9 +308,6 @@ defmodule Otel.Configuration.Composer do
       {"otlp_http", inner} ->
         {Otel.OTLP.Metrics.MetricExporter.HTTP, otlp_http_config(inner || %{})}
 
-      {"console", _} ->
-        {Otel.SDK.Metrics.MetricExporter.Console, %{}}
-
       {key, _} ->
         raise_unsupported_exporter!(key, "metrics")
     end
@@ -363,9 +357,6 @@ defmodule Otel.Configuration.Composer do
     case sole_key(spec) do
       {"otlp_http", inner} ->
         {Otel.OTLP.Logs.LogRecordExporter.HTTP, otlp_http_config(inner || %{})}
-
-      {"console", _} ->
-        {Otel.SDK.Logs.LogRecordExporter.Console, %{}}
 
       {key, _} ->
         raise_unsupported_exporter!(key, "logs")
@@ -517,6 +508,6 @@ defmodule Otel.Configuration.Composer do
   defp raise_unsupported_exporter!(key, pillar) do
     raise ArgumentError,
           "unsupported #{pillar} exporter: #{inspect(key)} — " <>
-            "this SDK supports otlp_http and console only"
+            "this SDK ships only otlp_http"
   end
 end

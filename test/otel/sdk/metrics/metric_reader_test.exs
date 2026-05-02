@@ -25,7 +25,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
   defp meter(config), do: {Otel.SDK.Metrics.Meter, config}
 
   setup do
-    restart_sdk(metrics: [exporter: :none])
+    restart_sdk(metrics: [readers: []])
     config = meter_config()
     %{config: config, meter: meter(config)}
   end
@@ -87,7 +87,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
   # all; reservoirs reset between collect calls.
   describe "exemplars" do
     test ":always_on collects exemplars; :always_off yields []" do
-      restart_sdk(metrics: [exemplar_filter: :always_on, exporter: :none])
+      restart_sdk(metrics: [readers: [], exemplar_filter: :always_on])
       config = meter_config()
       counter = Otel.SDK.Metrics.Meter.create_counter(meter(config), "sampled", [])
       Otel.SDK.Metrics.Meter.record(counter, 42, %{"method" => "GET"})
@@ -95,7 +95,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       [%{datapoints: [dp]}] = Otel.SDK.Metrics.MetricReader.collect(config)
       assert hd(dp.exemplars).value == 42
 
-      restart_sdk(metrics: [exemplar_filter: :always_off, exporter: :none])
+      restart_sdk(metrics: [readers: [], exemplar_filter: :always_off])
       config2 = meter_config()
       counter2 = Otel.SDK.Metrics.Meter.create_counter(meter(config2), "not_sampled", [])
       Otel.SDK.Metrics.Meter.record(counter2, 1, %{})
@@ -105,7 +105,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     end
 
     test "reservoirs reset between collect calls" do
-      restart_sdk(metrics: [exemplar_filter: :always_on, exporter: :none])
+      restart_sdk(metrics: [readers: [], exemplar_filter: :always_on])
       config = meter_config()
       counter = Otel.SDK.Metrics.Meter.create_counter(meter(config), "reset_test", [])
 
@@ -118,7 +118,7 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
     end
 
     test "View attribute filtering moves dropped keys onto the exemplar's filtered_attributes" do
-      restart_sdk(metrics: [exemplar_filter: :always_on, exporter: :none])
+      restart_sdk(metrics: [readers: [], exemplar_filter: :always_on])
       provider = Otel.SDK.Metrics.MeterProvider
 
       Otel.SDK.Metrics.MeterProvider.add_view(

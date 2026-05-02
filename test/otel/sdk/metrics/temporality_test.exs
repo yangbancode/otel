@@ -52,7 +52,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
   end
 
   defp default_provider do
-    restart_sdk(metrics: [exporter: :none])
+    restart_sdk(metrics: [readers: []])
 
     {_, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(

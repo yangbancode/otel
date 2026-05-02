@@ -151,7 +151,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     test "true when at least one processor exists; false when none", %{logger: logger} do
       assert Otel.SDK.Logs.Logger.enabled?(logger, [])
 
-      restart_sdk(logs: [exporter: :none])
+      restart_sdk(logs: [processors: []])
       refute Otel.SDK.Logs.Logger.enabled?(logger_for("lib"), [])
     end
   end

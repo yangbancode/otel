@@ -4,7 +4,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
   import ExUnit.CaptureLog
 
   setup do
-    restart_sdk(logs: [exporter: :none])
+    restart_sdk(logs: [processors: []])
     %{provider: Otel.SDK.Logs.LoggerProvider}
   end
 
