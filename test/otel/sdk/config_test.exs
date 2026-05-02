@@ -104,69 +104,22 @@ defmodule Otel.SDK.ConfigTest do
   end
 
   describe "propagator/0" do
-    test "default: Composite of TraceContext + Baggage" do
+    test "hardcoded: Composite of TraceContext + Baggage" do
       assert {Otel.API.Propagator.TextMap.Composite,
               [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
                Otel.SDK.Config.propagator()
     end
 
-    test "Application env :propagators — single, :none, list with :none, empty list" do
+    test "ignores Application env :propagators (no longer read)" do
       Application.put_env(:otel, :propagators, [:tracecontext])
-      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.TraceContext
 
-      Application.put_env(:otel, :propagators, [:none])
-      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
-
-      Application.put_env(:otel, :propagators, [:tracecontext, :none])
-      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
-
-      Application.put_env(:otel, :propagators, [])
-      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
-    end
-
-    test "Application env wins over OTEL_PROPAGATORS" do
-      System.put_env("OTEL_PROPAGATORS", "tracecontext")
-      Application.put_env(:otel, :propagators, [:baggage])
-      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Baggage
-    end
-
-    # Spec api-propagators.md L107-L118.
-    test "OTEL_PROPAGATORS — comma list / dedup / single / :none / empty / unknown / b3 raises" do
-      System.put_env("OTEL_PROPAGATORS", "tracecontext,baggage")
-
-      assert {Otel.API.Propagator.TextMap.Composite,
-              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
-               Otel.SDK.Config.propagator()
-
-      System.put_env("OTEL_PROPAGATORS", "tracecontext,baggage,tracecontext")
-
-      assert {Otel.API.Propagator.TextMap.Composite,
-              [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]} =
-               Otel.SDK.Config.propagator()
-
-      System.put_env("OTEL_PROPAGATORS", "baggage")
-      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Baggage
-
-      System.put_env("OTEL_PROPAGATORS", "none")
-      assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.Noop
-
-      System.put_env("OTEL_PROPAGATORS", "")
       assert {Otel.API.Propagator.TextMap.Composite, _} = Otel.SDK.Config.propagator()
+    end
 
-      log =
-        capture_log(fn ->
-          System.put_env("OTEL_PROPAGATORS", "tracecontext,mycustom")
-          assert Otel.SDK.Config.propagator() == Otel.API.Propagator.TextMap.TraceContext
-        end)
+    test "ignores OTEL_PROPAGATORS env var (no longer read)" do
+      System.put_env("OTEL_PROPAGATORS", "baggage")
 
-      assert log =~ "unknown name"
-      assert log =~ "mycustom"
-
-      System.put_env("OTEL_PROPAGATORS", "b3")
-
-      assert_raise ArgumentError, ~r/not implemented in this SDK/, fn ->
-        Otel.SDK.Config.propagator()
-      end
+      assert {Otel.API.Propagator.TextMap.Composite, _} = Otel.SDK.Config.propagator()
     end
   end
 end

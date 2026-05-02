@@ -24,8 +24,7 @@ config :otel,
   ],
   logs: [
     resource: Otel.SDK.Resource.create(%{"service.name" => "my_app"})
-  ],
-  propagators: [:tracecontext, :baggage]
+  ]
 ```
 
 ## OS environment
@@ -35,7 +34,6 @@ export OTEL_SERVICE_NAME=my_app
 export OTEL_RESOURCE_ATTRIBUTES="deployment.environment=prod,service.version=1.2.3"
 export OTEL_TRACES_SAMPLER=parentbased_always_on
 export OTEL_METRIC_EXPORT_INTERVAL=30000
-export OTEL_PROPAGATORS=tracecontext,baggage
 ```
 
 ## Declarative YAML (`OTEL_CONFIG_FILE`)
@@ -157,12 +155,16 @@ keyword is retained as an advanced override for tests.
 
 ## Propagators
 
-| Option | `config :otel,` | `OTEL_*` | Accepted values | Default |
-|---|---|---|---|---|
-| Propagators | `propagators:` | `OTEL_PROPAGATORS` | list of `:tracecontext` / `:baggage` / `:none` (or custom modules) | `[:tracecontext, :baggage]` |
+Propagators are hardcoded to
+**`Composite[TraceContext, Baggage]`** — the OTel spec
+default per `sdk-environment-variables.md` L118 and
+`context/api-propagators.md` L329-331. Not configurable.
 
-Deduplicated. `[:none]` or `[]` → Noop. `:b3` / `:b3multi` / `:jaeger` /
-`:xray` / `:ottrace` raise; supply a custom module instead.
+The `:propagators` Application-env keyword and
+`OTEL_PROPAGATORS` env var are no longer read. Other
+spec-listed propagators (`:b3`, `:b3multi`, `:jaeger`,
+`:xray`, `:ottrace`) are not supported in this SDK; users
+needing them should use `opentelemetry-erlang`.
 
 ## OTLP HTTP — SSL / TLS
 

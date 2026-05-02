@@ -161,7 +161,8 @@ end)
 ## Across services (HTTP / RPC)
 
 Inject the active context into outgoing request headers; extract on the
-server side. Default propagators are W3C TraceContext and W3C Baggage.
+server side. The SDK is hardcoded to W3C TraceContext + W3C Baggage —
+no other propagators (B3, Jaeger, etc.) are shipped.
 
 ### Outbound (client)
 
