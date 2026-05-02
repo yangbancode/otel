@@ -248,85 +248,21 @@ defmodule Otel.SDK.Config do
   # ====== Propagator ======
 
   @doc """
-  Builds the global TextMap propagator value to install via
-  `Otel.API.Propagator.TextMap.set_propagator/1`.
+  Returns the hardcoded global TextMap propagator —
+  `Composite[TraceContext, Baggage]`, the OTel spec default
+  per `sdk-environment-variables.md` L118
+  (`OTEL_PROPAGATORS` default `"tracecontext,baggage"`) and
+  `context/api-propagators.md` L329-331.
 
-  Spec L122-L131 (`OTEL_PROPAGATORS`): comma-separated list of
-  propagator names, default `"tracecontext,baggage"`. Values
-  MUST be deduplicated (L118).
-
-  Returns:
-  - the `Otel.API.Propagator.TextMap.Noop` module when the
-    list is empty or contains `"none"` (spec L130 — *"No
-    automatically configured propagator"*);
-  - a single propagator module when the list has one entry;
-  - `{Otel.API.Propagator.TextMap.Composite, [...]}` from
-    `Composite.new/1` for two or more entries.
-
-  Mix Config (`config :otel, propagators: [...]`) takes
-  precedence over `OTEL_PROPAGATORS`. The list may contain
-  shortcut atoms (`:tracecontext`, `:baggage`, `:none`) or
-  custom propagator modules; see `Otel.SDK.Config.Selector.propagator/1`
-  for the full mapping.
+  Not configurable per minikube-style scope. The
+  `:propagators` Application-env keyword is no longer read,
+  and `OTEL_PROPAGATORS` env var is no longer parsed. Power
+  users wanting B3 / Jaeger / X-Ray propagators should use
+  `opentelemetry-erlang`.
   """
-  @spec propagator() :: module() | {module(), [module()]}
+  @spec propagator() :: {module(), [module()]}
   def propagator do
-    selectors =
-      :otel
-      |> Application.get_env(:propagators)
-      |> case do
-        nil -> propagators_from_env() || [:tracecontext, :baggage]
-        list when is_list(list) -> list
-      end
-      |> Enum.uniq()
-
-    cond do
-      :none in selectors ->
-        Otel.API.Propagator.TextMap.Noop
-
-      selectors == [] ->
-        Otel.API.Propagator.TextMap.Noop
-
-      length(selectors) == 1 ->
-        Otel.SDK.Config.Selector.propagator(hd(selectors))
-
-      true ->
-        selectors
-        |> Enum.map(&Otel.SDK.Config.Selector.propagator/1)
-        |> Otel.API.Propagator.TextMap.Composite.new()
-    end
-  end
-
-  # Spec L116 default `"tracecontext,baggage"` is applied at the
-  # call site (when both env-var and Mix Config are absent), so
-  # this helper returns `nil` rather than the default itself —
-  # makes the call-site `||` chain readable.
-  @spec propagators_from_env() :: [atom()] | nil
-  defp propagators_from_env do
-    case Otel.SDK.Config.Env.list("OTEL_PROPAGATORS") do
-      nil -> nil
-      [] -> nil
-      raw -> raw |> Enum.map(&parse_propagator_name/1) |> Enum.reject(&is_nil/1)
-    end
-  end
-
-  # Spec L122-L131 enumerates 8 known propagator names. Limiting
-  # `String.to_atom/1` to those names keeps adversarial env-var
-  # input from polluting the atom table. Unknown names trigger
-  # spec L107's MUST: warn + ignore.
-  @known_propagator_names ~w(tracecontext baggage b3 b3multi jaeger xray ottrace none)
-
-  @spec parse_propagator_name(name :: String.t()) :: atom() | nil
-  defp parse_propagator_name(name) when name in @known_propagator_names do
-    String.to_atom(name)
-  end
-
-  defp parse_propagator_name(unknown) do
-    Logger.warning(
-      "Otel.SDK.Config: OTEL_PROPAGATORS contains unknown name #{inspect(unknown)}; " <>
-        "ignoring (spec L107 — unrecognized values MUST warn + be ignored)"
-    )
-
-    nil
+    {Otel.API.Propagator.TextMap.Composite,
+     [Otel.API.Propagator.TextMap.TraceContext, Otel.API.Propagator.TextMap.Baggage]}
   end
 end

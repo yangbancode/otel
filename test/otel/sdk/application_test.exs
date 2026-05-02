@@ -57,8 +57,8 @@ defmodule Otel.SDK.ApplicationTest do
     end
   end
 
-  describe "OTEL_PROPAGATORS wiring" do
-    test "default — Composite of TraceContext + Baggage" do
+  describe "Propagator wiring" do
+    test "hardcoded Composite[TraceContext, Baggage] is installed at boot" do
       reboot()
 
       assert {Otel.API.Propagator.TextMap.Composite,
@@ -66,23 +66,14 @@ defmodule Otel.SDK.ApplicationTest do
                Otel.API.Propagator.TextMap.get_propagator()
     end
 
-    test "single propagator selector installs the bare module" do
-      System.put_env("OTEL_PROPAGATORS", "tracecontext")
-      reboot()
-
-      assert Otel.API.Propagator.TextMap.get_propagator() ==
-               Otel.API.Propagator.TextMap.TraceContext
-    end
-
     # Spec sdk-environment-variables.md L113 — propagators MUST be
     # installed even when OTEL_SDK_DISABLED disables provider boot.
     test "OTEL_SDK_DISABLED=true installs the propagator but not the provider GenServers" do
       System.put_env("OTEL_SDK_DISABLED", "true")
-      System.put_env("OTEL_PROPAGATORS", "baggage")
       reboot()
 
-      assert Otel.API.Propagator.TextMap.get_propagator() ==
-               Otel.API.Propagator.TextMap.Baggage
+      assert {Otel.API.Propagator.TextMap.Composite, _} =
+               Otel.API.Propagator.TextMap.get_propagator()
 
       refute Process.whereis(Otel.SDK.Trace.TracerProvider)
       refute Process.whereis(Otel.SDK.Metrics.MeterProvider)
