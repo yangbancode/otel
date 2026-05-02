@@ -1,4 +1,4 @@
-defmodule Otel.API.Baggage do
+defmodule Otel.Baggage do
   @moduledoc """
   OTel Baggage (spec `baggage/api.md`, Status: **Stable**).
 

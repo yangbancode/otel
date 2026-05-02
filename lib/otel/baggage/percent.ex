@@ -1,4 +1,4 @@
-defmodule Otel.API.Baggage.Percent do
+defmodule Otel.Baggage.Percent do
   @moduledoc """
   W3C Baggage percent-encoding codec (W3C Baggage spec
   §value L64-L69, §property L82-L100).
@@ -27,7 +27,7 @@ defmodule Otel.API.Baggage.Percent do
 
   ## Callers
 
-  - `Otel.API.Propagator.TextMap.Baggage` — HTTP
+  - `Otel.Propagator.TextMap.Baggage` — HTTP
     `baggage:` header value/property encoding
   - `Otel.Resource` — OTEL_RESOURCE_ATTRIBUTES
     environment variable parsing (same Baggage-like

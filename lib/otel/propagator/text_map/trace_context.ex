@@ -1,4 +1,4 @@
-defmodule Otel.API.Propagator.TextMap.TraceContext do
+defmodule Otel.Propagator.TextMap.TraceContext do
   @moduledoc """
   W3C Trace Context Level 2 propagator (W3C
   `20-http_request_header_format.md` §Traceparent Header
@@ -99,7 +99,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
 
   | Function | Role |
   |---|---|
-  | `inject/3` | **SDK** (OTel API MUST) — TextMap Inject (L155-L182); `@impl Otel.API.Propagator.TextMap` |
+  | `inject/3` | **SDK** (OTel API MUST) — TextMap Inject (L155-L182) |
   | `extract/3` | **SDK** (OTel API MUST) — TextMap Extract (L185-L203); MUST NOT throw on parse failure (L100-L102) |
   | `fields/0` | **SDK** (OTel API MUST) — Fields (L133-L152) |
   | `encode_traceparent/1` | **Application** (W3C header serialization) — §traceparent L75-L96 |
@@ -113,8 +113,6 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   - OTel Context §TextMap Propagator: `opentelemetry-specification/specification/context/api-propagators.md` L114-L203
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api/src/otel_propagator_trace_context.erl`
   """
-
-  @behaviour Otel.API.Propagator.TextMap
 
   @traceparent_header "traceparent"
   @tracestate_header "tracestate"
@@ -139,12 +137,11 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   Invalid span contexts are not propagated — the carrier is
   returned unchanged.
   """
-  @impl true
   @spec inject(
           ctx :: Otel.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          setter :: Otel.API.Propagator.TextMap.setter()
-        ) :: Otel.API.Propagator.TextMap.carrier()
+          carrier :: Otel.Propagator.TextMap.carrier(),
+          setter :: Otel.Propagator.TextMap.setter()
+        ) :: Otel.Propagator.TextMap.carrier()
   def inject(ctx, carrier, setter) do
     span_ctx = Otel.Trace.current_span(ctx)
 
@@ -183,11 +180,10 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   an exception" in the spec uses the general-programming
   sense; catch gives literal coverage.
   """
-  @impl true
   @spec extract(
           ctx :: Otel.Ctx.t(),
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          getter :: Otel.API.Propagator.TextMap.getter()
+          carrier :: Otel.Propagator.TextMap.carrier(),
+          getter :: Otel.Propagator.TextMap.getter()
         ) :: Otel.Ctx.t()
   def extract(ctx, carrier, getter) do
     case getter.(carrier, @traceparent_header) do
@@ -213,7 +209,6 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   Returns `["traceparent", "tracestate"]` — the two header
   names this propagator reads and writes.
   """
-  @impl true
   @spec fields() :: [String.t()]
   def fields, do: [@traceparent_header, @tracestate_header]
 
@@ -300,8 +295,8 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   end
 
   @spec extract_tracestate(
-          carrier :: Otel.API.Propagator.TextMap.carrier(),
-          getter :: Otel.API.Propagator.TextMap.getter()
+          carrier :: Otel.Propagator.TextMap.carrier(),
+          getter :: Otel.Propagator.TextMap.getter()
         ) :: Otel.Trace.TraceState.t()
   defp extract_tracestate(carrier, getter) do
     case getter.(carrier, @tracestate_header) do

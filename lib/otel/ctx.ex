@@ -113,7 +113,7 @@ defmodule Otel.Ctx do
   when nothing is attached. Used by SDK components and instrumentation
   libraries to read the ambient Context. End-user code typically reads
   domain values through higher-level APIs
-  (`Otel.API.Baggage.current/0`, `Otel.Trace.current_span/0`)
+  (`Otel.Baggage.current/0`, `Otel.Trace.current_span/0`)
   rather than calling this directly.
   """
   @spec current() :: t()
@@ -168,7 +168,7 @@ defmodule Otel.Ctx do
   @spec new() :: t()
   def new, do: %{}
 
-  # Internal: cross-module helper used by `Otel.API.Baggage` and
+  # Internal: cross-module helper used by `Otel.Baggage` and
   # `Otel.Trace` to read a value through the implicit
   # process-local current Context. Equivalent to
   # `get_value(current(), key)`.
@@ -176,7 +176,7 @@ defmodule Otel.Ctx do
   @spec get_value(key :: key()) :: value()
   def get_value(key), do: get_value(current(), key)
 
-  # Internal: cross-module helper used by `Otel.API.Baggage` and
+  # Internal: cross-module helper used by `Otel.Baggage` and
   # `Otel.Trace` to write a value through the implicit
   # process-local current Context. Equivalent to
   # `current() |> set_value(key, value) |> attach()`.
