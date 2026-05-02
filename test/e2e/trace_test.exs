@@ -54,7 +54,7 @@ defmodule Otel.E2E.TraceTest do
       parent_ctx =
         Otel.API.Trace.start_span(tracer, parent_name, attributes: %{"e2e.id" => e2e_id})
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), parent_ctx)
 
       child_ctx =
         Otel.API.Trace.start_span(ctx, tracer, child_name, attributes: %{"e2e.id" => e2e_id})
@@ -577,7 +577,7 @@ defmodule Otel.E2E.TraceTest do
         is_remote: true
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), remote_parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), remote_parent)
 
       Otel.API.Trace.with_span(
         ctx,

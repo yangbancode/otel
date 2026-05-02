@@ -182,7 +182,7 @@ defmodule Otel.SDK.Metrics.Meter do
         :ok
 
       stream_entries ->
-        ctx = Otel.API.Ctx.current()
+        ctx = Otel.Ctx.current()
         now = System.system_time(:nanosecond)
 
         Enum.each(stream_entries, fn {_key, stream} ->
@@ -398,7 +398,7 @@ defmodule Otel.SDK.Metrics.Meter do
   @spec count_stream_keys(
           tab :: :ets.table(),
           stream_name :: String.t(),
-          scope :: Otel.API.InstrumentationScope.t(),
+          scope :: Otel.InstrumentationScope.t(),
           reader_id :: reference() | nil
         ) :: non_neg_integer()
   defp count_stream_keys(tab, stream_name, scope, reader_id) do
@@ -510,7 +510,7 @@ defmodule Otel.SDK.Metrics.Meter do
           pairs :: [{Otel.API.Metrics.Instrument.t(), Otel.API.Metrics.Measurement.t()}]
         ) :: :ok
   defp apply_observations(config, pairs) do
-    ctx = Otel.API.Ctx.current()
+    ctx = Otel.Ctx.current()
     now = System.system_time(:nanosecond)
 
     Enum.each(pairs, fn {%Otel.API.Metrics.Instrument{} = instrument,
@@ -543,7 +543,7 @@ defmodule Otel.SDK.Metrics.Meter do
           value :: number(),
           time :: non_neg_integer(),
           filtered_attrs :: map(),
-          ctx :: Otel.API.Ctx.t()
+          ctx :: Otel.Ctx.t()
         ) :: :ok
   defp offer_exemplar(config, stream, agg_key, value, time, filtered_attrs, ctx) do
     filter = Map.get(config, :exemplar_filter, :trace_based)

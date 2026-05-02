@@ -231,7 +231,7 @@ defmodule Otel.SDK.Logs.LogRecordProcessorTest do
     {_mod, config} =
       Otel.SDK.Logs.LoggerProvider.get_logger(
         Otel.SDK.Logs.LoggerProvider,
-        %Otel.API.InstrumentationScope{name: "test_lib"}
+        %Otel.InstrumentationScope{name: "test_lib"}
       )
 
     logger = {Otel.SDK.Logs.Logger, config}

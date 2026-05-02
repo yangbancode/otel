@@ -47,7 +47,7 @@ defmodule Otel.SDK.Trace.SpanExporter do
   """
   @callback export(
               spans :: [Otel.SDK.Trace.Span.t()],
-              resource :: Otel.SDK.Resource.t(),
+              resource :: Otel.Resource.t(),
               state :: state()
             ) :: :ok | :error
 

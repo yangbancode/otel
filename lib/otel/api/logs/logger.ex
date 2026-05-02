@@ -33,7 +33,7 @@ defmodule Otel.API.Logs.Logger do
   - OTel Logs API No-Op: `opentelemetry-specification/specification/logs/noop.md` (fallback when no SDK is installed)
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   A logger value — a `{module, config}` tuple where `module`
@@ -56,7 +56,7 @@ defmodule Otel.API.Logs.Logger do
     (0..24, L141)
   - `:event_name` — event name the caller would emit (L142)
   - `:ctx` — evaluation context (L137-L140; defaults to
-    `Otel.API.Ctx.current/0` when omitted)
+    `Otel.Ctx.current/0` when omitted)
 
   Unlike `Otel.API.Trace.Tracer.enabled_opt/0` which is left
   open (`keyword()`) because the Trace spec does not define
@@ -68,7 +68,7 @@ defmodule Otel.API.Logs.Logger do
   @type enabled_opt ::
           {:severity_number, Otel.API.Logs.severity_number()}
           | {:event_name, String.t()}
-          | {:ctx, Otel.API.Ctx.t()}
+          | {:ctx, Otel.Ctx.t()}
 
   @typedoc "A keyword list of `enabled_opt/0` values."
   @type enabled_opts :: [enabled_opt()]
@@ -82,7 +82,7 @@ defmodule Otel.API.Logs.Logger do
   parameter SHOULD be optional and if unspecified then MUST
   use current Context"*).
 
-  Injects `Otel.API.Ctx.current/0` as the context and
+  Injects `Otel.Ctx.current/0` as the context and
   delegates to the Logger's `emit/3` callback. `log_record`
   defaults to `%Otel.API.Logs.LogRecord{}` — an empty
   record with proto3 zero-value defaults for every field
@@ -90,7 +90,7 @@ defmodule Otel.API.Logs.Logger do
   """
   @spec emit(logger :: t(), log_record :: Otel.API.Logs.LogRecord.t()) :: :ok
   def emit({module, _} = logger, log_record \\ %Otel.API.Logs.LogRecord{}) do
-    ctx = Otel.API.Ctx.current()
+    ctx = Otel.Ctx.current()
     module.emit(logger, ctx, log_record)
   end
 
@@ -102,7 +102,7 @@ defmodule Otel.API.Logs.Logger do
   without context injection. Use when the caller wants a
   specific `ctx` instead of the process-local current one.
   """
-  @spec emit(logger :: t(), ctx :: Otel.API.Ctx.t(), log_record :: Otel.API.Logs.LogRecord.t()) ::
+  @spec emit(logger :: t(), ctx :: Otel.Ctx.t(), log_record :: Otel.API.Logs.LogRecord.t()) ::
           :ok
   def emit({module, _} = logger, ctx, log_record) do
     module.emit(logger, ctx, log_record)
@@ -129,7 +129,7 @@ defmodule Otel.API.Logs.Logger do
     opts =
       case Keyword.has_key?(opts, :ctx) do
         true -> opts
-        false -> Keyword.put(opts, :ctx, Otel.API.Ctx.current())
+        false -> Keyword.put(opts, :ctx, Otel.Ctx.current())
       end
 
     module.enabled?(logger, opts)
@@ -154,7 +154,7 @@ defmodule Otel.API.Logs.Logger do
   """
   @callback emit(
               logger :: t(),
-              ctx :: Otel.API.Ctx.t(),
+              ctx :: Otel.Ctx.t(),
               log_record :: Otel.API.Logs.LogRecord.t()
             ) :: :ok
 

@@ -1,7 +1,7 @@
 defmodule Otel.OTLP.Logs.LogRecordExporterTest do
   use ExUnit.Case, async: true
 
-  @resource Otel.SDK.Resource.create(%{"service.name" => "test"})
+  @resource Otel.Resource.create(%{"service.name" => "test"})
 
   @log_record %Otel.SDK.Logs.LogRecord{
     body: "test log message",
@@ -11,7 +11,7 @@ defmodule Otel.OTLP.Logs.LogRecordExporterTest do
     observed_timestamp: 2_000_000,
     attributes: %{"key" => "value"},
     event_name: "",
-    scope: %Otel.API.InstrumentationScope{name: "test_lib"},
+    scope: %Otel.InstrumentationScope{name: "test_lib"},
     resource: @resource,
     trace_id: 0,
     span_id: 0,

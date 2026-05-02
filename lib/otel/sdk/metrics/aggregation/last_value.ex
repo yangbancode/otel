@@ -34,7 +34,7 @@ defmodule Otel.SDK.Metrics.Aggregation.LastValue do
   @impl true
   @spec collect(
           metrics_tab :: :ets.table(),
-          stream_key :: {String.t(), Otel.API.InstrumentationScope.t()},
+          stream_key :: {String.t(), Otel.InstrumentationScope.t()},
           opts :: map()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   def collect(metrics_tab, {stream_name, scope}, opts) do

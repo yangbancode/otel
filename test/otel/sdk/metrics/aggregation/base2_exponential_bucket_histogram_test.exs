@@ -1,7 +1,7 @@
 defmodule Otel.SDK.Metrics.Aggregation.Base2ExponentialBucketHistogramTest do
   use ExUnit.Case, async: true
 
-  @scope %Otel.API.InstrumentationScope{name: "test"}
+  @scope %Otel.InstrumentationScope{name: "test"}
 
   setup do
     %{tab: :ets.new(:b2e_test, [:set, :public]), opts: %{}}

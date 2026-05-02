@@ -51,7 +51,7 @@ defmodule Otel.API.BaggageTest do
 
   describe "Context integration" do
     test "current/1 + set_current/2 round-trip on an explicit context" do
-      ctx = Otel.API.Ctx.new()
+      ctx = Otel.Ctx.new()
       baggage = %{"k" => {"v", ""}}
 
       assert Otel.API.Baggage.current(ctx) == %{}

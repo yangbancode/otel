@@ -69,7 +69,7 @@ defmodule Otel.SDK.Trace.SpanProcessor do
   Returns the (possibly modified) span.
   """
   @spec on_start(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           span :: Otel.SDK.Trace.Span.t(),
           config :: config()
         ) :: Otel.SDK.Trace.Span.t()

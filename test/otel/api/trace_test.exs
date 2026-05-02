@@ -19,7 +19,7 @@ defmodule Otel.API.TraceTest do
       :persistent_term.erase(key)
     end
 
-    Otel.API.Ctx.attach(Otel.API.Ctx.new())
+    Otel.Ctx.attach(Otel.Ctx.new())
 
     on_exit(fn ->
       if saved,
@@ -30,7 +30,7 @@ defmodule Otel.API.TraceTest do
 
   describe "get_tracer/1" do
     test "delegates to TracerProvider; returns the Noop tracer when no SDK installed" do
-      scope = %Otel.API.InstrumentationScope{
+      scope = %Otel.InstrumentationScope{
         name: "my_lib",
         version: "1.0.0",
         schema_url: "https://example.com",
@@ -43,7 +43,7 @@ defmodule Otel.API.TraceTest do
 
   describe "current_span / set_current_span" do
     test "explicit context: round-trip; default Span when none set; immutable update" do
-      ctx = Otel.API.Ctx.new()
+      ctx = Otel.Ctx.new()
       assert Otel.API.Trace.current_span(ctx) == %Otel.API.Trace.SpanContext{}
 
       ctx_with = Otel.API.Trace.set_current_span(ctx, @valid_span_ctx)
@@ -70,12 +70,12 @@ defmodule Otel.API.TraceTest do
     end
 
     test "explicit context: Noop returns the parent when one is present, else default" do
-      ctx_with_parent = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), @valid_span_ctx)
+      ctx_with_parent = Otel.API.Trace.set_current_span(Otel.Ctx.new(), @valid_span_ctx)
 
       assert Otel.API.Trace.start_span(ctx_with_parent, @noop_tracer, "child", []) ==
                @valid_span_ctx
 
-      assert Otel.API.Trace.start_span(Otel.API.Ctx.new(), @noop_tracer, "root", []) ==
+      assert Otel.API.Trace.start_span(Otel.Ctx.new(), @noop_tracer, "root", []) ==
                %Otel.API.Trace.SpanContext{}
     end
   end
@@ -121,7 +121,7 @@ defmodule Otel.API.TraceTest do
     end
 
     test "explicit-context overload (with_span/5) uses the supplied context" do
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), @valid_span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), @valid_span_ctx)
 
       result =
         Otel.API.Trace.with_span(ctx, @noop_tracer, "child", [], fn span_ctx ->
@@ -139,8 +139,8 @@ defmodule Otel.API.TraceTest do
 
   describe "make_current/1 + detach/1" do
     test "round-trip; nested attach/detach forms a LIFO stack; preserves unrelated keys" do
-      key = Otel.API.Ctx.create_key(:unrelated)
-      Otel.API.Ctx.set_value(key, :preserved)
+      key = Otel.Ctx.create_key(:unrelated)
+      Otel.Ctx.set_value(key, :preserved)
 
       span_a = %Otel.API.Trace.SpanContext{trace_id: 0xAA, span_id: 0x01}
       span_b = %Otel.API.Trace.SpanContext{trace_id: 0xBB, span_id: 0x02}
@@ -157,7 +157,7 @@ defmodule Otel.API.TraceTest do
       Otel.API.Trace.detach(token_a)
       assert Otel.API.Trace.current_span() == %Otel.API.Trace.SpanContext{}
 
-      assert Otel.API.Ctx.get_value(key) == :preserved
+      assert Otel.Ctx.get_value(key) == :preserved
     end
 
     test "detach in `after` restores the prior context on exception" do

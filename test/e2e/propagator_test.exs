@@ -31,7 +31,7 @@ defmodule Otel.E2E.PropagatorTest do
         |> String.pad_leading(16, "0")
 
       carrier = [{"traceparent", "00-#{trace_id_hex}-#{parent_id_hex}-01"}]
-      ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), carrier)
+      ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
 
@@ -62,7 +62,7 @@ defmodule Otel.E2E.PropagatorTest do
         |> String.pad_leading(16, "0")
 
       carrier = [{"traceparent", "00-#{trace_id_hex}-#{parent_id_hex}-01"}]
-      ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), carrier)
+      ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
 
@@ -97,7 +97,7 @@ defmodule Otel.E2E.PropagatorTest do
         {"tracestate", "vendor=carrier-#{e2e_id}"}
       ]
 
-      ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), carrier)
+      ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
 
       Otel.API.Trace.with_span(
@@ -119,9 +119,9 @@ defmodule Otel.E2E.PropagatorTest do
       sender_baggage =
         Otel.API.Baggage.set_value(%{}, "tenant", "acme-#{e2e_id}")
 
-      sender_ctx = Otel.API.Baggage.set_current(Otel.API.Ctx.new(), sender_baggage)
+      sender_ctx = Otel.API.Baggage.set_current(Otel.Ctx.new(), sender_baggage)
       carrier = Otel.API.Propagator.TextMap.inject(sender_ctx, [])
-      receiver_ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), carrier)
+      receiver_ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
 
@@ -162,7 +162,7 @@ defmodule Otel.E2E.PropagatorTest do
         {"baggage", "tenant=acme-#{e2e_id}"}
       ]
 
-      ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), carrier)
+      ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
       tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
 
       Otel.API.Trace.with_span(

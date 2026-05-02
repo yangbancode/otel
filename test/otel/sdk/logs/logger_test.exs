@@ -30,7 +30,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     {_mod, config} =
       Otel.SDK.Logs.LoggerProvider.get_logger(
         Otel.SDK.Logs.LoggerProvider,
-        %Otel.API.InstrumentationScope{name: scope_name, version: version}
+        %Otel.InstrumentationScope{name: scope_name, version: version}
       )
 
     {Otel.SDK.Logs.Logger, config}
@@ -55,7 +55,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
   describe "emit/3 — record enrichment" do
     test "fills observed_timestamp from current time when missing; preserves user value when set",
          %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
+      ctx = Otel.Ctx.current()
 
       before = System.system_time(:nanosecond)
       Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "auto"})
@@ -72,12 +72,12 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "decorates with scope, resource, trace context, and proto3 defaults", %{logger: logger} do
-      Otel.SDK.Logs.Logger.emit(logger, Otel.API.Ctx.current(), %Otel.API.Logs.LogRecord{})
+      Otel.SDK.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.API.Logs.LogRecord{})
       assert_receive {:log_record, record}
 
       assert record.scope.name == "test_lib"
       assert record.scope.version == "1.0.0"
-      assert %Otel.SDK.Resource{} = record.resource
+      assert %Otel.Resource{} = record.resource
       assert record.timestamp == 0
       assert record.severity_number == 0
       assert record.severity_text == ""
@@ -91,7 +91,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "passes user-provided fields through verbatim", %{logger: logger} do
-      Otel.SDK.Logs.Logger.emit(logger, Otel.API.Ctx.current(), %Otel.API.Logs.LogRecord{
+      Otel.SDK.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.API.Logs.LogRecord{
         timestamp: 1_000_000,
         severity_number: 9,
         severity_text: "INFO",
@@ -118,7 +118,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
   describe "exception handling" do
     test "exception fields populate exception.type / exception.message attributes; user values win",
          %{logger: logger} do
-      ctx = Otel.API.Ctx.current()
+      ctx = Otel.Ctx.current()
       ex = %RuntimeError{message: "auto"}
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{body: "e", exception: ex})
@@ -138,7 +138,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
     end
 
     test "no exception → no exception attributes injected", %{logger: logger} do
-      Otel.SDK.Logs.Logger.emit(logger, Otel.API.Ctx.current(), %Otel.API.Logs.LogRecord{
+      Otel.SDK.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.API.Logs.LogRecord{
         body: "normal"
       })
 
@@ -159,7 +159,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
   describe "log_record_limits enforcement" do
     test "value-length limit truncates strings; count limit drops attributes; both report dropped_attributes_count" do
       logger = logger_with_limits(attribute_value_length_limit: 5)
-      ctx = Otel.API.Ctx.current()
+      ctx = Otel.Ctx.current()
 
       Otel.SDK.Logs.Logger.emit(logger, ctx, %Otel.API.Logs.LogRecord{
         attributes: %{"key" => "abcdefgh"}
@@ -185,7 +185,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
             logger_with_limits(attribute_count_limit: 1),
-            Otel.API.Ctx.current(),
+            Otel.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => 2, "c" => 3}}
           )
         end)
@@ -197,7 +197,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
             logger_with_limits(attribute_value_length_limit: 3),
-            Otel.API.Ctx.current(),
+            Otel.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"key" => "abcdefg"}}
           )
         end)
@@ -210,7 +210,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
             logger_with_limits(attribute_count_limit: 1, attribute_value_length_limit: 3),
-            Otel.API.Ctx.current(),
+            Otel.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"a" => "abcdef", "b" => "ghijkl"}}
           )
         end)
@@ -230,7 +230,7 @@ defmodule Otel.SDK.Logs.LoggerTest do
         capture_log(fn ->
           Otel.SDK.Logs.Logger.emit(
             logger_for("lib"),
-            Otel.API.Ctx.current(),
+            Otel.Ctx.current(),
             %Otel.API.Logs.LogRecord{attributes: %{"a" => 1, "b" => "short"}}
           )
         end)

@@ -36,7 +36,7 @@ defmodule Otel.API.Trace.Event do
   - OTel Trace API §Add Events: `opentelemetry-specification/specification/trace/api.md` L520-L558
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   A Span Event struct (spec `trace/api.md` §Add Events,

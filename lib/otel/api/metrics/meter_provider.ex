@@ -107,11 +107,11 @@ defmodule Otel.API.Metrics.MeterProvider do
 
   Without arguments, uses a default empty scope.
   """
-  @spec get_meter(instrumentation_scope :: Otel.API.InstrumentationScope.t()) ::
+  @spec get_meter(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
           Otel.API.Metrics.Meter.t()
-  def get_meter(instrumentation_scope \\ %Otel.API.InstrumentationScope{})
+  def get_meter(instrumentation_scope \\ %Otel.InstrumentationScope{})
 
-  def get_meter(%Otel.API.InstrumentationScope{} = instrumentation_scope) do
+  def get_meter(%Otel.InstrumentationScope{} = instrumentation_scope) do
     case get_provider() do
       nil ->
         @default_meter
@@ -135,7 +135,7 @@ defmodule Otel.API.Metrics.MeterProvider do
   """
   @callback get_meter(
               state :: term(),
-              instrumentation_scope :: Otel.API.InstrumentationScope.t()
+              instrumentation_scope :: Otel.InstrumentationScope.t()
             ) :: Otel.API.Metrics.Meter.t()
 
   # --- SDK installation hooks ---

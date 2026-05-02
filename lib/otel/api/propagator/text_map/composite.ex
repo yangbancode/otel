@@ -89,7 +89,7 @@ defmodule Otel.API.Propagator.TextMap.Composite do
   """
   @spec inject(
           propagators :: [propagator()],
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           setter :: Otel.API.Propagator.TextMap.setter()
         ) :: Otel.API.Propagator.TextMap.carrier()
@@ -113,10 +113,10 @@ defmodule Otel.API.Propagator.TextMap.Composite do
   """
   @spec extract(
           propagators :: [propagator()],
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           getter :: Otel.API.Propagator.TextMap.getter()
-        ) :: Otel.API.Ctx.t()
+        ) :: Otel.Ctx.t()
   def extract(propagators, ctx, carrier, getter) do
     Enum.reduce(propagators, ctx, fn propagator, acc_ctx ->
       Otel.API.Propagator.TextMap.extract_with(propagator, acc_ctx, carrier, getter)

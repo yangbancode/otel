@@ -16,7 +16,7 @@ defmodule Otel.API.Logs.LoggerTest do
     end
 
     test "with explicit context" do
-      ctx = Otel.API.Ctx.current()
+      ctx = Otel.Ctx.current()
       record = %Otel.API.Logs.LogRecord{body: "with context"}
 
       assert :ok = Otel.API.Logs.Logger.emit(@logger, ctx, record)
@@ -47,6 +47,6 @@ defmodule Otel.API.Logs.LoggerTest do
     refute Otel.API.Logs.Logger.enabled?(@logger, severity_number: 9)
     refute Otel.API.Logs.Logger.enabled?(@logger, event_name: "my.event")
     refute Otel.API.Logs.Logger.enabled?(@logger, severity_number: 9, event_name: "my.event")
-    refute Otel.API.Logs.Logger.enabled?(@logger, ctx: Otel.API.Ctx.current())
+    refute Otel.API.Logs.Logger.enabled?(@logger, ctx: Otel.Ctx.current())
   end
 end

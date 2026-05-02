@@ -13,7 +13,7 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
     # Spec trace/api.md L865-L866 — return the parent's SpanContext
     # when one is present in the Context.
     test "returns the current span when its trace_id is non-zero" do
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), @valid_parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), @valid_parent)
 
       assert Otel.API.Trace.Tracer.Noop.start_span(ctx, @tracer, "n", []) == @valid_parent
     end
@@ -21,7 +21,7 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
     # Spec trace/api.md L869-L871 — empty non-recording SpanContext
     # when the Context has no Span (or only an invalid one).
     test "returns the default SpanContext when no parent or parent has zero trace_id" do
-      empty_ctx = Otel.API.Ctx.new()
+      empty_ctx = Otel.Ctx.new()
       bad_parent = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 1}
       bad_ctx = Otel.API.Trace.set_current_span(empty_ctx, bad_parent)
 
@@ -35,16 +35,16 @@ defmodule Otel.API.Trace.Tracer.NoopTest do
 
   describe "with_span/5" do
     test "invokes the function with the started SpanContext and detaches the context" do
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), @valid_parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), @valid_parent)
 
       result =
         Otel.API.Trace.Tracer.Noop.with_span(ctx, @tracer, "n", [], fn span_ctx ->
-          {:body_ran, span_ctx, Otel.API.Trace.current_span(Otel.API.Ctx.current())}
+          {:body_ran, span_ctx, Otel.API.Trace.current_span(Otel.Ctx.current())}
         end)
 
       assert {:body_ran, @valid_parent, @valid_parent} = result
       # Detach restored the previous (empty) global Context.
-      assert Otel.API.Trace.current_span(Otel.API.Ctx.current()) ==
+      assert Otel.API.Trace.current_span(Otel.Ctx.current()) ==
                %Otel.API.Trace.SpanContext{}
     end
   end

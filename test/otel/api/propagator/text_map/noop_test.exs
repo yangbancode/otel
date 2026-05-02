@@ -5,7 +5,7 @@ defmodule Otel.API.Propagator.TextMap.NoopTest do
   # The OpenTelemetry API MUST use no-op propagators unless
   # explicitly configured otherwise.
 
-  @ctx Otel.API.Ctx.new()
+  @ctx Otel.Ctx.new()
 
   # Setter / getter raise — proves Noop never invokes them.
   defp raising_setter, do: fn _k, _v, _c -> raise "setter MUST NOT be called" end
@@ -23,7 +23,7 @@ defmodule Otel.API.Propagator.TextMap.NoopTest do
 
   describe "extract/3" do
     test "returns the context unchanged across carrier shapes" do
-      ctx = Otel.API.Ctx.set_value(@ctx, :my_key, :value)
+      ctx = Otel.Ctx.set_value(@ctx, :my_key, :value)
 
       assert Otel.API.Propagator.TextMap.Noop.extract(ctx, [{"k", "v"}], raising_getter()) == ctx
       # Spec L100-L102 — MUST NOT throw on parse failure; Noop

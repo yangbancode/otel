@@ -17,7 +17,7 @@ defmodule Otel.SDK.Trace.SamplerTest do
 
   describe "should_sample/6 — root span (no parent)" do
     test "samples the root span" do
-      ctx = Otel.API.Ctx.new()
+      ctx = Otel.Ctx.new()
 
       assert {:record_and_sample, %{}, %Otel.API.Trace.TraceState{}} =
                Otel.SDK.Trace.Sampler.should_sample(ctx, @trace_id, [], "root", :internal, %{})
@@ -61,7 +61,7 @@ defmodule Otel.SDK.Trace.SamplerTest do
         tracestate: tracestate
       }
 
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), parent)
 
       assert {:record_and_sample, %{}, ^tracestate} =
                Otel.SDK.Trace.Sampler.should_sample(ctx, @trace_id, [], "child", :internal, %{})
@@ -77,7 +77,7 @@ defmodule Otel.SDK.Trace.SamplerTest do
       tracestate: Otel.API.Trace.TraceState.new()
     }
 
-    ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), parent)
+    ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), parent)
     Otel.SDK.Trace.Sampler.should_sample(ctx, @trace_id, [], "child", :internal, %{})
   end
 end

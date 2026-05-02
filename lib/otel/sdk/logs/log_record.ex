@@ -15,9 +15,9 @@ defmodule Otel.SDK.Logs.LogRecord do
 
   | Field | Source | Spec |
   |---|---|---|
-  | `trace_id`, `span_id`, `trace_flags` | resolved `Otel.API.Ctx.t()` at emit time | L285-L287 *"trace context fields MUST be populated from / the resolved Context (either the explicitly passed Context or the / current Context)"* |
-  | `scope` | `Otel.API.InstrumentationScope` of the originating Logger | L281 *"Instrumentation Scope (implicitly) associated with the LogRecord"* |
-  | `resource` | `Otel.SDK.Resource` of the LoggerProvider | L282-L283 *"Resource information (implicitly) associated"* |
+  | `trace_id`, `span_id`, `trace_flags` | resolved `Otel.Ctx.t()` at emit time | L285-L287 *"trace context fields MUST be populated from / the resolved Context (either the explicitly passed Context or the / current Context)"* |
+  | `scope` | `Otel.InstrumentationScope` of the originating Logger | L281 *"Instrumentation Scope (implicitly) associated with the LogRecord"* |
+  | `resource` | `Otel.Resource` of the LoggerProvider | L282-L283 *"Resource information (implicitly) associated"* |
   | `dropped_attributes_count` | size delta after `LogRecordLimits` application | L289-L292 *"Counts for attributes due to collection limits MUST be available for exporters"* |
 
   The `exception` sidecar from `Otel.API.Logs.LogRecord` is
@@ -44,7 +44,7 @@ defmodule Otel.SDK.Logs.LogRecord do
   - OTLP proto LogRecord: `opentelemetry-proto/opentelemetry/proto/logs/v1/logs.proto` L136-L226
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   A LogRecord ready for processor/exporter consumption — the
@@ -72,8 +72,8 @@ defmodule Otel.SDK.Logs.LogRecord do
           trace_id: Otel.API.Trace.TraceId.t(),
           span_id: Otel.API.Trace.SpanId.t(),
           trace_flags: Otel.API.Trace.SpanContext.trace_flags(),
-          scope: Otel.API.InstrumentationScope.t(),
-          resource: Otel.SDK.Resource.t()
+          scope: Otel.InstrumentationScope.t(),
+          resource: Otel.Resource.t()
         }
 
   defstruct timestamp: 0,
@@ -87,6 +87,6 @@ defmodule Otel.SDK.Logs.LogRecord do
             trace_id: 0,
             span_id: 0,
             trace_flags: 0,
-            scope: %Otel.API.InstrumentationScope{},
-            resource: %Otel.SDK.Resource{}
+            scope: %Otel.InstrumentationScope{},
+            resource: %Otel.Resource{}
 end

@@ -3,7 +3,7 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
 
   defp ctx_with_flags(trace_flags) do
     Otel.API.Trace.set_current_span(
-      Otel.API.Ctx.new(),
+      Otel.Ctx.new(),
       %Otel.API.Trace.SpanContext{trace_id: 1, span_id: 1, trace_flags: trace_flags}
     )
   end

@@ -4,7 +4,7 @@ defmodule Otel.SDK.Metrics.ExemplarTest do
   describe "new/4 — extracts trace context when present, omits when absent" do
     test "without an active span, exemplar carries no trace_id / span_id" do
       exemplar =
-        Otel.SDK.Metrics.Exemplar.new(42, 1000, %{"key" => "val"}, Otel.API.Ctx.new())
+        Otel.SDK.Metrics.Exemplar.new(42, 1000, %{"key" => "val"}, Otel.Ctx.new())
 
       assert exemplar.value == 42
       assert exemplar.time == 1000
@@ -16,7 +16,7 @@ defmodule Otel.SDK.Metrics.ExemplarTest do
     test "with a valid current span, exemplar carries its trace_id and span_id" do
       ctx =
         Otel.API.Trace.set_current_span(
-          Otel.API.Ctx.new(),
+          Otel.Ctx.new(),
           %Otel.API.Trace.SpanContext{trace_id: 123, span_id: 456, trace_flags: 1}
         )
 
@@ -28,7 +28,7 @@ defmodule Otel.SDK.Metrics.ExemplarTest do
     test "an invalid span context is ignored (treated as absent)" do
       ctx =
         Otel.API.Trace.set_current_span(
-          Otel.API.Ctx.new(),
+          Otel.Ctx.new(),
           %Otel.API.Trace.SpanContext{trace_id: 0, span_id: 0}
         )
 

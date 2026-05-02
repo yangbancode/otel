@@ -8,7 +8,7 @@
 ```
 
 ```elixir
-scope = %Otel.API.InstrumentationScope{name: "my_app"}
+scope = %Otel.InstrumentationScope{name: "my_app"}
 tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
 
 Otel.API.Trace.with_span(tracer, "checkout", fn _span_ctx ->
@@ -26,7 +26,7 @@ the telemetry — pick a stable `name` per scope (your OTP app or
 module).
 
 ```elixir
-scope = %Otel.API.InstrumentationScope{name: "my_app", version: "1.0.0"}
+scope = %Otel.InstrumentationScope{name: "my_app", version: "1.0.0"}
 tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
 ```
 
@@ -149,10 +149,10 @@ Capture and re-attach explicitly:
 
 ```elixir
 Otel.API.Trace.with_span(tracer, "parent", fn _ ->
-  ctx = Otel.API.Ctx.current()
+  ctx = Otel.Ctx.current()
 
   Task.async(fn ->
-    Otel.API.Ctx.attach(ctx)
+    Otel.Ctx.attach(ctx)
     Otel.API.Trace.with_span(tracer, "child", fn _ -> :work end)
   end)
 end)
@@ -167,7 +167,7 @@ no other propagators (B3, Jaeger, etc.) are shipped.
 ### Outbound (client)
 
 ```elixir
-ctx = Otel.API.Ctx.current()
+ctx = Otel.Ctx.current()
 headers = Otel.API.Propagator.TextMap.inject(ctx, %{})
 # => %{"traceparent" => "00-...-...", "tracestate" => "..."}
 
@@ -177,8 +177,8 @@ HTTPClient.post("https://api.example.com/orders", body, headers)
 ### Inbound (server)
 
 ```elixir
-ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), conn.req_headers)
-Otel.API.Ctx.attach(ctx)
+ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), conn.req_headers)
+Otel.Ctx.attach(ctx)
 
 Otel.API.Trace.with_span(tracer, "POST /orders", [kind: :server], fn _ ->
   handle_request()
@@ -193,17 +193,17 @@ attributes.
 
 ```elixir
 ctx =
-  Otel.API.Ctx.current()
+  Otel.Ctx.current()
   |> Otel.API.Baggage.set_value("tenant.id", "acme")
   |> Otel.API.Baggage.set_value("feature.flag", "fast-checkout")
 
-Otel.API.Ctx.attach(ctx)
+Otel.Ctx.attach(ctx)
 ```
 
 Reading on the receiving side:
 
 ```elixir
-ctx = Otel.API.Propagator.TextMap.extract(Otel.API.Ctx.new(), headers)
+ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), headers)
 {value, _metadata} = Otel.API.Baggage.get_value(Otel.API.Baggage.current(ctx), "tenant.id")
 # value => "acme"
 ```

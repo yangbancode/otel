@@ -1,4 +1,4 @@
-defmodule Otel.API.InstrumentationScope do
+defmodule Otel.InstrumentationScope do
   @moduledoc """
   A logical unit of software identified by `(name, version, schema_url,
   attributes)` that emits telemetry (spec
@@ -37,7 +37,7 @@ defmodule Otel.API.InstrumentationScope do
   - `logs/api.md` L91-L93
 
   We satisfy this MUST by passing a single
-  `%Otel.API.InstrumentationScope{}` struct whose
+  `%Otel.InstrumentationScope{}` struct whose
   `attributes: %{}` field accepts 0 to N entries:
 
       get_logger(%InstrumentationScope{})
@@ -90,7 +90,7 @@ defmodule Otel.API.InstrumentationScope do
   - `attributes` field origin: OTEP `0201-scope-attributes.md` (added in spec v1.13.0)
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   An instrumentation scope tuple (spec `common/instrumentation-scope.md`).

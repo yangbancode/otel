@@ -62,7 +62,7 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   - Env vars: `opentelemetry-specification/specification/configuration/sdk-environment-variables.md` L197-L204
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @default_attribute_count_limit 128
   @default_attribute_value_length_limit :infinity

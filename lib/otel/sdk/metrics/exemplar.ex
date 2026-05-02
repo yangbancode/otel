@@ -6,7 +6,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
   collection.
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @type t :: %__MODULE__{
           value: number(),
@@ -26,7 +26,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
           value :: number(),
           time :: non_neg_integer(),
           filtered_attributes :: %{String.t() => primitive_any()},
-          ctx :: Otel.API.Ctx.t()
+          ctx :: Otel.Ctx.t()
         ) :: t()
   def new(value, time, filtered_attributes, ctx) do
     {trace_id, span_id} = extract_trace_info(ctx)
@@ -40,7 +40,7 @@ defmodule Otel.SDK.Metrics.Exemplar do
     }
   end
 
-  @spec extract_trace_info(ctx :: Otel.API.Ctx.t()) ::
+  @spec extract_trace_info(ctx :: Otel.Ctx.t()) ::
           {Otel.API.Trace.TraceId.t() | nil, Otel.API.Trace.SpanId.t() | nil}
   defp extract_trace_info(ctx) do
     %Otel.API.Trace.SpanContext{trace_id: trace_id, span_id: span_id} =

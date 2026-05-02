@@ -75,7 +75,7 @@ defmodule Otel.API.Trace.Span do
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api/src/otel_span.erl`
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   Options accepted by `Otel.API.Trace.Tracer` callback

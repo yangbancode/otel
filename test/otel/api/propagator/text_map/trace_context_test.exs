@@ -16,7 +16,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
     test "writes traceparent (and tracestate when non-empty) for a valid span" do
       ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor", "value")
       span_ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
@@ -28,7 +28,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
 
     test "omits tracestate when empty; encodes trace_flags 0 as -00" do
       span_ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 0)
-      ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
@@ -38,11 +38,11 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
     end
 
     test "no-op when there is no valid span in the context" do
-      assert Otel.API.Propagator.TextMap.TraceContext.inject(Otel.API.Ctx.new(), [], @setter) ==
+      assert Otel.API.Propagator.TextMap.TraceContext.inject(Otel.Ctx.new(), [], @setter) ==
                []
 
       span_ctx = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: @valid_span_id}
-      bad_ctx = Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), span_ctx)
+      bad_ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       assert Otel.API.Propagator.TextMap.TraceContext.inject(bad_ctx, [], @setter) == []
     end
@@ -53,7 +53,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       carrier = [{"traceparent", @canonical_traceparent}]
 
       ctx =
-        Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+        Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
 
@@ -70,7 +70,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       ]
 
       ctx =
-        Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+        Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
 
       span_ctx = Otel.API.Trace.current_span(ctx)
 
@@ -89,7 +89,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
 
       for carrier <- [bare, with_extra] do
         span_ctx =
-          Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+          Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
           |> Otel.API.Trace.current_span()
 
         assert span_ctx.trace_id == @valid_trace_id
@@ -102,7 +102,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
   # failure; it returns the original Context unchanged.
   describe "extract/3 — invalid traceparent leaves Context unchanged" do
     setup do
-      %{ctx: Otel.API.Ctx.new()}
+      %{ctx: Otel.Ctx.new()}
     end
 
     test "missing header", %{ctx: ctx} do
@@ -151,11 +151,11 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
     original = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
 
     carrier =
-      Otel.API.Trace.set_current_span(Otel.API.Ctx.new(), original)
+      Otel.API.Trace.set_current_span(Otel.Ctx.new(), original)
       |> Otel.API.Propagator.TextMap.TraceContext.inject([], @setter)
 
     extracted =
-      Otel.API.Propagator.TextMap.TraceContext.extract(Otel.API.Ctx.new(), carrier, @getter)
+      Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
       |> Otel.API.Trace.current_span()
 
     assert extracted.trace_id == original.trace_id

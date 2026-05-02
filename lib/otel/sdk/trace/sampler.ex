@@ -35,7 +35,7 @@ defmodule Otel.SDK.Trace.Sampler do
   - OTel Trace SDK §Built-in samplers: same file L418-L590
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @type sampling_decision :: :drop | :record_only | :record_and_sample
   @type sampling_result :: {
@@ -69,7 +69,7 @@ defmodule Otel.SDK.Trace.Sampler do
   parent unchanged.
   """
   @spec should_sample(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           trace_id :: Otel.API.Trace.TraceId.t(),
           links :: [Otel.API.Trace.Link.t()],
           name :: String.t(),

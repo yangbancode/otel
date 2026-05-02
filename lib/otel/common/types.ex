@@ -1,4 +1,4 @@
-defmodule Otel.API.Common.Types do
+defmodule Otel.Common.Types do
   @moduledoc """
   Macro module injecting shared OTel type aliases into consumer
   modules.
@@ -8,9 +8,9 @@ defmodule Otel.API.Common.Types do
   (Application/SDK/Internal) system in
   `.claude/rules/documentation.md` does not apply. The single
   public entry point is `__using__/1`, invoked via
-  `use Otel.API.Common.Types`.
+  `use Otel.Common.Types`.
 
-  Consumer modules `use Otel.API.Common.Types` to gain two
+  Consumer modules `use Otel.Common.Types` to gain two
   type aliases that describe every value our public and SDK
   APIs pass around:
 
@@ -200,7 +200,7 @@ defmodule Otel.API.Common.Types do
   ## Example
 
       defmodule MyModule do
-        use Otel.API.Common.Types
+        use Otel.Common.Types
 
         @type attributes :: %{String.t() => primitive_any()}
       end

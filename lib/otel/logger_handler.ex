@@ -28,12 +28,12 @@ defmodule Otel.LoggerHandler do
 
   | Key | Default | Description |
   |---|---|---|
-  | `scope_name` | `""` | `Otel.API.InstrumentationScope.name` — **SHOULD** be set to the calling application/library name. Spec `common/instrumentation-scope.md` L23: *"The instrumentation scope's name SHOULD be specified to identify the `InstrumentationScope` name."* L18-22 names the typical approach as the *"fully qualified name of the emitting software unit (e.g. fully qualified library name or fully qualified class name)."* An empty name is accepted by `LoggerProvider.get_logger/1`-style fallbacks but loses origin identification at the backend |
-  | `scope_version` | `""` | `Otel.API.InstrumentationScope.version` — typically `Application.spec(:my_app, :vsn)` |
-  | `scope_schema_url` | `""` | `Otel.API.InstrumentationScope.schema_url` (OTel spec v1.13.0+) |
-  | `scope_attributes` | `%{}` | `Otel.API.InstrumentationScope.attributes` (OTEP 0201). Follows OTel attribute rules: primitives or homogeneous arrays only |
+  | `scope_name` | `""` | `Otel.InstrumentationScope.name` — **SHOULD** be set to the calling application/library name. Spec `common/instrumentation-scope.md` L23: *"The instrumentation scope's name SHOULD be specified to identify the `InstrumentationScope` name."* L18-22 names the typical approach as the *"fully qualified name of the emitting software unit (e.g. fully qualified library name or fully qualified class name)."* An empty name is accepted by `LoggerProvider.get_logger/1`-style fallbacks but loses origin identification at the backend |
+  | `scope_version` | `""` | `Otel.InstrumentationScope.version` — typically `Application.spec(:my_app, :vsn)` |
+  | `scope_schema_url` | `""` | `Otel.InstrumentationScope.schema_url` (OTel spec v1.13.0+) |
+  | `scope_attributes` | `%{}` | `Otel.InstrumentationScope.attributes` (OTEP 0201). Follows OTel attribute rules: primitives or homogeneous arrays only |
 
-  `log/2` builds an `%Otel.API.InstrumentationScope{}` from the
+  `log/2` builds an `%Otel.InstrumentationScope{}` from the
   four `scope_*` keys on every event and resolves the Logger
   through `Otel.API.Logs.LoggerProvider.get_logger/1`. Resolution
   is deliberately done per-event rather than cached at
@@ -342,7 +342,7 @@ defmodule Otel.LoggerHandler do
   not just OTLP.
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   # --- :logger handler callbacks ---
 
@@ -358,7 +358,7 @@ defmodule Otel.LoggerHandler do
   @doc false
   @spec log(log_event :: :logger.log_event(), config :: :logger.handler_config()) :: :ok
   def log(log_event, config) do
-    ctx = Otel.API.Ctx.current()
+    ctx = Otel.Ctx.current()
     instrumentation_scope = build_instrumentation_scope(config)
     logger = Otel.API.Logs.LoggerProvider.get_logger(instrumentation_scope)
     log_record = build_log_record(log_event)
@@ -383,11 +383,11 @@ defmodule Otel.LoggerHandler do
   # --- Private ---
 
   @spec build_instrumentation_scope(config :: :logger.handler_config()) ::
-          Otel.API.InstrumentationScope.t()
+          Otel.InstrumentationScope.t()
   defp build_instrumentation_scope(config) do
     otel_config = Map.get(config, :config) || %{}
 
-    %Otel.API.InstrumentationScope{
+    %Otel.InstrumentationScope{
       name: Map.get(otel_config, :scope_name) || "",
       version: Map.get(otel_config, :scope_version) || "",
       schema_url: Map.get(otel_config, :scope_schema_url) || "",

@@ -29,7 +29,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       provider: p
     } do
       {module, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.API.InstrumentationScope{
+        Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{
           name: "my_lib",
           version: "1.0.0"
         })
@@ -37,7 +37,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       assert module == Otel.SDK.Logs.Logger
       assert config.scope.name == "my_lib"
       assert config.scope.version == "1.0.0"
-      assert %Otel.SDK.Resource{} = config.resource
+      assert %Otel.Resource{} = config.resource
       assert Map.has_key?(config, :processors_key)
     end
 
@@ -45,7 +45,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       pid = Process.whereis(p)
 
       {Otel.SDK.Logs.Logger, _} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.API.InstrumentationScope{name: "lib"})
+        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.InstrumentationScope{name: "lib"})
     end
 
     # Spec logs/api.md L78-L81 — invalid Logger name SHOULD log a
@@ -56,7 +56,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       log =
         capture_log(fn ->
           {Otel.SDK.Logs.Logger, config} =
-            Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.API.InstrumentationScope{name: ""})
+            Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: ""})
 
           assert config.scope.name == ""
         end)
@@ -65,7 +65,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       silent =
         capture_log(fn ->
-          Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.API.InstrumentationScope{name: "ok"})
+          Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: "ok"})
         end)
 
       refute silent =~ "invalid Logger name"
@@ -73,7 +73,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
   end
 
   test "resource/1 + config/1 return the boot-time provider state", %{provider: p} do
-    assert %Otel.SDK.Resource{} = Otel.SDK.Logs.LoggerProvider.resource(p)
+    assert %Otel.Resource{} = Otel.SDK.Logs.LoggerProvider.resource(p)
 
     config = Otel.SDK.Logs.LoggerProvider.config(p)
     assert is_map(config)
@@ -90,7 +90,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       assert {:error, :already_shutdown} = Otel.SDK.Logs.LoggerProvider.force_flush(p)
 
       {Otel.API.Logs.Logger.Noop, _} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.API.InstrumentationScope{name: "lib"})
+        Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: "lib"})
     end
 
     test "lifecycle + introspection facades stay graceful when the provider isn't running" do
@@ -102,7 +102,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       assert :ok = Otel.SDK.Logs.LoggerProvider.shutdown(Otel.SDK.Logs.LoggerProvider, 1_000)
 
-      assert %Otel.SDK.Resource{} =
+      assert %Otel.Resource{} =
                Otel.SDK.Logs.LoggerProvider.resource(Otel.SDK.Logs.LoggerProvider)
 
       assert %{} = Otel.SDK.Logs.LoggerProvider.config(Otel.SDK.Logs.LoggerProvider)

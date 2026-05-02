@@ -51,7 +51,7 @@ defmodule Otel.API.Trace.Tracer.Noop do
   """
   @impl true
   @spec start_span(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
           name :: String.t(),
           opts :: Otel.API.Trace.Span.start_opts()
@@ -77,7 +77,7 @@ defmodule Otel.API.Trace.Tracer.Noop do
   """
   @impl true
   @spec with_span(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           tracer :: Otel.API.Trace.Tracer.t(),
           name :: String.t(),
           opts :: Otel.API.Trace.Span.start_opts(),
@@ -87,12 +87,12 @@ defmodule Otel.API.Trace.Tracer.Noop do
   def with_span(ctx, tracer, name, opts, fun) do
     span_ctx = start_span(ctx, tracer, name, opts)
     new_ctx = Otel.API.Trace.set_current_span(ctx, span_ctx)
-    token = Otel.API.Ctx.attach(new_ctx)
+    token = Otel.Ctx.attach(new_ctx)
 
     try do
       fun.(span_ctx)
     after
-      Otel.API.Ctx.detach(token)
+      Otel.Ctx.detach(token)
     end
   end
 

@@ -17,7 +17,7 @@ defmodule Otel.LoggerHandlerTest.CapturingProvider do
   @behaviour Otel.API.Logs.LoggerProvider
 
   @impl true
-  def get_logger(test_pid, %Otel.API.InstrumentationScope{} = scope) do
+  def get_logger(test_pid, %Otel.InstrumentationScope{} = scope) do
     send(test_pid, {:scope_resolved, scope})
     {Otel.LoggerHandlerTest.CapturingLogger, test_pid}
   end

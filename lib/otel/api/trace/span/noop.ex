@@ -63,7 +63,7 @@ defmodule Otel.API.Trace.Span.Noop do
   - OTel Trace API §Span operations: `opentelemetry-specification/specification/trace/api.md` L449-L705
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @behaviour Otel.API.Trace.Span
 

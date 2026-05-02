@@ -70,7 +70,7 @@ defmodule Otel.SDK.Logs.Logger do
   @impl true
   @spec emit(
           logger :: Otel.API.Logs.Logger.t(),
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           log_record :: Otel.API.Logs.LogRecord.t()
         ) :: :ok
   def emit({_module, config}, ctx, log_record) do
@@ -110,7 +110,7 @@ defmodule Otel.SDK.Logs.Logger do
       # SDK caller may omit it. Mirror the API's fallback to the
       # current Context so the processor's `enabled?/4` always
       # sees a valid ctx (spec §LogRecordProcessor L425-L426).
-      {ctx, processor_opts} = Keyword.pop_lazy(opts, :ctx, &Otel.API.Ctx.current/0)
+      {ctx, processor_opts} = Keyword.pop_lazy(opts, :ctx, &Otel.Ctx.current/0)
 
       # Spec L267-L268: MUST return false when all processors
       # implement Enabled and all return false.
@@ -132,7 +132,7 @@ defmodule Otel.SDK.Logs.Logger do
   @spec build_log_record(
           log_record :: Otel.API.Logs.LogRecord.t(),
           config :: map(),
-          ctx :: Otel.API.Ctx.t()
+          ctx :: Otel.Ctx.t()
         ) :: Otel.SDK.Logs.LogRecord.t()
   defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)

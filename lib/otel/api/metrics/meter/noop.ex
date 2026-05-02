@@ -114,7 +114,7 @@ defmodule Otel.API.Metrics.Meter.Noop do
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_meter_noop.erl`
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @behaviour Otel.API.Metrics.Meter
 

@@ -57,7 +57,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     {_, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(
         Otel.SDK.Metrics.MeterProvider,
-        %Otel.API.InstrumentationScope{name: "test_lib"}
+        %Otel.InstrumentationScope{name: "test_lib"}
       )
 
     %{meter: {Otel.SDK.Metrics.Meter, config}, config: config}
@@ -71,7 +71,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     {_, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(
         Otel.SDK.Metrics.MeterProvider,
-        %Otel.API.InstrumentationScope{name: "test_lib"}
+        %Otel.InstrumentationScope{name: "test_lib"}
       )
 
     %{meter: {Otel.SDK.Metrics.Meter, config}, reader: reader_pid, config: config}
@@ -272,7 +272,7 @@ defmodule Otel.SDK.Metrics.TemporalityTest do
     {_, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(
         Otel.SDK.Metrics.MeterProvider,
-        %Otel.API.InstrumentationScope{name: "multi_lib"}
+        %Otel.InstrumentationScope{name: "multi_lib"}
       )
 
     counter = Otel.SDK.Metrics.Meter.create_counter({Otel.SDK.Metrics.Meter, config}, "c", [])

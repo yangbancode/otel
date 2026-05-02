@@ -155,7 +155,7 @@ defmodule Otel.API.Propagator.TextMap do
   `setter` defaults to `default_setter/3` for
   `[{String.t(), String.t()}]` carriers.
   """
-  @spec inject(ctx :: Otel.API.Ctx.t(), carrier :: carrier(), setter :: setter()) :: carrier()
+  @spec inject(ctx :: Otel.Ctx.t(), carrier :: carrier(), setter :: setter()) :: carrier()
   def inject(ctx, carrier, setter \\ &default_setter/3) do
     inject_with(get_propagator(), ctx, carrier, setter)
   end
@@ -171,8 +171,8 @@ defmodule Otel.API.Propagator.TextMap do
   `getter` defaults to `default_getter/2` for
   `[{String.t(), String.t()}]` carriers.
   """
-  @spec extract(ctx :: Otel.API.Ctx.t(), carrier :: carrier(), getter :: getter()) ::
-          Otel.API.Ctx.t()
+  @spec extract(ctx :: Otel.Ctx.t(), carrier :: carrier(), getter :: getter()) ::
+          Otel.Ctx.t()
   def extract(ctx, carrier, getter \\ &default_getter/2) do
     extract_with(get_propagator(), ctx, carrier, getter)
   end
@@ -294,7 +294,7 @@ defmodule Otel.API.Propagator.TextMap do
   (L168-L169).
   """
   @callback inject(
-              ctx :: Otel.API.Ctx.t(),
+              ctx :: Otel.Ctx.t(),
               carrier :: carrier(),
               setter :: setter()
             ) :: carrier()
@@ -311,10 +311,10 @@ defmodule Otel.API.Propagator.TextMap do
   unchanged.
   """
   @callback extract(
-              ctx :: Otel.API.Ctx.t(),
+              ctx :: Otel.Ctx.t(),
               carrier :: carrier(),
               getter :: getter()
-            ) :: Otel.API.Ctx.t()
+            ) :: Otel.Ctx.t()
 
   @doc """
   **SDK** (OTel API MUST) — Fields (`api-propagators.md`
@@ -343,7 +343,7 @@ defmodule Otel.API.Propagator.TextMap do
   @doc false
   @spec inject_with(
           propagator :: {module(), term()} | module(),
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: carrier(),
           setter :: setter()
         ) :: carrier()
@@ -363,10 +363,10 @@ defmodule Otel.API.Propagator.TextMap do
   @doc false
   @spec extract_with(
           propagator :: {module(), term()} | module(),
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: carrier(),
           getter :: getter()
-        ) :: Otel.API.Ctx.t()
+        ) :: Otel.Ctx.t()
   def extract_with({module, opts}, ctx, carrier, getter) do
     module.extract(opts, ctx, carrier, getter)
   end

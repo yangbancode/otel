@@ -112,7 +112,7 @@ defmodule Otel.SDK.Metrics.Aggregation.Base2ExponentialBucketHistogram do
   @impl true
   @spec collect(
           metrics_tab :: :ets.table(),
-          stream_key :: {String.t(), Otel.API.InstrumentationScope.t()},
+          stream_key :: {String.t(), Otel.InstrumentationScope.t()},
           opts :: map()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]
   def collect(metrics_tab, {stream_name, scope}, opts) do
@@ -155,7 +155,7 @@ defmodule Otel.SDK.Metrics.Aggregation.Base2ExponentialBucketHistogram do
           metrics_tab :: :ets.table(),
           entries :: [{map(), state()}],
           stream_name :: String.t(),
-          scope :: Otel.API.InstrumentationScope.t(),
+          scope :: Otel.InstrumentationScope.t(),
           reader_id :: reference() | nil,
           now :: non_neg_integer()
         ) :: [Otel.SDK.Metrics.Aggregation.datapoint()]

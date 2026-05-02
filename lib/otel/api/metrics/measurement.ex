@@ -47,7 +47,7 @@ defmodule Otel.API.Metrics.Measurement do
   - OTel Metrics API §Async callback shape: `opentelemetry-specification/specification/metrics/api.md` L441-L442
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   A Measurement struct (spec `metrics/api.md` §Measurement,

@@ -148,7 +148,7 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   """
   @impl true
   @spec inject(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           setter :: Otel.API.Propagator.TextMap.setter()
         ) :: Otel.API.Propagator.TextMap.carrier()
@@ -185,10 +185,10 @@ defmodule Otel.API.Propagator.TextMap.Baggage do
   """
   @impl true
   @spec extract(
-          ctx :: Otel.API.Ctx.t(),
+          ctx :: Otel.Ctx.t(),
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           getter :: Otel.API.Propagator.TextMap.getter()
-        ) :: Otel.API.Ctx.t()
+        ) :: Otel.Ctx.t()
   def extract(ctx, carrier, getter) do
     case getter.(carrier, @baggage_header) do
       nil ->

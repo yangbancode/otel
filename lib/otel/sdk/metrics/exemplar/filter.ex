@@ -11,7 +11,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Filter do
 
   @type t :: :always_on | :always_off | :trace_based
 
-  @spec should_sample?(filter :: t(), ctx :: Otel.API.Ctx.t()) :: boolean()
+  @spec should_sample?(filter :: t(), ctx :: Otel.Ctx.t()) :: boolean()
   def should_sample?(:always_on, _ctx), do: true
   def should_sample?(:always_off, _ctx), do: false
 

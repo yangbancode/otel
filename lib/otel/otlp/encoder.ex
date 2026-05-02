@@ -7,7 +7,7 @@ defmodule Otel.OTLP.Encoder do
   """
   @spec encode_traces(
           spans :: [Otel.SDK.Trace.Span.t()],
-          resource :: Otel.SDK.Resource.t()
+          resource :: Otel.Resource.t()
         ) :: binary()
   def encode_traces(spans, resource) do
     resource_spans = build_resource_spans(spans, resource)
@@ -20,7 +20,7 @@ defmodule Otel.OTLP.Encoder do
 
   @spec build_resource_spans(
           spans :: [Otel.SDK.Trace.Span.t()],
-          resource :: Otel.SDK.Resource.t()
+          resource :: Otel.Resource.t()
         ) :: [Opentelemetry.Proto.Trace.V1.ResourceSpans.t()]
   defp build_resource_spans(spans, resource) do
     scope_spans = group_by_scope(spans)
@@ -49,7 +49,7 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Resource ---
 
-  @spec encode_resource(resource :: Otel.SDK.Resource.t()) ::
+  @spec encode_resource(resource :: Otel.Resource.t()) ::
           Opentelemetry.Proto.Resource.V1.Resource.t()
   defp encode_resource(resource) do
     %Opentelemetry.Proto.Resource.V1.Resource{
@@ -59,7 +59,7 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Scope ---
 
-  @spec encode_scope(scope :: Otel.API.InstrumentationScope.t() | nil) ::
+  @spec encode_scope(scope :: Otel.InstrumentationScope.t() | nil) ::
           Opentelemetry.Proto.Common.V1.InstrumentationScope.t() | nil
   defp encode_scope(nil), do: nil
 
@@ -243,7 +243,7 @@ defmodule Otel.OTLP.Encoder do
     end)
   end
 
-  @spec scope_schema_url(scope :: Otel.API.InstrumentationScope.t() | nil) :: String.t()
+  @spec scope_schema_url(scope :: Otel.InstrumentationScope.t() | nil) :: String.t()
   defp scope_schema_url(nil), do: ""
   defp scope_schema_url(scope), do: scope.schema_url
 

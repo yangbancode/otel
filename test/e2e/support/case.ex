@@ -17,10 +17,10 @@ defmodule Otel.E2E.Case do
 
   use ExUnit.CaseTemplate
 
-  @scope %Otel.API.InstrumentationScope{name: "e2e", version: "0.1.0"}
+  @scope %Otel.InstrumentationScope{name: "e2e", version: "0.1.0"}
 
   @doc "InstrumentationScope used by every e2e test."
-  @spec scope() :: Otel.API.InstrumentationScope.t()
+  @spec scope() :: Otel.InstrumentationScope.t()
   def scope, do: @scope
 
   @doc "Force-flushes all three SDK providers (Tracer / Logger / Meter)."

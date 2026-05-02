@@ -1,7 +1,7 @@
 defmodule Otel.OTLP.EncoderTest do
   use ExUnit.Case, async: true
 
-  @resource Otel.SDK.Resource.create(%{
+  @resource Otel.Resource.create(%{
               "service.name" => "test-service",
               "telemetry.sdk.language" => "elixir"
             })
@@ -28,7 +28,7 @@ defmodule Otel.OTLP.EncoderTest do
       status: %Otel.API.Trace.Status{code: :ok},
       trace_flags: 1,
       is_recording: false,
-      instrumentation_scope: %Otel.API.InstrumentationScope{
+      instrumentation_scope: %Otel.InstrumentationScope{
         name: "test_lib",
         version: "1.0.0"
       }
@@ -80,7 +80,7 @@ defmodule Otel.OTLP.EncoderTest do
 
       with_attrs = %{
         @span
-        | instrumentation_scope: %Otel.API.InstrumentationScope{
+        | instrumentation_scope: %Otel.InstrumentationScope{
             name: "scoped_lib",
             version: "2.0.0",
             attributes: %{"library.tag" => "v2", "build" => 42}
@@ -216,8 +216,8 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "groups spans by instrumentation scope" do
-      scope_a = %Otel.API.InstrumentationScope{name: "lib_a"}
-      scope_b = %Otel.API.InstrumentationScope{name: "lib_b"}
+      scope_a = %Otel.InstrumentationScope{name: "lib_a"}
+      scope_b = %Otel.InstrumentationScope{name: "lib_b"}
 
       decoded =
         roundtrip_traces([
@@ -234,8 +234,8 @@ defmodule Otel.OTLP.EncoderTest do
       name: "http.requests",
       description: "Request count",
       unit: "1",
-      scope: %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"},
-      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      scope: %Otel.InstrumentationScope{name: "test_lib", version: "1.0.0"},
+      resource: Otel.Resource.create(%{"service.name" => "test"}),
       kind: :counter,
       temporality: :cumulative,
       is_monotonic: true,
@@ -254,8 +254,8 @@ defmodule Otel.OTLP.EncoderTest do
       name: "cpu.usage",
       description: "CPU usage",
       unit: "%",
-      scope: %Otel.API.InstrumentationScope{name: "test_lib"},
-      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      scope: %Otel.InstrumentationScope{name: "test_lib"},
+      resource: Otel.Resource.create(%{"service.name" => "test"}),
       kind: :gauge,
       temporality: nil,
       is_monotonic: nil,
@@ -274,8 +274,8 @@ defmodule Otel.OTLP.EncoderTest do
       name: "http.duration",
       description: "Request duration",
       unit: "ms",
-      scope: %Otel.API.InstrumentationScope{name: "test_lib"},
-      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      scope: %Otel.InstrumentationScope{name: "test_lib"},
+      resource: Otel.Resource.create(%{"service.name" => "test"}),
       kind: :histogram,
       temporality: :cumulative,
       is_monotonic: nil,
@@ -508,7 +508,7 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "scope schema_url propagated; nil scope → empty schema_url; resource attributes encoded" do
-      scope = %Otel.API.InstrumentationScope{
+      scope = %Otel.InstrumentationScope{
         name: "lib",
         schema_url: "https://opentelemetry.io/schemas/1.21.0"
       }
@@ -526,8 +526,8 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "groups metrics by instrumentation scope" do
-      scope_a = %Otel.API.InstrumentationScope{name: "lib_a"}
-      scope_b = %Otel.API.InstrumentationScope{name: "lib_b"}
+      scope_a = %Otel.InstrumentationScope{name: "lib_a"}
+      scope_b = %Otel.InstrumentationScope{name: "lib_b"}
 
       decoded =
         roundtrip_metrics([
@@ -548,8 +548,8 @@ defmodule Otel.OTLP.EncoderTest do
       observed_timestamp: 2_000_000,
       attributes: %{"method" => "GET"},
       event_name: "",
-      scope: %Otel.API.InstrumentationScope{name: "test_lib", version: "1.0.0"},
-      resource: Otel.SDK.Resource.create(%{"service.name" => "test"}),
+      scope: %Otel.InstrumentationScope{name: "test_lib", version: "1.0.0"},
+      resource: Otel.Resource.create(%{"service.name" => "test"}),
       trace_id: 0,
       span_id: 0,
       trace_flags: 0,
@@ -640,8 +640,8 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "groups records by instrumentation scope" do
-      scope_a = %Otel.API.InstrumentationScope{name: "lib_a"}
-      scope_b = %Otel.API.InstrumentationScope{name: "lib_b"}
+      scope_a = %Otel.InstrumentationScope{name: "lib_a"}
+      scope_b = %Otel.InstrumentationScope{name: "lib_b"}
 
       decoded =
         roundtrip_logs([

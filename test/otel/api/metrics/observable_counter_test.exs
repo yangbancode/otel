@@ -12,8 +12,7 @@ defmodule Otel.API.Metrics.ObservableCounterTest do
     end)
 
     %{
-      meter:
-        Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{name: "test"})
+      meter: Otel.API.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "test"})
     }
   end
 

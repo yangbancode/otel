@@ -29,7 +29,7 @@ defmodule Otel.API.Baggage.Percent do
 
   - `Otel.API.Propagator.TextMap.Baggage` — HTTP
     `baggage:` header value/property encoding
-  - `Otel.SDK.Resource` — OTEL_RESOURCE_ATTRIBUTES
+  - `Otel.Resource` — OTEL_RESOURCE_ATTRIBUTES
     environment variable parsing (same Baggage-like
     format per `resource/sdk.md`)
 

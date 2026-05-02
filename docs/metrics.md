@@ -8,7 +8,7 @@
 ```
 
 ```elixir
-scope = %Otel.API.InstrumentationScope{name: "my_app"}
+scope = %Otel.InstrumentationScope{name: "my_app"}
 meter = Otel.API.Metrics.MeterProvider.get_meter(scope)
 
 counter = Otel.API.Metrics.Meter.create_counter(meter, "http.requests")
@@ -38,7 +38,7 @@ interval).
 ## Get a meter
 
 ```elixir
-scope = %Otel.API.InstrumentationScope{name: "my_app", version: "1.0.0"}
+scope = %Otel.InstrumentationScope{name: "my_app", version: "1.0.0"}
 meter = Otel.API.Metrics.MeterProvider.get_meter(scope)
 ```
 

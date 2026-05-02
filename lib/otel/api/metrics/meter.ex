@@ -54,7 +54,7 @@ defmodule Otel.API.Metrics.Meter do
   5. **`record/3` without context** — erlang threads
      `Ctx` through `record/5`. Our synchronous metric
      recording does not associate with context at the API
-     boundary; the SDK attaches context via `Otel.API.Ctx`
+     boundary; the SDK attaches context via `Otel.Ctx`
      if relevant.
   6. **`scope/1` not exposed** — erlang returns the
      instrumentation scope from a Meter. We do not expose
@@ -93,7 +93,7 @@ defmodule Otel.API.Metrics.Meter do
   - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api_experimental/src/otel_meter.erl`
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   A `{dispatcher_module, state}` pair.

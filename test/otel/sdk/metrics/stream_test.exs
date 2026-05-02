@@ -9,7 +9,7 @@ defmodule Otel.SDK.Metrics.StreamTest do
         unit: "ms",
         description: "Request duration",
         advisory: [],
-        scope: %Otel.API.InstrumentationScope{name: "my_lib"}
+        scope: %Otel.InstrumentationScope{name: "my_lib"}
       },
       overrides
     )

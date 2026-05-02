@@ -6,7 +6,7 @@ defmodule Otel.API.Metrics.MeterProviderTest do
     @behaviour Otel.API.Metrics.MeterProvider
 
     @impl true
-    def get_meter(state, %Otel.API.InstrumentationScope{} = scope) do
+    def get_meter(state, %Otel.InstrumentationScope{} = scope) do
       {__MODULE__, %{state: state, scope: scope}}
     end
   end
@@ -35,7 +35,7 @@ defmodule Otel.API.Metrics.MeterProviderTest do
   describe "get_meter/1 — Noop fallback when no provider is set" do
     test "returns the Noop meter handle, with explicit scope or default" do
       assert {Otel.API.Metrics.Meter.Noop, []} ==
-               Otel.API.Metrics.MeterProvider.get_meter(%Otel.API.InstrumentationScope{
+               Otel.API.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{
                  name: "my_lib"
                })
 
@@ -45,7 +45,7 @@ defmodule Otel.API.Metrics.MeterProviderTest do
     # Spec metrics/api.md L153-L155: two Meters created with the
     # same parameters MUST be identical. Satisfied structurally.
     test "repeated calls with the same scope yield equal meter handles" do
-      scope = %Otel.API.InstrumentationScope{name: "my_lib"}
+      scope = %Otel.InstrumentationScope{name: "my_lib"}
 
       assert Otel.API.Metrics.MeterProvider.get_meter(scope) ==
                Otel.API.Metrics.MeterProvider.get_meter(scope)
@@ -58,15 +58,15 @@ defmodule Otel.API.Metrics.MeterProviderTest do
     end
 
     test "forwards scope and provider state to the registered module" do
-      scope = %Otel.API.InstrumentationScope{name: "installed_lib"}
+      scope = %Otel.InstrumentationScope{name: "installed_lib"}
 
       assert {FakeMeterProvider, %{state: :installed, scope: ^scope}} =
                Otel.API.Metrics.MeterProvider.get_meter(scope)
     end
 
     test "different scopes produce distinct meters" do
-      scope_a = %Otel.API.InstrumentationScope{name: "lib", attributes: %{"env" => "prod"}}
-      scope_b = %Otel.API.InstrumentationScope{name: "lib", attributes: %{"env" => "staging"}}
+      scope_a = %Otel.InstrumentationScope{name: "lib", attributes: %{"env" => "prod"}}
+      scope_b = %Otel.InstrumentationScope{name: "lib", attributes: %{"env" => "staging"}}
 
       assert {_, %{scope: ^scope_a}} = Otel.API.Metrics.MeterProvider.get_meter(scope_a)
       assert {_, %{scope: ^scope_b}} = Otel.API.Metrics.MeterProvider.get_meter(scope_b)
@@ -78,7 +78,7 @@ defmodule Otel.API.Metrics.MeterProviderTest do
   # survived `set_provider/1`, silently swallowing every later
   # measurement. The cache must be re-resolved per call.
   test "an SDK installed AFTER a Noop resolve takes effect on the next resolve" do
-    scope = %Otel.API.InstrumentationScope{name: "bootstrap_race"}
+    scope = %Otel.InstrumentationScope{name: "bootstrap_race"}
 
     assert {Otel.API.Metrics.Meter.Noop, []} ==
              Otel.API.Metrics.MeterProvider.get_meter(scope)

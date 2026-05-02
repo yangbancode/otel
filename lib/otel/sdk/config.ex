@@ -61,13 +61,13 @@ defmodule Otel.SDK.Config do
 
   When a per-pillar override is set, the matching top-level
   key is bypassed for that pillar. Per-pillar `:resource`
-  expects an `%Otel.SDK.Resource{}` struct, not a map.
+  expects an `%Otel.Resource{}` struct, not a map.
 
   ## Public API
 
   | Function | Returns |
   |---|---|
-  | `resource/0` | Resolved `%Otel.SDK.Resource{}` from top-level `:resource` map merged with SDK identity attrs |
+  | `resource/0` | Resolved `%Otel.Resource{}` from top-level `:resource` map merged with SDK identity attrs |
   | `exporter/1` | `{module, config}` tuple for the given signal (`:trace` / `:metrics` / `:logs`) |
   | `trace/0` | TracerProvider config map |
   | `metrics/0` | MeterProvider config map |
@@ -94,10 +94,10 @@ defmodule Otel.SDK.Config do
   `service.name` fallback is only applied when no value is
   provided.
   """
-  @spec resource() :: Otel.SDK.Resource.t()
+  @spec resource() :: Otel.Resource.t()
   def resource do
     user_attrs = Application.get_env(:otel, :resource, %{})
-    Otel.SDK.Resource.merge(Otel.SDK.Resource.default(), Otel.SDK.Resource.create(user_attrs))
+    Otel.Resource.merge(Otel.Resource.default(), Otel.Resource.create(user_attrs))
   end
 
   @doc """

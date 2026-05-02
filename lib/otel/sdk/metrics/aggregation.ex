@@ -16,7 +16,7 @@ defmodule Otel.SDK.Metrics.Aggregation do
   - Built-in implementations: `Otel.SDK.Metrics.Aggregation.{Drop,Sum,LastValue,ExplicitBucketHistogram}`
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @typedoc """
   Per-stream-per-attribute-set aggregation key.
@@ -30,7 +30,7 @@ defmodule Otel.SDK.Metrics.Aggregation do
   """
   @type agg_key :: {
           name :: String.t(),
-          scope :: Otel.API.InstrumentationScope.t(),
+          scope :: Otel.InstrumentationScope.t(),
           reader_id :: reference() | nil,
           attributes :: %{String.t() => primitive_any()}
         }
@@ -40,7 +40,7 @@ defmodule Otel.SDK.Metrics.Aggregation do
   `(name, scope)` prefix of `agg_key/0`, without the reader
   or attribute selection.
   """
-  @type stream_key :: {name :: String.t(), scope :: Otel.API.InstrumentationScope.t()}
+  @type stream_key :: {name :: String.t(), scope :: Otel.InstrumentationScope.t()}
 
   @type datapoint :: %{
           attributes: %{String.t() => primitive_any()},

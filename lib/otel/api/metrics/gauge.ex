@@ -74,7 +74,7 @@ defmodule Otel.API.Metrics.Gauge do
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
   """
 
-  use Otel.API.Common.Types
+  use Otel.Common.Types
 
   @doc """
   **Application** (OTel API MUST) — "Gauge creation"

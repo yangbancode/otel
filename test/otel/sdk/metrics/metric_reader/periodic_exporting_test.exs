@@ -37,7 +37,7 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
     {_, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(
         Otel.SDK.Metrics.MeterProvider,
-        %Otel.API.InstrumentationScope{name: "test_lib"}
+        %Otel.InstrumentationScope{name: "test_lib"}
       )
 
     config
@@ -66,7 +66,7 @@ defmodule Otel.SDK.Metrics.MetricReader.PeriodicExportingTest do
     {_, config} =
       Otel.SDK.Metrics.MeterProvider.get_meter(
         Otel.SDK.Metrics.MeterProvider,
-        %Otel.API.InstrumentationScope{name: scope_name}
+        %Otel.InstrumentationScope{name: scope_name}
       )
 
     config
