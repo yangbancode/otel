@@ -69,9 +69,9 @@ defmodule Otel.SDK.Logs.LogRecord do
           attributes: %{String.t() => primitive_any()},
           event_name: String.t(),
           dropped_attributes_count: non_neg_integer(),
-          trace_id: Otel.API.Trace.TraceId.t(),
-          span_id: Otel.API.Trace.SpanId.t(),
-          trace_flags: Otel.API.Trace.SpanContext.trace_flags(),
+          trace_id: Otel.Trace.TraceId.t(),
+          span_id: Otel.Trace.SpanId.t(),
+          trace_flags: Otel.Trace.SpanContext.trace_flags(),
           scope: Otel.InstrumentationScope.t(),
           resource: Otel.Resource.t()
         }

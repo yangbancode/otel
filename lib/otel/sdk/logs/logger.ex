@@ -91,7 +91,7 @@ defmodule Otel.SDK.Logs.Logger do
   Development-status `LoggerConfig` filter legs (L259-L266 —
   enabled / minimum_severity / trace_based) are deferred per the
   project's Stable-only policy, mirroring how
-  `Otel.SDK.Trace.Tracer.enabled?/2` defers `TracerConfig`.
+  `Otel.Trace.Tracer.enabled?/2` defers `TracerConfig`.
   """
   @impl true
   @spec enabled?(
@@ -137,11 +137,11 @@ defmodule Otel.SDK.Logs.Logger do
   defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)
 
-    %Otel.API.Trace.SpanContext{
+    %Otel.Trace.SpanContext{
       trace_id: trace_id,
       span_id: span_id,
       trace_flags: trace_flags
-    } = Otel.API.Trace.current_span(ctx)
+    } = Otel.Trace.current_span(ctx)
 
     {limited_record, dropped_attributes_count} =
       Otel.SDK.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)

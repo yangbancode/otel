@@ -16,7 +16,7 @@ defmodule Otel.SDK.Metrics.Exemplar.Filter do
   def should_sample?(:always_off, _ctx), do: false
 
   def should_sample?(:trace_based, ctx) do
-    %Otel.API.Trace.SpanContext{trace_flags: flags} = Otel.API.Trace.current_span(ctx)
+    %Otel.Trace.SpanContext{trace_flags: flags} = Otel.Trace.current_span(ctx)
     Bitwise.band(flags, 1) == 1
   end
 end

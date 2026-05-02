@@ -13,14 +13,14 @@ defmodule Otel.E2E.ConcurrencyTest do
 
   describe "fan-out" do
     test "1: 50 concurrent tasks each emit one span — all land", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
 
       names = for i <- 1..50, do: "scenario-conc-1-#{e2e_id}-#{i}"
 
       names
       |> Task.async_stream(
         fn name ->
-          Otel.API.Trace.with_span(
+          Otel.Trace.with_span(
             tracer,
             name,
             [attributes: %{"e2e.id" => e2e_id}],
@@ -47,7 +47,7 @@ defmodule Otel.E2E.ConcurrencyTest do
 
     test "2: 1000 child spans under one parent land within force_flush",
          %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
       parent_name = "parent-conc-2-#{e2e_id}"
 
       # Single parent so all 1001 spans share a trace_id —
@@ -56,13 +56,13 @@ defmodule Otel.E2E.ConcurrencyTest do
       # the default page size). The interesting signal is the
       # BatchProcessor's behaviour under sustained burst, not
       # Tempo's search throughput.
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         parent_name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
           for i <- 1..1000 do
-            Otel.API.Trace.with_span(
+            Otel.Trace.with_span(
               tracer,
               "child-conc-2-#{e2e_id}-#{i}",
               [attributes: %{"e2e.id" => e2e_id}],
@@ -83,14 +83,14 @@ defmodule Otel.E2E.ConcurrencyTest do
   describe "multi-signal" do
     test "3: trace + log + metric emitted concurrently — each backend receives",
          %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
       logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
       meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
       counter = Otel.API.Metrics.Meter.create_counter(meter, "e2e_scenario_conc_3_#{e2e_id}")
 
       [
         Task.async(fn ->
-          Otel.API.Trace.with_span(
+          Otel.Trace.with_span(
             tracer,
             "scenario-conc-3-#{e2e_id}",
             [attributes: %{"e2e.id" => e2e_id}],
@@ -123,10 +123,10 @@ defmodule Otel.E2E.ConcurrencyTest do
   describe "context propagation" do
     test "4: parent span context flows into Task.async_stream children",
          %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
       parent_name = "parent-conc-4-#{e2e_id}"
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         parent_name,
         [attributes: %{"e2e.id" => e2e_id}],
@@ -141,7 +141,7 @@ defmodule Otel.E2E.ConcurrencyTest do
               # links the child span to the parent.
               Otel.Ctx.attach(parent_ctx)
 
-              Otel.API.Trace.with_span(
+              Otel.Trace.with_span(
                 tracer,
                 "child-conc-4-#{e2e_id}-#{i}",
                 [attributes: %{"e2e.id" => e2e_id}],

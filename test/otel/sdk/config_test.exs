@@ -32,7 +32,7 @@ defmodule Otel.SDK.ConfigTest do
 
   describe "exporter/1" do
     test "no :exporter set → empty config map for each signal" do
-      assert Otel.SDK.Config.exporter(:trace) == {Otel.OTLP.Trace.SpanExporter, %{}}
+      assert Otel.SDK.Config.exporter(:trace) == {Otel.Trace.SpanExporter, %{}}
       assert Otel.SDK.Config.exporter(:metrics) == {Otel.OTLP.Metrics.MetricExporter, %{}}
       assert Otel.SDK.Config.exporter(:logs) == {Otel.OTLP.Logs.LogRecordExporter, %{}}
     end
@@ -43,7 +43,7 @@ defmodule Otel.SDK.ConfigTest do
         headers: %{"x-api-key" => "secret"}
       })
 
-      assert {Otel.OTLP.Trace.SpanExporter, config} = Otel.SDK.Config.exporter(:trace)
+      assert {Otel.Trace.SpanExporter, config} = Otel.SDK.Config.exporter(:trace)
       assert config.endpoint == "https://collector:4318"
       assert config.headers == %{"x-api-key" => "secret"}
 
@@ -57,10 +57,10 @@ defmodule Otel.SDK.ConfigTest do
       config = Otel.SDK.Config.trace()
 
       assert [
-               {Otel.SDK.Trace.SpanProcessor, %{exporter: {Otel.OTLP.Trace.SpanExporter, %{}}}}
+               {Otel.Trace.SpanProcessor, %{exporter: {Otel.Trace.SpanExporter, %{}}}}
              ] = config.processors
 
-      assert %Otel.SDK.Trace.SpanLimits{attribute_count_limit: 128} = config.span_limits
+      assert %Otel.Trace.SpanLimits{attribute_count_limit: 128} = config.span_limits
       assert config.resource.attributes["service.name"] == "unknown_service"
       refute Map.has_key?(config, :id_generator)
     end
@@ -73,7 +73,7 @@ defmodule Otel.SDK.ConfigTest do
     test "top-level :exporter flows into the default processor's exporter config" do
       Application.put_env(:otel, :exporter, %{endpoint: "https://collector:4318"})
 
-      [{_, %{exporter: {Otel.OTLP.Trace.SpanExporter, exp_config}}}] =
+      [{_, %{exporter: {Otel.Trace.SpanExporter, exp_config}}}] =
         Otel.SDK.Config.trace().processors
 
       assert exp_config.endpoint == "https://collector:4318"

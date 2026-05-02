@@ -14,9 +14,9 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
 
   describe "inject/3" do
     test "writes traceparent (and tracestate when non-empty) for a valid span" do
-      ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor", "value")
-      span_ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
-      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
+      ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
+      span_ctx = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
+      ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
@@ -27,8 +27,8 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
     end
 
     test "omits tracestate when empty; encodes trace_flags 0 as -00" do
-      span_ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 0)
-      ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
+      span_ctx = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 0)
+      ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.API.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
 
@@ -41,8 +41,8 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       assert Otel.API.Propagator.TextMap.TraceContext.inject(Otel.Ctx.new(), [], @setter) ==
                []
 
-      span_ctx = %Otel.API.Trace.SpanContext{trace_id: 0, span_id: @valid_span_id}
-      bad_ctx = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
+      span_ctx = %Otel.Trace.SpanContext{trace_id: 0, span_id: @valid_span_id}
+      bad_ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       assert Otel.API.Propagator.TextMap.TraceContext.inject(bad_ctx, [], @setter) == []
     end
@@ -55,7 +55,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       ctx =
         Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
 
-      span_ctx = Otel.API.Trace.current_span(ctx)
+      span_ctx = Otel.Trace.current_span(ctx)
 
       assert span_ctx.trace_id == @valid_trace_id
       assert span_ctx.span_id == @valid_span_id
@@ -72,10 +72,10 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       ctx =
         Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
 
-      span_ctx = Otel.API.Trace.current_span(ctx)
+      span_ctx = Otel.Trace.current_span(ctx)
 
       assert span_ctx.trace_flags == 0
-      assert Otel.API.Trace.TraceState.get(span_ctx.tracestate, "vendor") == "value"
+      assert Otel.Trace.TraceState.get(span_ctx.tracestate, "vendor") == "value"
     end
 
     # W3C §Versioning L237-L238: forward-compat. v01 with or without
@@ -90,7 +90,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
       for carrier <- [bare, with_extra] do
         span_ctx =
           Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
-          |> Otel.API.Trace.current_span()
+          |> Otel.Trace.current_span()
 
         assert span_ctx.trace_id == @valid_trace_id
         assert span_ctx.span_id == @valid_span_id
@@ -147,27 +147,27 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
   end
 
   test "inject + extract round-trip preserves trace_id, span_id, flags, tracestate" do
-    ts = Otel.API.Trace.TraceState.add(Otel.API.Trace.TraceState.new(), "vendor", "value")
-    original = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
+    ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
+    original = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
 
     carrier =
-      Otel.API.Trace.set_current_span(Otel.Ctx.new(), original)
+      Otel.Trace.set_current_span(Otel.Ctx.new(), original)
       |> Otel.API.Propagator.TextMap.TraceContext.inject([], @setter)
 
     extracted =
       Otel.API.Propagator.TextMap.TraceContext.extract(Otel.Ctx.new(), carrier, @getter)
-      |> Otel.API.Trace.current_span()
+      |> Otel.Trace.current_span()
 
     assert extracted.trace_id == original.trace_id
     assert extracted.span_id == original.span_id
     assert extracted.trace_flags == original.trace_flags
     assert extracted.is_remote == true
-    assert Otel.API.Trace.TraceState.get(extracted.tracestate, "vendor") == "value"
+    assert Otel.Trace.TraceState.get(extracted.tracestate, "vendor") == "value"
   end
 
   describe "encode_traceparent/1" do
     test "encodes a valid SpanContext into the v00 wire format" do
-      span_ctx = Otel.API.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1)
+      span_ctx = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1)
 
       assert Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(span_ctx) ==
                @canonical_traceparent
@@ -178,13 +178,13 @@ defmodule Otel.API.Propagator.TextMap.TraceContextTest do
     test "masks reserved trace_flags bits to zero" do
       assert "00-00000000000000000000000000000001-0000000000000001-03" ==
                Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(
-                 Otel.API.Trace.SpanContext.new(1, 1, 0xFF)
+                 Otel.Trace.SpanContext.new(1, 1, 0xFF)
                )
 
       # Only reserved bits set → wire byte is 00.
       assert "00-00000000000000000000000000000001-0000000000000001-00" ==
                Otel.API.Propagator.TextMap.TraceContext.encode_traceparent(
-                 Otel.API.Trace.SpanContext.new(1, 1, 0xF0)
+                 Otel.Trace.SpanContext.new(1, 1, 0xF0)
                )
     end
   end

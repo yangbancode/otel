@@ -14,7 +14,7 @@ defmodule Otel.API.Propagator.TextMap.Noop do
   propagator is installed via `set_propagator/1`, this module
   is returned so that `inject/3` and `extract/3` always have
   a working propagator to dispatch to. This matches the shape
-  used by `Otel.API.Trace.Tracer.Noop`,
+  used by `Otel.Trace.Tracer.Noop`,
   `Otel.API.Metrics.Meter.Noop`, and
   `Otel.API.Logs.Logger.Noop`.
 

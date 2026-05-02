@@ -99,7 +99,7 @@ defmodule Otel.InstrumentationScope do
 
   - `name` — SHOULD be specified to identify the scope. An empty string
     is permitted by this struct and represents an **unspecified** scope,
-    consistent with `Otel.API.Trace.get_tracer/0` allowing a default
+    consistent with `Otel.Trace.get_tracer/0` allowing a default
     `%InstrumentationScope{}`. The spec recommends specifying it.
   - `version` — Optional. Version of the instrumentation library or
     scope. Empty string when unspecified.

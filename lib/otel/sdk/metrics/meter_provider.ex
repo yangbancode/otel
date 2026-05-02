@@ -22,7 +22,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   module is supervised by us, the MeterProvider's own crash
   takes its linked readers with it (no orphans). Mirrors the
   pattern in `Otel.SDK.Logs.LoggerProvider` and
-  `Otel.SDK.Trace.TracerProvider`.
+  `Otel.Trace.TracerProvider`.
 
   ## Public API
 

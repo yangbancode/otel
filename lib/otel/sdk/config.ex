@@ -109,7 +109,7 @@ defmodule Otel.SDK.Config do
   the exporter modules for the full list.
   """
   @spec exporter(signal :: :trace | :metrics | :logs) :: {module(), map()}
-  def exporter(:trace), do: {Otel.OTLP.Trace.SpanExporter, exporter_config()}
+  def exporter(:trace), do: {Otel.Trace.SpanExporter, exporter_config()}
   def exporter(:metrics), do: {Otel.OTLP.Metrics.MetricExporter, exporter_config()}
   def exporter(:logs), do: {Otel.OTLP.Logs.LogRecordExporter, exporter_config()}
 
@@ -137,7 +137,7 @@ defmodule Otel.SDK.Config do
   end
 
   @spec build_trace_processors(pillar :: keyword()) ::
-          [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
+          [{module(), Otel.Trace.SpanProcessor.config()}]
   defp build_trace_processors(pillar) do
     case Keyword.get(pillar, :processors) do
       nil -> default_trace_processors(pillar)
@@ -146,21 +146,21 @@ defmodule Otel.SDK.Config do
   end
 
   @spec default_trace_processors(pillar :: keyword()) ::
-          [{module(), Otel.SDK.Trace.SpanProcessor.config()}]
+          [{module(), Otel.Trace.SpanProcessor.config()}]
   defp default_trace_processors(_pillar) do
-    [{Otel.SDK.Trace.SpanProcessor, %{exporter: exporter(:trace)}}]
+    [{Otel.Trace.SpanProcessor, %{exporter: exporter(:trace)}}]
   end
 
-  # Limits are hardcoded to spec defaults (`%Otel.SDK.Trace.SpanLimits{}`).
+  # Limits are hardcoded to spec defaults (`%Otel.Trace.SpanLimits{}`).
   # The `:span_limits` Application-env keyword is retained as an
   # advanced override for tests that need to exercise the
   # limit-enforcement code paths with small caps; it is not part
   # of the documented user surface.
-  @spec build_span_limits(pillar :: keyword()) :: Otel.SDK.Trace.SpanLimits.t()
+  @spec build_span_limits(pillar :: keyword()) :: Otel.Trace.SpanLimits.t()
   defp build_span_limits(pillar) do
     case Keyword.get(pillar, :span_limits) do
-      nil -> %Otel.SDK.Trace.SpanLimits{}
-      override -> struct(Otel.SDK.Trace.SpanLimits, normalize_struct_or_keyword(override))
+      nil -> %Otel.Trace.SpanLimits{}
+      override -> struct(Otel.Trace.SpanLimits, normalize_struct_or_keyword(override))
     end
   end
 
