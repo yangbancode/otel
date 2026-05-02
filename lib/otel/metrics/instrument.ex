@@ -210,7 +210,7 @@ defmodule Otel.Metrics.Instrument do
           scope: Otel.InstrumentationScope.t()
         }
 
-  defstruct meter: {Otel.Metrics.Meter.Noop, []},
+  defstruct meter: %Otel.Metrics.Meter{},
             name: "",
             kind: :counter,
             unit: "",
