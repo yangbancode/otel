@@ -4,17 +4,29 @@ defmodule Otel.Trace.SpanOperationsTest do
   import ExUnit.CaptureLog
 
   defmodule TestProcessor do
-    @moduledoc false
+    @moduledoc """
+    Test substitute for `Otel.Trace.SpanProcessor`. Receives
+    `GenServer.cast({:add_span, span})` from
+    `Otel.Trace.SpanProcessor.on_end/1` via the hardcoded name
+    and forwards each span to the test pid.
+    """
 
-    def on_start(_ctx, span, _config), do: span
+    use GenServer
 
-    def on_end(span, %{test_pid: pid}) do
+    def start_link(%{test_pid: _pid} = config),
+      do: GenServer.start_link(__MODULE__, config, name: Otel.Trace.SpanProcessor)
+
+    @impl true
+    def init(config), do: {:ok, config}
+
+    @impl true
+    def handle_cast({:add_span, span}, %{test_pid: pid} = state) do
       send(pid, {:on_end, span})
-      :ok
+      {:noreply, state}
     end
 
-    def shutdown(_config, _timeout \\ 5_000), do: :ok
-    def force_flush(_config, _timeout \\ 5_000), do: :ok
+    @impl true
+    def handle_call(_msg, _from, state), do: {:reply, :ok, state}
   end
 
   setup do
@@ -25,10 +37,7 @@ defmodule Otel.Trace.SpanOperationsTest do
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp tracer_for(scope_name \\ "test_lib") do
-    Otel.Trace.TracerProvider.get_tracer(
-      Otel.Trace.TracerProvider,
-      %Otel.InstrumentationScope{name: scope_name}
-    )
+    Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{name: scope_name})
   end
 
   defp start_span(opts \\ []) do
@@ -273,19 +282,14 @@ defmodule Otel.Trace.SpanOperationsTest do
   end
 
   describe "end_span/2" do
-    test "removes span from ETS; sets is_recording=false; uses given timestamp; calls every processor; second end is a no-op" do
-      span_ctx =
-        start_span(
-          processors: [{TestProcessor, %{test_pid: self()}}, {TestProcessor, %{test_pid: self()}}]
-        )
+    test "removes span from ETS; sets is_recording=false; uses given timestamp; calls processor; second end is a no-op" do
+      span_ctx = start_span(processors: [{TestProcessor, %{test_pid: self()}}])
 
       :ok = Otel.Trace.Span.end_span(span_ctx, 42)
-      assert_receive {:on_end, ended1}
-      assert_receive {:on_end, ended2}
+      assert_receive {:on_end, ended}
 
-      assert ended1.end_time == 42
-      assert ended1.is_recording == false
-      assert ended2.end_time == 42
+      assert ended.end_time == 42
+      assert ended.is_recording == false
       assert Otel.Trace.SpanStorage.get(span_ctx.span_id) == nil
       assert :ok = Otel.Trace.Span.end_span(span_ctx, nil)
     end

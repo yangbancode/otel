@@ -1,364 +1,163 @@
 defmodule Otel.Logs.LoggerProvider do
   @moduledoc """
-  SDK implementation of the LoggerProvider.
+  LoggerProvider — minikube hardcoded.
 
-  A `GenServer` that owns log configuration (resource,
-  processors) and creates loggers. Registers itself as the
-  global LoggerProvider on start.
+  Issues `%Otel.Logs.Logger{}` structs and forwards
+  `shutdown/1` / `force_flush/1` to the single hardcoded
+  `Otel.Logs.LogRecordProcessor` (Batch). Configuration
+  (`resource`, `log_record_limits`) is loaded once at boot via
+  `init/0` and stored in `:persistent_term`; subsequent
+  `get_logger/1` calls are pure persistent_term reads.
 
-  ## Provider-owned processor lifecycle
-
-  When a registered processor module exports `start_link/1`,
-  the LoggerProvider starts it as a linked child during
-  `init/1`, captures the resulting PID, and passes that PID to
-  every behaviour callback (`on_emit/3`, `shutdown/2`,
-  `force_flush/2`) via the `%{pid: pid}` config. The user does
-  not start processors separately and does not provide an atom
-  registration name — the LoggerProvider owns the lifecycle.
-
-  This mirrors the typical OTel SDK pattern (Java, Go, Python,
-  and erlang's `otel_tracer_server.erl:158-183` —
-  `init_processor` starting children under a dedicated
-  supervisor).
-
-  Modules without a `start_link/1` export are registered as
-  *module-only* processors (no process, no PID). Their callback
-  config is whatever the user supplied verbatim. This supports
-  pure-callback fixtures used in tests; production processors
-  (`Simple`, `Batch`) all expose `start_link/1`.
-
-  ## Crash handling
-
-  `init/1` enables `trap_exit` so a processor crash is
-  delivered to the LoggerProvider as `{:EXIT, pid, reason}`
-  rather than propagating along the link. The dead processor
-  is removed from both the in-memory list and the
-  `:persistent_term` fast path that `Logger.emit` walks —
-  graceful degradation, the other processors keep working.
-  Once removed, the processor is **not** re-added; if its
-  module is supervised by us, the LoggerProvider's own crash
-  takes its linked processors with it (no orphans).
-
-  All public functions are safe for concurrent use, satisfying
-  spec `logs/api.md` L172-L174 (Status: Stable, #4885) —
-  *"LoggerProvider — all methods MUST be documented that
-  implementations need to be safe for concurrent use by
-  default."*
+  Not a GenServer — this module holds no process state.
 
   ## Public API
 
   | Function | Role |
   |---|---|
-  | `start_link/1` | **SDK** (lifecycle) — start the provider GenServer |
-  | `get_logger/2` | **SDK** (OTel API MUST) — `logs/api.md` §Get a Logger L60-L97 |
-  | `shutdown/2` | **SDK** (OTel API MUST) — `logs/sdk.md` §Shutdown |
-  | `force_flush/2` | **SDK** (OTel API MUST) — `logs/sdk.md` §ForceFlush |
-  | `resource/1` | **SDK** (introspection) — read provider resource |
-  | `config/1` | **SDK** (introspection) — read full config snapshot |
+  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` from `Otel.SDK.Config.logs/0` |
+  | `get_logger/1` | **Application** (OTel API MUST) — Get a Logger (`logs/api.md` L62-L97) |
+  | `shutdown/1` | **Application** (OTel API MUST) — Shutdown (`logs/sdk.md` §Shutdown) |
+  | `force_flush/1` | **Application** (OTel API MUST) — ForceFlush (`logs/sdk.md` §ForceFlush) |
+  | `resource/0`, `config/0` | **Application** (introspection) |
+  | `shut_down?/0` | **SDK** — internal flag for `Logger.enabled?/2` |
 
   ## References
 
-  - OTel Logs SDK §LoggerProvider: `opentelemetry-specification/specification/logs/sdk.md`
-  - OTel Logs API §LoggerProvider: `opentelemetry-specification/specification/logs/api.md` L36-L97
+  - OTel Logs SDK §LoggerProvider: `opentelemetry-specification/specification/logs/sdk.md` §LoggerProvider
   """
 
   require Logger
 
-  use GenServer
+  @persistent_key {__MODULE__, :state}
 
-  @typedoc """
-  A registered processor in the provider state.
-
-  - `:module` — the `LogRecordProcessor` implementation.
-  - `:pid` — the PID returned by `module.start_link/1`, or
-    `nil` for module-only processors that expose no
-    `start_link/1`.
-  - `:callback_config` — what the LoggerProvider passes to every
-    behaviour callback. `%{pid: pid}` for process-backed
-    processors, the user's original config map for module-only
-    processors.
-  """
-  @type processor_entry :: %{
-          module: module(),
-          pid: pid() | nil,
-          callback_config: Otel.Logs.LogRecordProcessor.config()
-        }
-
-  @typedoc """
-  Runtime state held by the LoggerProvider GenServer.
-
-  - `:resource` / `:processors` / `:log_record_limits` come
-    from the user's `start_link/1` config (or defaults).
-  - `:shut_down` is the lifecycle flag flipped by
-    `handle_call({:shutdown, _}, _, _)`. Once `true`,
-    `get_logger/2` returns the noop logger and
-    `force_flush/2` / `shutdown/2` reply with
-    `{:error, :already_shutdown}`.
-  - `:processors_key` is the `:persistent_term` key under
-    which `Otel.Logs.Logger` reads the projected
-    `[{module, callback_config}]` list on every emit.
-  """
-  @type config :: %{
-          resource: Otel.Resource.t(),
-          processors: [processor_entry()],
-          log_record_limits: Otel.Logs.LogRecordLimits.t(),
-          shut_down: boolean(),
-          processors_key: {module(), :processors, reference()}
-        }
-
-  # --- Client API ---
-
-  @doc """
-  **SDK** (lifecycle) — Starts the LoggerProvider with the
-  given configuration.
-  """
-  @spec start_link(opts :: keyword()) :: GenServer.on_start()
-  def start_link(opts) do
-    config = Keyword.get(opts, :config, %{})
-    GenServer.start_link(__MODULE__, config, name: __MODULE__)
-  end
-
-  @doc """
-  **SDK** (OTel API MUST) — Get a Logger
-  (`logs/api.md` §Get a Logger L60-L97).
-
-  Falls back to the Noop logger if `server` is no longer alive.
-  """
-  @spec get_logger(
-          server :: GenServer.server(),
-          instrumentation_scope :: Otel.InstrumentationScope.t()
-        ) ::
-          Otel.Logs.Logger.t()
-  def get_logger(server \\ __MODULE__, %Otel.InstrumentationScope{} = instrumentation_scope) do
-    GenServer.call(server, {:get_logger, instrumentation_scope})
-  end
-
-  @doc """
-  **SDK** (introspection) — Returns the resource associated
-  with this provider, or `Otel.Resource.default/0` when the
-  provider isn't running.
-  """
-  @spec resource(server :: GenServer.server()) :: Otel.Resource.t()
-  def resource(server) do
-    GenServer.call(server, :resource)
-  catch
-    :exit, {:noproc, _} -> Otel.Resource.default()
-  end
-
-  @doc """
-  **SDK** (introspection) — Returns the current configuration
-  snapshot, or an empty map when the provider isn't running.
-  """
-  @spec config(server :: GenServer.server()) :: config() | %{}
-  def config(server) do
-    GenServer.call(server, :config)
-  catch
-    :exit, {:noproc, _} -> %{}
-  end
-
-  # Default timeout for `shutdown/2` and `force_flush/2` (30000ms).
-  # Matches Batch's `exportTimeoutMillis` default — a reasonable
-  # upper bound for the slowest processor cleanup path. The same
-  # value is forwarded to each processor's own `shutdown/2` /
-  # `force_flush/2` so a single-processor provider has its outer
-  # GenServer.call and inner processor budgets aligned.
   @default_shutdown_timeout_ms 30_000
   @default_force_flush_timeout_ms 30_000
 
-  @doc """
-  **SDK** (OTel API MUST) — Shutdown
-  (`logs/sdk.md` §Shutdown).
-
-  Invokes shutdown on all registered processors. After shutdown,
-  `get_logger/2` returns the noop logger. Can only be called
-  once; subsequent calls reply `{:error, :already_shutdown}`.
-
-  `timeout` is forwarded to each processor's `shutdown/2` and
-  also bounds the outer GenServer call. Default 30_000ms.
-  """
-  @spec shutdown(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(server, timeout \\ @default_shutdown_timeout_ms) do
-    GenServer.call(server, {:shutdown, timeout}, timeout)
-  catch
-    :exit, {:noproc, _} -> :ok
-  end
+  @typedoc "Internal provider state held in `:persistent_term`."
+  @type state :: %{
+          resource: Otel.Resource.t(),
+          log_record_limits: Otel.Logs.LogRecordLimits.t(),
+          shut_down: boolean()
+        }
 
   @doc """
-  **SDK** (OTel API MUST) — ForceFlush
-  (`logs/sdk.md` §ForceFlush).
-
-  Forces all registered processors to flush pending log records.
-
-  `timeout` is forwarded to each processor's `force_flush/2` and
-  also bounds the outer GenServer call. Default 30_000ms.
+  **SDK** (boot hook) — Called once from
+  `Otel.SDK.Application.start/2` to seed the `:persistent_term`
+  slot from `Otel.SDK.Config.logs/0`.
   """
-  @spec force_flush(server :: GenServer.server(), timeout :: timeout()) :: :ok | {:error, term()}
-  def force_flush(server, timeout \\ @default_force_flush_timeout_ms) do
-    GenServer.call(server, {:force_flush, timeout}, timeout)
-  catch
-    :exit, {:noproc, _} -> :ok
-  end
+  @spec init() :: :ok
+  def init do
+    config = Otel.SDK.Config.logs()
 
-  # --- Server Callbacks ---
-
-  def init(user_config) do
-    Process.flag(:trap_exit, true)
-
-    processors_key = {__MODULE__, :processors, make_ref()}
-
-    base = Map.merge(default_config(), user_config)
-
-    started = Enum.map(Map.get(base, :processors, []), &start_processor/1)
-
-    config =
-      base
-      |> Map.put(:processors, started)
-      |> Map.put(:shut_down, false)
-      |> Map.put(:processors_key, processors_key)
-
-    :persistent_term.put(processors_key, project_processors(started))
-
-    {:ok, config}
-  end
-
-  def handle_call({:get_logger, _instrumentation_scope}, _from, %{shut_down: true} = config) do
-    {:reply, %Otel.Logs.Logger{}, config}
-  end
-
-  def handle_call(
-        {:get_logger, %Otel.InstrumentationScope{} = instrumentation_scope},
-        _from,
-        config
-      ) do
-    warn_invalid_scope_name(instrumentation_scope)
-
-    logger_config = %{
-      scope: instrumentation_scope,
+    :persistent_term.put(@persistent_key, %{
       resource: config.resource,
-      processors_key: config.processors_key,
-      log_record_limits: config.log_record_limits
-    }
+      log_record_limits: config.log_record_limits,
+      shut_down: false
+    })
 
-    {:reply, %Otel.Logs.Logger{config: logger_config}, config}
+    :ok
   end
 
-  def handle_call({:shutdown, _timeout}, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :already_shutdown}, config}
-  end
+  @doc """
+  **Application** (OTel API MUST) — Get a Logger
+  (`logs/api.md` §Get a Logger).
 
-  def handle_call({:shutdown, timeout}, _from, config) do
-    result = invoke_all_processors(config.processors, :shutdown, timeout)
-    {:reply, result, %{config | shut_down: true}}
-  end
+  Returns a configured `%Otel.Logs.Logger{}` struct stamped
+  with the boot-time resource/limits and the caller's
+  instrumentation scope. After `shutdown/1`, returns an empty
+  Logger.
+  """
+  @spec get_logger(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
+          Otel.Logs.Logger.t()
+  def get_logger(%Otel.InstrumentationScope{} = instrumentation_scope) do
+    state = state()
 
-  def handle_call({:force_flush, _timeout}, _from, %{shut_down: true} = config) do
-    {:reply, {:error, :already_shutdown}, config}
-  end
+    if state.shut_down do
+      %Otel.Logs.Logger{}
+    else
+      warn_invalid_scope_name(instrumentation_scope)
 
-  def handle_call({:force_flush, timeout}, _from, config) do
-    result = invoke_all_processors(config.processors, :force_flush, timeout)
-    {:reply, result, config}
-  end
+      logger_config = %{
+        scope: instrumentation_scope,
+        resource: state.resource,
+        log_record_limits: state.log_record_limits
+      }
 
-  def handle_call(:resource, _from, config) do
-    {:reply, config.resource, config}
-  end
-
-  def handle_call(:config, _from, config) do
-    {:reply, config, config}
-  end
-
-  def handle_info({:EXIT, _pid, _reason}, %{shut_down: true} = config) do
-    # Already shutting down — ignore late EXIT signals from
-    # processors we just terminated.
-    {:noreply, config}
-  end
-
-  def handle_info({:EXIT, pid, reason}, config) do
-    case Enum.find(config.processors, &(&1.pid == pid)) do
-      nil ->
-        # EXIT from a process we don't manage; ignore.
-        {:noreply, config}
-
-      %{module: module} ->
-        warn_processor_exited(module, pid, reason)
-        new_processors = Enum.reject(config.processors, &(&1.pid == pid))
-
-        # Update the persistent_term fast path so `Logger.emit` stops
-        # dispatching to the dead processor immediately.
-        :persistent_term.put(config.processors_key, project_processors(new_processors))
-
-        {:noreply, %{config | processors: new_processors}}
+      %Otel.Logs.Logger{config: logger_config}
     end
+  end
+
+  @doc """
+  **Application** (OTel API MUST) — Shutdown
+  (`logs/sdk.md` §Shutdown).
+  """
+  @spec shutdown(timeout :: timeout()) :: :ok | {:error, term()}
+  def shutdown(timeout \\ @default_shutdown_timeout_ms) do
+    case :persistent_term.get(@persistent_key, nil) do
+      nil ->
+        :ok
+
+      %{shut_down: true} ->
+        {:error, :already_shutdown}
+
+      state ->
+        :persistent_term.put(@persistent_key, %{state | shut_down: true})
+        Otel.Logs.LogRecordProcessor.shutdown(timeout)
+    end
+  end
+
+  @doc """
+  **Application** (OTel API MUST) — ForceFlush
+  (`logs/sdk.md` §ForceFlush).
+  """
+  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
+  def force_flush(timeout \\ @default_force_flush_timeout_ms) do
+    case :persistent_term.get(@persistent_key, nil) do
+      nil -> :ok
+      %{shut_down: true} -> {:error, :already_shutdown}
+      _ -> Otel.Logs.LogRecordProcessor.force_flush(timeout)
+    end
+  end
+
+  @doc """
+  **Application** (introspection) — Returns the resource
+  associated with this provider, or `Otel.Resource.default/0`
+  when the SDK isn't booted.
+  """
+  @spec resource() :: Otel.Resource.t()
+  def resource, do: state().resource
+
+  @doc """
+  **Application** (introspection) — Returns the persistent_term
+  state, or an empty map when the SDK isn't booted.
+  """
+  @spec config() :: state() | %{}
+  def config, do: :persistent_term.get(@persistent_key, %{})
+
+  @doc """
+  **SDK** — Returns `true` when shutdown has been invoked.
+  """
+  @spec shut_down?() :: boolean()
+  def shut_down? do
+    state = :persistent_term.get(@persistent_key, nil)
+    state == nil or state.shut_down
   end
 
   # --- Private ---
 
-  @spec default_config() :: %{atom() => term()}
-  defp default_config do
+  @spec state() :: state()
+  defp state, do: :persistent_term.get(@persistent_key, default_state())
+
+  @spec default_state() :: state()
+  defp default_state do
     %{
       resource: Otel.Resource.default(),
-      processors: [],
-      log_record_limits: %Otel.Logs.LogRecordLimits{}
+      log_record_limits: %Otel.Logs.LogRecordLimits{},
+      shut_down: false
     }
   end
 
-  # `Code.ensure_loaded/1` is required before `function_exported?/3`:
-  # processor modules are referenced as bare atoms in the user config,
-  # so the BEAM has no reason to have loaded them when `init/1` runs.
-  # An unloaded module makes `function_exported?/3` return false, which
-  # would silently demote a process-backed `start_link/1` to module-only
-  # (callback_config without `:pid`) and crash every callback dispatch.
-  @spec start_processor({module(), term()}) :: processor_entry()
-  defp start_processor({module, init_config}) do
-    Code.ensure_loaded(module)
-
-    if function_exported?(module, :start_link, 1) do
-      {:ok, pid} = module.start_link(init_config)
-      %{module: module, pid: pid, callback_config: %{pid: pid}}
-    else
-      # Module-only processor — no process to manage, callback
-      # config is the user's verbatim init_config.
-      %{module: module, pid: nil, callback_config: init_config}
-    end
-  end
-
-  @spec project_processors([processor_entry()]) ::
-          [{module(), Otel.Logs.LogRecordProcessor.config()}]
-  defp project_processors(processors) do
-    Enum.map(processors, fn %{module: m, callback_config: c} -> {m, c} end)
-  end
-
-  @spec invoke_all_processors(
-          processors :: [processor_entry()],
-          function :: :shutdown | :force_flush,
-          timeout :: timeout()
-        ) :: :ok | {:error, [{module(), term()}]}
-  defp invoke_all_processors(processors, function, timeout) do
-    results =
-      Enum.reduce(processors, [], fn %{module: module, callback_config: callback_config},
-                                     errors ->
-        case apply(module, function, [callback_config, timeout]) do
-          :ok -> errors
-          {:error, reason} -> [{module, reason} | errors]
-        end
-      end)
-
-    case results do
-      [] -> :ok
-      errors -> {:error, Enum.reverse(errors)}
-    end
-  end
-
-  # Spec sdk.md L78-L81 — *"In the case where an invalid `name`
-  # (null or empty string) is specified, a working `Logger` MUST
-  # be returned as a fallback rather than returning null or
-  # throwing an exception, its `name` SHOULD keep the original
-  # invalid value, and a message reporting that the specified
-  # value is invalid SHOULD be logged."* The MUST (working
-  # logger) and the original-value SHOULD are satisfied
-  # structurally — we always return the SDK Logger and never
-  # rewrite the scope name. The warning SHOULD is enforced here.
   @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
   defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
     Logger.warning(
@@ -369,16 +168,4 @@ defmodule Otel.Logs.LoggerProvider do
   end
 
   defp warn_invalid_scope_name(_scope), do: :ok
-
-  # Emitted from `handle_info({:EXIT, ...})` when a managed
-  # LogRecordProcessor crashes. Not in spec — operational signal.
-  @spec warn_processor_exited(module :: module(), pid :: pid(), reason :: term()) :: :ok
-  defp warn_processor_exited(module, pid, reason) do
-    Logger.warning(
-      "Otel.Logs.LoggerProvider: LogRecordProcessor #{inspect(module)} " <>
-        "(#{inspect(pid)}) exited with #{inspect(reason)} — removed from active list"
-    )
-
-    :ok
-  end
 end

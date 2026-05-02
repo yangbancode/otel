@@ -49,10 +49,6 @@ defmodule Otel.Metrics.MetricReader do
   """
   @type config :: map()
 
-  @callback start_link(config :: config()) :: GenServer.on_start()
-  @callback shutdown(server :: GenServer.server()) :: :ok | {:error, term()}
-  @callback force_flush(server :: GenServer.server()) :: :ok | {:error, term()}
-
   @spec collect(config :: config()) :: [metric()]
   def collect(config) do
     Otel.Metrics.Meter.run_callbacks(config)

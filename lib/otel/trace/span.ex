@@ -149,8 +149,7 @@ defmodule Otel.Trace.Span do
           trace_flags: Otel.Trace.SpanContext.trace_flags(),
           is_recording: boolean(),
           instrumentation_scope: Otel.InstrumentationScope.t() | nil,
-          span_limits: Otel.Trace.SpanLimits.t(),
-          processors_key: term() | nil
+          span_limits: Otel.Trace.SpanLimits.t()
         }
 
   defstruct [
@@ -161,7 +160,6 @@ defmodule Otel.Trace.Span do
     :name,
     :end_time,
     :instrumentation_scope,
-    :processors_key,
     tracestate: Otel.Trace.TraceState.new(),
     kind: :internal,
     start_time: 0,
@@ -462,13 +460,7 @@ defmodule Otel.Trace.Span do
         end_time = timestamp || System.system_time(:nanosecond)
         ended_span = %{span | end_time: end_time, is_recording: false}
         warn_span_limits_applied(ended_span)
-        # Read the processor list fresh from `:persistent_term`
-        # so a processor that crashed between start and end is
-        # skipped rather than receiving on_end on a dead pid.
-        processors =
-          if span.processors_key, do: :persistent_term.get(span.processors_key, []), else: []
-
-        run_on_end(ended_span, processors)
+        Otel.Trace.SpanProcessor.on_end(ended_span)
         :ok
     end
   end
@@ -655,16 +647,6 @@ defmodule Otel.Trace.Span do
 
   defp apply_set_status(span, %Otel.Trace.Status{code: :error, description: description}) do
     %{span | status: %Otel.Trace.Status{code: :error, description: description}}
-  end
-
-  @spec run_on_end(
-          span :: t(),
-          processors :: [{module(), Otel.Trace.SpanProcessor.config()}]
-        ) :: :ok
-  defp run_on_end(span, processors) do
-    Enum.each(processors, fn {processor, processor_config} ->
-      processor.on_end(span, processor_config)
-    end)
   end
 
   @spec apply_attribute_limits(

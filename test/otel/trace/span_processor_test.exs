@@ -61,95 +61,82 @@ defmodule Otel.Trace.SpanProcessorTest do
     is_recording: true
   }
 
-  defp start_processor do
-    {:ok, pid} =
-      Otel.Trace.SpanProcessor.start_link(%{exporter: {TestExporter, %{test_pid: self()}}})
-
-    %{pid: pid}
+  setup do
+    Otel.TestSupport.stop_all()
+    on_exit(fn -> Application.ensure_all_started(:otel) end)
+    :ok
   end
 
-  test "on_start/3 returns the span unchanged" do
-    config = start_processor()
-    assert Otel.Trace.SpanProcessor.on_start(%{}, @sampled, config) == @sampled
+  defp start_processor(exporter \\ {TestExporter, %{test_pid: self()}}) do
+    Otel.TestSupport.stop_all()
+    {:ok, _pid} = Otel.Trace.SpanProcessor.start_link(%{exporter: exporter})
+    :ok
   end
 
-  describe "on_end/2 — queue + sampling" do
+  describe "on_end/1 — queue + sampling" do
     test "sampled span is queued (no immediate export); unsampled is dropped" do
-      config = start_processor()
+      :ok = start_processor()
 
-      assert :ok = Otel.Trace.SpanProcessor.on_end(@sampled, config)
+      assert :ok = Otel.Trace.SpanProcessor.on_end(@sampled)
       refute_receive {:exported, _, _}, 50
 
-      assert :dropped = Otel.Trace.SpanProcessor.on_end(@unsampled, config)
+      assert :dropped = Otel.Trace.SpanProcessor.on_end(@unsampled)
     end
   end
 
-  describe "force_flush/1,2" do
+  describe "force_flush/1" do
     test "force_flush exports immediately; no-op when queue is empty" do
-      config = start_processor()
+      :ok = start_processor()
 
       for i <- 1..5 do
-        Otel.Trace.SpanProcessor.on_end(
-          %{@sampled | span_id: i, name: "span_#{i}"},
-          config
-        )
+        Otel.Trace.SpanProcessor.on_end(%{@sampled | span_id: i, name: "span_#{i}"})
       end
 
-      assert :ok = Otel.Trace.SpanProcessor.force_flush(config)
+      assert :ok = Otel.Trace.SpanProcessor.force_flush()
       assert_receive {:exported, 5, _names}
 
-      empty = start_processor()
-      assert :ok = Otel.Trace.SpanProcessor.force_flush(empty)
+      :ok = start_processor()
+      assert :ok = Otel.Trace.SpanProcessor.force_flush()
       refute_receive {:exported, _, _}, 50
     end
   end
 
-  describe "shutdown/1,2" do
+  describe "shutdown/1" do
     test "drains queue and calls exporter shutdown" do
-      config = start_processor()
-      Otel.Trace.SpanProcessor.on_end(@sampled, config)
+      :ok = start_processor()
+      Otel.Trace.SpanProcessor.on_end(@sampled)
 
-      assert :ok = Otel.Trace.SpanProcessor.shutdown(config)
+      assert :ok = Otel.Trace.SpanProcessor.shutdown()
       assert_receive {:exported, 1, ["sampled"]}
       assert_receive :exporter_shutdown
     end
 
     test "shutdown / force_flush on a stopped processor → {:error, :already_shutdown}" do
-      config = start_processor()
-      GenServer.stop(config.pid)
+      :ok = start_processor()
+      pid = Process.whereis(Otel.Trace.SpanProcessor)
+      GenServer.stop(pid)
 
-      assert {:error, :already_shutdown} =
-               Otel.Trace.SpanProcessor.shutdown(config)
-
-      assert {:error, :already_shutdown} =
-               Otel.Trace.SpanProcessor.force_flush(config)
+      assert {:error, :already_shutdown} = Otel.Trace.SpanProcessor.shutdown()
+      assert {:error, :already_shutdown} = Otel.Trace.SpanProcessor.force_flush()
     end
 
     test "shutdown / force_flush returns {:error, :timeout} on slow exporter" do
-      {:ok, shut_pid} =
-        Otel.Trace.SpanProcessor.start_link(%{exporter: {SlowExporter, %{}}})
+      :ok = start_processor({SlowExporter, %{}})
 
-      assert {:error, :timeout} =
-               Otel.Trace.SpanProcessor.shutdown(%{pid: shut_pid}, 1)
+      assert {:error, :timeout} = Otel.Trace.SpanProcessor.shutdown(1)
 
-      {:ok, flush_pid} =
-        Otel.Trace.SpanProcessor.start_link(%{exporter: {SlowExporter, %{}}})
+      :ok = start_processor({SlowExporter, %{}})
+      Otel.Trace.SpanProcessor.on_end(@sampled)
 
-      Otel.Trace.SpanProcessor.on_end(@sampled, %{pid: flush_pid})
-
-      assert {:error, :timeout} =
-               Otel.Trace.SpanProcessor.force_flush(%{pid: flush_pid}, 1)
+      assert {:error, :timeout} = Otel.Trace.SpanProcessor.force_flush(1)
     end
   end
 
   test "exporter init/1 returning :ignore — every on_end is :dropped; shutdown/flush still :ok" do
-    {:ok, pid} =
-      Otel.Trace.SpanProcessor.start_link(%{exporter: {IgnoreExporter, %{}}})
+    :ok = start_processor({IgnoreExporter, %{}})
 
-    config = %{pid: pid}
-
-    Otel.Trace.SpanProcessor.on_end(@sampled, config)
-    assert :ok = Otel.Trace.SpanProcessor.force_flush(config)
-    assert :ok = Otel.Trace.SpanProcessor.shutdown(config)
+    Otel.Trace.SpanProcessor.on_end(@sampled)
+    assert :ok = Otel.Trace.SpanProcessor.force_flush()
+    assert :ok = Otel.Trace.SpanProcessor.shutdown()
   end
 end

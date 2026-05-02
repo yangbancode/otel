@@ -2,16 +2,29 @@ defmodule Otel.LoggerHandlerTest do
   use ExUnit.Case, async: false
 
   defmodule CapturingProcessor do
-    @moduledoc false
+    @moduledoc """
+    Test substitute for `Otel.Logs.LogRecordProcessor`. Registers
+    under the hardcoded `Otel.Logs.LogRecordProcessor` name so
+    `Otel.Logs.Logger.emit/3` dispatches `:gen_statem.cast`
+    messages here instead of the real Batch processor. Messages
+    are forwarded to the test pid for assertion.
+    """
 
-    def on_emit(record, ctx, %{test_pid: pid}) do
-      send(pid, {:captured_log, ctx, record})
-      send(pid, {:scope_resolved, record.scope})
-      :ok
+    use GenServer
+
+    def start_link(%{test_pid: _pid} = config) do
+      GenServer.start_link(__MODULE__, config, name: Otel.Logs.LogRecordProcessor)
     end
 
-    def shutdown(_config, _timeout \\ 5000), do: :ok
-    def force_flush(_config, _timeout \\ 5000), do: :ok
+    @impl true
+    def init(config), do: {:ok, config}
+
+    @impl true
+    def handle_cast({:add_record, record}, %{test_pid: pid} = state) do
+      send(pid, {:captured_log, %{}, record})
+      send(pid, {:scope_resolved, record.scope})
+      {:noreply, state}
+    end
   end
 
   @handler_id :otel_test_handler
@@ -62,13 +75,13 @@ defmodule Otel.LoggerHandlerTest do
         scope_attributes: %{"deployment.environment" => "test"}
       })
 
-      assert_received {:scope_resolved, scope}
+      assert_receive {:scope_resolved, scope}
       assert scope.name == "my_app"
       assert scope.version == "2.0.0"
       assert scope.schema_url == "https://example.com/schemas/1.26.0"
       assert scope.attributes == %{"deployment.environment" => "test"}
 
-      assert_received {:captured_log, _, _}
+      assert_receive {:captured_log, _, _}
     end
 
     test "defaults empty scope_* keys when config map is empty or missing" do
@@ -77,7 +90,7 @@ defmodule Otel.LoggerHandlerTest do
         wrapper = if(config, do: %{config: config}, else: %{})
         Otel.LoggerHandler.log(message, wrapper)
 
-        assert_received {:scope_resolved, scope}
+        assert_receive {:scope_resolved, scope}
         assert scope.name == ""
         assert scope.version == ""
         assert scope.schema_url == ""
@@ -101,7 +114,7 @@ defmodule Otel.LoggerHandlerTest do
           {:debug, 5, "debug"}
         ] do
       emit(level, {:string, "x"})
-      assert_received {:captured_log, _, record}
+      assert_receive {:captured_log, _, record}
       assert record.severity_number == num
       assert record.severity_text == text
     end
@@ -109,7 +122,7 @@ defmodule Otel.LoggerHandlerTest do
 
   test "timestamp: meta.time (µs) scaled to ns" do
     emit(:info, {:string, "t"}, %{time: 1_234})
-    assert_received {:captured_log, _, %{timestamp: 1_234_000}}
+    assert_receive {:captured_log, _, %{timestamp: 1_234_000}}
   end
 
   # Per `logs/data-model.md` §Field: `Body` L399-L400 — Body MUST
@@ -118,7 +131,7 @@ defmodule Otel.LoggerHandlerTest do
   describe "body extraction" do
     test "{:string, chardata} → string; malformed chardata raises (happy-path)" do
       emit(:info, {:string, ["hello ", ~c"world"]})
-      assert_received {:captured_log, _, %{body: "hello world"}}
+      assert_receive {:captured_log, _, %{body: "hello world"}}
 
       assert_raise UnicodeConversionError, fn ->
         emit(:info, {:string, [0xD800]})
@@ -127,24 +140,24 @@ defmodule Otel.LoggerHandlerTest do
 
     test "{:report, map} and {:report, keyword_list} → string-keyed map; dup keys last-wins" do
       emit(:info, {:report, %{user_id: 42, action: "login"}})
-      assert_received {:captured_log, _, %{body: %{"user_id" => 42, "action" => "login"}}}
+      assert_receive {:captured_log, _, %{body: %{"user_id" => 42, "action" => "login"}}}
 
       emit(:info, {:report, user_id: 42, action: "login"})
-      assert_received {:captured_log, _, %{body: %{"user_id" => 42, "action" => "login"}}}
+      assert_receive {:captured_log, _, %{body: %{"user_id" => 42, "action" => "login"}}}
 
       # OTel `map<string, AnyValue>` requires unique keys (common/README.md §map L78).
       emit(:info, {:report, [user_id: 1, user_id: 2, user_id: 3]})
-      assert_received {:captured_log, _, %{body: %{"user_id" => 3}}}
+      assert_receive {:captured_log, _, %{body: %{"user_id" => 3}}}
     end
 
     test "report_cb/1 and report_cb/2 supersede structure preservation" do
       cb1 = fn r -> {~c"user=~p action=~s", [r.user_id, r.action]} end
       emit(:info, {:report, %{user_id: 42, action: "login"}}, %{report_cb: cb1})
-      assert_received {:captured_log, _, %{body: "user=42 action=login"}}
+      assert_receive {:captured_log, _, %{body: "user=42 action=login"}}
 
       cb2 = fn r, _config -> ["user=", Integer.to_string(r.user_id)] end
       emit(:info, {:report, %{user_id: 42}}, %{report_cb: cb2})
-      assert_received {:captured_log, _, %{body: "user=42"}}
+      assert_receive {:captured_log, _, %{body: "user=42"}}
     end
 
     test "report_cb/2 receives unlimited, multi-line config" do
@@ -157,34 +170,34 @@ defmodule Otel.LoggerHandlerTest do
 
       emit(:info, {:report, %{}}, %{report_cb: cb})
 
-      assert_received {:config_received,
-                       %{depth: :unlimited, chars_limit: :unlimited, single_line: false}}
+      assert_receive {:config_received,
+                      %{depth: :unlimited, chars_limit: :unlimited, single_line: false}}
     end
 
     test "{:report, nested} stringifies keys at every depth; preserves list-of-maps" do
       emit(:info, {:report, %{user: %{id: 42, name: "alice"}}})
-      assert_received {:captured_log, _, %{body: body1}}
+      assert_receive {:captured_log, _, %{body: body1}}
       assert body1 == %{"user" => %{"id" => 42, "name" => "alice"}}
 
       emit(:info, {:report, %{events: [%{type: "click"}, %{type: "scroll"}]}})
-      assert_received {:captured_log, _, %{body: body2}}
+      assert_receive {:captured_log, _, %{body: body2}}
       assert body2 == %{"events" => [%{"type" => "click"}, %{"type" => "scroll"}]}
     end
 
     test "report value coercion: atom→String.Chars; struct uses String.Chars or inspect; primitives passthrough" do
       emit(:info, {:report, %{user: %{role: :admin}}})
-      assert_received {:captured_log, _, %{body: %{"user" => %{"role" => "admin"}}}}
+      assert_receive {:captured_log, _, %{body: %{"user" => %{"role" => "admin"}}}}
 
       emit(:info, {:report, %{at: ~D[2024-01-01]}})
-      assert_received {:captured_log, _, %{body: %{"at" => "2024-01-01"}}}
+      assert_receive {:captured_log, _, %{body: %{"at" => "2024-01-01"}}}
 
       emit(:info, {:report, %{set: MapSet.new([1, 2])}})
-      assert_received {:captured_log, _, %{body: %{"set" => "MapSet.new([1, 2])"}}}
+      assert_receive {:captured_log, _, %{body: %{"set" => "MapSet.new([1, 2])"}}}
 
       # Atom uses `to_string` (no colon prefix); module atoms keep `Elixir.` prefix.
       emit(:info, {:report, %{status: :ok, service: Enum}})
 
-      assert_received {:captured_log, _, %{body: %{"status" => "ok", "service" => "Elixir.Enum"}}}
+      assert_receive {:captured_log, _, %{body: %{"status" => "ok", "service" => "Elixir.Enum"}}}
 
       emit(
         :info,
@@ -192,7 +205,7 @@ defmodule Otel.LoggerHandlerTest do
          %{active: true, deleted: false, removed_at: nil, count: 42, ratio: 0.75, point: {1, 2}}}
       )
 
-      assert_received {:captured_log, _, %{body: body}}
+      assert_receive {:captured_log, _, %{body: body}}
 
       assert body == %{
                "active" => true,
@@ -207,12 +220,12 @@ defmodule Otel.LoggerHandlerTest do
     test "{:bytes, binary()} value preserved as primitive in report body" do
       payload = {:bytes, <<0xCA, 0xFE>>}
       emit(:info, {:report, %{data: payload}})
-      assert_received {:captured_log, _, %{body: %{"data" => ^payload}}}
+      assert_receive {:captured_log, _, %{body: %{"data" => ^payload}}}
     end
 
     test "{format, args} → :io_lib.format" do
       emit(:info, {~c"hello ~s", [~c"world"]})
-      assert_received {:captured_log, _, %{body: "hello world"}}
+      assert_receive {:captured_log, _, %{body: "hello world"}}
     end
   end
 
@@ -227,7 +240,7 @@ defmodule Otel.LoggerHandlerTest do
         line: 42
       })
 
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       assert attrs["code.function.name"] == "MyModule.my_func/2"
       assert attrs["code.file.path"] == "lib/foo.ex"
       assert attrs["code.line.number"] == 42
@@ -240,20 +253,20 @@ defmodule Otel.LoggerHandlerTest do
     # Regression for PR #255 — silent-skip on malformed mfa.
     test "malformed mfa silently skips code.function.name" do
       emit(:info, {:string, "x"}, %{mfa: :not_a_tuple})
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       refute Map.has_key?(attrs, "code.function.name")
     end
 
     test "domain → log.domain as String array (not inspect-flattened)" do
       emit(:info, {:string, "x"}, %{domain: [:elixir, :foo]})
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       assert attrs["log.domain"] == ["elixir", "foo"]
     end
 
     test "absent metadata → no code.* / no process.pid" do
       # Erlang PIDs don't fit semconv's int-typed `process.pid`.
       emit(:info, {:string, "x"}, %{pid: self()})
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       refute Map.has_key?(attrs, "code.function.name")
       refute Map.has_key?(attrs, "code.file.path")
       refute Map.has_key?(attrs, "code.line.number")
@@ -276,7 +289,7 @@ defmodule Otel.LoggerHandlerTest do
         data: payload
       })
 
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       assert attrs["request_id"] == "req-abc-123"
       assert attrs["user_id"] == 42
       assert attrs["ratio"] == 0.75
@@ -293,7 +306,7 @@ defmodule Otel.LoggerHandlerTest do
         point: {1, 2}
       })
 
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       assert attrs["status"] == "ok"
       assert attrs["at"] == "2024-01-01"
       assert attrs["set"] == "MapSet.new([1, 2])"
@@ -309,7 +322,7 @@ defmodule Otel.LoggerHandlerTest do
         roles: [:admin, :editor]
       })
 
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       assert attrs["detail"] == %{"a" => 1, "b" => "two"}
       assert attrs["items"] == [1, "a", "x", %{"k" => "v"}]
       assert attrs["tags"] == ["alpha", "beta", "gamma"]
@@ -323,7 +336,7 @@ defmodule Otel.LoggerHandlerTest do
         crash_reason: {%RuntimeError{message: "boom"}, []}
       })
 
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       for k <- ["gl", "time", "report_cb", "crash_reason"], do: refute(Map.has_key?(attrs, k))
     end
 
@@ -335,7 +348,7 @@ defmodule Otel.LoggerHandlerTest do
         request_id: "abc"
       })
 
-      assert_received {:captured_log, _, %{attributes: attrs}}
+      assert_receive {:captured_log, _, %{attributes: attrs}}
       assert attrs["code.function.name"] == "MyMod.fun/1"
       assert attrs["code.file.path"] == "lib/my_mod.ex"
       assert attrs["code.line.number"] == 42
@@ -351,7 +364,7 @@ defmodule Otel.LoggerHandlerTest do
       stacktrace = [{__MODULE__, :test, 0, [file: ~c"test.ex", line: 42]}]
 
       emit(:error, {:string, "crash"}, %{crash_reason: {exception, stacktrace}})
-      assert_received {:captured_log, _, record}
+      assert_receive {:captured_log, _, record}
       # The exception sidecar is consumed by Logger.emit/3 —
       # `exception.type` and `exception.message` show up as attributes
       # per `logs/sdk.md` L228-L232; the raw struct is not preserved.
@@ -362,12 +375,12 @@ defmodule Otel.LoggerHandlerTest do
 
     test "absent crash_reason / non-exception shape → nil exception, no stacktrace attribute" do
       emit(:info, {:string, "x"})
-      assert_received {:captured_log, _, record}
+      assert_receive {:captured_log, _, record}
       refute Map.has_key?(record.attributes, "exception.type")
       refute Map.has_key?(record.attributes, "exception.stacktrace")
 
       emit(:error, {:string, "x"}, %{crash_reason: {:shutdown, :some_reason}})
-      assert_received {:captured_log, _, record}
+      assert_receive {:captured_log, _, record}
       refute Map.has_key?(record.attributes, "exception.type")
       refute Map.has_key?(record.attributes, "exception.stacktrace")
     end

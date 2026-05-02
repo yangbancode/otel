@@ -25,10 +25,13 @@ defmodule Otel.Trace.SpanProcessor do
   | Function | Role |
   |---|---|
   | `start_link/1` | **SDK** (lifecycle) |
-  | `on_start/3` | **SDK** (OTel API MUST) — `trace/sdk.md` L963-L982 |
-  | `on_end/2` | **SDK** (OTel API MUST) — `trace/sdk.md` L1005-L1027 |
-  | `shutdown/2` | **SDK** (OTel API MUST) — `trace/sdk.md` §Shutdown |
-  | `force_flush/2` | **SDK** (OTel API MUST) — `trace/sdk.md` §ForceFlush |
+  | `on_end/1` | **SDK** (OTel API MUST) — `trace/sdk.md` L1005-L1027 |
+  | `shutdown/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §Shutdown |
+  | `force_flush/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §ForceFlush |
+
+  `on_start/3` (spec `trace/sdk.md` L963-L982) is a no-op for
+  the Batch processor and is omitted — `Tracer.start_span`
+  inserts directly into ETS without dispatch.
 
   ## Deferred Development-status features
 
@@ -65,24 +68,17 @@ defmodule Otel.Trace.SpanProcessor do
   # --- Public API ---
 
   @doc """
-  Called when a span is started. Must not block or throw.
-  Returns the (possibly modified) span.
+  Called when a span is ended. Must not block or throw.
+  Sampled spans are queued for export; unsampled spans are
+  dropped. The processor GenServer is registered under
+  `__MODULE__`, so dispatch goes through the global name —
+  if the GenServer isn't running (e.g. after shutdown), the
+  cast is silently dropped.
   """
-  @spec on_start(
-          ctx :: Otel.Ctx.t(),
-          span :: Otel.Trace.Span.t(),
-          config :: config()
-        ) :: Otel.Trace.Span.t()
-  def on_start(_ctx, span, _config), do: span
-
-  @doc """
-  Called after a span is ended. Must not block or throw.
-  """
-  @spec on_end(span :: Otel.Trace.Span.t(), config :: config()) ::
-          :ok | :dropped | {:error, term()}
-  def on_end(span, %{pid: pid}) do
+  @spec on_end(span :: Otel.Trace.Span.t()) :: :ok | :dropped
+  def on_end(span) do
     if Bitwise.band(span.trace_flags, 1) != 0 do
-      GenServer.cast(pid, {:add_span, span})
+      GenServer.cast(__MODULE__, {:add_span, span})
       :ok
     else
       :dropped
@@ -91,13 +87,13 @@ defmodule Otel.Trace.SpanProcessor do
 
   @doc """
   Shuts down the processor. Includes the effects of
-  `force_flush/2`. `timeout` is the upper bound the
+  `force_flush/1`. `timeout` is the upper bound the
   processor honours for the whole shutdown sequence per
   `trace/sdk.md` §Shutdown.
   """
-  @spec shutdown(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(%{pid: pid}, timeout \\ @export_timeout_ms) do
-    GenServer.call(pid, :shutdown, timeout)
+  @spec shutdown(timeout :: timeout()) :: :ok | {:error, term()}
+  def shutdown(timeout \\ @export_timeout_ms) do
+    GenServer.call(__MODULE__, :shutdown, timeout)
   catch
     :exit, {:noproc, _} -> {:error, :already_shutdown}
     :exit, {:timeout, _} -> {:error, :timeout}
@@ -108,9 +104,9 @@ defmodule Otel.Trace.SpanProcessor do
   immediately. `timeout` bounds the wait per
   `trace/sdk.md` §ForceFlush.
   """
-  @spec force_flush(config :: config(), timeout :: timeout()) :: :ok | {:error, term()}
-  def force_flush(%{pid: pid}, timeout \\ @export_timeout_ms) do
-    GenServer.call(pid, :force_flush, timeout)
+  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
+  def force_flush(timeout \\ @export_timeout_ms) do
+    GenServer.call(__MODULE__, :force_flush, timeout)
   catch
     :exit, {:noproc, _} -> {:error, :already_shutdown}
     :exit, {:timeout, _} -> {:error, :timeout}
@@ -118,17 +114,31 @@ defmodule Otel.Trace.SpanProcessor do
 
   # --- GenServer ---
 
-  @spec start_link(config :: config()) :: GenServer.on_start()
-  def start_link(config) do
-    GenServer.start_link(__MODULE__, config)
+  @spec start_link(config :: config() | []) :: GenServer.on_start()
+  def start_link(config \\ %{}) do
+    GenServer.start_link(__MODULE__, normalize(config), name: __MODULE__)
   end
+
+  @spec normalize(config :: config() | []) :: map()
+  defp normalize([]), do: %{}
+  defp normalize(map) when is_map(map), do: map
 
   @impl GenServer
   @spec init(config :: config()) :: {:ok, map()}
   def init(config) do
+    # `Otel.SDK.Application` supervises this child with `[]` config —
+    # exporter and resource are read from `Otel.SDK.Config` here.
+    # Tests that want a custom exporter (e.g. FakeExporter) override
+    # via the args.
+    exporter =
+      Map.get_lazy(config, :exporter, fn -> Otel.SDK.Config.exporter(:trace) end)
+
+    resource =
+      Map.get_lazy(config, :resource, fn -> Otel.SDK.Config.resource() end)
+
     state = %{
-      exporter: Otel.SDK.Exporter.Init.call(Map.fetch!(config, :exporter)),
-      resource: Map.get(config, :resource, %{}),
+      exporter: Otel.SDK.Exporter.Init.call(exporter),
+      resource: resource,
       queue: [],
       queue_size: 0
     }

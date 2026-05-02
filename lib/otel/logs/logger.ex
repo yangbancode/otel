@@ -120,55 +120,27 @@ defmodule Otel.Logs.Logger do
         ) :: :ok
   def emit(%__MODULE__{config: config}, ctx, log_record) do
     record = log_record |> apply_exception_attributes() |> build_log_record(config, ctx)
-    processors = get_processors(config)
-
-    Enum.each(processors, fn {processor, processor_config} ->
-      processor.on_emit(record, ctx, processor_config)
-    end)
+    Otel.Logs.LogRecordProcessor.on_emit(record, ctx)
   end
 
   @doc """
   **SDK** (OTel API SHOULD) — Enabled
   (`logs/api.md` L133-L154 + `logs/sdk.md` §Enabled L256-L268).
 
-  Returns false when no processors are registered, or when every
-  processor implementing `enabled?/4` returns false. The
-  Development-status `LoggerConfig` filter legs (L259-L266 —
-  enabled / minimum_severity / trace_based) are deferred per the
-  project's Stable-only policy, mirroring how
-  `Otel.Trace.Tracer.enabled?/2` defers `TracerConfig`.
+  Returns false when the LoggerProvider has been shut down.
+  Otherwise true — minikube hardcodes a single
+  `LogRecordProcessor` whose `enabled?/3` always returns true,
+  so the spec's "all processors disabled" leg cannot fire after
+  boot. The Development-status `LoggerConfig` filter legs
+  (L259-L266 — enabled / minimum_severity / trace_based) are
+  deferred per the project's Stable-only policy.
   """
   @spec enabled?(
           logger :: t(),
           opts :: enabled_opts()
         ) :: boolean()
-  def enabled?(%__MODULE__{config: config}, opts \\ []) do
-    processors = get_processors(config)
-
-    # Spec L256 + L258 (header + bullet): MUST return false when
-    # there are no registered LogRecordProcessors.
-    if processors == [] do
-      false
-    else
-      # The API dispatcher always injects `:ctx`, but a direct
-      # SDK caller may omit it. Mirror the API's fallback to the
-      # current Context so the processor's `enabled?/4` always
-      # sees a valid ctx (spec §LogRecordProcessor L425-L426).
-      {ctx, processor_opts} = Keyword.pop_lazy(opts, :ctx, &Otel.Ctx.current/0)
-
-      # Spec L267-L268: MUST return false when all processors
-      # implement Enabled and all return false.
-      not Enum.all?(processors, fn {processor, processor_config} ->
-        function_exported?(processor, :enabled?, 4) and
-          not processor.enabled?(ctx, config.scope, processor_opts, processor_config)
-      end)
-    end
-  end
-
-  @spec get_processors(config :: map()) ::
-          [{module(), Otel.Logs.LogRecordProcessor.config()}]
-  defp get_processors(config) do
-    :persistent_term.get(config.processors_key, [])
+  def enabled?(%__MODULE__{} = _logger, _opts \\ []) do
+    not Otel.Logs.LoggerProvider.shut_down?()
   end
 
   # --- Private ---

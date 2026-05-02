@@ -1,60 +1,65 @@
 defmodule Otel.TestSupport do
   @moduledoc """
-  Test-only helpers for spinning up isolated provider GenServers
-  with custom config.
+  Test-only helpers for booting the SDK with custom config.
 
-  After the minikube config cleanup the per-pillar Application env
-  override path was removed — production users have **no**
-  configuration knob for `:processors` / `:readers` /
-  `:span_limits` / `:exemplar_filter` / `:log_record_limits` /
-  `:retry_opts`. Tests that exercise those code paths therefore
-  bypass `Otel.SDK.Application` entirely: stop `:otel`, start each
-  provider directly with the test's custom config (or spec
-  defaults), and let `on_exit` restart the SDK back to defaults.
+  After the Phase-2 cleanup the three providers are pure-function
+  modules — there is no `Otel.Trace.TracerProvider` GenServer to
+  swap out. Custom test config is delivered by:
+
+  1. Setting `Application.put_env(:otel, ...)` to override
+     `Otel.SDK.Config.{trace,metrics,logs}/0` outputs.
+  2. Re-seeding `:persistent_term` via `Provider.init/0`.
+  3. Starting the supervised processor children
+     (`SpanStorage`, `SpanProcessor`, `PeriodicExporting`,
+     `LogRecordProcessor`) — or substitutes thereof — so
+     dispatch from `Span`/`Logger`/`Meter` lands somewhere
+     observable.
+
+  Tests inject custom processors by registering a different
+  GenServer under the hardcoded names
+  (`Otel.Trace.SpanProcessor`, `Otel.Logs.LogRecordProcessor`,
+  `Otel.Metrics.MetricReader.PeriodicExporting`). The Span /
+  Logger dispatch sites use `send/2` (or `:gen_statem.cast/2`)
+  to those names, so any compatible GenServer registered there
+  receives the messages.
 
   ## Usage
 
       setup do
         Otel.TestSupport.restart_with(
-          trace: [span_limits: %Otel.Trace.SpanLimits{attribute_count_limit: 2}]
+          logs: [processors: [{CapturingProcessor, %{test_pid: self()}}]]
         )
       end
-
-  All three pillars (`:trace`, `:metrics`, `:logs`) are always
-  started so cross-cutting tests (e.g. `Otel.E2E.Case.flush/0`)
-  can call `force_flush` on any provider without race. Pass only
-  the pillars whose defaults you want to override; everything
-  else uses the same hardcoded values that
-  `Otel.SDK.Config.{trace,metrics,logs}/0` produce.
 
   ## Pillar override keys
 
   | Pillar | Keys |
   |---|---|
-  | `:trace` | `:resource`, `:processors`, `:span_limits` |
-  | `:metrics` | `:resource`, `:readers`, `:exemplar_filter` |
-  | `:logs` | `:resource`, `:processors`, `:log_record_limits` |
+  | `:trace` | `:processors`, `:span_limits` |
+  | `:metrics` | `:readers` |
+  | `:logs` | `:processors`, `:log_record_limits` |
 
-  Unknown keys raise — silent pass-through used to mask test bugs
-  (the old `restart_sdk(trace: [processor: :batch, exporter: ...])`
-  pattern was a no-op because `:processor` / `:exporter` were never
-  read by `Otel.SDK.Config.trace/0`).
+  `:processors` / `:readers` are lists of `{module, config}`
+  tuples. The first entry's module is started under the
+  hardcoded name and receives all dispatch. Multi-processor
+  test scenarios are no longer supported (minikube hardcodes
+  one).
   """
 
   import ExUnit.Callbacks, only: [on_exit: 1]
 
-  @trace_keys [:resource, :processors, :span_limits]
-  @metrics_keys [:resource, :readers, :exemplar_filter]
-  @logs_keys [:resource, :processors, :log_record_limits]
+  @trace_keys [:processors, :span_limits, :resource]
+  @metrics_keys [:readers, :exemplar_filter]
+  @logs_keys [:processors, :log_record_limits, :resource]
 
   @doc """
-  Stops `:otel`, starts the three providers with the merged
-  config, schedules an `on_exit` that restarts the SDK back to
-  defaults.
+  Stops `:otel`, applies overrides, re-seeds providers and
+  starts the supervised processor children. Schedules an
+  `on_exit` that fully tears down the SDK.
 
-  Each pillar key is optional; when provided, the keyword list is
-  validated and merged on top of the spec defaults from
-  `Otel.SDK.Config.{trace,metrics,logs}/0`.
+  Pillars not mentioned default to standard SDK config — all
+  three are always seeded so cross-cutting tests can call
+  `force_flush` on any provider.
   """
   @spec restart_with(env :: keyword()) :: :ok
   def restart_with(env \\ []) do
@@ -68,10 +73,22 @@ defmodule Otel.TestSupport do
 
     stop_all()
 
+    # 1. Seed persistent_term for all three providers (resource,
+    # span_limits, exemplar_filter, log_record_limits, ETS).
+    Otel.Trace.TracerProvider.init()
+    Otel.Metrics.MeterProvider.init()
+    Otel.Logs.LoggerProvider.init()
+
+    # 2. Apply test-only overrides on top of the seeded state.
+    apply_trace_overrides(trace_overrides)
+    apply_metrics_overrides(metrics_overrides)
+    apply_logs_overrides(logs_overrides)
+
+    # 3. Start the supervised processor children (or substitutes).
     start_orphan!(Otel.Trace.SpanStorage, [])
-    start_orphan!(Otel.Trace.TracerProvider, trace_config(trace_overrides))
-    start_orphan!(Otel.Metrics.MeterProvider, metrics_config(metrics_overrides))
-    start_orphan!(Otel.Logs.LoggerProvider, logs_config(logs_overrides))
+    start_trace_processor(trace_overrides)
+    start_metrics_reader(metrics_overrides)
+    start_logs_processor(logs_overrides)
 
     on_exit(fn ->
       stop_all()
@@ -81,33 +98,13 @@ defmodule Otel.TestSupport do
     :ok
   end
 
-  # Starts a provider GenServer **unlinked** and **with no registered
-  # parent**. We can't use the public `start_link/1` because it both
-  # links the caller and registers the test process as the gen_server
-  # parent — under that registration, OTP routes any
-  # `{:EXIT, test_pid, _}` message straight to terminate (regardless
-  # of `Process.flag(:trap_exit, true)`), which breaks tests that
-  # exercise the EXIT-trap path by `send/2`-ing simulated exits.
-  #
-  # `GenServer.start/3` skips both the link and the parent
-  # registration, so the provider is fully decoupled from the test
-  # process — exactly what we want for isolated test setup.
-  @spec start_orphan!(module :: module(), init_arg :: term()) :: pid()
-  defp start_orphan!(module, init_arg) do
-    {:ok, pid} = GenServer.start(module, init_arg, name: module)
-    pid
-  end
-
   @doc """
-  Stops every provider GenServer (whether started by
-  `Otel.SDK.Application` or by `restart_with/1`) and the
-  `Otel.Trace.SpanStorage` ETS owner.
+  Tears down everything `restart_with/1` started — supervised
+  processors, ETS storage tables, persistent_term slots — and
+  stops `:otel`.
 
-  Use in tests that need to exercise "what happens when no
-  provider is running" behaviour (e.g. facades returning safe
-  defaults). The next `restart_with/1` call — or the on_exit
-  scheduled by the previous `restart_with/1` — will bring the
-  SDK back up.
+  Use in tests that need to assert facade behaviour when no
+  Provider state exists.
   """
   @spec stop_all() :: :ok
   def stop_all do
@@ -115,23 +112,181 @@ defmodule Otel.TestSupport do
 
     Enum.each(
       [
-        Otel.Trace.TracerProvider,
-        Otel.Metrics.MeterProvider,
-        Otel.Logs.LoggerProvider,
+        Otel.Trace.SpanProcessor,
+        Otel.Metrics.MetricReader.PeriodicExporting,
+        Otel.Logs.LogRecordProcessor,
         Otel.Trace.SpanStorage
       ],
       &stop_named/1
     )
 
+    Otel.Metrics.MeterProvider.delete_storage()
+    :persistent_term.erase({Otel.Trace.TracerProvider, :state})
+    :persistent_term.erase({Otel.Logs.LoggerProvider, :state})
+
     :ok
   end
 
-  # Best-effort stop. Providers were `start_link`'d from the calling
-  # test process so they're linked to it — sending an exit signal
-  # would kill the test too. Unlink first, then Process.exit/2 with
-  # `:kill` (un-trappable) and wait for the DOWN. `GenServer.stop/3`
-  # is unsafe here because some tests intentionally leave the
-  # Provider in a state where its `terminate` callback hangs.
+  # --- Trace overrides ---
+
+  @spec apply_trace_overrides(overrides :: keyword()) :: :ok
+  defp apply_trace_overrides(overrides) do
+    state = :persistent_term.get({Otel.Trace.TracerProvider, :state})
+
+    state =
+      Enum.reduce(overrides, state, fn
+        {:span_limits, limits}, acc -> %{acc | span_limits: limits}
+        {:resource, resource}, acc -> %{acc | resource: resource}
+        {:processors, _}, acc -> acc
+      end)
+
+    :persistent_term.put({Otel.Trace.TracerProvider, :state}, state)
+    :ok
+  end
+
+  @spec start_trace_processor(overrides :: keyword()) :: :ok
+  defp start_trace_processor(overrides) do
+    case Keyword.get(overrides, :processors) do
+      nil ->
+        # Default: hardcoded BatchSpanProcessor reading from SDK config.
+        start_orphan!(Otel.Trace.SpanProcessor, %{})
+
+      [] ->
+        # Empty list — dispatch goes nowhere; tests that don't care
+        # about processor side effects.
+        :ok
+
+      [{module, config}] ->
+        # Single substitute processor under the hardcoded name.
+        start_orphan_named!(module, config, Otel.Trace.SpanProcessor)
+
+      _ ->
+        raise ArgumentError,
+              "minikube only supports a single SpanProcessor; got #{inspect(overrides[:processors])}"
+    end
+
+    :ok
+  end
+
+  # --- Logs overrides ---
+
+  @spec apply_logs_overrides(overrides :: keyword()) :: :ok
+  defp apply_logs_overrides(overrides) do
+    state = :persistent_term.get({Otel.Logs.LoggerProvider, :state})
+
+    state =
+      Enum.reduce(overrides, state, fn
+        {:log_record_limits, limits}, acc -> %{acc | log_record_limits: limits}
+        {:resource, resource}, acc -> %{acc | resource: resource}
+        {:processors, _}, acc -> acc
+      end)
+
+    :persistent_term.put({Otel.Logs.LoggerProvider, :state}, state)
+    :ok
+  end
+
+  @spec start_logs_processor(overrides :: keyword()) :: :ok
+  defp start_logs_processor(overrides) do
+    case Keyword.get(overrides, :processors) do
+      nil ->
+        start_orphan!(Otel.Logs.LogRecordProcessor, %{})
+
+      [] ->
+        :ok
+
+      [{module, config}] ->
+        start_orphan_named!(module, config, Otel.Logs.LogRecordProcessor)
+
+      _ ->
+        raise ArgumentError, "minikube only supports a single LogRecordProcessor"
+    end
+
+    :ok
+  end
+
+  # --- Metrics overrides ---
+
+  @spec apply_metrics_overrides(overrides :: keyword()) :: :ok
+  defp apply_metrics_overrides(overrides) do
+    state_key = {Otel.Metrics.MeterProvider, :state}
+    state = :persistent_term.get(state_key)
+
+    state =
+      Enum.reduce(overrides, state, fn
+        {:exemplar_filter, filter}, acc ->
+          %{
+            acc
+            | exemplar_filter: filter,
+              base_meter_config: %{acc.base_meter_config | exemplar_filter: filter},
+              reader_meter_config: %{acc.reader_meter_config | exemplar_filter: filter}
+          }
+
+        {:readers, _}, acc ->
+          acc
+      end)
+
+    :persistent_term.put(state_key, state)
+    :ok
+  end
+
+  @spec start_metrics_reader(overrides :: keyword()) :: :ok
+  defp start_metrics_reader(overrides) do
+    case Keyword.get(overrides, :readers) do
+      nil ->
+        start_orphan!(Otel.Metrics.MetricReader.PeriodicExporting, %{})
+
+      [] ->
+        # No reader is running — patch MeterProvider's persistent_term
+        # so streams created via `get_meter` carry `reader_id: nil`.
+        # Tests that just inspect `MetricReader.collect/1` directly
+        # rely on this nil-vs-nil match.
+        state_key = {Otel.Metrics.MeterProvider, :state}
+        state = :persistent_term.get(state_key)
+
+        :persistent_term.put(state_key, %{
+          state
+          | reader_id: nil,
+            reader_meter_config: %{state.reader_meter_config | reader_id: nil}
+        })
+
+      [{module, config}] ->
+        # Reader's init expects meter_config — supply it from
+        # MeterProvider's persistent_term.
+        config =
+          Map.put_new(config, :meter_config, Otel.Metrics.MeterProvider.reader_meter_config())
+
+        start_orphan_named!(module, config, Otel.Metrics.MetricReader.PeriodicExporting)
+
+      _ ->
+        raise ArgumentError, "minikube only supports a single MetricReader"
+    end
+
+    :ok
+  end
+
+  # --- Process control ---
+
+  @spec start_orphan!(module :: module(), init_arg :: term()) :: pid()
+  defp start_orphan!(module, init_arg) do
+    {:ok, pid} = module.start_link(init_arg)
+    Process.unlink(pid)
+    pid
+  end
+
+  # When a test substitutes a custom GenServer under one of the
+  # hardcoded processor names, we can't go through `start_link`
+  # (which uses the substitute's own `name:` registration). Instead
+  # use `:proc_lib.spawn_link` style — let the substitute call
+  # `start_link` itself, then re-register under the hardcoded name.
+  # Tests typically pass a module that registers itself under the
+  # hardcoded name in its own `start_link`.
+  @spec start_orphan_named!(module :: module(), config :: term(), name :: atom()) :: pid()
+  defp start_orphan_named!(module, config, _name) do
+    {:ok, pid} = module.start_link(config)
+    Process.unlink(pid)
+    pid
+  end
+
   @spec stop_named(name :: atom()) :: :ok
   defp stop_named(name) do
     case GenServer.whereis(name) do
@@ -149,39 +304,6 @@ defmodule Otel.TestSupport do
           1_000 -> :ok
         end
     end
-  end
-
-  @spec trace_config(overrides :: keyword()) :: map()
-  defp trace_config(overrides) do
-    base = Otel.SDK.Config.trace()
-
-    %{
-      resource: Keyword.get(overrides, :resource, base.resource),
-      processors: Keyword.get(overrides, :processors, base.processors),
-      span_limits: Keyword.get(overrides, :span_limits, base.span_limits)
-    }
-  end
-
-  @spec metrics_config(overrides :: keyword()) :: map()
-  defp metrics_config(overrides) do
-    base = Otel.SDK.Config.metrics()
-
-    %{
-      resource: Keyword.get(overrides, :resource, base.resource),
-      readers: Keyword.get(overrides, :readers, base.readers),
-      exemplar_filter: Keyword.get(overrides, :exemplar_filter, base.exemplar_filter)
-    }
-  end
-
-  @spec logs_config(overrides :: keyword()) :: map()
-  defp logs_config(overrides) do
-    base = Otel.SDK.Config.logs()
-
-    %{
-      resource: Keyword.get(overrides, :resource, base.resource),
-      processors: Keyword.get(overrides, :processors, base.processors),
-      log_record_limits: Keyword.get(overrides, :log_record_limits, base.log_record_limits)
-    }
   end
 
   @spec validate_keys!(pillar :: atom(), overrides :: keyword(), allowed :: [atom()]) :: :ok

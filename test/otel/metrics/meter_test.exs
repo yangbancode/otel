@@ -6,10 +6,7 @@ defmodule Otel.Metrics.MeterTest do
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp meter_for(scope_name \\ "test_lib") do
-    Otel.Metrics.MeterProvider.get_meter(
-      Otel.Metrics.MeterProvider,
-      %Otel.InstrumentationScope{name: scope_name}
-    )
+    Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: scope_name})
   end
 
   defp config_of(%Otel.Metrics.Meter{config: config}), do: config

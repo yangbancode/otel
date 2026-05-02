@@ -32,18 +32,14 @@ defmodule Otel.Trace.Tracer do
 
   - `scope` — instrumentation scope this tracer was issued for.
   - `span_limits` — span limits resolved at provider boot.
-  - `processors_key` — `:persistent_term` key for the processor
-    list; written by the TracerProvider at boot.
   """
   @type t :: %__MODULE__{
           scope: Otel.InstrumentationScope.t(),
-          span_limits: Otel.Trace.SpanLimits.t(),
-          processors_key: atom()
+          span_limits: Otel.Trace.SpanLimits.t()
         }
 
   defstruct scope: %Otel.InstrumentationScope{},
-            span_limits: %Otel.Trace.SpanLimits{},
-            processors_key: nil
+            span_limits: %Otel.Trace.SpanLimits{}
 
   @typedoc "Options accepted by `enabled?/2`. Per spec L208-L210 currently no required parameters."
   @type enabled_opts :: keyword()
@@ -68,15 +64,14 @@ defmodule Otel.Trace.Tracer do
       Otel.Trace.Span.start_span(ctx, name, tracer.span_limits, opts)
 
     if span do
-      processors = :persistent_term.get(tracer.processors_key, [])
-
+      # Hardcoded `Otel.Trace.SpanProcessor` is a no-op `on_start`,
+      # so we skip dispatch entirely. ETS insertion is the only
+      # side effect.
       span
       |> Map.merge(%{
         instrumentation_scope: tracer.scope,
-        span_limits: tracer.span_limits,
-        processors_key: tracer.processors_key
+        span_limits: tracer.span_limits
       })
-      |> run_on_start(ctx, processors)
       |> Otel.Trace.SpanStorage.insert()
     end
 
@@ -140,23 +135,13 @@ defmodule Otel.Trace.Tracer do
   OTel API MUST — `Enabled` (`trace/sdk.md` L223-L227,
   Status: Development).
 
-  Returns `false` when there are no registered SpanProcessors.
-  TracerConfig (`enabled` flag) is spec-Development and not
-  implemented; only the no-processors leg is honoured.
+  Returns `false` when the SDK is shut down. Otherwise `true`
+  — minikube hardcodes a single SpanProcessor, so the spec's
+  no-processors leg cannot fire after boot. TracerConfig
+  (`enabled` flag) is spec-Development and not implemented.
   """
   @spec enabled?(tracer :: t(), opts :: enabled_opts()) :: boolean()
-  def enabled?(%__MODULE__{} = tracer, _opts \\ []) do
-    :persistent_term.get(tracer.processors_key, []) != []
-  end
-
-  @spec run_on_start(
-          span :: Otel.Trace.Span.t(),
-          ctx :: Otel.Ctx.t(),
-          processors :: [{module(), Otel.Trace.SpanProcessor.config()}]
-        ) :: Otel.Trace.Span.t()
-  defp run_on_start(span, ctx, processors) do
-    Enum.reduce(processors, span, fn {processor, processor_config}, acc ->
-      processor.on_start(ctx, acc, processor_config)
-    end)
+  def enabled?(%__MODULE__{} = _tracer, _opts \\ []) do
+    not Otel.Trace.TracerProvider.shut_down?()
   end
 end
