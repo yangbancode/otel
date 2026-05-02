@@ -1,15 +1,15 @@
-defmodule Otel.SDK.Logs.LogRecordLimits do
+defmodule Otel.Logs.LogRecordLimits do
   @moduledoc """
-  Configurable limits for `Otel.API.Logs.LogRecord` attribute
+  Configurable limits for `Otel.Logs.LogRecord` attribute
   collections (`logs/sdk.md` §LogRecord Limits L321-348).
 
   Holds the two limit values and exposes a single `apply/2`
   entry point that returns the limited `LogRecord` together
   with the dropped-attributes count for the orchestrator to
-  forward into `Otel.SDK.Logs.LogRecord.dropped_attributes_count`.
+  forward into `Otel.Logs.LogRecord.dropped_attributes_count`.
   Composition ordering and the spec-required discard message
   (`logs/sdk.md` L345-348) remain the orchestrator's
-  responsibility — see `Otel.SDK.Logs.Logger.build_log_record/3`.
+  responsibility — see `Otel.Logs.Logger.build_log_record/3`.
 
   ## Configurable parameters
 
@@ -31,7 +31,7 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   read at this layer. Configuration flows through two
   paths: the struct defaults shown above, and explicit
   programmatic overrides via
-  `Otel.SDK.Logs.LoggerProvider.start_link/1`. A future
+  `Otel.Logs.LoggerProvider.start_link/1`. A future
   cross-cutting env-config helper may surface those env
   vars uniformly across modules; the per-module API is
   unchanged either way.
@@ -82,13 +82,13 @@ defmodule Otel.SDK.Logs.LogRecordLimits do
   count is the size delta from the count-limit drop step
   (truncation precedes drop and preserves map size, so the
   delta is exclusively the dropped-attribute count that
-  belongs in `Otel.SDK.Logs.LogRecord.dropped_attributes_count`
+  belongs in `Otel.Logs.LogRecord.dropped_attributes_count`
   and the OTLP proto field of the same name).
   """
-  @spec apply(log_record :: Otel.API.Logs.LogRecord.t(), limits :: t()) ::
-          {Otel.API.Logs.LogRecord.t(), non_neg_integer()}
+  @spec apply(log_record :: Otel.Logs.LogRecord.t(), limits :: t()) ::
+          {Otel.Logs.LogRecord.t(), non_neg_integer()}
   def apply(
-        %Otel.API.Logs.LogRecord{attributes: attributes} = log_record,
+        %Otel.Logs.LogRecord{attributes: attributes} = log_record,
         %__MODULE__{
           attribute_value_length_limit: value_length_limit,
           attribute_count_limit: count_limit

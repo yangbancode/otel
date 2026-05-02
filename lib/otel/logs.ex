@@ -1,9 +1,9 @@
-defmodule Otel.API.Logs do
+defmodule Otel.Logs do
   @moduledoc """
   Shared types for the OTel Logs API data model
   (`logs/data-model.md` §Severity Fields L234-L363).
 
-  Referenced by `Otel.API.Logs.Logger.log_record` and
+  Referenced by `Otel.Logs.Logger.log_record` and
   `enabled_opt`. No behavioural functions — source → OTel
   conversion is each bridge's responsibility (see e.g.
   `Otel.LoggerHandler`).

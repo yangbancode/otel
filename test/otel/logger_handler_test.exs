@@ -1,40 +1,30 @@
-defmodule Otel.LoggerHandlerTest.CapturingLogger do
-  @moduledoc false
-  @behaviour Otel.API.Logs.Logger
-
-  @impl true
-  def emit({__MODULE__, test_pid}, ctx, log_record) do
-    send(test_pid, {:captured_log, ctx, log_record})
-    :ok
-  end
-
-  @impl true
-  def enabled?(_logger, _opts), do: true
-end
-
-defmodule Otel.LoggerHandlerTest.CapturingProvider do
-  @moduledoc false
-  @behaviour Otel.API.Logs.LoggerProvider
-
-  @impl true
-  def get_logger(test_pid, %Otel.InstrumentationScope{} = scope) do
-    send(test_pid, {:scope_resolved, scope})
-    {Otel.LoggerHandlerTest.CapturingLogger, test_pid}
-  end
-end
-
 defmodule Otel.LoggerHandlerTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
+
+  defmodule CapturingProcessor do
+    @moduledoc false
+
+    def on_emit(record, ctx, %{test_pid: pid}) do
+      send(pid, {:captured_log, ctx, record})
+      send(pid, {:scope_resolved, record.scope})
+      :ok
+    end
+
+    def shutdown(_config, _timeout \\ 5000), do: :ok
+    def force_flush(_config, _timeout \\ 5000), do: :ok
+  end
 
   @handler_id :otel_test_handler
 
   setup do
-    :logger.remove_handler(@handler_id)
-    Otel.API.Logs.LoggerProvider.set_provider({Otel.LoggerHandlerTest.CapturingProvider, self()})
+    Application.stop(:otel)
+    Application.put_env(:otel, :logs, processors: [{CapturingProcessor, %{test_pid: self()}}])
+    Application.ensure_all_started(:otel)
 
     on_exit(fn ->
       :logger.remove_handler(@handler_id)
-      :persistent_term.erase({Otel.API.Logs.LoggerProvider, :global})
+      Application.stop(:otel)
+      Application.delete_env(:otel, :logs)
     end)
 
     :ok
@@ -368,19 +358,23 @@ defmodule Otel.LoggerHandlerTest do
 
       emit(:error, {:string, "crash"}, %{crash_reason: {exception, stacktrace}})
       assert_received {:captured_log, _, record}
-      assert record.exception == exception
+      # The exception sidecar is consumed by Logger.emit/3 —
+      # `exception.type` and `exception.message` show up as attributes
+      # per `logs/sdk.md` L228-L232; the raw struct is not preserved.
+      assert record.attributes["exception.type"] == "Elixir.RuntimeError"
+      assert record.attributes["exception.message"] == "boom"
       assert record.attributes["exception.stacktrace"] == Exception.format_stacktrace(stacktrace)
     end
 
     test "absent crash_reason / non-exception shape → nil exception, no stacktrace attribute" do
       emit(:info, {:string, "x"})
       assert_received {:captured_log, _, record}
-      assert record.exception == nil
+      refute Map.has_key?(record.attributes, "exception.type")
       refute Map.has_key?(record.attributes, "exception.stacktrace")
 
       emit(:error, {:string, "x"}, %{crash_reason: {:shutdown, :some_reason}})
       assert_received {:captured_log, _, record}
-      assert record.exception == nil
+      refute Map.has_key?(record.attributes, "exception.type")
       refute Map.has_key?(record.attributes, "exception.stacktrace")
     end
   end

@@ -15,7 +15,7 @@ defmodule Otel.InstrumentationScope do
 
   The struct defaults `name: ""` to support the default-scope pattern
   used by `Otel.Metrics.MeterProvider.get_meter/0`,
-  `Otel.API.Logs.LoggerProvider.get_logger/0`, and similar zero-arity
+  `Otel.Logs.LoggerProvider.get_logger/0`, and similar zero-arity
   entry points, but an empty name represents an **unspecified** scope.
   Instrumentation libraries SHOULD supply a meaningful name —
   typically the library's own module path — when creating a Tracer,

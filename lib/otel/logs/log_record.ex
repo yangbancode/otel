@@ -1,10 +1,10 @@
-defmodule Otel.API.Logs.LogRecord do
+defmodule Otel.Logs.LogRecord do
   @moduledoc """
   LogRecord data model (`logs/data-model.md` §"Log and Event
   Record Definition" L155-L451; Status: **Stable**).
 
   Represents a single log record flowing through the Logs API.
-  Sibling to `Otel.API.Logs.Logger` — the Logger *emits*
+  Sibling to `Otel.Logs.Logger` — the Logger *emits*
   LogRecords (`api.md` L101), consistent with the spec's
   treatment of the two as peer concepts across `api.md` and
   `data-model.md`.
@@ -21,7 +21,7 @@ defmodule Otel.API.Logs.LogRecord do
   |---|---|
   | `t:t/0` | **Application** (data model) — LogRecord struct type |
 
-  `new/0` / `new/1` are not provided; use `%Otel.API.Logs.LogRecord{...}`
+  `new/0` / `new/1` are not provided; use `%Otel.Logs.LogRecord{...}`
   at the callsite. The struct's default values make all fields
   truly optional without helper ceremony.
 
@@ -79,21 +79,24 @@ defmodule Otel.API.Logs.LogRecord do
   sidecar from `api.md` L131.
 
   All fields have spec-aligned defaults (see module doc's
-  Field defaults table), so `%Otel.API.Logs.LogRecord{}` is a
+  Field defaults table), so `%Otel.Logs.LogRecord{}` is a
   valid empty record representing "all fields missing".
   """
   @type t :: %__MODULE__{
           timestamp: non_neg_integer(),
           observed_timestamp: non_neg_integer(),
-          severity_number: Otel.API.Logs.severity_number(),
-          severity_text: Otel.API.Logs.severity_level(),
+          severity_number: Otel.Logs.severity_number(),
+          severity_text: Otel.Logs.severity_level(),
           body: primitive_any(),
           attributes: %{String.t() => primitive_any()},
           event_name: String.t(),
           trace_id: Otel.Trace.TraceId.t(),
           span_id: Otel.Trace.SpanId.t(),
           trace_flags: Otel.Trace.SpanContext.trace_flags(),
-          exception: Exception.t() | nil
+          exception: Exception.t() | nil,
+          scope: Otel.InstrumentationScope.t() | nil,
+          resource: Otel.Resource.t() | nil,
+          dropped_attributes_count: non_neg_integer()
         }
 
   defstruct timestamp: 0,
@@ -106,5 +109,8 @@ defmodule Otel.API.Logs.LogRecord do
             trace_id: 0,
             span_id: 0,
             trace_flags: 0,
-            exception: nil
+            exception: nil,
+            scope: nil,
+            resource: nil,
+            dropped_attributes_count: 0
 end

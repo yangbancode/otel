@@ -111,7 +111,7 @@ defmodule Otel.SDK.Config do
   @spec exporter(signal :: :trace | :metrics | :logs) :: {module(), map()}
   def exporter(:trace), do: {Otel.Trace.SpanExporter, exporter_config()}
   def exporter(:metrics), do: {Otel.Metrics.MetricExporter, exporter_config()}
-  def exporter(:logs), do: {Otel.OTLP.Logs.LogRecordExporter, exporter_config()}
+  def exporter(:logs), do: {Otel.Logs.LogRecordExporter, exporter_config()}
 
   @spec exporter_config() :: map()
   defp exporter_config do
@@ -238,16 +238,16 @@ defmodule Otel.SDK.Config do
 
   # See `build_span_limits/1`: same advanced-override semantics
   # for `:log_record_limits` Application-env keyword.
-  @spec build_log_record_limits(pillar :: keyword()) :: Otel.SDK.Logs.LogRecordLimits.t()
+  @spec build_log_record_limits(pillar :: keyword()) :: Otel.Logs.LogRecordLimits.t()
   defp build_log_record_limits(pillar) do
     case Keyword.get(pillar, :log_record_limits) do
-      nil -> %Otel.SDK.Logs.LogRecordLimits{}
-      override -> struct(Otel.SDK.Logs.LogRecordLimits, normalize_struct_or_keyword(override))
+      nil -> %Otel.Logs.LogRecordLimits{}
+      override -> struct(Otel.Logs.LogRecordLimits, normalize_struct_or_keyword(override))
     end
   end
 
   @spec build_logs_processors(pillar :: keyword()) ::
-          [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
+          [{module(), Otel.Logs.LogRecordProcessor.config()}]
   defp build_logs_processors(pillar) do
     case Keyword.get(pillar, :processors) do
       nil -> default_logs_processors(pillar)
@@ -256,9 +256,9 @@ defmodule Otel.SDK.Config do
   end
 
   @spec default_logs_processors(pillar :: keyword()) ::
-          [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
+          [{module(), Otel.Logs.LogRecordProcessor.config()}]
   defp default_logs_processors(_pillar) do
-    [{Otel.SDK.Logs.LogRecordProcessor, %{exporter: exporter(:logs)}}]
+    [{Otel.Logs.LogRecordProcessor, %{exporter: exporter(:logs)}}]
   end
 
   # ====== Propagator ======

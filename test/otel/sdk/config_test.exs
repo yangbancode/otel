@@ -34,7 +34,7 @@ defmodule Otel.SDK.ConfigTest do
     test "no :exporter set → empty config map for each signal" do
       assert Otel.SDK.Config.exporter(:trace) == {Otel.Trace.SpanExporter, %{}}
       assert Otel.SDK.Config.exporter(:metrics) == {Otel.Metrics.MetricExporter, %{}}
-      assert Otel.SDK.Config.exporter(:logs) == {Otel.OTLP.Logs.LogRecordExporter, %{}}
+      assert Otel.SDK.Config.exporter(:logs) == {Otel.Logs.LogRecordExporter, %{}}
     end
 
     test ":exporter map forwarded verbatim to all three signals" do
@@ -48,7 +48,7 @@ defmodule Otel.SDK.ConfigTest do
       assert config.headers == %{"x-api-key" => "secret"}
 
       assert {Otel.Metrics.MetricExporter, ^config} = Otel.SDK.Config.exporter(:metrics)
-      assert {Otel.OTLP.Logs.LogRecordExporter, ^config} = Otel.SDK.Config.exporter(:logs)
+      assert {Otel.Logs.LogRecordExporter, ^config} = Otel.SDK.Config.exporter(:logs)
     end
   end
 
@@ -129,11 +129,11 @@ defmodule Otel.SDK.ConfigTest do
 
   describe "logs/0" do
     test "defaults: Batch(OTLP HTTP) + LogRecordLimits" do
-      [{Otel.SDK.Logs.LogRecordProcessor, config}] = Otel.SDK.Config.logs().processors
+      [{Otel.Logs.LogRecordProcessor, config}] = Otel.SDK.Config.logs().processors
 
-      assert config.exporter == {Otel.OTLP.Logs.LogRecordExporter, %{}}
+      assert config.exporter == {Otel.Logs.LogRecordExporter, %{}}
 
-      assert %Otel.SDK.Logs.LogRecordLimits{attribute_count_limit: 128} =
+      assert %Otel.Logs.LogRecordLimits{attribute_count_limit: 128} =
                Otel.SDK.Config.logs().log_record_limits
     end
   end

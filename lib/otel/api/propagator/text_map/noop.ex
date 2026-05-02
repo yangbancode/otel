@@ -13,10 +13,7 @@ defmodule Otel.API.Propagator.TextMap.Noop do
   `Otel.API.Propagator.TextMap.get_propagator/0` — when no
   propagator is installed via `set_propagator/1`, this module
   is returned so that `inject/3` and `extract/3` always have
-  a working propagator to dispatch to. This matches the shape
-  used by `Otel.Trace.Tracer.Noop`,
-  `Otel.Metrics.Meter.Noop`, and
-  `Otel.API.Logs.Logger.Noop`.
+  a working propagator to dispatch to.
 
   ## Invariants (spec L322-L325)
 

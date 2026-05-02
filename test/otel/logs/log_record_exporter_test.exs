@@ -1,9 +1,9 @@
-defmodule Otel.OTLP.Logs.LogRecordExporterTest do
+defmodule Otel.Logs.LogRecordExporterTest do
   use ExUnit.Case, async: true
 
   @resource Otel.Resource.create(%{"service.name" => "test"})
 
-  @log_record %Otel.SDK.Logs.LogRecord{
+  @log_record %Otel.Logs.LogRecord{
     body: "test log message",
     severity_number: 9,
     severity_text: "INFO",
@@ -20,7 +20,7 @@ defmodule Otel.OTLP.Logs.LogRecordExporterTest do
   }
 
   defp init!(opts \\ %{}) do
-    {:ok, state} = Otel.OTLP.Logs.LogRecordExporter.init(opts)
+    {:ok, state} = Otel.Logs.LogRecordExporter.init(opts)
     state
   end
 
@@ -108,18 +108,18 @@ defmodule Otel.OTLP.Logs.LogRecordExporterTest do
 
   describe "export/2" do
     test "empty list short-circuits to :ok" do
-      assert :ok = Otel.OTLP.Logs.LogRecordExporter.export([], init!())
+      assert :ok = Otel.Logs.LogRecordExporter.export([], init!())
     end
 
     test "200 → :ok; gzip and ssl_options variants succeed" do
       ok = init!(%{endpoint: server(200)})
-      assert :ok = Otel.OTLP.Logs.LogRecordExporter.export([@log_record], ok)
+      assert :ok = Otel.Logs.LogRecordExporter.export([@log_record], ok)
 
       gz = init!(%{endpoint: server(200), compression: :gzip})
-      assert :ok = Otel.OTLP.Logs.LogRecordExporter.export([@log_record], gz)
+      assert :ok = Otel.Logs.LogRecordExporter.export([@log_record], gz)
 
       ssl = %{init!(%{endpoint: server(200)}) | ssl_options: [verify: :verify_none]}
-      assert :ok = Otel.OTLP.Logs.LogRecordExporter.export([@log_record], ssl)
+      assert :ok = Otel.Logs.LogRecordExporter.export([@log_record], ssl)
     end
 
     test "503 retried then :error" do
@@ -134,13 +134,13 @@ defmodule Otel.OTLP.Logs.LogRecordExporterTest do
           }
         })
 
-      assert :error = Otel.OTLP.Logs.LogRecordExporter.export([@log_record], state)
+      assert :error = Otel.Logs.LogRecordExporter.export([@log_record], state)
     end
   end
 
   test "shutdown/1 and force_flush/1 return :ok" do
     state = init!()
-    assert :ok = Otel.OTLP.Logs.LogRecordExporter.shutdown(state)
-    assert :ok = Otel.OTLP.Logs.LogRecordExporter.force_flush(state)
+    assert :ok = Otel.Logs.LogRecordExporter.shutdown(state)
+    assert :ok = Otel.Logs.LogRecordExporter.force_flush(state)
   end
 end

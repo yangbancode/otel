@@ -21,7 +21,7 @@ defmodule Otel.Metrics.MeterProvider do
   working. Once removed, the reader is **not** re-added; if its
   module is supervised by us, the MeterProvider's own crash
   takes its linked readers with it (no orphans). Mirrors the
-  pattern in `Otel.SDK.Logs.LoggerProvider` and
+  pattern in `Otel.Logs.LoggerProvider` and
   `Otel.Trace.TracerProvider`.
 
   ## Public API

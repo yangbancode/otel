@@ -44,7 +44,7 @@ defmodule Otel.Trace.Span do
   crashed between start and end, the TracerProvider's EXIT
   handler has already removed it from the persistent_term
   list and `on_end/2` skips it. Mirrors the `Logger.emit`
-  pattern (`Otel.SDK.Logs.Logger`).
+  pattern (`Otel.Logs.Logger`).
 
   This diverges from `opentelemetry-erlang`, which threads
   limits through `otel_span_utils` per call
@@ -686,7 +686,7 @@ defmodule Otel.Trace.Span do
 
   # Spec common/README.md L260-L274 truncation rules. Recurses
   # through nested maps and AnyValue arrays per L270-L273. The
-  # case shape mirrors `Otel.SDK.Logs.LogRecordLimits.do_truncate/2`.
+  # case shape mirrors `Otel.Logs.LogRecordLimits.do_truncate/2`.
   @spec truncate_value(value :: primitive_any(), limit :: pos_integer() | :infinity) ::
           primitive_any()
   defp truncate_value(value, :infinity), do: value

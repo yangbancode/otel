@@ -1,11 +1,11 @@
-defmodule Otel.SDK.Logs.LoggerProviderTest do
+defmodule Otel.Logs.LoggerProviderTest do
   use ExUnit.Case, async: false
 
   import ExUnit.CaptureLog
 
   setup do
     restart_sdk(logs: [processors: []])
-    %{provider: Otel.SDK.Logs.LoggerProvider}
+    %{provider: Otel.Logs.LoggerProvider}
   end
 
   defp restart_sdk(env) do
@@ -19,22 +19,22 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
     end)
   end
 
+  defp logger_for(pid, scope_name) do
+    Otel.Logs.LoggerProvider.get_logger(pid, %Otel.InstrumentationScope{name: scope_name})
+  end
+
   test "registers itself as the global LoggerProvider; the GenServer is alive", %{provider: p} do
     assert Process.alive?(Process.whereis(p))
-    assert Otel.API.Logs.LoggerProvider.get_provider() == {Otel.SDK.Logs.LoggerProvider, p}
   end
 
   describe "get_logger/2" do
-    test "returns {SDK.Logger, config} carrying scope, resource, and processors_key", %{
-      provider: p
-    } do
-      {module, config} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{
+    test "returns %Logger{} struct carrying scope, resource, and processors_key", %{provider: p} do
+      %Otel.Logs.Logger{config: config} =
+        Otel.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{
           name: "my_lib",
           version: "1.0.0"
         })
 
-      assert module == Otel.SDK.Logs.Logger
       assert config.scope.name == "my_lib"
       assert config.scope.version == "1.0.0"
       assert %Otel.Resource{} = config.resource
@@ -44,8 +44,8 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
     test "accepts a pid handle and behaves identically to the registered name", %{provider: p} do
       pid = Process.whereis(p)
 
-      {Otel.SDK.Logs.Logger, _} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(pid, %Otel.InstrumentationScope{name: "lib"})
+      %Otel.Logs.Logger{} =
+        Otel.Logs.LoggerProvider.get_logger(pid, %Otel.InstrumentationScope{name: "lib"})
     end
 
     # Spec logs/api.md L78-L81 — invalid Logger name SHOULD log a
@@ -55,8 +55,8 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
     } do
       log =
         capture_log(fn ->
-          {Otel.SDK.Logs.Logger, config} =
-            Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: ""})
+          %Otel.Logs.Logger{config: config} =
+            Otel.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: ""})
 
           assert config.scope.name == ""
         end)
@@ -65,7 +65,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
       silent =
         capture_log(fn ->
-          Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: "ok"})
+          Otel.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: "ok"})
         end)
 
       refute silent =~ "invalid Logger name"
@@ -73,39 +73,38 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
   end
 
   test "resource/1 + config/1 return the boot-time provider state", %{provider: p} do
-    assert %Otel.Resource{} = Otel.SDK.Logs.LoggerProvider.resource(p)
+    assert %Otel.Resource{} = Otel.Logs.LoggerProvider.resource(p)
 
-    config = Otel.SDK.Logs.LoggerProvider.config(p)
+    config = Otel.Logs.LoggerProvider.config(p)
     assert is_map(config)
     assert Map.has_key?(config, :resource)
     assert Map.has_key?(config, :processors)
   end
 
   describe "shutdown/1 + force_flush/1" do
-    test "no-processor provider: first shutdown :ok; subsequent ops → :already_shutdown; get_logger → Noop",
+    test "no-processor provider: first shutdown :ok; subsequent ops → :already_shutdown; get_logger → empty Logger",
          %{provider: p} do
-      assert :ok = Otel.SDK.Logs.LoggerProvider.shutdown(p)
+      assert :ok = Otel.Logs.LoggerProvider.shutdown(p)
 
-      assert {:error, :already_shutdown} = Otel.SDK.Logs.LoggerProvider.shutdown(p)
-      assert {:error, :already_shutdown} = Otel.SDK.Logs.LoggerProvider.force_flush(p)
+      assert {:error, :already_shutdown} = Otel.Logs.LoggerProvider.shutdown(p)
+      assert {:error, :already_shutdown} = Otel.Logs.LoggerProvider.force_flush(p)
 
-      {Otel.API.Logs.Logger.Noop, _} =
-        Otel.SDK.Logs.LoggerProvider.get_logger(p, %Otel.InstrumentationScope{name: "lib"})
+      assert %Otel.Logs.Logger{} = logger_for(p, "lib")
     end
 
     test "lifecycle + introspection facades stay graceful when the provider isn't running" do
       Application.stop(:otel)
-      refute GenServer.whereis(Otel.SDK.Logs.LoggerProvider)
+      refute GenServer.whereis(Otel.Logs.LoggerProvider)
 
       assert :ok =
-               Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider, 1_000)
+               Otel.Logs.LoggerProvider.force_flush(Otel.Logs.LoggerProvider, 1_000)
 
-      assert :ok = Otel.SDK.Logs.LoggerProvider.shutdown(Otel.SDK.Logs.LoggerProvider, 1_000)
+      assert :ok = Otel.Logs.LoggerProvider.shutdown(Otel.Logs.LoggerProvider, 1_000)
 
       assert %Otel.Resource{} =
-               Otel.SDK.Logs.LoggerProvider.resource(Otel.SDK.Logs.LoggerProvider)
+               Otel.Logs.LoggerProvider.resource(Otel.Logs.LoggerProvider)
 
-      assert %{} = Otel.SDK.Logs.LoggerProvider.config(Otel.SDK.Logs.LoggerProvider)
+      assert %{} = Otel.Logs.LoggerProvider.config(Otel.Logs.LoggerProvider)
 
       Application.ensure_all_started(:otel)
     end
@@ -137,11 +136,11 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
     test "shutdown / force_flush invoke the corresponding processor callback" do
       restart_sdk(logs: [processors: [{ShutdownProcessor, %{test_pid: self()}}]])
-      Otel.SDK.Logs.LoggerProvider.shutdown(Otel.SDK.Logs.LoggerProvider)
+      Otel.Logs.LoggerProvider.shutdown(Otel.Logs.LoggerProvider)
       assert_receive :processor_shutdown
 
       restart_sdk(logs: [processors: [{FlushProcessor, %{test_pid: self()}}]])
-      Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
+      Otel.Logs.LoggerProvider.force_flush(Otel.Logs.LoggerProvider)
       assert_receive :processor_force_flush
     end
 
@@ -149,12 +148,12 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       restart_sdk(logs: [processors: [{FailProcessor, %{}}]])
 
       assert {:error, [{FailProcessor, :shutdown_failed}]} =
-               Otel.SDK.Logs.LoggerProvider.shutdown(Otel.SDK.Logs.LoggerProvider)
+               Otel.Logs.LoggerProvider.shutdown(Otel.Logs.LoggerProvider)
 
       restart_sdk(logs: [processors: [{FailProcessor, %{}}]])
 
       assert {:error, [{FailProcessor, :flush_failed}]} =
-               Otel.SDK.Logs.LoggerProvider.force_flush(Otel.SDK.Logs.LoggerProvider)
+               Otel.Logs.LoggerProvider.force_flush(Otel.Logs.LoggerProvider)
     end
   end
 
@@ -182,9 +181,9 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
 
     test "process-backed processor is supervised; killing it removes it from the registry" do
       restart_sdk(logs: [processors: [{LinkableProcessor, %{}}]])
-      provider = Otel.SDK.Logs.LoggerProvider
+      provider = Otel.Logs.LoggerProvider
 
-      [entry] = Otel.SDK.Logs.LoggerProvider.config(provider).processors
+      [entry] = Otel.Logs.LoggerProvider.config(provider).processors
       assert is_pid(entry.pid)
       assert entry.callback_config == %{pid: entry.pid}
 
@@ -192,29 +191,23 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       Process.exit(entry.pid, :kill)
       assert_receive {:DOWN, ^ref, :process, _, :killed}
 
-      # Round-trip a call so the provider has handled its EXIT.
-      _ = Otel.SDK.Logs.LoggerProvider.config(provider)
+      _ = Otel.Logs.LoggerProvider.config(provider)
       assert Process.alive?(Process.whereis(provider))
-      assert Otel.SDK.Logs.LoggerProvider.config(provider).processors == []
+      assert Otel.Logs.LoggerProvider.config(provider).processors == []
     end
 
     test "module-only processor registers without a PID; carries verbatim init_config" do
       restart_sdk(logs: [processors: [{ModuleOnlyProcessor, %{test_pid: self()}}]])
-      [entry] = Otel.SDK.Logs.LoggerProvider.config(Otel.SDK.Logs.LoggerProvider).processors
+      [entry] = Otel.Logs.LoggerProvider.config(Otel.Logs.LoggerProvider).processors
       assert entry.pid == nil
       assert entry.callback_config == %{test_pid: self()}
     end
 
     defmodule FakeExporter do
       @moduledoc false
-      @behaviour Otel.SDK.Logs.LogRecordExporter
-      @impl true
       def init(_), do: {:ok, %{}}
-      @impl true
       def export(_, _), do: :ok
-      @impl true
       def force_flush(_), do: :ok
-      @impl true
       def shutdown(_), do: :ok
     end
 
@@ -224,13 +217,13 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
     # `on_emit/3` because the callback config has no `:pid`.
     # `Code.ensure_loaded/1` in `start_processor/1` prevents this.
     test "Batch processor receives a pid when configured by the provider" do
-      :code.purge(Otel.SDK.Logs.LogRecordProcessor)
-      :code.delete(Otel.SDK.Logs.LogRecordProcessor)
+      :code.purge(Otel.Logs.LogRecordProcessor)
+      :code.delete(Otel.Logs.LogRecordProcessor)
 
       restart_sdk(logs: [processor: :batch, exporter: {FakeExporter, %{}}])
 
-      [%{module: Otel.SDK.Logs.LogRecordProcessor, pid: pid, callback_config: cb}] =
-        :sys.get_state(Otel.SDK.Logs.LoggerProvider).processors
+      [%{module: Otel.Logs.LogRecordProcessor, pid: pid, callback_config: cb}] =
+        :sys.get_state(Otel.Logs.LoggerProvider).processors
 
       assert is_pid(pid) and Process.alive?(pid)
       assert cb == %{pid: pid}
@@ -243,7 +236,7 @@ defmodule Otel.SDK.Logs.LoggerProviderTest do
       send(Process.whereis(p), {:EXIT, self(), :unrelated})
       assert is_map(:sys.get_state(p))
 
-      :ok = Otel.SDK.Logs.LoggerProvider.shutdown(p)
+      :ok = Otel.Logs.LoggerProvider.shutdown(p)
       send(Process.whereis(p), {:EXIT, self(), :late})
       assert match?(%{shut_down: true}, :sys.get_state(p))
     end

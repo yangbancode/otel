@@ -1,9 +1,8 @@
-defmodule Otel.OTLP.Logs.LogRecordExporter do
+defmodule Otel.Logs.LogRecordExporter do
   @moduledoc """
   OTLP HTTP Exporter for logs.
 
   Exports log records as binary protobuf over HTTP POST to an OTLP endpoint.
-  Implements the LogRecordExporter behaviour.
 
   ## Configuration
 
@@ -44,14 +43,21 @@ defmodule Otel.OTLP.Logs.LogRecordExporter do
   config key.
   """
 
-  @behaviour Otel.SDK.Logs.LogRecordExporter
-
   @default_endpoint "http://localhost:4318"
   @logs_path "/v1/logs"
   @default_timeout 10_000
 
-  @impl true
-  @spec init(config :: term()) :: {:ok, Otel.SDK.Logs.LogRecordExporter.state()}
+  @typedoc "Resolved exporter state — internal shape returned by `init/1`."
+  @type state :: %{
+          endpoint: String.t(),
+          headers: [{charlist(), charlist()}],
+          compression: :gzip | :none,
+          timeout: non_neg_integer(),
+          ssl_options: keyword(),
+          retry_opts: map()
+        }
+
+  @spec init(config :: term()) :: {:ok, state()}
   def init(config) do
     endpoint = resolve_endpoint(config)
     headers = resolve_headers(config)
@@ -71,10 +77,9 @@ defmodule Otel.OTLP.Logs.LogRecordExporter do
      }}
   end
 
-  @impl true
   @spec export(
-          log_records :: [Otel.SDK.Logs.LogRecord.t()],
-          state :: Otel.SDK.Logs.LogRecordExporter.state()
+          log_records :: [Otel.Logs.LogRecord.t()],
+          state :: state()
         ) :: :ok | :error
   def export([], _state), do: :ok
 
@@ -97,12 +102,10 @@ defmodule Otel.OTLP.Logs.LogRecordExporter do
     end
   end
 
-  @impl true
-  @spec force_flush(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok | {:error, term()}
+  @spec force_flush(state :: state()) :: :ok | {:error, term()}
   def force_flush(_state), do: :ok
 
-  @impl true
-  @spec shutdown(state :: Otel.SDK.Logs.LogRecordExporter.state()) :: :ok | {:error, term()}
+  @spec shutdown(state :: state()) :: :ok | {:error, term()}
   def shutdown(_state), do: :ok
 
   # --- Private ---

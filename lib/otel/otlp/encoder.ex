@@ -417,7 +417,7 @@ defmodule Otel.OTLP.Encoder do
   Encodes a list of log records into an
   ExportLogsServiceRequest protobuf binary.
   """
-  @spec encode_logs(log_records :: [Otel.SDK.Logs.LogRecord.t()]) :: binary()
+  @spec encode_logs(log_records :: [Otel.Logs.LogRecord.t()]) :: binary()
   def encode_logs(log_records) do
     resource_logs = build_resource_logs(log_records)
 
@@ -427,7 +427,7 @@ defmodule Otel.OTLP.Encoder do
     |> Protobuf.encode()
   end
 
-  @spec build_resource_logs(log_records :: [Otel.SDK.Logs.LogRecord.t()]) ::
+  @spec build_resource_logs(log_records :: [Otel.Logs.LogRecord.t()]) ::
           [Opentelemetry.Proto.Logs.V1.ResourceLogs.t()]
   defp build_resource_logs(log_records) do
     log_records
@@ -441,7 +441,7 @@ defmodule Otel.OTLP.Encoder do
     end)
   end
 
-  @spec group_logs_by_scope(log_records :: [Otel.SDK.Logs.LogRecord.t()]) ::
+  @spec group_logs_by_scope(log_records :: [Otel.Logs.LogRecord.t()]) ::
           [Opentelemetry.Proto.Logs.V1.ScopeLogs.t()]
   defp group_logs_by_scope(log_records) do
     log_records
@@ -455,7 +455,7 @@ defmodule Otel.OTLP.Encoder do
     end)
   end
 
-  @spec encode_log_record(record :: Otel.SDK.Logs.LogRecord.t()) ::
+  @spec encode_log_record(record :: Otel.Logs.LogRecord.t()) ::
           Opentelemetry.Proto.Logs.V1.LogRecord.t()
   defp encode_log_record(record) do
     %Opentelemetry.Proto.Logs.V1.LogRecord{

@@ -12,7 +12,7 @@ defmodule Otel.SDK.Application do
       Otel.Trace.SpanStorage,
       {Otel.Trace.TracerProvider, [config: Otel.SDK.Config.trace()]},
       {Otel.Metrics.MeterProvider, [config: Otel.SDK.Config.metrics()]},
-      {Otel.SDK.Logs.LoggerProvider, [config: Otel.SDK.Config.logs()]}
+      {Otel.Logs.LoggerProvider, [config: Otel.SDK.Config.logs()]}
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Otel.SDK.Supervisor)

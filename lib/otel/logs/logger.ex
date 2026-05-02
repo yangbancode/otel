@@ -1,6 +1,6 @@
-defmodule Otel.SDK.Logs.Logger do
+defmodule Otel.Logs.Logger do
   @moduledoc """
-  SDK implementation of the `Otel.API.Logs.Logger` behaviour
+  SDK implementation of the `Otel.Logs.Logger` behaviour
   (`logs/sdk.md` §Logger).
 
   Emits log records by dispatching to all registered processors.
@@ -22,7 +22,7 @@ defmodule Otel.SDK.Logs.Logger do
   ## LogRecord limits
 
   `build_log_record/3` composes the two
-  `Otel.SDK.Logs.LogRecordLimits` helpers in order —
+  `Otel.Logs.LogRecordLimits` helpers in order —
   `truncate_attributes/2` first (so dropped count is taken
   on the post-truncation map), then `drop_attributes/2`.
   The `dropped_attributes_count` field on the record is the
@@ -59,21 +59,66 @@ defmodule Otel.SDK.Logs.Logger do
 
   require Logger
 
-  @behaviour Otel.API.Logs.Logger
+  @typedoc """
+  A Logger struct.
+
+  Configuration is held by the LoggerProvider; the Logger
+  carries the runtime config map (scope, resource,
+  log_record_limits, processors_key) that emit/enabled?
+  operations need.
+  """
+  @type t :: %__MODULE__{config: map()}
+
+  defstruct config: %{}
+
+  @typedoc """
+  One option accepted by `enabled?/2`, per §Enabled
+  (`logs/api.md` L137-L142):
+
+  - `:severity_number` — severity the caller would emit
+    (0..24, L141)
+  - `:event_name` — event name the caller would emit (L142)
+  - `:ctx` — evaluation context (L137-L140; defaults to
+    `Otel.Ctx.current/0` when omitted)
+
+  Unlike `Otel.Trace.Tracer.enabled_opt/0` which is left
+  open (`keyword()`) because the Trace spec does not define
+  common keys, Logs §Enabled enumerates these three keys at
+  the API level — enumeration is appropriate here because it
+  mirrors a spec contract, not an SDK assumption
+  (`.claude/rules/code-conventions.md` §Layer independence).
+  """
+  @type enabled_opt ::
+          {:severity_number, Otel.Logs.severity_number()}
+          | {:event_name, String.t()}
+          | {:ctx, Otel.Ctx.t()}
+
+  @typedoc "A keyword list of `enabled_opt/0` values."
+  @type enabled_opts :: [enabled_opt()]
 
   @doc """
-  **SDK** (OTel API MUST) — Emit a LogRecord
-  (`logs/api.md` L111-L131).
+  Emit a LogRecord (`logs/api.md` L111-L131) using the implicit
+  (process-local) context. Per L119-L123 *"When implicit Context
+  is supported, then this parameter SHOULD be optional and if
+  unspecified then MUST use current Context"*.
+  """
+  @spec emit(logger :: t(), log_record :: Otel.Logs.LogRecord.t()) :: :ok
+  def emit(%__MODULE__{} = logger, log_record \\ %Otel.Logs.LogRecord{}) do
+    emit(logger, Otel.Ctx.current(), log_record)
+  end
+
+  @doc """
+  Emit a LogRecord (`logs/api.md` L111-L131) with an explicit
+  context.
 
   Dispatches the limited record to every registered processor.
   """
-  @impl true
   @spec emit(
-          logger :: Otel.API.Logs.Logger.t(),
+          logger :: t(),
           ctx :: Otel.Ctx.t(),
-          log_record :: Otel.API.Logs.LogRecord.t()
+          log_record :: Otel.Logs.LogRecord.t()
         ) :: :ok
-  def emit({_module, config}, ctx, log_record) do
+  def emit(%__MODULE__{config: config}, ctx, log_record) do
     record = log_record |> apply_exception_attributes() |> build_log_record(config, ctx)
     processors = get_processors(config)
 
@@ -93,12 +138,11 @@ defmodule Otel.SDK.Logs.Logger do
   project's Stable-only policy, mirroring how
   `Otel.Trace.Tracer.enabled?/2` defers `TracerConfig`.
   """
-  @impl true
   @spec enabled?(
-          logger :: Otel.API.Logs.Logger.t(),
-          opts :: Otel.API.Logs.Logger.enabled_opts()
+          logger :: t(),
+          opts :: enabled_opts()
         ) :: boolean()
-  def enabled?({_module, config}, opts) do
+  def enabled?(%__MODULE__{config: config}, opts \\ []) do
     processors = get_processors(config)
 
     # Spec L256 + L258 (header + bullet): MUST return false when
@@ -122,7 +166,7 @@ defmodule Otel.SDK.Logs.Logger do
   end
 
   @spec get_processors(config :: map()) ::
-          [{module(), Otel.SDK.Logs.LogRecordProcessor.config()}]
+          [{module(), Otel.Logs.LogRecordProcessor.config()}]
   defp get_processors(config) do
     :persistent_term.get(config.processors_key, [])
   end
@@ -130,11 +174,11 @@ defmodule Otel.SDK.Logs.Logger do
   # --- Private ---
 
   @spec build_log_record(
-          log_record :: Otel.API.Logs.LogRecord.t(),
+          log_record :: Otel.Logs.LogRecord.t(),
           config :: map(),
           ctx :: Otel.Ctx.t()
-        ) :: Otel.SDK.Logs.LogRecord.t()
-  defp build_log_record(%Otel.API.Logs.LogRecord{} = log_record, config, ctx) do
+        ) :: Otel.Logs.LogRecord.t()
+  defp build_log_record(%Otel.Logs.LogRecord{} = log_record, config, ctx) do
     now = System.system_time(:nanosecond)
 
     %Otel.Trace.SpanContext{
@@ -144,7 +188,7 @@ defmodule Otel.SDK.Logs.Logger do
     } = Otel.Trace.current_span(ctx)
 
     {limited_record, dropped_attributes_count} =
-      Otel.SDK.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
+      Otel.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
 
     warn_log_record_limits_applied(
       dropped_attributes_count,
@@ -157,7 +201,7 @@ defmodule Otel.SDK.Logs.Logger do
         ts -> ts
       end
 
-    %Otel.SDK.Logs.LogRecord{
+    %Otel.Logs.LogRecord{
       timestamp: log_record.timestamp,
       observed_timestamp: observed_timestamp,
       severity_number: log_record.severity_number,
@@ -184,7 +228,7 @@ defmodule Otel.SDK.Logs.Logger do
 
   defp warn_log_record_limits_applied(dropped, _changed?) when dropped > 0 do
     Logger.warning(
-      "Otel.SDK.Logs.Logger: log record limits applied — dropped #{dropped} " <>
+      "Otel.Logs.Logger: log record limits applied — dropped #{dropped} " <>
         "attribute#{if dropped == 1, do: "", else: "s"}"
     )
 
@@ -193,7 +237,7 @@ defmodule Otel.SDK.Logs.Logger do
 
   defp warn_log_record_limits_applied(_dropped, true) do
     Logger.warning(
-      "Otel.SDK.Logs.Logger: log record limits applied — truncated value(s) exceeding length limit"
+      "Otel.Logs.Logger: log record limits applied — truncated value(s) exceeding length limit"
     )
 
     :ok
@@ -218,10 +262,10 @@ defmodule Otel.SDK.Logs.Logger do
   # on key conflict (the L231-L232 user-precedence MUST), which
   # `Otel.LoggerHandler` relies on
   # (`apps/otel_logger_handler/lib/otel/logger_handler.ex`).
-  @spec apply_exception_attributes(log_record :: Otel.API.Logs.LogRecord.t()) ::
-          Otel.API.Logs.LogRecord.t()
+  @spec apply_exception_attributes(log_record :: Otel.Logs.LogRecord.t()) ::
+          Otel.Logs.LogRecord.t()
   defp apply_exception_attributes(
-         %Otel.API.Logs.LogRecord{exception: %{__exception__: true} = exception} = log_record
+         %Otel.Logs.LogRecord{exception: %{__exception__: true} = exception} = log_record
        ) do
     exception_attrs = %{
       "exception.type" => exception.__struct__ |> Atom.to_string(),
@@ -232,5 +276,5 @@ defmodule Otel.SDK.Logs.Logger do
     %{log_record | attributes: merged}
   end
 
-  defp apply_exception_attributes(%Otel.API.Logs.LogRecord{} = log_record), do: log_record
+  defp apply_exception_attributes(%Otel.Logs.LogRecord{} = log_record), do: log_record
 end

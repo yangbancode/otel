@@ -1,6 +1,6 @@
 defmodule Otel.E2E.LogSdkLimitsTest do
   @moduledoc """
-  E2E coverage for `Otel.SDK.Logs.LogRecordLimits` against Loki.
+  E2E coverage for `Otel.Logs.LogRecordLimits` against Loki.
 
   Both scenarios share a single SDK restart in `setup_all` with
   deliberately small limits so the drop counter / truncation is
@@ -30,9 +30,9 @@ defmodule Otel.E2E.LogSdkLimitsTest do
 
   describe "log record limits" do
     test "11: attribute_count_limit (2) drops excess attributes", %{e2e_id: e2e_id} do
-      logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
+      logger = Otel.Logs.LoggerProvider.get_logger(scope())
 
-      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
         body: "scenario-11-#{e2e_id}",
         severity_number: 9,
         attributes: %{
@@ -62,9 +62,9 @@ defmodule Otel.E2E.LogSdkLimitsTest do
 
     test "12: attribute_value_length_limit (8) truncates long string values",
          %{e2e_id: e2e_id} do
-      logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
+      logger = Otel.Logs.LoggerProvider.get_logger(scope())
 
-      Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
         body: "scenario-12-#{e2e_id}",
         severity_number: 9,
         attributes: %{

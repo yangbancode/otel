@@ -1,6 +1,6 @@
 defmodule Otel.E2E.LogSdkTest do
   @moduledoc """
-  E2E coverage for `Otel.API.Logs.Logger.emit/2` against Loki.
+  E2E coverage for `Otel.Logs.Logger.emit/2` against Loki.
 
   Tracking matrix: `docs/e2e.md` §Log — SDK API, scenarios 1–10,
   13, 14. Limits-driven scenarios (11, 12) live in
@@ -126,24 +126,24 @@ defmodule Otel.E2E.LogSdkTest do
   describe "multi-logger" do
     test "13: distinct scopes both land, disambiguated by scope_name", %{e2e_id: e2e_id} do
       logger_a =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
+        Otel.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
           name: "lib-a-13",
           version: "0.1.0"
         })
 
       logger_b =
-        Otel.API.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
+        Otel.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
           name: "lib-b-13",
           version: "0.1.0"
         })
 
-      Otel.API.Logs.Logger.emit(logger_a, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger_a, %Otel.Logs.LogRecord{
         body: "from-a-#{e2e_id}",
         severity_number: 9,
         attributes: %{"e2e.id" => e2e_id}
       })
 
-      Otel.API.Logs.Logger.emit(logger_b, %Otel.API.Logs.LogRecord{
+      Otel.Logs.Logger.emit(logger_b, %Otel.Logs.LogRecord{
         body: "from-b-#{e2e_id}",
         severity_number: 9,
         attributes: %{"e2e.id" => e2e_id}
@@ -178,7 +178,7 @@ defmodule Otel.E2E.LogSdkTest do
   # finishing an enclosing span).
   defp emit(e2e_id, fields) do
     {do_flush?, fields} = Keyword.pop(fields, :flush, true)
-    logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
+    logger = Otel.Logs.LoggerProvider.get_logger(scope())
 
     attrs = Keyword.get(fields, :attributes, %{}) |> Map.put("e2e.id", e2e_id)
 
@@ -186,9 +186,9 @@ defmodule Otel.E2E.LogSdkTest do
       fields
       |> Keyword.put_new(:severity_number, 9)
       |> Keyword.put(:attributes, attrs)
-      |> then(&struct(Otel.API.Logs.LogRecord, &1))
+      |> then(&struct(Otel.Logs.LogRecord, &1))
 
-    Otel.API.Logs.Logger.emit(logger, record)
+    Otel.Logs.Logger.emit(logger, record)
     if do_flush?, do: flush()
     :ok
   end
