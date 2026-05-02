@@ -2,9 +2,9 @@ defmodule Otel.SDK.Metrics.Exemplar.FilterTest do
   use ExUnit.Case, async: true
 
   defp ctx_with_flags(trace_flags) do
-    Otel.API.Trace.set_current_span(
+    Otel.Trace.set_current_span(
       Otel.Ctx.new(),
-      %Otel.API.Trace.SpanContext{trace_id: 1, span_id: 1, trace_flags: trace_flags}
+      %Otel.Trace.SpanContext{trace_id: 1, span_id: 1, trace_flags: trace_flags}
     )
   end
 

@@ -40,9 +40,9 @@ defmodule Otel.E2E.ResourceTest do
   end
 
   defp emit_span(name, e2e_id) do
-    tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+    tracer = Otel.Trace.TracerProvider.get_tracer(scope())
 
-    Otel.API.Trace.with_span(
+    Otel.Trace.with_span(
       tracer,
       name,
       [attributes: %{"e2e.id" => e2e_id}],

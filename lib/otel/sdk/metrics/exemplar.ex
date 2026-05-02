@@ -12,8 +12,8 @@ defmodule Otel.SDK.Metrics.Exemplar do
           value: number(),
           time: non_neg_integer(),
           filtered_attributes: %{String.t() => primitive_any()},
-          span_id: Otel.API.Trace.SpanId.t() | nil,
-          trace_id: Otel.API.Trace.TraceId.t() | nil
+          span_id: Otel.Trace.SpanId.t() | nil,
+          trace_id: Otel.Trace.TraceId.t() | nil
         }
 
   defstruct value: 0,
@@ -41,12 +41,12 @@ defmodule Otel.SDK.Metrics.Exemplar do
   end
 
   @spec extract_trace_info(ctx :: Otel.Ctx.t()) ::
-          {Otel.API.Trace.TraceId.t() | nil, Otel.API.Trace.SpanId.t() | nil}
+          {Otel.Trace.TraceId.t() | nil, Otel.Trace.SpanId.t() | nil}
   defp extract_trace_info(ctx) do
-    %Otel.API.Trace.SpanContext{trace_id: trace_id, span_id: span_id} =
-      Otel.API.Trace.current_span(ctx)
+    %Otel.Trace.SpanContext{trace_id: trace_id, span_id: span_id} =
+      Otel.Trace.current_span(ctx)
 
-    if Otel.API.Trace.TraceId.valid?(trace_id) and Otel.API.Trace.SpanId.valid?(span_id) do
+    if Otel.Trace.TraceId.valid?(trace_id) and Otel.Trace.SpanId.valid?(span_id) do
       {trace_id, span_id}
     else
       {nil, nil}

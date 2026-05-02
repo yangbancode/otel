@@ -37,7 +37,7 @@ defmodule Otel.API.Logs.LoggerProvider do
   `get_logger/2` callback) is shared across Trace, Metrics,
   and Logs.
 
-  Unlike `Otel.API.Trace.TracerProvider`,
+  Unlike `Otel.Trace.TracerProvider`,
   `opentelemetry-erlang` has **no** `otel_logger_provider.erl`
   equivalent — erlang routes Logs through OTP's built-in
   `:logger` module rather than exposing a dedicated API. This

@@ -106,9 +106,9 @@ defmodule Otel.E2E.LogSdkTest do
 
   describe "trace context" do
     test "10: emit inside with_span carries trace_id / span_id to Loki", %{e2e_id: e2e_id} do
-      tracer = Otel.API.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
 
-      Otel.API.Trace.with_span(
+      Otel.Trace.with_span(
         tracer,
         "scenario-10-span-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],

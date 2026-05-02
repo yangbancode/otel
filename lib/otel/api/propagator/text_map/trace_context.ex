@@ -146,17 +146,17 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
           setter :: Otel.API.Propagator.TextMap.setter()
         ) :: Otel.API.Propagator.TextMap.carrier()
   def inject(ctx, carrier, setter) do
-    span_ctx = Otel.API.Trace.current_span(ctx)
+    span_ctx = Otel.Trace.current_span(ctx)
 
-    if Otel.API.Trace.SpanContext.valid?(span_ctx) do
+    if Otel.Trace.SpanContext.valid?(span_ctx) do
       carrier = setter.(@traceparent_header, encode_traceparent(span_ctx), carrier)
 
-      if Otel.API.Trace.TraceState.empty?(span_ctx.tracestate) do
+      if Otel.Trace.TraceState.empty?(span_ctx.tracestate) do
         carrier
       else
         setter.(
           @tracestate_header,
-          Otel.API.Trace.TraceState.encode(span_ctx.tracestate),
+          Otel.Trace.TraceState.encode(span_ctx.tracestate),
           carrier
         )
       end
@@ -199,7 +199,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
           span_ctx = decode_traceparent(String.trim(traceparent_value))
           tracestate = extract_tracestate(carrier, getter)
           span_ctx = %{span_ctx | tracestate: tracestate, is_remote: true}
-          Otel.API.Trace.set_current_span(ctx, span_ctx)
+          Otel.Trace.set_current_span(ctx, span_ctx)
         catch
           _, _ -> ctx
         end
@@ -235,10 +235,10 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   valid via `SpanContext.valid?/1` beforehand; this function
   does not validate.
   """
-  @spec encode_traceparent(span_ctx :: Otel.API.Trace.SpanContext.t()) :: String.t()
+  @spec encode_traceparent(span_ctx :: Otel.Trace.SpanContext.t()) :: String.t()
   def encode_traceparent(span_ctx) do
-    trace_id_hex = Otel.API.Trace.SpanContext.trace_id_hex(span_ctx)
-    span_id_hex = Otel.API.Trace.SpanContext.span_id_hex(span_ctx)
+    trace_id_hex = Otel.Trace.SpanContext.trace_id_hex(span_ctx)
+    span_id_hex = Otel.Trace.SpanContext.span_id_hex(span_ctx)
 
     # `Integer.to_string/2` emits uppercase hex; W3C §trace-flags L96 requires
     # 2HEXDIGLC — downcase before padding.
@@ -276,7 +276,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   recovery (`api-propagators.md` L100-L102) should use
   `extract/3`, which wraps this call in a `catch` clause.
   """
-  @spec decode_traceparent(value :: String.t()) :: Otel.API.Trace.SpanContext.t()
+  @spec decode_traceparent(value :: String.t()) :: Otel.Trace.SpanContext.t()
   # Clause 1: any non-"ff" version at exactly 55 bytes. Matches v00 (strict
   # length per W3C §version-format L93 ABNF) and higher versions that carry
   # no additional fields yet (W3C §Versioning L237 "either at the end of the
@@ -302,11 +302,11 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
   @spec extract_tracestate(
           carrier :: Otel.API.Propagator.TextMap.carrier(),
           getter :: Otel.API.Propagator.TextMap.getter()
-        ) :: Otel.API.Trace.TraceState.t()
+        ) :: Otel.Trace.TraceState.t()
   defp extract_tracestate(carrier, getter) do
     case getter.(carrier, @tracestate_header) do
-      nil -> Otel.API.Trace.TraceState.new()
-      value -> Otel.API.Trace.TraceState.decode(String.trim(value))
+      nil -> Otel.Trace.TraceState.new()
+      value -> Otel.Trace.TraceState.decode(String.trim(value))
     end
   end
 
@@ -332,7 +332,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
           trace_id_hex :: String.t(),
           span_id_hex :: String.t(),
           flags_hex :: String.t()
-        ) :: Otel.API.Trace.SpanContext.t()
+        ) :: Otel.Trace.SpanContext.t()
   defp decode_span_ctx(version, trace_id_hex, span_id_hex, flags_hex) do
     true = lowercase_hex?(version)
     true = lowercase_hex?(trace_id_hex)
@@ -344,7 +344,7 @@ defmodule Otel.API.Propagator.TextMap.TraceContext do
     {trace_flags, ""} = Integer.parse(flags_hex, 16)
     true = trace_id != 0 and span_id != 0
 
-    %Otel.API.Trace.SpanContext{
+    %Otel.Trace.SpanContext{
       trace_id: trace_id,
       span_id: span_id,
       trace_flags: trace_flags

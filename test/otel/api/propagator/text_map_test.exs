@@ -81,14 +81,14 @@ defmodule Otel.API.Propagator.TextMapTest do
     test "dispatch to the registered propagator (TraceContext round-trip)" do
       Otel.API.Propagator.TextMap.set_propagator(Otel.API.Propagator.TextMap.TraceContext)
 
-      span_ctx = Otel.API.Trace.SpanContext.new(123, 456, 1)
-      ctx_with_span = Otel.API.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
+      span_ctx = Otel.Trace.SpanContext.new(123, 456, 1)
+      ctx_with_span = Otel.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       injected = Otel.API.Propagator.TextMap.inject(ctx_with_span, [])
       assert Enum.any?(injected, fn {k, _v} -> k == "traceparent" end)
 
       extracted = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), injected)
-      assert Otel.API.Trace.SpanContext.valid?(Otel.API.Trace.current_span(extracted))
+      assert Otel.Trace.SpanContext.valid?(Otel.Trace.current_span(extracted))
     end
   end
 end
