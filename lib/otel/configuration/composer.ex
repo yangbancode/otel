@@ -173,8 +173,7 @@ defmodule Otel.Configuration.Composer do
     %{
       resource: resource,
       readers: Enum.map(provider["readers"] || [], &compose_metric_reader/1),
-      exemplar_filter: :trace_based,
-      views: provider["views"] || []
+      exemplar_filter: :trace_based
     }
   end
 

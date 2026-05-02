@@ -16,7 +16,7 @@ Otel.API.Metrics.Counter.add(counter, 1, %{"http.method" => "GET"})
 ```
 
 See [Configuration](configuration.md) for endpoint, export interval,
-views, exemplar filter, etc.
+readers, exemplar filter, etc.
 
 ## Pick an instrument
 
@@ -185,73 +185,8 @@ Otel.API.Metrics.Counter.add(counter, 1, %{
 Each unique attribute set creates a separate time series. The SDK caps
 this at 2000 per instrument; the (2001)st onward folds into a single
 `otel.metric.overflow=true` series so a runaway label doesn't kill the
-backend. Adjust per-View:
-
-```elixir
-%Otel.SDK.Metrics.View{
-  criteria: %{name: "http.requests"},
-  config: %{aggregation_cardinality_limit: 500}
-}
-```
-
-## Views
-
-A View customises how the SDK aggregates a stream of measurements
-*after* the instrument is created.
-
-### Rename an instrument
-
-```elixir
-%Otel.SDK.Metrics.View{
-  criteria: %{name: "old.name"},
-  config: %{name: "new.name"}
-}
-```
-
-### Filter attribute keys
-
-Drop unwanted high-cardinality labels:
-
-```elixir
-%Otel.SDK.Metrics.View{
-  criteria: %{name: "http.requests"},
-  config: %{attribute_keys: {:include, ["http.method", "http.status_code"]}}
-}
-```
-
-### Override aggregation
-
-Promote a Counter to a Histogram, or swap to base-2 exponential
-buckets:
-
-```elixir
-%Otel.SDK.Metrics.View{
-  criteria: %{name: "queue.latency"},
-  config: %{aggregation: Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram}
-}
-```
-
-### Drop
-
-Suppress the instrument entirely (zero application cost):
-
-```elixir
-%Otel.SDK.Metrics.View{
-  criteria: %{name: "noisy.metric"},
-  config: %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
-}
-```
-
-Wire Views via `config :otel, metrics: [views: [...]]` or
-programmatically:
-
-```elixir
-Otel.SDK.Metrics.MeterProvider.add_view(
-  Otel.SDK.Metrics.MeterProvider,
-  %{name: "queue.latency"},
-  %{aggregation: Otel.SDK.Metrics.Aggregation.ExplicitBucketHistogram}
-)
-```
+backend. Keep cardinality low at the call site — the SDK ships no
+View-based filter to drop attributes after the fact.
 
 ## Temporality
 

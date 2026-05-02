@@ -102,25 +102,16 @@ mix test --only e2e test/e2e/
 | `[x]` | 3 | UpDownCounter | `add 5`, `add -2` | Mimir: gauge `3` |
 | `[x]` | 4 | Histogram | `record × N` | Mimir: bucket counts, sum, count, **min/max** |
 | `[x]` | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
-| `[~]` | 6 | Histogram `record_min_max: false` | View opt | Mimir: lands (Prometheus exposition doesn't surface min/max separately) |
-| `[~]` | 7 | Base2ExponentialBucketHistogram | View `aggregation: ...Base2ExponentialBucketHistogram` | Mimir: lands (LGTM 0.26.0 doesn't expose exponential buckets as PromQL series) |
 | `[x]` | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
 | `[x]` | 9 | ObservableCounter | callback returns `[%Measurement{}]` | Mimir: counter from callback |
 | `[x]` | 10 | ObservableUpDownCounter | callback (multi-attr) | Mimir: multi-series |
 | `[x]` | 11 | ObservableGauge | callback | Mimir: gauge from callback |
 | `[x]` | 12 | `register_callback/5` (multi-instrument) | shared callback for several instruments | Mimir: each instrument fed |
 | `[x]` | 13 | `unregister_callback/1` | unregister; collect again | Mimir: no further values |
-| `[x]` | 14 | Drop aggregation | View w/ `aggregation: ...Drop` | Mimir: no series for that instrument |
-| `[x]` | 15 | `Meter.enabled?/2` gating | when matching streams all `:drop` | Returns `false`; `add` is a no-op |
 | `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
 | `[~]` | 17 | Delta temporality | reader configured `:delta` | Unit-tested only — Mimir's OTLP receiver in LGTM 0.26.0 drops delta-temporality counters (delta-to-cumulative is opt-in, off by default), so an e2e test would have no signal beyond what `test/otel/sdk/metrics/temporality_test.exs` and `test/otel/otlp/encoder_test.exs` already cover. The setup_all-driven SDK restart that the e2e test would need also leaks delta config into other modules' tests |
 | `[x]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
-| `[x]` | 19 | Cardinality overflow (sync) | exceed View `aggregation_cardinality_limit` | Mimir: `otel.metric.overflow=true` |
-| `[x]` | 20 | Cardinality first-observed (async) | observable callback emits N+1 attrs | Mimir: first-N pinned across delta resets |
 | `[x]` | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
-| `[x]` | 22 | View — rename instrument | `criteria: %{name: ...}, config: %{name: "renamed"}` | Mimir: series under new name |
-| `[x]` | 23 | View — attribute include filter | `config: %{attribute_keys: {:include, [...]}}` | Mimir: only listed labels |
-| `[x]` | 24 | View — override aggregation | `config: %{aggregation: ...ExplicitBucketHistogram}` for a Counter | Mimir: histogram series |
 | `[~]` | 25 | Exemplar filter `:always_on` | sampling-mode reservoir | Mimir: lands (exemplar exposure config-dependent in LGTM 0.26.0) |
 | `[~]` | 26 | Exemplar filter `:always_off` | reservoir is `Drop` | Mimir: lands (Drop is internal-only contract) |
 | `[~]` | 27 | Exemplar filter `:trace_based` (default) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
@@ -188,19 +179,19 @@ pass without touching `Application.put_env`).
 | C-1 | `trace_test.exs` | 33 |
 | C-2a | `log_sdk_test.exs` | 14 |
 | C-2b | `log_handler_test.exs` | 21 |
-| C-3a | `metrics_sync_test.exs` | ~15 (rows 1–11, 14–17, 21) |
-| C-3b | `metrics_async_test.exs` | ~6 (rows 9–13, 20) |
-| C-3c | `metrics_view_test.exs` | ~9 (rows 22–24, 25–29, 30–31) |
+| C-3a | `metrics_sync_test.exs` | ~10 (rows 1–5, 8, 16, 18, 21, 30, 31) |
+| C-3b | `metrics_async_test.exs` | ~5 (rows 9–13) |
+| C-3c | `metrics_exemplars_test.exs` | ~5 (rows 25–29) |
 | C-4 | `propagator_test.exs` | 5 |
 | C-5 | `resource_test.exs` | 4 |
 | C-6 | `disabled_test.exs` | 2 |
 | C-7 | `cross_signal_test.exs` | 4 |
 | C-8 | `concurrency_test.exs` | 4 |
 
-**Total: ~113 scenarios.** Tick `[x]` in the Done column as each
+**Total: ~100 scenarios.** Tick `[x]` in the Done column as each
 scenario lands. Phase C-3 splits into three focused PRs because the
-Metrics surface is broad (sync vs observable vs View / exemplar /
-reader knobs); the others stay one file each.
+Metrics surface is broad (sync vs observable vs exemplar); the
+others stay one file each.
 
 Out of e2e scope (covered by unit tests in `test/otel/...`):
 

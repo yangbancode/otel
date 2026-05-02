@@ -26,7 +26,7 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
   defp config_of({_, config}), do: config
 
-  defp datapoints(meter, name, agg_module \\ Otel.SDK.Metrics.Aggregation.Sum) do
+  defp datapoints(meter, name, agg_module) do
     cfg = config_of(meter)
     agg_module.collect(cfg.metrics_tab, {name, cfg.scope}, %{})
   end
@@ -210,24 +210,6 @@ defmodule Otel.SDK.Metrics.MeterTest do
 
       refute log_identical =~ "duplicate instrument registration"
     end
-
-    test "view that overrides description suppresses description-only conflict warning" do
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        Otel.SDK.Metrics.MeterProvider,
-        %{name: "desc_dup"},
-        %{description: "Canonical"}
-      )
-
-      meter = meter_for("lib")
-
-      first =
-        Otel.SDK.Metrics.Meter.create_counter(meter, "desc_dup", unit: "1", description: "first")
-
-      second =
-        Otel.SDK.Metrics.Meter.create_counter(meter, "desc_dup", unit: "1", description: "second")
-
-      assert second == first
-    end
   end
 
   describe "record/3" do
@@ -270,40 +252,6 @@ defmodule Otel.SDK.Metrics.MeterTest do
       }
 
       assert :ok == Otel.SDK.Metrics.Meter.record(ghost, 1, %{})
-    end
-
-    test "View attribute_keys filter (include / exclude) restricts the recorded attribute set" do
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        Otel.SDK.Metrics.MeterProvider,
-        %{name: "filtered"},
-        %{attribute_keys: {:include, ["method"]}}
-      )
-
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        Otel.SDK.Metrics.MeterProvider,
-        %{name: "excluded"},
-        %{attribute_keys: {:exclude, ["path"]}}
-      )
-
-      meter = meter_for("lib")
-
-      Otel.SDK.Metrics.Meter.record(
-        Otel.SDK.Metrics.Meter.create_counter(meter, "filtered", []),
-        1,
-        %{"method" => "GET", "path" => "/api"}
-      )
-
-      [dp_inc] = datapoints(meter, "filtered")
-      assert dp_inc.attributes == %{"method" => "GET"}
-
-      Otel.SDK.Metrics.Meter.record(
-        Otel.SDK.Metrics.Meter.create_counter(meter, "excluded", []),
-        1,
-        %{"method" => "GET", "path" => "/api"}
-      )
-
-      [dp_exc] = datapoints(meter, "excluded")
-      assert dp_exc.attributes == %{"method" => "GET"}
     end
   end
 
@@ -376,235 +324,28 @@ defmodule Otel.SDK.Metrics.MeterTest do
       [{_, stream}] = :ets.lookup(cfg.streams_tab, {cfg.scope, "card_test"})
       assert stream.aggregation_cardinality_limit == 2000
     end
-
-    test "overflow attribute set absorbs all attribute sets past the limit; existing keys unaffected" do
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        Otel.SDK.Metrics.MeterProvider,
-        %{name: "limited"},
-        %{aggregation_cardinality_limit: 3}
-      )
-
-      meter = meter_for("lib")
-      counter = Otel.SDK.Metrics.Meter.create_counter(meter, "limited", [])
-
-      for k <- ~w(a b c) do
-        Otel.SDK.Metrics.Meter.record(counter, 1, %{"k" => k})
-      end
-
-      # Pre-existing key 'a' keeps incrementing on its own bucket;
-      # later distinct keys 'd' and 'e' route to the overflow set.
-      Otel.SDK.Metrics.Meter.record(counter, 5, %{"k" => "a"})
-      Otel.SDK.Metrics.Meter.record(counter, 1, %{"k" => "d"})
-      Otel.SDK.Metrics.Meter.record(counter, 1, %{"k" => "e"})
-
-      dps = datapoints(meter, "limited")
-      overflow = Enum.find(dps, &(&1.attributes == %{"otel.metric.overflow" => true}))
-      normal = Enum.reject(dps, &(&1.attributes == %{"otel.metric.overflow" => true}))
-
-      assert overflow.value == 2
-      assert length(normal) == 3
-
-      a_dp = Enum.find(dps, &(&1.attributes == %{"k" => "a"}))
-      assert a_dp.value == 6
-    end
-
-    # Spec metrics/sdk.md §"Asynchronous instrument cardinality
-    # limits" L864-L866 SHOULD — first-observed attribute sets are
-    # pinned and survive across delta collect cycles.
-    test "async first-observed attributes are pinned across delta collect cycles" do
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        Otel.SDK.Metrics.MeterProvider,
-        %{name: "async_card"},
-        %{aggregation_cardinality_limit: 2}
-      )
-
-      meter = meter_for("lib")
-      cfg = config_of(meter)
-      cycle = :counters.new(1, [])
-
-      cb = fn _args ->
-        :counters.add(cycle, 1, 1)
-        n = :counters.get(cycle, 1)
-
-        [
-          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"k" => "a"}},
-          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"k" => "b"}},
-          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"late" => "x_#{n}"}},
-          %Otel.API.Metrics.Measurement{value: 1, attributes: %{"late" => "y_#{n}"}}
-        ]
-      end
-
-      Otel.SDK.Metrics.Meter.create_observable_counter(meter, "async_card", cb, nil, [])
-      Otel.SDK.Metrics.Meter.run_callbacks(cfg)
-
-      pinned =
-        :ets.foldl(
-          fn entry, acc ->
-            case elem(entry, 0) do
-              {"async_card", _, _, attrs} -> [attrs | acc]
-              _ -> acc
-            end
-          end,
-          [],
-          cfg.observed_attrs_tab
-        )
-
-      assert %{"k" => "a"} in pinned
-      assert %{"k" => "b"} in pinned
-      assert length(pinned) == 2
-
-      # Simulate a delta collect cycle.
-      :ets.delete_all_objects(cfg.metrics_tab)
-      Otel.SDK.Metrics.Meter.run_callbacks(cfg)
-
-      pinned_after =
-        :ets.foldl(
-          fn entry, acc ->
-            case elem(entry, 0) do
-              {"async_card", _, _, attrs} -> [attrs | acc]
-              _ -> acc
-            end
-          end,
-          [],
-          cfg.observed_attrs_tab
-        )
-
-      assert MapSet.new(pinned_after) == MapSet.new(pinned)
-
-      metrics_keys =
-        :ets.foldl(
-          fn entry, acc ->
-            case elem(entry, 0) do
-              {"async_card", _, _, attrs} -> [attrs | acc]
-              _ -> acc
-            end
-          end,
-          [],
-          cfg.metrics_tab
-        )
-
-      assert %{"otel.metric.overflow" => true} in metrics_keys
-      assert Enum.filter(metrics_keys, &Map.has_key?(&1, "late")) == []
-    end
   end
 
-  describe "enabled?/2 — true unless every matching view is Drop" do
-    test "registered instrument with default views → true; with all-Drop view → false" do
-      meter = meter_for()
-
+  describe "enabled?/2 — always true (no Drop aggregation paths without Views)" do
+    test "registered instrument", %{meter: meter} do
       assert true ==
                Otel.SDK.Metrics.Meter.enabled?(
                  Otel.SDK.Metrics.Meter.create_counter(meter, "active", []),
                  []
                )
-
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        Otel.SDK.Metrics.MeterProvider,
-        %{name: "dropped"},
-        %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
-      )
-
-      drop_meter = meter_for("lib")
-
-      refute Otel.SDK.Metrics.Meter.enabled?(
-               Otel.SDK.Metrics.Meter.create_counter(drop_meter, "dropped", []),
-               []
-             )
     end
 
-    test "instrument with one Drop view + one non-Drop view → true (any non-Drop wins)" do
-      provider = Otel.SDK.Metrics.MeterProvider
-
-      Otel.SDK.Metrics.MeterProvider.add_view(provider, %{name: "partial_drop"}, %{
-        aggregation: Otel.SDK.Metrics.Aggregation.Drop
-      })
-
-      Otel.SDK.Metrics.MeterProvider.add_view(provider, %{type: :counter}, %{name: "renamed"})
-
-      meter = meter_for("lib")
-
-      assert Otel.SDK.Metrics.Meter.enabled?(
-               Otel.SDK.Metrics.Meter.create_counter(meter, "partial_drop", []),
-               []
-             )
-    end
-
-    test "unregistered instrument: false when wildcard Drop view matches; true with no matching views" do
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        Otel.SDK.Metrics.MeterProvider,
-        %{name: "*"},
-        %{aggregation: Otel.SDK.Metrics.Aggregation.Drop}
-      )
-
-      meter = meter_for("lib")
+    test "unregistered instrument", %{meter: meter} do
       cfg = config_of(meter)
 
       ghost = %Otel.API.Metrics.Instrument{
         meter: meter,
-        name: "not_yet_created",
+        name: "ghost",
         kind: :counter,
         scope: cfg.scope
       }
 
-      refute Otel.SDK.Metrics.Meter.enabled?(ghost, [])
-
-      restart_sdk(metrics: [readers: []])
-      meter2 = meter_for()
-      cfg2 = config_of(meter2)
-
-      no_view = %Otel.API.Metrics.Instrument{
-        meter: meter2,
-        name: "unknown",
-        kind: :counter,
-        scope: cfg2.scope
-      }
-
-      assert Otel.SDK.Metrics.Meter.enabled?(no_view, [])
-    end
-  end
-
-  describe "match_views/2 — view matching produces 1+ Stream(s) per instrument" do
-    @inst %Otel.API.Metrics.Instrument{
-      name: "requests",
-      kind: :counter,
-      unit: "1",
-      description: "Request count",
-      advisory: [],
-      scope: %Otel.API.InstrumentationScope{name: "lib"}
-    }
-
-    test "no view → 1 stream from instrument; matching view overrides; non-matching falls back" do
-      assert [%Otel.SDK.Metrics.Stream{name: "requests"}] =
-               Otel.SDK.Metrics.Meter.match_views([], @inst)
-
-      {:ok, match} =
-        Otel.SDK.Metrics.View.new(
-          %{name: "requests"},
-          %{name: "req_total", description: "Total requests"}
-        )
-
-      assert [%Otel.SDK.Metrics.Stream{name: "req_total", description: "Total requests"}] =
-               Otel.SDK.Metrics.Meter.match_views([match], @inst)
-
-      {:ok, miss} = Otel.SDK.Metrics.View.new(%{name: "other_metric"}, %{name: "renamed"})
-
-      assert [%Otel.SDK.Metrics.Stream{name: "requests"}] =
-               Otel.SDK.Metrics.Meter.match_views([miss], @inst)
-    end
-
-    test "multiple matching views → multiple streams (warns on stream-name collision)" do
-      hist_inst = %{@inst | name: "latency", kind: :histogram, unit: "ms"}
-
-      {:ok, by_type} = Otel.SDK.Metrics.View.new(%{type: :histogram}, %{name: "stream_a"})
-      {:ok, by_unit} = Otel.SDK.Metrics.View.new(%{unit: "ms"}, %{name: "stream_b"})
-
-      streams = Otel.SDK.Metrics.Meter.match_views([by_type, by_unit], hist_inst)
-      assert Enum.map(streams, & &1.name) == ["stream_a", "stream_b"]
-
-      {:ok, dup1} = Otel.SDK.Metrics.View.new(%{type: :counter}, %{name: "same_name"})
-      {:ok, dup2} = Otel.SDK.Metrics.View.new(%{unit: "1"}, %{name: "same_name"})
-
-      assert length(Otel.SDK.Metrics.Meter.match_views([dup1, dup2], @inst)) == 2
+      assert Otel.SDK.Metrics.Meter.enabled?(ghost, [])
     end
   end
 end

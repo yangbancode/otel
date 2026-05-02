@@ -3,7 +3,7 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   SDK implementation of the `Otel.API.Metrics.MeterProvider`
   behaviour (`metrics/sdk.md` §MeterProvider L43-L155).
 
-  A `GenServer` that owns metrics configuration (resource, views,
+  A `GenServer` that owns metrics configuration (resource,
   readers) and creates meters. Registers itself as the global
   MeterProvider on start.
 
@@ -32,7 +32,6 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   | `get_meter/2` | **SDK** (OTel API MUST) — `metrics/api.md` §Get a Meter |
   | `shutdown/2` | **SDK** (OTel API MUST) — `metrics/sdk.md` §Shutdown |
   | `force_flush/2` | **SDK** (OTel API MUST) — `metrics/sdk.md` §ForceFlush |
-  | `add_view/3` | **SDK** (OTel API MUST) — `metrics/sdk.md` §View L259-L327 |
 
   ## References
 
@@ -47,7 +46,6 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   @type config :: %{
           resource: Otel.SDK.Resource.t(),
-          views: [Otel.SDK.Metrics.View.t()],
           readers: [{module(), Otel.SDK.Metrics.MetricReader.config()}],
           exemplar_filter: Otel.SDK.Metrics.Exemplar.Filter.t()
         }
@@ -131,26 +129,6 @@ defmodule Otel.SDK.Metrics.MeterProvider do
     GenServer.call(server, :config)
   catch
     :exit, {:noproc, _} -> %{}
-  end
-
-  @doc """
-  **SDK** (OTel API MUST) — Register a View
-  (`metrics/sdk.md` §View L259-L327).
-
-  Returns `{:error, reason}` if the View is invalid (e.g.
-  wildcard name with stream name override). Returns `:ok` when
-  the provider isn't running — there's no aggregation pipeline
-  to install the View on, so the call is a silent no-op.
-  """
-  @spec add_view(
-          server :: GenServer.server(),
-          criteria :: Otel.SDK.Metrics.View.criteria(),
-          config :: Otel.SDK.Metrics.View.config()
-        ) :: :ok | {:error, String.t()}
-  def add_view(server, criteria \\ %{}, config \\ %{}) do
-    GenServer.call(server, {:add_view, criteria, config})
-  catch
-    :exit, {:noproc, _} -> :ok
   end
 
   # --- Server Callbacks ---
@@ -243,7 +221,6 @@ defmodule Otel.SDK.Metrics.MeterProvider do
       callbacks_tab: config.callbacks_tab,
       exemplars_tab: config.exemplars_tab,
       observed_attrs_tab: config.observed_attrs_tab,
-      views: config.views,
       exemplar_filter: config.exemplar_filter,
       reader_configs: reader_configs
     }
@@ -276,16 +253,6 @@ defmodule Otel.SDK.Metrics.MeterProvider do
 
   def handle_call(:config, _from, config) do
     {:reply, config, config}
-  end
-
-  def handle_call({:add_view, criteria, view_config}, _from, config) do
-    case Otel.SDK.Metrics.View.new(criteria, view_config) do
-      {:ok, view} ->
-        {:reply, :ok, %{config | views: config.views ++ [view]}}
-
-      {:error, reason} ->
-        {:reply, {:error, reason}, config}
-    end
   end
 
   @impl true
@@ -345,7 +312,6 @@ defmodule Otel.SDK.Metrics.MeterProvider do
   defp default_config do
     %{
       resource: Otel.SDK.Resource.default(),
-      views: [],
       readers: [],
       exemplar_filter: :trace_based
     }

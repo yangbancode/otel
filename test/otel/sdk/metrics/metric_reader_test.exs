@@ -117,25 +117,6 @@ defmodule Otel.SDK.Metrics.MetricReaderTest do
       assert hd(dp.exemplars).value == 2
     end
 
-    test "View attribute filtering moves dropped keys onto the exemplar's filtered_attributes" do
-      restart_sdk(metrics: [readers: [], exemplar_filter: :always_on])
-      provider = Otel.SDK.Metrics.MeterProvider
-
-      Otel.SDK.Metrics.MeterProvider.add_view(
-        provider,
-        %{name: "attr_test"},
-        %{attribute_keys: {:include, ["method"]}}
-      )
-
-      config = meter_config("lib")
-      counter = Otel.SDK.Metrics.Meter.create_counter(meter(config), "attr_test", [])
-      Otel.SDK.Metrics.Meter.record(counter, 1, %{"method" => "GET", "path" => "/api"})
-
-      [%{datapoints: [dp]}] = Otel.SDK.Metrics.MetricReader.collect(config)
-      assert dp.attributes == %{"method" => "GET"}
-      assert hd(dp.exemplars).filtered_attributes == %{"path" => "/api"}
-    end
-
     test "config without :exemplars_tab — collect runs but datapoints carry no :exemplars",
          %{config: config, meter: meter} do
       counter = Otel.SDK.Metrics.Meter.create_counter(meter, "no_ex", [])

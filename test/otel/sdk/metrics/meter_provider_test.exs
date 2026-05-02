@@ -48,11 +48,6 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     Otel.SDK.Metrics.MeterProvider.get_meter(pid, %Otel.API.InstrumentationScope{name: scope_name})
   end
 
-  defp views_count(pid) do
-    {_, %{views: views}} = meter_for(pid, "view_count_probe")
-    length(views)
-  end
-
   setup do
     restart_sdk(metrics: [readers: []])
     %{provider: Otel.SDK.Metrics.MeterProvider}
@@ -125,13 +120,6 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
       assert %{} = Otel.SDK.Metrics.MeterProvider.config(Otel.SDK.Metrics.MeterProvider)
 
-      assert :ok =
-               Otel.SDK.Metrics.MeterProvider.add_view(
-                 Otel.SDK.Metrics.MeterProvider,
-                 %{name: "x"},
-                 %{}
-               )
-
       Application.ensure_all_started(:otel)
     end
 
@@ -153,33 +141,6 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
 
       assert {:error, [{FailReader, :flush_failed}]} =
                Otel.SDK.Metrics.MeterProvider.force_flush(Otel.SDK.Metrics.MeterProvider)
-    end
-  end
-
-  describe "add_view/3" do
-    test "registers a view; defaults criteria/config; preserves order; rejects invalid",
-         %{provider: p} do
-      assert :ok = Otel.SDK.Metrics.MeterProvider.add_view(p, %{type: :counter}, %{})
-      assert :ok = Otel.SDK.Metrics.MeterProvider.add_view(p, %{type: :histogram}, %{})
-      assert :ok = Otel.SDK.Metrics.MeterProvider.add_view(p)
-      assert views_count(p) == 3
-
-      assert {:error, _} =
-               Otel.SDK.Metrics.MeterProvider.add_view(p, %{name: "*"}, %{name: "override"})
-
-      # Invalid view didn't increment.
-      assert views_count(p) == 3
-    end
-
-    test "views become visible to meters returned both before and after add_view", %{provider: p} do
-      {_, before} = meter_for(p, "lib")
-
-      :ok = Otel.SDK.Metrics.MeterProvider.add_view(p, %{name: "requests"}, %{name: "req_total"})
-
-      {_, later} = meter_for(p, "lib")
-
-      assert before.views == []
-      assert length(later.views) == 1
     end
   end
 
@@ -213,6 +174,8 @@ defmodule Otel.SDK.Metrics.MeterProviderTest do
     assert %Otel.SDK.Resource{} = Otel.SDK.Metrics.MeterProvider.resource(p)
 
     config = Otel.SDK.Metrics.MeterProvider.config(p)
-    for field <- [:readers, :views, :resource], do: assert(Map.has_key?(config, field))
+
+    for field <- [:readers, :resource, :exemplar_filter],
+        do: assert(Map.has_key?(config, field))
   end
 end
