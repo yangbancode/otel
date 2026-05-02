@@ -63,16 +63,16 @@ defmodule Otel.E2E.CrossSignalTest do
     test "2: counter add inside with_span carries the trace_id to Mimir",
          %{e2e_id: e2e_id} do
       tracer = Otel.Trace.TracerProvider.get_tracer(scope())
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
       metric = "e2e_cross_signal_2_#{e2e_id}"
-      counter = Otel.API.Metrics.Meter.create_counter(meter, metric)
+      counter = Otel.Metrics.Meter.create_counter(meter, metric)
 
       Otel.Trace.with_span(
         tracer,
         "scenario-2-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
-          Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
+          Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
         end
       )
 
@@ -97,7 +97,7 @@ defmodule Otel.E2E.CrossSignalTest do
     test "3: service.name is consistent across all 3 pillars", %{e2e_id: e2e_id} do
       tracer = Otel.Trace.TracerProvider.get_tracer(scope())
       logger = Otel.API.Logs.LoggerProvider.get_logger(scope())
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
       metric = "e2e_cross_signal_3_#{e2e_id}"
 
       Otel.Trace.with_span(
@@ -113,8 +113,8 @@ defmodule Otel.E2E.CrossSignalTest do
         attributes: %{"e2e.id" => e2e_id}
       })
 
-      counter = Otel.API.Metrics.Meter.create_counter(meter, metric)
-      Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
+      counter = Otel.Metrics.Meter.create_counter(meter, metric)
+      Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
 
       # SDK default Resource sets service.name="unknown_service"
@@ -150,7 +150,7 @@ defmodule Otel.E2E.CrossSignalTest do
 
       tracer = Otel.Trace.TracerProvider.get_tracer(shared_scope)
       logger = Otel.API.Logs.LoggerProvider.get_logger(shared_scope)
-      meter = Otel.API.Metrics.MeterProvider.get_meter(shared_scope)
+      meter = Otel.Metrics.MeterProvider.get_meter(shared_scope)
       metric = "e2e_cross_signal_4_#{e2e_id}"
 
       Otel.Trace.with_span(
@@ -166,8 +166,8 @@ defmodule Otel.E2E.CrossSignalTest do
         attributes: %{"e2e.id" => e2e_id}
       })
 
-      counter = Otel.API.Metrics.Meter.create_counter(meter, metric)
-      Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
+      counter = Otel.Metrics.Meter.create_counter(meter, metric)
+      Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
 
       # Tempo + Loki carry scope_name in their envelopes. Mimir

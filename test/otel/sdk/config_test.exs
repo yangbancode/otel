@@ -33,7 +33,7 @@ defmodule Otel.SDK.ConfigTest do
   describe "exporter/1" do
     test "no :exporter set → empty config map for each signal" do
       assert Otel.SDK.Config.exporter(:trace) == {Otel.Trace.SpanExporter, %{}}
-      assert Otel.SDK.Config.exporter(:metrics) == {Otel.OTLP.Metrics.MetricExporter, %{}}
+      assert Otel.SDK.Config.exporter(:metrics) == {Otel.Metrics.MetricExporter, %{}}
       assert Otel.SDK.Config.exporter(:logs) == {Otel.OTLP.Logs.LogRecordExporter, %{}}
     end
 
@@ -47,7 +47,7 @@ defmodule Otel.SDK.ConfigTest do
       assert config.endpoint == "https://collector:4318"
       assert config.headers == %{"x-api-key" => "secret"}
 
-      assert {Otel.OTLP.Metrics.MetricExporter, ^config} = Otel.SDK.Config.exporter(:metrics)
+      assert {Otel.Metrics.MetricExporter, ^config} = Otel.SDK.Config.exporter(:metrics)
       assert {Otel.OTLP.Logs.LogRecordExporter, ^config} = Otel.SDK.Config.exporter(:logs)
     end
   end
@@ -107,10 +107,10 @@ defmodule Otel.SDK.ConfigTest do
 
   describe "metrics/0" do
     test "defaults: PeriodicExporting(OTLP HTTP) + :trace_based exemplar" do
-      [{Otel.SDK.Metrics.MetricReader.PeriodicExporting, reader}] =
+      [{Otel.Metrics.MetricReader.PeriodicExporting, reader}] =
         Otel.SDK.Config.metrics().readers
 
-      assert reader.exporter == {Otel.OTLP.Metrics.MetricExporter, %{}}
+      assert reader.exporter == {Otel.Metrics.MetricExporter, %{}}
       assert reader.export_interval_ms == 60_000
       assert reader.export_timeout_ms == 30_000
       assert Otel.SDK.Config.metrics().exemplar_filter == :trace_based

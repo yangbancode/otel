@@ -56,16 +56,16 @@ defmodule Otel.E2E.MetricsExemplarsTest do
 
     test "27: trace_based records inside a sampled span", %{e2e_id: e2e_id} do
       tracer = Otel.Trace.TracerProvider.get_tracer(scope())
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
       metric = "e2e_scenario_27_#{e2e_id}"
-      counter = Otel.API.Metrics.Meter.create_counter(meter, metric)
+      counter = Otel.Metrics.Meter.create_counter(meter, metric)
 
       Otel.Trace.with_span(
         tracer,
         "scenario-27-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
-          Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
+          Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
         end
       )
 
@@ -78,11 +78,11 @@ defmodule Otel.E2E.MetricsExemplarsTest do
     test "28: AlignedHistogramBucket reservoir on a histogram", %{e2e_id: e2e_id} do
       metric = "e2e_scenario_28_#{e2e_id}"
 
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
-      hist = Otel.API.Metrics.Meter.create_histogram(meter, metric)
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      hist = Otel.Metrics.Meter.create_histogram(meter, metric)
 
       for v <- [1.0, 5.0, 25.0, 100.0],
-          do: Otel.API.Metrics.Histogram.record(hist, v, %{"e2e.id" => e2e_id})
+          do: Otel.Metrics.Histogram.record(hist, v, %{"e2e.id" => e2e_id})
 
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "#{metric}_count"))
@@ -91,11 +91,11 @@ defmodule Otel.E2E.MetricsExemplarsTest do
     test "29: SimpleFixedSize reservoir on a non-histogram", %{e2e_id: e2e_id} do
       metric = "e2e_scenario_29_#{e2e_id}"
 
-      meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
-      counter = Otel.API.Metrics.Meter.create_counter(meter, metric)
+      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      counter = Otel.Metrics.Meter.create_counter(meter, metric)
 
       for _ <- 1..5,
-          do: Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
+          do: Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
 
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "#{metric}_total"))
@@ -120,9 +120,9 @@ defmodule Otel.E2E.MetricsExemplarsTest do
   end
 
   defp record_counter(name, e2e_id) do
-    meter = Otel.API.Metrics.MeterProvider.get_meter(scope())
-    counter = Otel.API.Metrics.Meter.create_counter(meter, name)
-    Otel.API.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
+    meter = Otel.Metrics.MeterProvider.get_meter(scope())
+    counter = Otel.Metrics.Meter.create_counter(meter, name)
+    Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
     flush()
   end
 end

@@ -205,7 +205,7 @@ defmodule Otel.OTLP.Encoder do
   Encodes a list of collected metrics into an
   ExportMetricsServiceRequest protobuf binary.
   """
-  @spec encode_metrics(metrics :: [Otel.SDK.Metrics.MetricReader.metric()]) :: binary()
+  @spec encode_metrics(metrics :: [Otel.Metrics.MetricReader.metric()]) :: binary()
   def encode_metrics(metrics) do
     resource_metrics = build_resource_metrics(metrics)
 
@@ -215,7 +215,7 @@ defmodule Otel.OTLP.Encoder do
     |> Protobuf.encode()
   end
 
-  @spec build_resource_metrics(metrics :: [Otel.SDK.Metrics.MetricReader.metric()]) ::
+  @spec build_resource_metrics(metrics :: [Otel.Metrics.MetricReader.metric()]) ::
           [Opentelemetry.Proto.Metrics.V1.ResourceMetrics.t()]
   defp build_resource_metrics(metrics) do
     metrics
@@ -229,7 +229,7 @@ defmodule Otel.OTLP.Encoder do
     end)
   end
 
-  @spec group_metrics_by_scope(metrics :: [Otel.SDK.Metrics.MetricReader.metric()]) ::
+  @spec group_metrics_by_scope(metrics :: [Otel.Metrics.MetricReader.metric()]) ::
           [Opentelemetry.Proto.Metrics.V1.ScopeMetrics.t()]
   defp group_metrics_by_scope(metrics) do
     metrics
@@ -247,7 +247,7 @@ defmodule Otel.OTLP.Encoder do
   defp scope_schema_url(nil), do: ""
   defp scope_schema_url(scope), do: scope.schema_url
 
-  @spec encode_metric(metric :: Otel.SDK.Metrics.MetricReader.metric()) ::
+  @spec encode_metric(metric :: Otel.Metrics.MetricReader.metric()) ::
           Opentelemetry.Proto.Metrics.V1.Metric.t()
   defp encode_metric(metric) do
     %Opentelemetry.Proto.Metrics.V1.Metric{
@@ -258,7 +258,7 @@ defmodule Otel.OTLP.Encoder do
     }
   end
 
-  @spec encode_metric_data(metric :: Otel.SDK.Metrics.MetricReader.metric()) ::
+  @spec encode_metric_data(metric :: Otel.Metrics.MetricReader.metric()) ::
           {:sum, Opentelemetry.Proto.Metrics.V1.Sum.t()}
           | {:gauge, Opentelemetry.Proto.Metrics.V1.Gauge.t()}
           | {:histogram, Opentelemetry.Proto.Metrics.V1.Histogram.t()}
@@ -389,13 +389,13 @@ defmodule Otel.OTLP.Encoder do
   defp encode_temporality(:cumulative), do: :AGGREGATION_TEMPORALITY_CUMULATIVE
   defp encode_temporality(_), do: :AGGREGATION_TEMPORALITY_UNSPECIFIED
 
-  @spec encode_metric_exemplars(exemplars :: [Otel.SDK.Metrics.Exemplar.t()]) ::
+  @spec encode_metric_exemplars(exemplars :: [Otel.Metrics.Exemplar.t()]) ::
           [Opentelemetry.Proto.Metrics.V1.Exemplar.t()]
   defp encode_metric_exemplars(exemplars) do
     Enum.map(exemplars, &encode_metric_exemplar/1)
   end
 
-  @spec encode_metric_exemplar(exemplar :: Otel.SDK.Metrics.Exemplar.t()) ::
+  @spec encode_metric_exemplar(exemplar :: Otel.Metrics.Exemplar.t()) ::
           Opentelemetry.Proto.Metrics.V1.Exemplar.t()
   defp encode_metric_exemplar(exemplar) do
     %Opentelemetry.Proto.Metrics.V1.Exemplar{
