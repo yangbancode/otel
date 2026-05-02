@@ -47,7 +47,7 @@ defmodule Otel.SDK.Config do
   config :otel,
     trace: [
       processors: [{MyApp.CustomProcessor, %{...}}],
-      span_limits: %{attribute_count_limit: 32}
+      span_limits: %Otel.Trace.SpanLimits{attribute_count_limit: 32}
     ],
     metrics: [
       readers: [{MyApp.CustomReader, %{...}}],
@@ -55,13 +55,15 @@ defmodule Otel.SDK.Config do
     ],
     logs: [
       processors: [{MyApp.CustomProcessor, %{...}}],
-      log_record_limits: %{attribute_count_limit: 32}
+      log_record_limits: %Otel.Logs.LogRecordLimits{attribute_count_limit: 32}
     ]
   ```
 
   When a per-pillar override is set, the matching top-level
-  key is bypassed for that pillar. Per-pillar `:resource`
-  expects an `%Otel.Resource{}` struct, not a map.
+  key is bypassed for that pillar. The struct-typed overrides
+  (`:resource`, `:span_limits`, `:log_record_limits`) expect
+  the corresponding struct verbatim — no map / keyword
+  coercion.
 
   ## Public API
 
@@ -131,7 +133,7 @@ defmodule Otel.SDK.Config do
     %{
       resource: Keyword.get(pillar, :resource, resource()),
       processors: build_trace_processors(pillar),
-      span_limits: build_span_limits(pillar)
+      span_limits: Keyword.get(pillar, :span_limits, %Otel.Trace.SpanLimits{})
     }
   end
 
@@ -150,23 +152,6 @@ defmodule Otel.SDK.Config do
     [{Otel.Trace.SpanProcessor, %{exporter: exporter(:trace)}}]
   end
 
-  # Limits are hardcoded to spec defaults (`%Otel.Trace.SpanLimits{}`).
-  # The `:span_limits` Application-env keyword is retained as an
-  # advanced override for tests that need to exercise the
-  # limit-enforcement code paths with small caps; it is not part
-  # of the documented user surface.
-  @spec build_span_limits(pillar :: keyword()) :: Otel.Trace.SpanLimits.t()
-  defp build_span_limits(pillar) do
-    case Keyword.get(pillar, :span_limits) do
-      nil -> %Otel.Trace.SpanLimits{}
-      override -> struct(Otel.Trace.SpanLimits, normalize_struct_or_keyword(override))
-    end
-  end
-
-  @spec normalize_struct_or_keyword(value :: keyword() | map() | struct()) :: map()
-  defp normalize_struct_or_keyword(value) when is_map(value), do: Map.delete(value, :__struct__)
-  defp normalize_struct_or_keyword(value) when is_list(value), do: Enum.into(value, %{})
-
   # ====== Metrics ======
 
   @doc """
@@ -179,19 +164,8 @@ defmodule Otel.SDK.Config do
     %{
       resource: Keyword.get(pillar, :resource, resource()),
       readers: build_metrics_readers(pillar),
-      exemplar_filter: build_exemplar_filter(pillar)
+      exemplar_filter: Keyword.get(pillar, :exemplar_filter, :trace_based)
     }
-  end
-
-  # Hardcoded to `:trace_based` (spec default per
-  # `metrics/sdk.md` L1123). The `:exemplar_filter`
-  # Application-env keyword is retained as an advanced
-  # override for tests that exercise the `:always_on` /
-  # `:always_off` filter paths; it is not part of the
-  # documented user surface.
-  @spec build_exemplar_filter(pillar :: keyword()) :: Otel.Metrics.Exemplar.Filter.t()
-  defp build_exemplar_filter(pillar) do
-    Keyword.get(pillar, :exemplar_filter, :trace_based)
   end
 
   @spec build_metrics_readers(pillar :: keyword()) ::
@@ -231,18 +205,8 @@ defmodule Otel.SDK.Config do
     %{
       resource: Keyword.get(pillar, :resource, resource()),
       processors: build_logs_processors(pillar),
-      log_record_limits: build_log_record_limits(pillar)
+      log_record_limits: Keyword.get(pillar, :log_record_limits, %Otel.Logs.LogRecordLimits{})
     }
-  end
-
-  # See `build_span_limits/1`: same advanced-override semantics
-  # for `:log_record_limits` Application-env keyword.
-  @spec build_log_record_limits(pillar :: keyword()) :: Otel.Logs.LogRecordLimits.t()
-  defp build_log_record_limits(pillar) do
-    case Keyword.get(pillar, :log_record_limits) do
-      nil -> %Otel.Logs.LogRecordLimits{}
-      override -> struct(Otel.Logs.LogRecordLimits, normalize_struct_or_keyword(override))
-    end
   end
 
   @spec build_logs_processors(pillar :: keyword()) ::

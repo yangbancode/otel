@@ -94,14 +94,12 @@ defmodule Otel.SDK.ConfigTest do
       assert Otel.SDK.Config.trace().resource == override
     end
 
-    test "span_limits accepts map and keyword forms; untouched fields keep defaults" do
-      Application.put_env(:otel, :trace, span_limits: %{attribute_count_limit: 256})
+    test "span_limits override flows through verbatim; untouched fields keep defaults" do
+      override = %Otel.Trace.SpanLimits{attribute_count_limit: 256}
+      Application.put_env(:otel, :trace, span_limits: override)
       limits = Otel.SDK.Config.trace().span_limits
       assert limits.attribute_count_limit == 256
       assert limits.event_count_limit == 128
-
-      Application.put_env(:otel, :trace, span_limits: [attribute_count_limit: 64])
-      assert Otel.SDK.Config.trace().span_limits.attribute_count_limit == 64
     end
   end
 
