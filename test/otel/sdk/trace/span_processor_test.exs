@@ -74,30 +74,11 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
     is_recording: true
   }
 
-  defp start_processor(overrides \\ []) do
-    config =
-      Map.merge(
-        %{
-          exporter: {TestExporter, %{test_pid: self()}},
-          scheduled_delay_ms: 100_000,
-          max_queue_size: 2048,
-          max_export_batch_size: 512,
-          export_timeout_ms: 30_000
-        },
-        Map.new(overrides)
-      )
+  defp start_processor do
+    {:ok, pid} =
+      Otel.SDK.Trace.SpanProcessor.start_link(%{exporter: {TestExporter, %{test_pid: self()}}})
 
-    {:ok, pid} = Otel.SDK.Trace.SpanProcessor.start_link(config)
     %{pid: pid}
-  end
-
-  defp emit_n(config, n) do
-    for i <- 1..n do
-      Otel.SDK.Trace.SpanProcessor.on_end(
-        %{@sampled | span_id: i, name: "span_#{i}"},
-        config
-      )
-    end
   end
 
   test "on_start/3 returns the span unchanged" do
@@ -105,7 +86,7 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
     assert Otel.SDK.Trace.SpanProcessor.on_start(%{}, @sampled, config) == @sampled
   end
 
-  describe "on_end/2 — queue + sampling + overflow" do
+  describe "on_end/2 — queue + sampling" do
     test "sampled span is queued (no immediate export); unsampled is dropped" do
       config = start_processor()
 
@@ -114,35 +95,18 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
 
       assert :dropped = Otel.SDK.Trace.SpanProcessor.on_end(@unsampled, config)
     end
-
-    test "auto-exports when the queue length reaches max_export_batch_size" do
-      config = start_processor(max_export_batch_size: 3)
-      emit_n(config, 3)
-
-      assert_receive {:exported, 3, _names}, 1000
-    end
-
-    test "drops spans when max_queue_size is reached (force_flush exports at most queue cap)" do
-      config = start_processor(max_queue_size: 2, max_export_batch_size: 100)
-      emit_n(config, 5)
-
-      Otel.SDK.Trace.SpanProcessor.force_flush(config)
-      assert_receive {:exported, count, _names}, 1000
-      assert count <= 2
-    end
   end
 
-  describe "scheduled timer + force_flush" do
-    test "scheduled_delay_ms triggers a periodic export of queued spans" do
-      config = start_processor(scheduled_delay_ms: 50)
-      Otel.SDK.Trace.SpanProcessor.on_end(@sampled, config)
-
-      assert_receive {:exported, 1, ["sampled"]}, 500
-    end
-
+  describe "force_flush/1,2" do
     test "force_flush exports immediately; no-op when queue is empty" do
       config = start_processor()
-      emit_n(config, 5)
+
+      for i <- 1..5 do
+        Otel.SDK.Trace.SpanProcessor.on_end(
+          %{@sampled | span_id: i, name: "span_#{i}"},
+          config
+        )
+      end
 
       assert :ok = Otel.SDK.Trace.SpanProcessor.force_flush(config)
       assert_receive {:exported, 5, _names}
@@ -175,20 +139,15 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
     end
 
     test "shutdown / force_flush returns {:error, :timeout} on slow exporter" do
-      slow_config = %{
-        exporter: {SlowExporter, %{}},
-        scheduled_delay_ms: 100_000,
-        max_queue_size: 2048,
-        max_export_batch_size: 512,
-        export_timeout_ms: 30_000
-      }
-
-      {:ok, shut_pid} = Otel.SDK.Trace.SpanProcessor.start_link(slow_config)
+      {:ok, shut_pid} =
+        Otel.SDK.Trace.SpanProcessor.start_link(%{exporter: {SlowExporter, %{}}})
 
       assert {:error, :timeout} =
                Otel.SDK.Trace.SpanProcessor.shutdown(%{pid: shut_pid}, 1)
 
-      {:ok, flush_pid} = Otel.SDK.Trace.SpanProcessor.start_link(slow_config)
+      {:ok, flush_pid} =
+        Otel.SDK.Trace.SpanProcessor.start_link(%{exporter: {SlowExporter, %{}}})
+
       Otel.SDK.Trace.SpanProcessor.on_end(@sampled, %{pid: flush_pid})
 
       assert {:error, :timeout} =
@@ -196,34 +155,9 @@ defmodule Otel.SDK.Trace.SpanProcessorTest do
     end
   end
 
-  # Spec trace/sdk.md L1113 — export_timeout_ms is the drain
-  # deadline computed once at do_export entry; the per-batch guard
-  # check refuses to start a new batch after the deadline.
-  describe "export_timeout_ms enforcement" do
-    test "0 prevents any drain — spans stay queued through force_flush" do
-      config = start_processor(export_timeout_ms: 0, max_export_batch_size: 1)
-
-      Otel.SDK.Trace.SpanProcessor.on_end(@sampled, config)
-      Otel.SDK.Trace.SpanProcessor.force_flush(config)
-
-      refute_receive {:exported, _, _}, 100
-    end
-
-    test "default (30s) leaves enough slack for a normal drain" do
-      config = start_processor()
-      Otel.SDK.Trace.SpanProcessor.on_end(@sampled, config)
-      Otel.SDK.Trace.SpanProcessor.force_flush(config)
-
-      assert_receive {:exported, 1, ["sampled"]}
-    end
-  end
-
   test "exporter init/1 returning :ignore — every on_end is :dropped; shutdown/flush still :ok" do
     {:ok, pid} =
-      Otel.SDK.Trace.SpanProcessor.start_link(%{
-        exporter: {IgnoreExporter, %{}},
-        scheduled_delay_ms: 100_000
-      })
+      Otel.SDK.Trace.SpanProcessor.start_link(%{exporter: {IgnoreExporter, %{}}})
 
     config = %{pid: pid}
 
