@@ -3,41 +3,33 @@ defmodule Otel.Trace.SpanProcessorTest do
 
   defmodule TestExporter do
     @moduledoc false
-    @behaviour Otel.Trace.SpanExporter
 
-    @impl true
     def init(config), do: {:ok, config}
-    @impl true
+
     def export(spans, _resource, %{test_pid: pid}) do
       send(pid, {:exported, length(spans), Enum.map(spans, & &1.name)})
       :ok
     end
 
-    @impl true
     def shutdown(%{test_pid: pid}) do
       send(pid, :exporter_shutdown)
       :ok
     end
 
-    @impl true
     def force_flush(_state), do: :ok
   end
 
   defmodule SlowExporter do
     @moduledoc false
-    @behaviour Otel.Trace.SpanExporter
 
-    @impl true
     def init(config), do: {:ok, config}
-    @impl true
     def export(_spans, _resource, _state), do: :ok
-    @impl true
+
     def shutdown(_state) do
       Process.sleep(100)
       :ok
     end
 
-    @impl true
     def force_flush(_state) do
       Process.sleep(100)
       :ok
@@ -46,15 +38,10 @@ defmodule Otel.Trace.SpanProcessorTest do
 
   defmodule IgnoreExporter do
     @moduledoc false
-    @behaviour Otel.Trace.SpanExporter
 
-    @impl true
     def init(_config), do: :ignore
-    @impl true
     def export(_spans, _resource, _state), do: :ok
-    @impl true
     def shutdown(_state), do: :ok
-    @impl true
     def force_flush(_state), do: :ok
   end
 

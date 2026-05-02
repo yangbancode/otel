@@ -187,14 +187,9 @@ defmodule Otel.Trace.TracerProviderTest do
   describe "boot-time processor wiring" do
     defmodule FakeExporter do
       @moduledoc false
-      @behaviour Otel.Trace.SpanExporter
-      @impl true
       def init(_), do: {:ok, %{}}
-      @impl true
       def export(_, _, _), do: :ok
-      @impl true
       def force_flush(_), do: :ok
-      @impl true
       def shutdown(_), do: :ok
     end
 
