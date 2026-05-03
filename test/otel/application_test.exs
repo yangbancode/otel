@@ -20,7 +20,7 @@ defmodule Otel.ApplicationTest do
       # `Otel.Resource.from_app_env/0` — no persistent_term.
       # (Tracer/LoggerProvider were dissolved into `Otel.Trace`
       # / `Otel.Logs`; resource is read on demand there too.)
-      meter_state = Otel.Metrics.MeterProvider.config()
+      meter_state = Otel.Metrics.config()
       assert %Otel.Resource{} = meter_state.resource
       assert meter_state.exemplar_filter == :trace_based
       assert meter_state.reader_id == :default_reader

@@ -93,12 +93,11 @@ defmodule Otel.Metrics.Histogram do
   Delegates to `Otel.Metrics.Meter.create_histogram/3`.
   """
   @spec create(
-          meter :: Otel.Metrics.Meter.t(),
           name :: String.t(),
           opts :: Otel.Metrics.Instrument.create_opts()
         ) :: Otel.Metrics.Instrument.t()
-  def create(meter, name, opts \\ []) do
-    Otel.Metrics.Meter.create_histogram(meter, name, opts)
+  def create(name, opts \\ []) do
+    Otel.Metrics.Meter.create_histogram(name, opts)
   end
 
   @doc """

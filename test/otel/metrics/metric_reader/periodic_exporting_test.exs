@@ -22,11 +22,6 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
     end
   end
 
-  defp meter_config do
-    %Otel.Metrics.Meter{config: config} = Otel.Metrics.MeterProvider.get_meter()
-    config
-  end
-
   defp restart_with_reader(opts) do
     base = %{exporter: nil, export_interval_ms: 60_000}
     config = Map.merge(base, opts)
@@ -37,10 +32,9 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
   end
 
   defp record_one(name) do
-    config = meter_config()
-    counter = Otel.Metrics.Meter.create_counter(%Otel.Metrics.Meter{config: config}, name, [])
+    counter = Otel.Metrics.Meter.create_counter(name, [])
     Otel.Metrics.Meter.record(counter, 1, %{})
-    config
+    Otel.Metrics.meter_config()
   end
 
   setup do

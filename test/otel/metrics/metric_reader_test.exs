@@ -2,18 +2,11 @@ defmodule Otel.Metrics.MetricReaderTest do
   use ExUnit.Case, async: false
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
-
-  defp meter_config do
-    %Otel.Metrics.Meter{config: config} = Otel.Metrics.MeterProvider.get_meter()
-    config
-  end
-
-  defp meter(config), do: %Otel.Metrics.Meter{config: config}
+  defp meter_config, do: Otel.Metrics.meter_config()
 
   setup do
     restart_sdk(metrics: [readers: []])
-    config = meter_config()
-    %{config: config, meter: meter(config)}
+    %{config: meter_config()}
   end
 
   describe "collect/1 — instrument kinds" do
@@ -22,8 +15,8 @@ defmodule Otel.Metrics.MetricReaderTest do
     end
 
     test "counter accumulates per attribute set; metric carries name/unit/kind/scope/resource",
-         %{config: config, meter: meter} do
-      counter = Otel.Metrics.Meter.create_counter(meter, "requests", unit: "1")
+         %{config: config} do
+      counter = Otel.Metrics.Meter.create_counter("requests", unit: "1")
       Otel.Metrics.Meter.record(counter, 5, %{"method" => "GET"})
       Otel.Metrics.Meter.record(counter, 3, %{"method" => "GET"})
 
@@ -41,13 +34,13 @@ defmodule Otel.Metrics.MetricReaderTest do
     end
 
     test "histogram aggregates count + sum; observable callback feeds gauge value",
-         %{config: config, meter: meter} do
-      hist = Otel.Metrics.Meter.create_histogram(meter, "latency", unit: "ms")
+         %{config: config} do
+      hist = Otel.Metrics.Meter.create_histogram("latency", unit: "ms")
       Otel.Metrics.Meter.record(hist, 50, %{})
       Otel.Metrics.Meter.record(hist, 150, %{})
 
       cb = fn _ -> [%Otel.Metrics.Measurement{value: 42, attributes: %{"host" => "a"}}] end
-      Otel.Metrics.Meter.create_observable_gauge(meter, "cpu", cb, nil, [])
+      Otel.Metrics.Meter.create_observable_gauge("cpu", cb, nil, [])
 
       metrics = Otel.Metrics.MetricReader.collect(config)
       by_name = Map.new(metrics, &{&1.name, &1})
@@ -57,9 +50,9 @@ defmodule Otel.Metrics.MetricReaderTest do
     end
 
     test "sync + async + multiple instruments collect in one pass",
-         %{config: config, meter: meter} do
-      counter = Otel.Metrics.Meter.create_counter(meter, "req", [])
-      gauge = Otel.Metrics.Meter.create_gauge(meter, "temp", [])
+         %{config: config} do
+      counter = Otel.Metrics.Meter.create_counter("req", [])
+      gauge = Otel.Metrics.Meter.create_gauge("temp", [])
       Otel.Metrics.Meter.record(counter, 1, %{})
       Otel.Metrics.Meter.record(gauge, 22, %{})
 
@@ -70,16 +63,16 @@ defmodule Otel.Metrics.MetricReaderTest do
 
   # Spec metrics/sdk.md L1374-L1389 — exemplar_filter (:always_on /
   # :always_off / :trace_based) gates whether reservoirs collect at
-  # all; reservoirs reset between collect calls. The Provider
-  # hardcodes `:trace_based`; tests that exercise the other two
-  # branches override `exemplar_filter` directly on the meter
-  # config map.
+  # all; reservoirs reset between collect calls. The SDK hardcodes
+  # `:trace_based`; tests exercise the other branches by patching
+  # the filter directly onto `instrument.config` (used by `record`)
+  # and onto the collect-side config map.
   describe "exemplars" do
     test ":always_on collects exemplars; :always_off yields []" do
       restart_sdk(metrics: [readers: []])
 
       config = %{meter_config() | exemplar_filter: :always_on}
-      counter = Otel.Metrics.Meter.create_counter(meter(config), "sampled", [])
+      counter = override_filter(Otel.Metrics.Meter.create_counter("sampled", []), :always_on)
       Otel.Metrics.Meter.record(counter, 42, %{"method" => "GET"})
 
       [%{datapoints: [dp]}] = Otel.Metrics.MetricReader.collect(config)
@@ -87,7 +80,10 @@ defmodule Otel.Metrics.MetricReaderTest do
 
       restart_sdk(metrics: [readers: []])
       config2 = %{meter_config() | exemplar_filter: :always_off}
-      counter2 = Otel.Metrics.Meter.create_counter(meter(config2), "not_sampled", [])
+
+      counter2 =
+        override_filter(Otel.Metrics.Meter.create_counter("not_sampled", []), :always_off)
+
       Otel.Metrics.Meter.record(counter2, 1, %{})
 
       [%{datapoints: [dp2]}] = Otel.Metrics.MetricReader.collect(config2)
@@ -97,7 +93,7 @@ defmodule Otel.Metrics.MetricReaderTest do
     test "reservoirs reset between collect calls" do
       restart_sdk(metrics: [readers: []])
       config = %{meter_config() | exemplar_filter: :always_on}
-      counter = Otel.Metrics.Meter.create_counter(meter(config), "reset_test", [])
+      counter = override_filter(Otel.Metrics.Meter.create_counter("reset_test", []), :always_on)
 
       Otel.Metrics.Meter.record(counter, 1, %{})
       _ = Otel.Metrics.MetricReader.collect(config)
@@ -108,8 +104,8 @@ defmodule Otel.Metrics.MetricReaderTest do
     end
 
     test "config without :exemplars_tab — collect runs but datapoints carry no :exemplars",
-         %{config: config, meter: meter} do
-      counter = Otel.Metrics.Meter.create_counter(meter, "no_ex", [])
+         %{config: config} do
+      counter = Otel.Metrics.Meter.create_counter("no_ex", [])
       Otel.Metrics.Meter.record(counter, 5, %{})
 
       [%{datapoints: [dp]}] =
@@ -118,5 +114,9 @@ defmodule Otel.Metrics.MetricReaderTest do
       assert dp.value == 5
       refute Map.has_key?(dp, :exemplars)
     end
+  end
+
+  defp override_filter(%Otel.Metrics.Instrument{config: config} = inst, filter) do
+    %{inst | config: %{config | exemplar_filter: filter}}
   end
 end
