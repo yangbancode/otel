@@ -2,13 +2,16 @@ defmodule Otel.TestSupport do
   @moduledoc """
   Test-only helpers for booting the SDK with custom config.
 
-  After the Phase-2 cleanup the three providers are pure-function
-  modules — there is no `Otel.Trace.TracerProvider` GenServer to
-  swap out. Custom test config is delivered by:
+  Trace has no provider module anymore (`Otel.Trace.TracerProvider`
+  was dissolved into the `Otel.Trace` facade); Logs/Metrics
+  providers are pure-function modules with `MeterProvider.init/0`
+  the only boot-time work (creating the named ETS tables).
+  Custom test config is delivered by:
 
   1. Setting `Application.put_env(:otel, ...)` to override the
      user-facing `:resource` / `:exporter` keys.
-  2. Re-seeding `:persistent_term` via `Provider.init/0`.
+  2. `Otel.Metrics.MeterProvider.init/0` to (re)create the named
+     ETS tables.
   3. Starting the supervised processor children
      (`SpanStorage`, `SpanProcessor`, `PeriodicExporting`,
      `LogRecordProcessor`) — or substitutes thereof — so

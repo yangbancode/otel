@@ -1,10 +1,15 @@
 defmodule Otel.Trace.Tracer do
   @moduledoc """
-  Creates `Span`s. Returned by `Otel.Trace.TracerProvider.get_tracer/1`.
+  Span creation entry points for the SDK.
 
-  All configuration (span_limits, processors, scope) is stored
-  in the tracer struct at creation time so span creation needs
-  no GenServer call. Sampling is hardcoded to
+  Minikube has no plugin ecosystem and the spec's TracerProvider
+  / Tracer entities collapse to a single hardcoded identity:
+
+  - scope is `Otel.InstrumentationScope` defaults
+  - span limits are `Otel.Trace.SpanLimits` defaults
+
+  Both are compile-time literals; there is no Tracer struct
+  to thread through. Sampling is hardcoded to
   `Otel.Trace.Sampler` (parentbased_always_on); ID generation
   to `Otel.Trace.IdGenerator` (random).
 
@@ -17,8 +22,8 @@ defmodule Otel.Trace.Tracer do
 
   | Function | Role |
   |---|---|
-  | `start_span/4` | OTel API MUST — `trace/api.md` §Span Creation L378-L414 |
-  | `with_span/5` | OTel API MAY — `trace/api.md` L385 closure form |
+  | `start_span/3` | OTel API MUST — `trace/api.md` §Span Creation L378-L414 |
+  | `with_span/4` | OTel API MAY — `trace/api.md` L385 closure form |
 
   ## References
 
@@ -26,48 +31,31 @@ defmodule Otel.Trace.Tracer do
   - OTel Trace API §Tracer: `opentelemetry-specification/specification/trace/api.md` L160-L416
   """
 
-  @typedoc """
-  A Tracer struct.
-
-  - `scope` — instrumentation scope this tracer was issued for.
-  - `span_limits` — span limits resolved at provider boot.
-  """
-  @type t :: %__MODULE__{
-          scope: Otel.InstrumentationScope.t(),
-          span_limits: Otel.Trace.SpanLimits.t()
-        }
-
-  defstruct scope: %Otel.InstrumentationScope{},
-            span_limits: %Otel.Trace.SpanLimits{}
+  @scope %Otel.InstrumentationScope{}
+  @span_limits %Otel.Trace.SpanLimits{}
 
   @doc """
   OTel API MUST — Span Creation (`trace/api.md` §Span Creation
   L378-L414).
 
   Delegates to `Otel.Trace.Span.start_span/4` for sampling and
-  ID generation, then stamps tracer-resolved fields (scope,
-  limits, processors), runs `on_start/3` on every registered
-  processor, and inserts the span into ETS storage.
+  ID generation, stamps the hardcoded scope/limits, and inserts
+  the span into ETS storage.
   """
   @spec start_span(
           ctx :: Otel.Ctx.t(),
-          tracer :: t(),
           name :: String.t(),
           opts :: Otel.Trace.Span.start_opts()
         ) :: Otel.Trace.SpanContext.t()
-  def start_span(ctx, %__MODULE__{} = tracer, name, opts) do
-    {span_ctx, span} =
-      Otel.Trace.Span.start_span(ctx, name, tracer.span_limits, opts)
+  def start_span(ctx, name, opts) do
+    {span_ctx, span} = Otel.Trace.Span.start_span(ctx, name, @span_limits, opts)
 
     if span do
       # Hardcoded `Otel.Trace.SpanProcessor` is a no-op `on_start`,
       # so we skip dispatch entirely. ETS insertion is the only
       # side effect.
       span
-      |> Map.merge(%{
-        instrumentation_scope: tracer.scope,
-        span_limits: tracer.span_limits
-      })
+      |> Map.merge(%{instrumentation_scope: @scope, span_limits: @span_limits})
       |> Otel.Trace.SpanStorage.insert()
     end
 
@@ -86,14 +74,13 @@ defmodule Otel.Trace.Tracer do
   """
   @spec with_span(
           ctx :: Otel.Ctx.t(),
-          tracer :: t(),
           name :: String.t(),
           opts :: Otel.Trace.Span.start_opts(),
           fun :: (Otel.Trace.SpanContext.t() -> result)
         ) :: result
         when result: term()
-  def with_span(ctx, %__MODULE__{} = tracer, name, opts, fun) do
-    span_ctx = start_span(ctx, tracer, name, opts)
+  def with_span(ctx, name, opts, fun) do
+    span_ctx = start_span(ctx, name, opts)
     new_ctx = Otel.Trace.set_current_span(ctx, span_ctx)
     token = Otel.Ctx.attach(new_ctx)
 

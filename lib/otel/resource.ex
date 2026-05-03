@@ -4,8 +4,10 @@ defmodule Otel.Resource do
   (`resource/sdk.md` §"SDK").
 
   A Resource is a set of key-value attributes describing the service
-  (e.g., service.name, host.name) and an optional Schema URL. Resources
-  are associated with TracerProvider/MeterProvider at creation time.
+  (e.g., service.name, host.name) and an optional Schema URL.
+  Each pillar entry point (`Otel.Trace`, `Otel.Logs.LoggerProvider`,
+  `Otel.Metrics.MeterProvider`) reads the resource via
+  `from_app_env/0` on demand — no boot-time snapshot.
 
   ## Default Resource
 
@@ -14,8 +16,7 @@ defmodule Otel.Resource do
   `service.name` of `"unknown_service"`. The SDK reads no
   OS environment variables; user attributes are configured via
   `config :otel, resource: %{...}` (a map, not a struct).
-  `from_app_env/0` merges the user's map onto the default
-  base — that's what each provider's `init/0` calls at boot.
+  `from_app_env/0` merges the user's map onto the default base.
 
   Bridge OS env vars (`OTEL_SERVICE_NAME` /
   `OTEL_RESOURCE_ATTRIBUTES`) from `runtime.exs` (Phoenix

@@ -30,27 +30,19 @@ defmodule Otel.Trace.Span do
 
   ## Design notes
 
-  ### Span-resident SpanLimits and processors_key
+  ### Span-resident SpanLimits
 
   `span_limits` is stored as a field on each span rather than
   threaded through call arguments or fetched from a global
   registry, so `set_attribute/3`, `add_event/2`, etc. operate
   on the span fetched from `SpanStorage` without a second
-  lookup.
-
-  `processors_key` is the `:persistent_term` key under which
-  the TracerProvider published the projected processor list.
-  `end_span/2` reads from that key fresh — so if a processor
-  crashed between start and end, the TracerProvider's EXIT
-  handler has already removed it from the persistent_term
-  list and `on_end/2` skips it. Mirrors the `Logger.emit`
-  pattern (`Otel.Logs.Logger`).
+  lookup. The value comes from `Otel.Trace.Tracer`'s compile-time
+  `@span_limits` literal — minikube hardcodes the spec defaults
+  and exposes no override.
 
   This diverges from `opentelemetry-erlang`, which threads
   limits through `otel_span_utils` per call
-  (`opentelemetry/src/otel_span_utils.erl`) and stores
-  processors on the `span_ctx.span_sdk` tuple
-  (`otel_span_ets.erl` L60, L77).
+  (`opentelemetry/src/otel_span_utils.erl`).
 
   ### Dropped-count tracking on SDK types
 
@@ -108,7 +100,7 @@ defmodule Otel.Trace.Span do
   use Otel.Common.Types
 
   @typedoc """
-  Options accepted by `Otel.Trace.Tracer.start_span/4`.
+  Options accepted by `Otel.Trace.Tracer.start_span/3`.
 
   - `:kind` — `t:Otel.Trace.SpanKind.t/0`. Spec L405-L406.
   - `:attributes` — initial attributes. Spec L407-L409.

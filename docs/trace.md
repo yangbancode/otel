@@ -8,9 +8,7 @@
 ```
 
 ```elixir
-tracer = Otel.API.Trace.TracerProvider.get_tracer()
-
-Otel.API.Trace.with_span(tracer, "checkout", fn _span_ctx ->
+Otel.Trace.with_span("checkout", fn _span_ctx ->
   process_order()
 end)
 ```
@@ -18,14 +16,10 @@ end)
 The SDK ships traces to `http://localhost:4318/v1/traces` by default.
 See [Configuration](configuration.md) to change endpoint or limits.
 
-## Get a tracer
-
-```elixir
-tracer = Otel.API.Trace.TracerProvider.get_tracer()
-```
-
 Minikube hardcodes the instrumentation scope to the SDK identity
-(`name: "otel"`, `version: <SDK vsn>`) — no user-supplied scope.
+(`name: "otel"`, `version: <SDK vsn>`) — there is no Tracer
+handle to obtain via `get_tracer/0` first; call `Otel.Trace`
+functions directly.
 
 ## `with_span/4` — automatic lifecycle
 
@@ -33,7 +27,7 @@ The recommended form. Starts the span, makes it the current span for
 the block, ends it on exit, and records any exception that escapes.
 
 ```elixir
-Otel.API.Trace.with_span(tracer, "checkout", fn span_ctx ->
+Otel.Trace.with_span("checkout", fn span_ctx ->
   process_order()
 end)
 ```
@@ -41,8 +35,7 @@ end)
 With options:
 
 ```elixir
-Otel.API.Trace.with_span(
-  tracer,
+Otel.Trace.with_span(
   "checkout",
   [
     kind: :server,
@@ -59,9 +52,9 @@ Otel.API.Trace.with_span(
 For spans that don't fit a single function scope.
 
 ```elixir
-span_ctx = Otel.API.Trace.start_span(tracer, "checkout", kind: :server)
+span_ctx = Otel.Trace.start_span("checkout", kind: :server)
 # … do work, possibly across processes / messages …
-Otel.API.Trace.Span.end_span(span_ctx)
+Otel.Trace.Span.end_span(span_ctx)
 ```
 
 ## Attributes
@@ -145,12 +138,12 @@ current span context doesn't follow `Task.async/spawn` automatically.
 Capture and re-attach explicitly:
 
 ```elixir
-Otel.API.Trace.with_span(tracer, "parent", fn _ ->
+Otel.Trace.with_span("parent", fn _ ->
   ctx = Otel.Ctx.current()
 
   Task.async(fn ->
     Otel.Ctx.attach(ctx)
-    Otel.API.Trace.with_span(tracer, "child", fn _ -> :work end)
+    Otel.Trace.with_span("child", fn _ -> :work end)
   end)
 end)
 ```
@@ -177,7 +170,7 @@ HTTPClient.post("https://api.example.com/orders", body, headers)
 ctx = Otel.API.Propagator.TextMap.extract(Otel.Ctx.new(), conn.req_headers)
 Otel.Ctx.attach(ctx)
 
-Otel.API.Trace.with_span(tracer, "POST /orders", [kind: :server], fn _ ->
+Otel.Trace.with_span("POST /orders", [kind: :server], fn _ ->
   handle_request()
 end)
 ```

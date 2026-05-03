@@ -16,11 +16,10 @@ defmodule Otel.ApplicationTest do
     test "providers seed persistent_term state from spec defaults + user :resource env" do
       reboot()
 
-      # All three Provider config/0 calls synthesize the resource
-      # via `Otel.Resource.from_app_env/0` — no persistent_term.
-      tracer_state = Otel.Trace.TracerProvider.config()
-      assert %Otel.Resource{} = tracer_state.resource
-
+      # MeterProvider/LoggerProvider config/0 calls synthesize the
+      # resource via `Otel.Resource.from_app_env/0` — no
+      # persistent_term. (TracerProvider was dissolved into
+      # `Otel.Trace`; resource is read on demand there too.)
       meter_state = Otel.Metrics.MeterProvider.config()
       assert %Otel.Resource{} = meter_state.resource
       assert meter_state.exemplar_filter == :trace_based

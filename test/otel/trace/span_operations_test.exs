@@ -36,18 +36,29 @@ defmodule Otel.Trace.SpanOperationsTest do
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
-  defp tracer_for, do: Otel.Trace.TracerProvider.get_tracer()
-
-  # Custom `span_limits` are no longer routed through `:persistent_term`;
-  # build the Tracer struct directly with the desired limits when a test
-  # needs to exercise limit enforcement.
+  # Custom `span_limits` aren't part of the user-facing API
+  # (minikube hardcodes them via `@span_limits` on `Otel.Trace.Tracer`).
+  # Tests that exercise limit enforcement bypass that module
+  # attribute by calling `Otel.Trace.Span.start_span/4` directly
+  # and stamping the same fields the Tracer would (scope, limits)
+  # before inserting into ETS.
   defp start_span(opts \\ []) do
     processors = Keyword.get(opts, :processors, [])
     span_limits = Keyword.get(opts, :span_limits, %Otel.Trace.SpanLimits{})
     restart_sdk(trace: [processors: processors])
 
-    tracer = %Otel.Trace.Tracer{span_limits: span_limits}
-    Otel.Trace.Tracer.start_span(Otel.Ctx.new(), tracer, "test_span", opts)
+    {span_ctx, span} = Otel.Trace.Span.start_span(Otel.Ctx.new(), "test_span", span_limits, opts)
+
+    if span do
+      span
+      |> Map.merge(%{
+        instrumentation_scope: %Otel.InstrumentationScope{},
+        span_limits: span_limits
+      })
+      |> Otel.Trace.SpanStorage.insert()
+    end
+
+    span_ctx
   end
 
   defp stored(span_ctx), do: Otel.Trace.SpanStorage.get(span_ctx.span_id)
@@ -358,7 +369,7 @@ defmodule Otel.Trace.SpanOperationsTest do
       restart_sdk(trace: [processors: [{TestProcessor, %{test_pid: self()}}]])
 
       result =
-        Otel.Trace.with_span(tracer_for(), "with_span_test", [], fn _ -> :my_result end)
+        Otel.Trace.with_span("with_span_test", [], fn _ -> :my_result end)
 
       assert result == :my_result
       assert_receive {:on_end, ended}
@@ -373,10 +384,9 @@ defmodule Otel.Trace.SpanOperationsTest do
     # events with code=:error and a binary description.
     test "with_span records raise/:erlang.error/throw as exception events with status=error" do
       restart_sdk(trace: [processors: [{TestProcessor, %{test_pid: self()}}]])
-      tracer = tracer_for()
 
       assert_raise RuntimeError, "boom", fn ->
-        Otel.Trace.with_span(tracer, "raise_span", [], fn _ -> raise "boom" end)
+        Otel.Trace.with_span("raise_span", [], fn _ -> raise "boom" end)
       end
 
       assert_receive {:on_end, ended_raise}
@@ -387,7 +397,7 @@ defmodule Otel.Trace.SpanOperationsTest do
       assert event.attributes["exception.type"] == "RuntimeError"
 
       assert_raise ErlangError, fn ->
-        Otel.Trace.with_span(tracer, "erlang_span", [], fn _ ->
+        Otel.Trace.with_span("erlang_span", [], fn _ ->
           :erlang.error(:some_reason)
         end)
       end
@@ -396,7 +406,7 @@ defmodule Otel.Trace.SpanOperationsTest do
       assert %Otel.Trace.Status{code: :error} = ended_erlang.status
       assert is_binary(ended_erlang.status.description)
 
-      catch_throw(Otel.Trace.with_span(tracer, "throw_span", [], fn _ -> throw(:thrown) end))
+      catch_throw(Otel.Trace.with_span("throw_span", [], fn _ -> throw(:thrown) end))
 
       assert_receive {:on_end, ended_throw}
       assert %Otel.Trace.Status{code: :error} = ended_throw.status

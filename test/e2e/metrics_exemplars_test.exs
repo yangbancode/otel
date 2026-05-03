@@ -26,13 +26,11 @@ defmodule Otel.E2E.MetricsExemplarsTest do
 
   describe "filter :trace_based (default)" do
     test "27: trace_based records inside a sampled span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_scenario_27_#{e2e_id}"
       counter = Otel.Metrics.Meter.create_counter(meter, metric)
 
       Otel.Trace.with_span(
-        tracer,
         "scenario-27-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->

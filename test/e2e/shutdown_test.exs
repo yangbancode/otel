@@ -16,10 +16,7 @@ defmodule Otel.E2E.ShutdownTest do
          %{e2e_id: e2e_id} do
       restart_for_shutdown_test()
 
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       Otel.Trace.with_span(
-        tracer,
         "scenario-2-pre-stop-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end

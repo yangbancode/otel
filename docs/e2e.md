@@ -38,12 +38,6 @@ mix test --only e2e test/e2e/
 | `[x]` | 21 | **Sibling spans** | 2× `with_span` under one parent | Tempo: same `parent_span_id` |
 | `[x]` | 22 | **Deep nesting (5 levels)** | recursive `with_span` | Tempo: parent chain |
 | `[x]` | 23 | Tracestate propagates across nested spans | nested under parent w/ tracestate | Tempo: child carries parent tracestate |
-| `[x]` | 24 | Span limits — `attribute_count_limit` | exceed limit | Tempo: `dropped_attributes_count > 0` |
-| `[x]` | 25 | Span limits — `attribute_value_length_limit` truncation | long string attribute | Tempo: value truncated |
-| `[x]` | 26 | Span limits — `event_count_limit` | exceed via `add_event` | Tempo: `dropped_events_count > 0` |
-| `[x]` | 27 | Span limits — `link_count_limit` | exceed via `add_link` | Tempo: `dropped_links_count > 0` |
-| `[x]` | 28 | Span limits — `attribute_per_event_limit` | event w/ excess attrs | Tempo: event `dropped_attributes_count` |
-| `[x]` | 29 | Span limits — `attribute_per_link_limit` | link w/ excess attrs | Tempo: link `dropped_attributes_count` |
 | `[x]` | 30 | Sampler — root span is sampled | emit without parent | Tempo: span present |
 | `[x]` | 31 | Sampler — child of sampled remote parent | inject sampled `traceparent`, then emit | Tempo: span present |
 | `[x]` | 32 | Sampler — child of not-sampled remote parent | inject not-sampled `traceparent`, then emit | Tempo: span absent |
@@ -62,8 +56,6 @@ mix test --only e2e test/e2e/
 | `[x]` | 8 | `timestamp` vs `observed_timestamp` | omit timestamp → SDK fills observed | Loki: both fields present, distinct |
 | `[x]` | 9 | Custom attributes | `attributes: %{...}` | Loki: labels / fields |
 | `[x]` | 10 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` match |
-| `[x]` | 11 | LogRecord limits — `attribute_count_limit` | exceed attr count | Loki: `dropped_attributes_count` |
-| `[x]` | 12 | LogRecord limits — `attribute_value_length_limit` truncation | long string attr | Loki: value truncated |
 | `[x]` | 14 | Exception sidecar via SDK API | set `exception:` field on LogRecord | Loki: `exception.type` / `exception.message` |
 
 ## Log — `:logger` Handler bridge
@@ -168,8 +160,8 @@ pass without touching `Application.put_env`).
 
 | Phase | File | Scenarios |
 |---|---|---|
-| C-1 | `trace_test.exs` | 33 |
-| C-2a | `log_sdk_test.exs` | 14 |
+| C-1 | `trace_test.exs` | 27 (limits scenarios 24–29 removed — minikube hardcodes span_limits) |
+| C-2a | `log_sdk_test.exs` | 12 (limits scenarios 11–12 removed — minikube hardcodes log_record_limits) |
 | C-2b | `log_handler_test.exs` | 21 |
 | C-3a | `metrics_sync_test.exs` | ~10 (rows 1–5, 8, 16, 18, 21, 30, 31) |
 | C-3b | `metrics_async_test.exs` | ~5 (rows 9–13) |
