@@ -4,8 +4,8 @@ defmodule Otel.Metrics.Meter do
   behaviour (`metrics/sdk.md` §Meter L870-L943).
 
   Handles instrument creation with case-insensitive duplicate detection.
-  Instruments are stored in a shared ETS table owned by the
-  MeterProvider.
+  Instruments are stored in the shared ETS table created by
+  `Otel.Metrics.init/0` at boot.
 
   All functions are safe for concurrent use, satisfying spec
   `metrics/sdk.md` L1351-L1352 — *"Instrument — synchronous and
@@ -86,83 +86,57 @@ defmodule Otel.Metrics.Meter do
   - OTel Metrics API §Meter: `opentelemetry-specification/specification/metrics/api.md` L156-L499
   """
 
-  @typedoc """
-  A Meter struct.
-
-  Configuration is held by the MeterProvider; the Meter
-  carries the runtime config map (scope, ETS tables, exemplar
-  filter, reader configs) that all instrument operations need.
-  """
-  @type t :: %__MODULE__{config: map()}
-
-  defstruct config: %{}
-
   require Logger
 
   # --- Synchronous Instruments ---
 
-  def create_counter(meter, name, opts \\ []) do
-    register_instrument(meter, name, :counter, opts)
+  def create_counter(name, opts \\ []) do
+    register_instrument(Otel.Metrics.meter_config(), name, :counter, opts)
   end
 
-  def create_histogram(meter, name, opts \\ []) do
-    register_instrument(meter, name, :histogram, opts)
+  def create_histogram(name, opts \\ []) do
+    register_instrument(Otel.Metrics.meter_config(), name, :histogram, opts)
   end
 
-  def create_gauge(meter, name, opts \\ []) do
-    register_instrument(meter, name, :gauge, opts)
+  def create_gauge(name, opts \\ []) do
+    register_instrument(Otel.Metrics.meter_config(), name, :gauge, opts)
   end
 
-  def create_updown_counter(meter, name, opts \\ []) do
-    register_instrument(meter, name, :updown_counter, opts)
+  def create_updown_counter(name, opts \\ []) do
+    register_instrument(Otel.Metrics.meter_config(), name, :updown_counter, opts)
   end
 
   # --- Asynchronous Instruments ---
 
-  def create_observable_counter(meter, name, opts \\ []) do
-    register_instrument(meter, name, :observable_counter, opts)
+  def create_observable_counter(name, opts \\ []) do
+    register_instrument(Otel.Metrics.meter_config(), name, :observable_counter, opts)
   end
 
-  def create_observable_counter(
-        %Otel.Metrics.Meter{config: config} = meter,
-        name,
-        callback,
-        callback_args,
-        opts
-      ) do
-    instrument = register_instrument(meter, name, :observable_counter, opts)
+  def create_observable_counter(name, callback, callback_args, opts) do
+    config = Otel.Metrics.meter_config()
+    instrument = register_instrument(config, name, :observable_counter, opts)
     store_callback(config, instrument, callback, callback_args)
     instrument
   end
 
-  def create_observable_gauge(meter, name, opts \\ []) do
-    register_instrument(meter, name, :observable_gauge, opts)
+  def create_observable_gauge(name, opts \\ []) do
+    register_instrument(Otel.Metrics.meter_config(), name, :observable_gauge, opts)
   end
 
-  def create_observable_gauge(
-        %Otel.Metrics.Meter{config: config} = meter,
-        name,
-        callback,
-        callback_args,
-        opts
-      ) do
-    instrument = register_instrument(meter, name, :observable_gauge, opts)
+  def create_observable_gauge(name, callback, callback_args, opts) do
+    config = Otel.Metrics.meter_config()
+    instrument = register_instrument(config, name, :observable_gauge, opts)
     store_callback(config, instrument, callback, callback_args)
     instrument
   end
 
-  def create_observable_updown_counter(meter, name, opts \\ []) do
-    register_instrument(meter, name, :observable_updown_counter, opts)
+  def create_observable_updown_counter(name, opts \\ []) do
+    register_instrument(Otel.Metrics.meter_config(), name, :observable_updown_counter, opts)
   end
 
-  def create_observable_updown_counter(
-        %Otel.Metrics.Meter{config: config} = meter,
-        name,
-        callback,
-        callback_args,
-        opts
-      ) do
-    instrument = register_instrument(meter, name, :observable_updown_counter, opts)
+  def create_observable_updown_counter(name, callback, callback_args, opts) do
+    config = Otel.Metrics.meter_config()
+    instrument = register_instrument(config, name, :observable_updown_counter, opts)
     store_callback(config, instrument, callback, callback_args)
     instrument
   end
@@ -170,11 +144,7 @@ defmodule Otel.Metrics.Meter do
   # --- Recording ---
 
   def record(
-        %Otel.Metrics.Instrument{
-          meter: %Otel.Metrics.Meter{config: config},
-          name: name,
-          scope: scope
-        },
+        %Otel.Metrics.Instrument{config: config, name: name, scope: scope},
         value,
         attributes
       ) do
@@ -206,13 +176,8 @@ defmodule Otel.Metrics.Meter do
 
   # --- Callback Registration ---
 
-  def register_callback(
-        %Otel.Metrics.Meter{config: config},
-        instruments,
-        callback,
-        callback_args,
-        _opts
-      ) do
+  def register_callback(instruments, callback, callback_args, _opts) do
+    config = Otel.Metrics.meter_config()
     ref = make_ref()
 
     Enum.each(instruments, fn instrument ->
@@ -231,13 +196,20 @@ defmodule Otel.Metrics.Meter do
 
   # --- Private ---
 
+  @doc false
+  # SDK-internal (test) — register an instrument under a custom
+  # `meter_config` map. The public `create_*/2,5` paths route
+  # through `Otel.Metrics.meter_config/0` (the SDK-default
+  # cumulative config); tests that need delta temporality or
+  # other override-only paths construct a custom config and
+  # call here directly.
   @spec register_instrument(
-          meter :: Otel.Metrics.Meter.t(),
+          config :: map(),
           name :: String.t(),
           kind :: Otel.Metrics.Instrument.kind(),
           opts :: Otel.Metrics.Instrument.create_opts()
         ) :: Otel.Metrics.Instrument.t()
-  defp register_instrument(%Otel.Metrics.Meter{config: config} = meter, name, kind, opts) do
+  def register_instrument(config, name, kind, opts) do
     # `Keyword.get/3` covers absent keys; the `|| ""` covers
     # `Keyword.get(opts, :unit, nil)` style callers that pass
     # an explicit `nil` (test fixtures do this). Both fields
@@ -248,7 +220,7 @@ defmodule Otel.Metrics.Meter do
     advisory = Keyword.get(opts, :advisory, [])
 
     instrument = %Otel.Metrics.Instrument{
-      meter: meter,
+      config: config,
       name: name,
       kind: kind,
       unit: unit,

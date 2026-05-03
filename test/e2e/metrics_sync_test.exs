@@ -15,26 +15,22 @@ defmodule Otel.E2E.MetricsSyncTest do
 
   describe "sync instruments" do
     test "1: Counter records a single sample", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-      counter = Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_1_#{e2e_id}")
+      counter = Otel.Metrics.Meter.create_counter("e2e_scenario_1_#{e2e_id}")
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "e2e_scenario_1_#{e2e_id}_total"))
     end
 
     test "2: Counter accumulates across N adds", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-      counter = Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_2_#{e2e_id}")
+      counter = Otel.Metrics.Meter.create_counter("e2e_scenario_2_#{e2e_id}")
       for _ <- 1..5, do: Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "e2e_scenario_2_#{e2e_id}_total"))
     end
 
     test "3: UpDownCounter accepts positive and negative deltas", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-
       udc =
-        Otel.Metrics.Meter.create_updown_counter(meter, "e2e_scenario_3_#{e2e_id}")
+        Otel.Metrics.Meter.create_updown_counter("e2e_scenario_3_#{e2e_id}")
 
       Otel.Metrics.UpDownCounter.add(udc, 5, %{"e2e.id" => e2e_id})
       Otel.Metrics.UpDownCounter.add(udc, -2, %{"e2e.id" => e2e_id})
@@ -43,8 +39,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "4: Histogram records bucketed samples", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-      hist = Otel.Metrics.Meter.create_histogram(meter, "e2e_scenario_4_#{e2e_id}")
+      hist = Otel.Metrics.Meter.create_histogram("e2e_scenario_4_#{e2e_id}")
 
       for v <- [1.0, 5.0, 10.0, 50.0],
           do: Otel.Metrics.Histogram.record(hist, v, %{"e2e.id" => e2e_id})
@@ -55,8 +50,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "8: synchronous Gauge records the latest value", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-      gauge = Otel.Metrics.Meter.create_gauge(meter, "e2e_scenario_8_#{e2e_id}")
+      gauge = Otel.Metrics.Meter.create_gauge("e2e_scenario_8_#{e2e_id}")
       Otel.Metrics.Gauge.record(gauge, 42, %{"e2e.id" => e2e_id})
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "e2e_scenario_8_#{e2e_id}"))
@@ -64,11 +58,10 @@ defmodule Otel.E2E.MetricsSyncTest do
 
     test "5: Histogram custom buckets via advisory carry through to Mimir",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
       bounds = [1.0, 5.0, 25.0]
 
       hist =
-        Otel.Metrics.Meter.create_histogram(meter, "e2e_scenario_5_#{e2e_id}",
+        Otel.Metrics.Meter.create_histogram("e2e_scenario_5_#{e2e_id}",
           advisory: [explicit_bucket_boundaries: bounds]
         )
 
@@ -86,10 +79,8 @@ defmodule Otel.E2E.MetricsSyncTest do
 
     test "18: multi-dimensional attrs produce one Mimir series per attr combination",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-
       counter =
-        Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_18_#{e2e_id}")
+        Otel.Metrics.Meter.create_counter("e2e_scenario_18_#{e2e_id}")
 
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id, "host" => "a"})
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id, "host" => "b"})
@@ -104,10 +95,8 @@ defmodule Otel.E2E.MetricsSyncTest do
   describe "semantics" do
     test "16: cumulative temporality is the default — counter monotonically increases",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-
       counter =
-        Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_16_#{e2e_id}")
+        Otel.Metrics.Meter.create_counter("e2e_scenario_16_#{e2e_id}")
 
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
@@ -116,8 +105,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "21: float and int values mix on the same series", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-      hist = Otel.Metrics.Meter.create_histogram(meter, "e2e_scenario_21_#{e2e_id}")
+      hist = Otel.Metrics.Meter.create_histogram("e2e_scenario_21_#{e2e_id}")
       Otel.Metrics.Histogram.record(hist, 1, %{"e2e.id" => e2e_id})
       Otel.Metrics.Histogram.record(hist, 1.5, %{"e2e.id" => e2e_id})
       flush()
@@ -127,10 +115,8 @@ defmodule Otel.E2E.MetricsSyncTest do
 
   describe "operations" do
     test "30: PeriodicExporting force_flush surfaces data immediately", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
-
       counter =
-        Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_30_#{e2e_id}")
+        Otel.Metrics.Meter.create_counter("e2e_scenario_30_#{e2e_id}")
 
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       # `flush/0` calls every provider's force_flush — so the
@@ -142,15 +128,14 @@ defmodule Otel.E2E.MetricsSyncTest do
 
     test "31: case-insensitive duplicate registration returns the first instrument",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
       # First registration sets the canonical (lowercase) name —
       # Mimir stores series under that exact name. The second
       # call uses uppercase to exercise the case-insensitive
       # duplicate-name contract; the SDK warns and returns the
       # first instrument, so both `add/3` calls feed the same
       # series and the lowercase PromQL query finds it.
-      first = Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_31_#{e2e_id}")
-      second = Otel.Metrics.Meter.create_counter(meter, "E2E_SCENARIO_31_#{e2e_id}")
+      first = Otel.Metrics.Meter.create_counter("e2e_scenario_31_#{e2e_id}")
+      second = Otel.Metrics.Meter.create_counter("E2E_SCENARIO_31_#{e2e_id}")
       Otel.Metrics.Counter.add(first, 1, %{"e2e.id" => e2e_id})
       Otel.Metrics.Counter.add(second, 1, %{"e2e.id" => e2e_id})
       flush()

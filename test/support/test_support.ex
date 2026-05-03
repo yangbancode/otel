@@ -2,22 +2,19 @@ defmodule Otel.TestSupport do
   @moduledoc """
   Test-only helpers for booting the SDK with custom config.
 
-  Trace and Logs have no provider modules anymore — both
-  `Otel.Trace.TracerProvider` and `Otel.Logs.LoggerProvider`
-  were dissolved into their facades (`Otel.Trace`, `Otel.Logs`).
-  Metrics still has `MeterProvider`, whose `init/0` is the
-  only boot-time work (creating the named ETS tables).
-  Custom test config is delivered by:
+  All three pillars (Trace/Logs/Metrics) have dissolved their
+  Provider modules into the corresponding `Otel.Trace` /
+  `Otel.Logs` / `Otel.Metrics` facades. Custom test config is
+  delivered by:
 
   1. Setting `Application.put_env(:otel, ...)` to override the
      user-facing `:resource` / `:exporter` keys.
-  2. `Otel.Metrics.MeterProvider.init/0` to (re)create the named
-     ETS tables.
+  2. `Otel.Metrics.init/0` to (re)create the named ETS tables.
   3. Starting the supervised processor children
      (`SpanStorage`, `SpanProcessor`, `PeriodicExporting`,
      `LogRecordProcessor`) — or substitutes thereof — so
-     dispatch from `Span`/`Logger`/`Meter` lands somewhere
-     observable.
+     dispatch from `Span` / `Logs.emit` / `Meter` lands
+     somewhere observable.
 
   Tests inject custom processors by registering a different
   GenServer under the hardcoded names
@@ -87,7 +84,7 @@ defmodule Otel.TestSupport do
     # 1. Create the named ETS tables. `Otel.Trace` / `Otel.Logs`
     # hold no boot-time state — `:resource` is read via
     # `Otel.Resource.from_app_env/0` on demand.
-    Otel.Metrics.MeterProvider.init()
+    Otel.Metrics.init()
 
     # 2. Apply test-only overrides via `Application.put_env/3`.
     apply_trace_overrides(trace_overrides)
@@ -130,7 +127,7 @@ defmodule Otel.TestSupport do
       &stop_named/1
     )
 
-    Otel.Metrics.MeterProvider.delete_storage()
+    Otel.Metrics.delete_storage()
     :ok
   end
 
@@ -220,14 +217,15 @@ defmodule Otel.TestSupport do
         # No reader is running — tests that just inspect
         # `MetricReader.collect/1` directly do so by passing the
         # config they want; the hardcoded `reader_id` in
-        # `MeterProvider` matches whatever stream they registered.
+        # `Otel.Metrics.meter_config/0` matches whatever stream
+        # they registered.
         :ok
 
       [{module, config}] ->
         # Reader's init expects meter_config — supply it from
-        # `MeterProvider.reader_meter_config/0` (computed inline).
+        # `Otel.Metrics.reader_meter_config/0` (computed inline).
         config =
-          Map.put_new(config, :meter_config, Otel.Metrics.MeterProvider.reader_meter_config())
+          Map.put_new(config, :meter_config, Otel.Metrics.reader_meter_config())
 
         start_orphan_named!(module, config, Otel.Metrics.MetricReader.PeriodicExporting)
 

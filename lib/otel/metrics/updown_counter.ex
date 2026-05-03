@@ -87,12 +87,11 @@ defmodule Otel.Metrics.UpDownCounter do
   `Otel.Metrics.Meter.create_updown_counter/3`.
   """
   @spec create(
-          meter :: Otel.Metrics.Meter.t(),
           name :: String.t(),
           opts :: Otel.Metrics.Instrument.create_opts()
         ) :: Otel.Metrics.Instrument.t()
-  def create(meter, name, opts \\ []) do
-    Otel.Metrics.Meter.create_updown_counter(meter, name, opts)
+  def create(name, opts \\ []) do
+    Otel.Metrics.Meter.create_updown_counter(name, opts)
   end
 
   @doc """

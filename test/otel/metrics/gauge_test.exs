@@ -5,25 +5,23 @@ defmodule Otel.Metrics.GaugeTest do
     Application.stop(:otel)
     Application.ensure_all_started(:otel)
 
-    %{
-      meter: Otel.Metrics.MeterProvider.get_meter()
-    }
+    :ok
   end
 
   describe "create/3 — delegates to Meter.create_gauge" do
-    test "with name only", %{meter: meter} do
+    test "with name only" do
       assert %Otel.Metrics.Instrument{kind: :gauge, name: "n"} =
-               Otel.Metrics.Gauge.create(meter, "n")
+               Otel.Metrics.Gauge.create("n")
     end
 
-    test "forwards unit and description opts", %{meter: meter} do
+    test "forwards unit and description opts" do
       assert %Otel.Metrics.Instrument{
                kind: :gauge,
                name: "n",
                unit: "celsius",
                description: "CPU temperature"
              } =
-               Otel.Metrics.Gauge.create(meter, "n",
+               Otel.Metrics.Gauge.create("n",
                  unit: "celsius",
                  description: "CPU temperature"
                )
@@ -32,8 +30,8 @@ defmodule Otel.Metrics.GaugeTest do
 
   # Spec L666-L668: Gauge value MAY be negative (point-in-time
   # measurements are bidirectional, unlike Counter).
-  test "record/3 returns :ok across value shapes (incl. negative)", %{meter: meter} do
-    inst = Otel.Metrics.Gauge.create(meter, "n")
+  test "record/3 returns :ok across value shapes (incl. negative)" do
+    inst = Otel.Metrics.Gauge.create("n")
 
     assert :ok = Otel.Metrics.Gauge.record(inst, 65)
     assert :ok = Otel.Metrics.Gauge.record(inst, 0)

@@ -8,10 +8,8 @@
 ```
 
 ```elixir
-meter = Otel.API.Metrics.MeterProvider.get_meter()
-
-counter = Otel.API.Metrics.Meter.create_counter(meter, "http.requests")
-Otel.API.Metrics.Counter.add(counter, 1, %{"http.method" => "GET"})
+counter = Otel.Metrics.Counter.create("http.requests")
+Otel.Metrics.Counter.add(counter, 1, %{"http.method" => "GET"})
 ```
 
 See [Configuration](configuration.md) for endpoint, export interval,
@@ -34,26 +32,17 @@ Sync instruments report each measurement immediately. Async
 each collection cycle to *pull* the current value (default 60s
 interval).
 
-## Get a meter
-
-```elixir
-meter = Otel.API.Metrics.MeterProvider.get_meter()
-```
-
-Minikube hardcodes the instrumentation scope to the SDK identity
-(`name: "otel"`, `version: <SDK vsn>`) — no user-supplied scope.
-
 ## Synchronous instruments
 
 ### Counter
 
 ```elixir
-counter = Otel.API.Metrics.Meter.create_counter(meter, "http.requests",
+counter = Otel.Metrics.Counter.create("http.requests",
   unit: "1",
   description: "Number of HTTP requests"
 )
 
-Otel.API.Metrics.Counter.add(counter, 1, %{
+Otel.Metrics.Counter.add(counter, 1, %{
   "http.method" => "GET",
   "http.status_code" => 200
 })
@@ -62,29 +51,29 @@ Otel.API.Metrics.Counter.add(counter, 1, %{
 ### UpDownCounter
 
 ```elixir
-gauge_like = Otel.API.Metrics.Meter.create_updown_counter(meter, "queue.depth",
+gauge_like = Otel.Metrics.UpDownCounter.create("queue.depth",
   unit: "1"
 )
 
-Otel.API.Metrics.UpDownCounter.add(gauge_like, 1, %{"queue" => "ingest"})
-Otel.API.Metrics.UpDownCounter.add(gauge_like, -1, %{"queue" => "ingest"})
+Otel.Metrics.UpDownCounter.add(gauge_like, 1, %{"queue" => "ingest"})
+Otel.Metrics.UpDownCounter.add(gauge_like, -1, %{"queue" => "ingest"})
 ```
 
 ### Histogram
 
 ```elixir
-duration = Otel.API.Metrics.Meter.create_histogram(meter, "http.server.duration",
+duration = Otel.Metrics.Histogram.create("http.server.duration",
   unit: "ms",
   description: "HTTP server request duration"
 )
 
-Otel.API.Metrics.Histogram.record(duration, 47, %{"http.route" => "/orders/:id"})
+Otel.Metrics.Histogram.record(duration, 47, %{"http.route" => "/orders/:id"})
 ```
 
 Custom bucket boundaries:
 
 ```elixir
-Otel.API.Metrics.Meter.create_histogram(meter, "http.server.duration",
+Otel.Metrics.Histogram.create("http.server.duration",
   unit: "ms",
   advisory: [explicit_bucket_boundaries: [10, 50, 100, 500, 1000]]
 )
@@ -93,11 +82,11 @@ Otel.API.Metrics.Meter.create_histogram(meter, "http.server.duration",
 ### Gauge
 
 ```elixir
-temperature = Otel.API.Metrics.Meter.create_gauge(meter, "cpu.temperature",
+temperature = Otel.Metrics.Gauge.create("cpu.temperature",
   unit: "Cel"
 )
 
-Otel.API.Metrics.Gauge.record(temperature, 67.5, %{"core" => "0"})
+Otel.Metrics.Gauge.record(temperature, 67.5, %{"core" => "0"})
 ```
 
 ## Asynchronous (observable) instruments
@@ -108,12 +97,11 @@ The SDK invokes it at each collection cycle.
 ### ObservableCounter
 
 ```elixir
-Otel.API.Metrics.Meter.create_observable_counter(
-  meter,
+Otel.Metrics.ObservableCounter.create(
   "process.runtime.uptime",
   fn _args ->
     {wall_clock_ms, _} = :erlang.statistics(:wall_clock)
-    [%Otel.API.Metrics.Measurement{value: div(wall_clock_ms, 1000), attributes: %{}}]
+    [%Otel.Metrics.Measurement{value: div(wall_clock_ms, 1000), attributes: %{}}]
   end,
   nil,
   unit: "s"
@@ -123,15 +111,14 @@ Otel.API.Metrics.Meter.create_observable_counter(
 ### ObservableUpDownCounter
 
 ```elixir
-Otel.API.Metrics.Meter.create_observable_updown_counter(
-  meter,
+Otel.Metrics.ObservableUpDownCounter.create(
   "process.runtime.memory",
   fn _args ->
     info = :erlang.memory()
 
     [
-      %Otel.API.Metrics.Measurement{value: info[:total], attributes: %{"type" => "total"}},
-      %Otel.API.Metrics.Measurement{value: info[:processes], attributes: %{"type" => "processes"}}
+      %Otel.Metrics.Measurement{value: info[:total], attributes: %{"type" => "total"}},
+      %Otel.Metrics.Measurement{value: info[:processes], attributes: %{"type" => "processes"}}
     ]
   end,
   nil,
@@ -142,11 +129,10 @@ Otel.API.Metrics.Meter.create_observable_updown_counter(
 ### ObservableGauge
 
 ```elixir
-Otel.API.Metrics.Meter.create_observable_gauge(
-  meter,
+Otel.Metrics.ObservableGauge.create(
   "queue.depth",
   fn _args ->
-    [%Otel.API.Metrics.Measurement{value: MyApp.Queue.size(), attributes: %{}}]
+    [%Otel.Metrics.Measurement{value: MyApp.Queue.size(), attributes: %{}}]
   end,
   nil,
   unit: "1"
@@ -174,7 +160,7 @@ the callback. Useful when one callback feeds multiple instruments via
 Every `add/3` / `record/3` / `Measurement{}` accepts an attribute map.
 
 ```elixir
-Otel.API.Metrics.Counter.add(counter, 1, %{
+Otel.Metrics.Counter.add(counter, 1, %{
   "http.method" => "GET",
   "http.status_code" => 200,
   "http.route" => "/orders/:id"

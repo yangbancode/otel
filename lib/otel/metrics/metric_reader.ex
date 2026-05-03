@@ -44,8 +44,8 @@ defmodule Otel.Metrics.MetricReader do
   Reader-implementer config — the value passed to a reader's
   `start_link/1` callback. Each implementation defines its own
   shape; the alias names the boundary so callers (notably
-  `Otel.Metrics.MeterProvider`) can refer to it in @specs
-  rather than the bare `map()` literal.
+  `Otel.Metrics`) can refer to it in @specs rather than the
+  bare `map()` literal.
   """
   @type config :: map()
 

@@ -21,10 +21,11 @@ defmodule Otel.Metrics.Instrument do
   ## Unified API + SDK struct
 
   A single struct shared by both API and SDK layers rather
-  than an API-handle + SDK-record split. The `meter` field
-  carries the `{module, config}` dispatcher so the
-  instrument is a self-sufficient handle; recording
-  resolves the SDK module from `instrument.meter` without
+  than an API-handle + SDK-record split. The `config` field
+  captures the meter config (ETS table handles, scope,
+  exemplar filter, reader configs) at creation time so the
+  instrument is a self-sufficient handle; `record/3` and
+  the callback path read from `instrument.config` without
   an auxiliary lookup. Spec `metrics/api.md` L190-L191
   treats Instrument as a single concept; erlang's reference
   implementation likewise defines one `#instrument{}`
@@ -160,12 +161,12 @@ defmodule Otel.Metrics.Instrument do
 
   Fields:
 
-  - `meter` — the `{module, config}` dispatcher tuple
-    returned by `MeterProvider.get_meter/1`. Typed
-    `Meter.t() | nil` to allow the `defstruct` default;
-    callers flowing through `Meter.create_*` always
-    receive a struct with the meter populated, and
-    downstream recording relies on this.
+  - `config` — meter config snapshot captured at creation
+    time (ETS table handles, scope, exemplar filter, reader
+    configs). The recording / callback paths read from this
+    rather than from a separate Meter handle, so a custom
+    config (test override) flows transparently into
+    `record/3` and `run_callbacks/1`.
   - `name` — spec §Instrument name syntax (L201-L218).
     Identifying.
   - `kind` — spec §Synchronous and Asynchronous
@@ -185,7 +186,7 @@ defmodule Otel.Metrics.Instrument do
   identifying fields are exactly those four.
   """
   @type t :: %__MODULE__{
-          meter: Otel.Metrics.Meter.t(),
+          config: map(),
           name: String.t(),
           kind: kind(),
           unit: String.t(),
@@ -194,7 +195,7 @@ defmodule Otel.Metrics.Instrument do
           scope: Otel.InstrumentationScope.t()
         }
 
-  defstruct meter: %Otel.Metrics.Meter{},
+  defstruct config: %{},
             name: "",
             kind: :counter,
             unit: "",

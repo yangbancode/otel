@@ -1,0 +1,162 @@
+defmodule Otel.Metrics do
+  @moduledoc """
+  Metrics API facade — instrument creation/record entry points
+  (`metrics/api.md` §MeterProvider L156-L499 + §Meter
+  §Instrument).
+
+  Minikube has no plugin ecosystem, so the spec's
+  MeterProvider + Meter entities collapse to a single hardcoded
+  identity. There is no `Meter` handle to obtain via
+  `get_meter/0` first — call the instrument facades
+  (`Otel.Metrics.Counter`, `Otel.Metrics.Histogram`, etc.)
+  directly with just the instrument name + opts.
+
+  `init/0` creates the named ETS tables that hold metrics state;
+  `Otel.Application.start/2` calls it once at boot. The reader
+  reads `reader_meter_config/0` to know which tables to collect
+  from. Every other knob (scope, exemplar filter, reader id,
+  temporality mapping) is a compile-time literal.
+
+  ## Public API
+
+  | Function | Role |
+  |---|---|
+  | `init/0` | **SDK** (boot hook) — create the named ETS tables |
+  | `delete_storage/0` | **SDK** (test cleanup) — drop ETS tables |
+  | `reader_meter_config/0` | **SDK** — config the reader uses to collect |
+  | `resource/0`, `config/0` | **Application** (introspection) |
+  | `meter_config/0` | **SDK** — the same map stamped on `Meter.create_*` paths |
+
+  ## References
+
+  - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
+  """
+
+  # Hardcoded identifiers shared by Meter and MetricReader.
+  # `reader_id` was a `make_ref/0` reference back when the SDK
+  # supported multiple readers; minikube has exactly one, so a
+  # stable atom suffices.
+  @reader_id :default_reader
+
+  @ets_tables [
+    :otel_instruments,
+    :otel_streams,
+    :otel_metrics,
+    :otel_callbacks,
+    :otel_exemplars,
+    :otel_observed_attrs
+  ]
+
+  @doc """
+  **SDK** (boot hook) — Called once from
+  `Otel.Application.start/2` (or from `Otel.TestSupport` for
+  tests) to create the named ETS tables. Idempotent — a second
+  call reuses the existing tables (or creates them if missing).
+  """
+  @spec init() :: :ok
+  def init do
+    ensure_tables!()
+    :ok
+  end
+
+  @doc """
+  **SDK** (test cleanup) — Drops all named ETS tables. Called
+  from `Otel.TestSupport.stop_all/0` so each test starts from a
+  clean slate.
+
+  Each `:ets.delete/1` is wrapped in a `try/rescue` because the
+  table's owning process may die concurrently with `stop_all`
+  (e.g., when `Application.stop(:otel)` happens just before this
+  runs and the app controller process owned the tables): the
+  `whereis/1` check sees a live table, but the table is gone by
+  the time `delete/1` fires. CI runs hit this race; local runs
+  rarely do.
+  """
+  @spec delete_storage() :: :ok
+  def delete_storage do
+    Enum.each(@ets_tables, fn name ->
+      try do
+        :ets.delete(name)
+      rescue
+        ArgumentError -> :ok
+      end
+    end)
+
+    :ok
+  end
+
+  @doc """
+  **SDK** — Returns the meter config used by both `Meter.create_*`
+  (producer side, `reader_configs`) and `MetricReader.collect/1`
+  (consumer side, `reader_id` + `temporality_mapping`). The same
+  map serves both roles so callers don't juggle two shapes.
+  """
+  @spec meter_config() :: map()
+  def meter_config do
+    temporality_mapping = Otel.Metrics.Instrument.default_temporality_mapping()
+
+    %{
+      scope: %Otel.InstrumentationScope{},
+      resource: Otel.Resource.from_app_env(),
+      instruments_tab: :otel_instruments,
+      streams_tab: :otel_streams,
+      metrics_tab: :otel_metrics,
+      callbacks_tab: :otel_callbacks,
+      exemplars_tab: :otel_exemplars,
+      observed_attrs_tab: :otel_observed_attrs,
+      exemplar_filter: :trace_based,
+      reader_id: @reader_id,
+      temporality_mapping: temporality_mapping,
+      reader_configs: [{@reader_id, %{temporality_mapping: temporality_mapping}}]
+    }
+  end
+
+  @doc """
+  **SDK** — Same map as `meter_config/0`, kept for clarity at
+  the `Otel.Metrics.MetricReader.PeriodicExporting` callsite.
+  """
+  @spec reader_meter_config() :: map()
+  def reader_meter_config, do: meter_config()
+
+  @doc """
+  **Application** (introspection) — Returns the resource
+  resolved from the `:otel` `:resource` `Application` env, or
+  `Otel.Resource.default/0` when no env is set.
+  """
+  @spec resource() :: Otel.Resource.t()
+  def resource, do: Otel.Resource.from_app_env()
+
+  @doc """
+  **Application** (introspection) — Returns the synthetic meter
+  config map (`meter_config/0`).
+  """
+  @spec config() :: map()
+  def config, do: meter_config()
+
+  # --- Private ---
+
+  @spec ensure_tables!() :: :ok
+  defp ensure_tables! do
+    table_specs = [
+      {:otel_instruments, [:set, :public, :named_table]},
+      {:otel_streams, [:bag, :public, :named_table]},
+      {:otel_metrics, [:set, :public, :named_table]},
+      {:otel_callbacks, [:bag, :public, :named_table]},
+      {:otel_exemplars, [:set, :public, :named_table]},
+      {:otel_observed_attrs, [:set, :public, :named_table]}
+    ]
+
+    Enum.each(table_specs, fn {name, opts} ->
+      case :ets.whereis(name) do
+        :undefined ->
+          :ets.new(name, opts ++ [read_concurrency: true, write_concurrency: true])
+          :ok
+
+        _tid ->
+          :ok
+      end
+    end)
+
+    :ok
+  end
+end

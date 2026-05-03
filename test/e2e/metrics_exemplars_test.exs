@@ -26,9 +26,8 @@ defmodule Otel.E2E.MetricsExemplarsTest do
 
   describe "filter :trace_based (default)" do
     test "27: trace_based records inside a sampled span", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_scenario_27_#{e2e_id}"
-      counter = Otel.Metrics.Meter.create_counter(meter, metric)
+      counter = Otel.Metrics.Meter.create_counter(metric)
 
       Otel.Trace.with_span(
         "scenario-27-#{e2e_id}",
@@ -46,9 +45,7 @@ defmodule Otel.E2E.MetricsExemplarsTest do
   describe "reservoir defaults by aggregation kind" do
     test "28: AlignedHistogramBucket reservoir on a histogram", %{e2e_id: e2e_id} do
       metric = "e2e_scenario_28_#{e2e_id}"
-
-      meter = Otel.Metrics.MeterProvider.get_meter()
-      hist = Otel.Metrics.Meter.create_histogram(meter, metric)
+      hist = Otel.Metrics.Meter.create_histogram(metric)
 
       for v <- [1.0, 5.0, 25.0, 100.0],
           do: Otel.Metrics.Histogram.record(hist, v, %{"e2e.id" => e2e_id})
@@ -59,9 +56,7 @@ defmodule Otel.E2E.MetricsExemplarsTest do
 
     test "29: SimpleFixedSize reservoir on a non-histogram", %{e2e_id: e2e_id} do
       metric = "e2e_scenario_29_#{e2e_id}"
-
-      meter = Otel.Metrics.MeterProvider.get_meter()
-      counter = Otel.Metrics.Meter.create_counter(meter, metric)
+      counter = Otel.Metrics.Meter.create_counter(metric)
 
       for _ <- 1..5,
           do: Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})

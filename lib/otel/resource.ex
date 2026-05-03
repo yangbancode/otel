@@ -6,8 +6,8 @@ defmodule Otel.Resource do
   A Resource is a set of key-value attributes describing the service
   (e.g., service.name, host.name) and an optional Schema URL.
   Each pillar entry point (`Otel.Trace`, `Otel.Logs`,
-  `Otel.Metrics.MeterProvider`) reads the resource via
-  `from_app_env/0` on demand — no boot-time snapshot.
+  `Otel.Metrics`) reads the resource via `from_app_env/0`
+  on demand — no boot-time snapshot.
 
   ## Default Resource
 

@@ -86,12 +86,11 @@ defmodule Otel.Metrics.ObservableGauge do
   `Otel.Metrics.Meter.create_observable_gauge/3`.
   """
   @spec create(
-          meter :: Otel.Metrics.Meter.t(),
           name :: String.t(),
           opts :: Otel.Metrics.Instrument.create_opts()
         ) :: Otel.Metrics.Instrument.t()
-  def create(meter, name, opts \\ []) do
-    Otel.Metrics.Meter.create_observable_gauge(meter, name, opts)
+  def create(name, opts \\ []) do
+    Otel.Metrics.Meter.create_observable_gauge(name, opts)
   end
 
   @doc """
@@ -117,13 +116,12 @@ defmodule Otel.Metrics.ObservableGauge do
   `Otel.Metrics.Meter.create_observable_gauge/5`.
   """
   @spec create(
-          meter :: Otel.Metrics.Meter.t(),
           name :: String.t(),
           callback :: (term() -> [Otel.Metrics.Measurement.t()]),
           callback_args :: term(),
           opts :: Otel.Metrics.Instrument.create_opts()
         ) :: Otel.Metrics.Instrument.t()
-  def create(meter, name, callback, callback_args, opts) do
-    Otel.Metrics.Meter.create_observable_gauge(meter, name, callback, callback_args, opts)
+  def create(name, callback, callback_args, opts) do
+    Otel.Metrics.Meter.create_observable_gauge(name, callback, callback_args, opts)
   end
 end

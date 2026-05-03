@@ -8,12 +8,12 @@ defmodule Otel.Application do
   def start(_type, _args) do
     # Create the named ETS tables that hold metrics state. Must
     # run before `MetricReader.PeriodicExporting` starts, since
-    # the reader reads `MeterProvider.reader_meter_config/0` in
+    # the reader reads `Otel.Metrics.reader_meter_config/0` in
     # its init. `Otel.Trace` and `Otel.Logs` hold no boot-time
     # state — the only user-tunable knob is the `:resource`
     # Application env, read via `Otel.Resource.from_app_env/0`
     # on demand.
-    Otel.Metrics.MeterProvider.init()
+    Otel.Metrics.init()
 
     children = [
       Otel.Trace.SpanStorage,

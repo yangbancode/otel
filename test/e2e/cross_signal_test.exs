@@ -58,9 +58,8 @@ defmodule Otel.E2E.CrossSignalTest do
 
     test "2: counter add inside with_span carries the trace_id to Mimir",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_2_#{e2e_id}"
-      counter = Otel.Metrics.Meter.create_counter(meter, metric)
+      counter = Otel.Metrics.Meter.create_counter(metric)
 
       Otel.Trace.with_span(
         "scenario-2-#{e2e_id}",
@@ -89,7 +88,6 @@ defmodule Otel.E2E.CrossSignalTest do
     end
 
     test "3: service.name is consistent across all 3 pillars", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_3_#{e2e_id}"
 
       Otel.Trace.with_span(
@@ -104,7 +102,7 @@ defmodule Otel.E2E.CrossSignalTest do
         attributes: %{"e2e.id" => e2e_id}
       })
 
-      counter = Otel.Metrics.Meter.create_counter(meter, metric)
+      counter = Otel.Metrics.Meter.create_counter(metric)
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
 
@@ -139,7 +137,6 @@ defmodule Otel.E2E.CrossSignalTest do
       # is checked for landing only — see moduledoc § Mimir
       # scope-name caveat.
       scope_name = "otel"
-      meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_4_#{e2e_id}"
 
       Otel.Trace.with_span(
@@ -154,7 +151,7 @@ defmodule Otel.E2E.CrossSignalTest do
         attributes: %{"e2e.id" => e2e_id}
       })
 
-      counter = Otel.Metrics.Meter.create_counter(meter, metric)
+      counter = Otel.Metrics.Meter.create_counter(metric)
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
 
