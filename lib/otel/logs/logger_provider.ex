@@ -2,10 +2,12 @@ defmodule Otel.Logs.LoggerProvider do
   @moduledoc """
   LoggerProvider — minikube hardcoded.
 
-  Issues `%Otel.Logs.Logger{}` structs. Configuration
-  (`resource`, `log_record_limits`) is loaded once at boot via
-  `init/0` and stored in `:persistent_term`; subsequent
-  `get_logger/0` calls are pure persistent_term reads.
+  Issues `%Otel.Logs.Logger{}` structs. The `resource` flows
+  from the user's `config :otel, resource: %{...}` and is
+  loaded once at boot via `init/0` into `:persistent_term`;
+  every other knob (`log_record_limits` etc.) is hardcoded to
+  the spec defaults at compile time and stamped on the Logger
+  struct's `config` map at `get_logger/0` call time.
 
   Not a GenServer — this module holds no process state.
 
@@ -21,7 +23,7 @@ defmodule Otel.Logs.LoggerProvider do
 
   | Function | Role |
   |---|---|
-  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` (resource + spec-default log_record_limits) |
+  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` with the resolved resource |
   | `get_logger/0` | **Application** — Get a Logger (`logs/api.md` L62-L97) |
   | `resource/0`, `config/0` | **Application** (introspection) |
 
@@ -33,25 +35,16 @@ defmodule Otel.Logs.LoggerProvider do
   @persistent_key {__MODULE__, :state}
 
   @typedoc "Internal provider state held in `:persistent_term`."
-  @type state :: %{
-          resource: Otel.Resource.t(),
-          log_record_limits: Otel.Logs.LogRecordLimits.t()
-        }
+  @type state :: %{resource: Otel.Resource.t()}
 
   @doc """
   **SDK** (boot hook) — Called once from
   `Otel.Application.start/2` to seed the `:persistent_term`
-  slot. `log_record_limits` is hardcoded to the spec defaults;
-  only the resource flows from the user's
-  `config :otel, resource: %{...}`.
+  slot.
   """
   @spec init() :: :ok
   def init do
-    :persistent_term.put(@persistent_key, %{
-      resource: Otel.Resource.from_app_env(),
-      log_record_limits: %Otel.Logs.LogRecordLimits{}
-    })
-
+    :persistent_term.put(@persistent_key, %{resource: Otel.Resource.from_app_env()})
     :ok
   end
 
@@ -60,20 +53,19 @@ defmodule Otel.Logs.LoggerProvider do
   (`logs/api.md` §Get a Logger).
 
   Returns a configured `%Otel.Logs.Logger{}` struct stamped
-  with the boot-time resource/limits and the SDK's hardcoded
-  instrumentation scope (see `Otel.InstrumentationScope`).
+  with the boot-time resource, the SDK's hardcoded
+  instrumentation scope (see `Otel.InstrumentationScope`),
+  and the spec-default log record limits.
   """
   @spec get_logger() :: Otel.Logs.Logger.t()
   def get_logger do
-    state = state()
-
-    logger_config = %{
-      scope: %Otel.InstrumentationScope{},
-      resource: state.resource,
-      log_record_limits: state.log_record_limits
+    %Otel.Logs.Logger{
+      config: %{
+        scope: %Otel.InstrumentationScope{},
+        resource: state().resource,
+        log_record_limits: %Otel.Logs.LogRecordLimits{}
+      }
     }
-
-    %Otel.Logs.Logger{config: logger_config}
   end
 
   @doc """
@@ -97,10 +89,5 @@ defmodule Otel.Logs.LoggerProvider do
   defp state, do: :persistent_term.get(@persistent_key, default_state())
 
   @spec default_state() :: state()
-  defp default_state do
-    %{
-      resource: Otel.Resource.default(),
-      log_record_limits: %Otel.Logs.LogRecordLimits{}
-    }
-  end
+  defp default_state, do: %{resource: Otel.Resource.default()}
 end
