@@ -45,7 +45,28 @@ defmodule Otel.Logs.LogRecordProcessorTest do
 
   defp start_batch(exporter) do
     Otel.TestSupport.stop_all()
-    {:ok, _pid} = Otel.Logs.LogRecordProcessor.start_link(%{exporter: exporter})
+    {:ok, pid} = Otel.Logs.LogRecordProcessor.start_link(%{exporter: exporter})
+    # Unlink so the test process dying doesn't propagate; on_exit
+    # below kills the orphan before the setup's on_exit restarts
+    # `:otel` (registration would conflict otherwise — there's no
+    # `shutdown/1` API anymore for graceful self-termination).
+    Process.unlink(pid)
+    on_exit(fn -> kill_orphan(pid) end)
+    :ok
+  end
+
+  defp kill_orphan(pid) do
+    if Process.alive?(pid) do
+      ref = Process.monitor(pid)
+      Process.exit(pid, :kill)
+
+      receive do
+        {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+      after
+        1_000 -> :ok
+      end
+    end
+
     :ok
   end
 

@@ -469,14 +469,27 @@ defmodule Otel.Logs.LogRecordProcessor do
   # kill. The final `report_drops_if_any/1` surfaces any
   # "queue full" drops that arrived between the last
   # `:export_timer` tick and shutdown.
+  #
+  # The drain + force_flush calls `exporter.export/2` /
+  # `exporter.force_flush/1`, both of which can fail (network,
+  # broken exporter state, etc.). We catch any such failure so
+  # that `exporter.shutdown` always runs — `code-conventions.md`
+  # exempts lifecycle hooks from the happy-path rule.
   @impl :gen_statem
   @spec terminate(reason :: term(), state_name :: atom(), state :: State.t()) :: :ok
   def terminate(_reason, _state_name, state) do
     state = abort_runner(state)
-    state = drain_all_sync(state, :infinity)
-
     {module, exporter_state} = state.exporter
-    module.force_flush(exporter_state)
+
+    state =
+      try do
+        state = drain_all_sync(state, :infinity)
+        module.force_flush(exporter_state)
+        state
+      catch
+        _kind, _reason -> %State{state | queue: [], queue_size: 0}
+      end
+
     module.shutdown(exporter_state)
 
     _ = report_drops_if_any(state)

@@ -200,10 +200,20 @@ defmodule Otel.Trace.SpanProcessor do
   # `:shutdown` signal): drain the queue and call the exporter's
   # `shutdown/1` so spans pending at termination still leave the
   # process. `trap_exit: true` in `init/1` is what makes this run.
+  #
+  # The drain step calls `exporter.export/3`, which can fail (network
+  # error, broken exporter state, etc.). We catch any such failure so
+  # that `exporter.shutdown` always runs — `code-conventions.md`
+  # exempts lifecycle hooks from the happy-path rule.
   @impl GenServer
   @spec terminate(reason :: term(), state :: map()) :: :ok
   def terminate(_reason, state) do
-    new_state = export_batch(state)
+    new_state =
+      try do
+        export_batch(state)
+      catch
+        _kind, _reason -> %{state | queue: [], queue_size: 0}
+      end
 
     case new_state.exporter do
       {module, exporter_state} -> module.shutdown(exporter_state)

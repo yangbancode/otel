@@ -105,11 +105,24 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
   # collect/export so metrics pending at termination still leave the
   # process, and call the exporter's `shutdown/1`. `trap_exit: true`
   # in `init/1` is what makes this run.
+  #
+  # The collect step invokes user-supplied observable callbacks, which
+  # may raise (e.g. a callback referencing a `Process.info(pid, ...)`
+  # whose pid died first under the supervisor's shutdown ordering).
+  # We catch any such failure so that `exporter.shutdown` always runs
+  # — `code-conventions.md` exempts lifecycle hooks from the
+  # happy-path rule for exactly this case.
   @impl GenServer
   @spec terminate(reason :: term(), state :: map()) :: :ok
   def terminate(_reason, state) do
     Process.cancel_timer(state.timer_ref)
-    do_collect_and_export(state)
+
+    try do
+      do_collect_and_export(state)
+    catch
+      _kind, _reason -> :ok
+    end
+
     call_exporter(state.exporter, :shutdown)
     :ok
   end
