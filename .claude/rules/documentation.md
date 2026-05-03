@@ -279,6 +279,7 @@ local copy of the spec:
 | W3C Trace Context | `references/w3c-trace-context/` | `level-2` branch (per OTel `context/api-propagators.md` MUST) |
 | W3C Baggage | `references/w3c-baggage/` | `main` (still Working Draft, no REC) |
 | OTLP Proto | `references/opentelemetry-proto/` | — |
+| Semantic Conventions | `references/semantic-conventions/` | — |
 
 ### Migration from pre-tier markers
 

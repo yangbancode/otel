@@ -28,3 +28,6 @@
 [submodule "references/elixir"]
 	path = references/elixir
 	url = https://github.com/elixir-lang/elixir.git
+[submodule "references/semantic-conventions"]
+	path = references/semantic-conventions
+	url = https://github.com/open-telemetry/semantic-conventions.git

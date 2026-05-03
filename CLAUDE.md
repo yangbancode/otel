@@ -5,7 +5,7 @@
 - `references/opentelemetry-specification/` — OTel spec (authoritative)
 - `references/opentelemetry-erlang/` — Erlang reference impl (cross-check)
 - `references/opentelemetry-proto/`, `references/w3c-trace-context/`,
-  `references/w3c-baggage/` — wire formats
+  `references/w3c-baggage/`, `references/semantic-conventions/` — wire formats
 - `references/otp/` — Erlang/OTP stdlib source (pinned to the
   runtime tag declared in `.mise.toml`; used when the correct behaviour
   of `:logger`, `:persistent_term`, `gen_statem`, etc. must be verified

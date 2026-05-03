@@ -1,6 +1,6 @@
 ---
 name: spec-module-review
-description: Review methodology for modules implementing a published specification (OTel, W3C, RFC, OTLP). Apply whenever the user asks to review, audit, verify, refactor, or check spec-compliance of a file citing specifications — docstrings with section references like `§3.3.1.3.1` or `spec §3.3`, module paths under `apps/otel_api/lib/otel/api/`, or comments referencing specs under `references/`. Also triggers for requests like "verify citations", "find spec gaps", "check spec compliance", "is this aligned with the spec", or plain "review this file" when the file is spec-aligned. Use this even when the user doesn't explicitly say "review" — any task cross-checking code against a published specification qualifies.
+description: Review methodology for modules implementing a published specification (OTel, W3C, RFC, OTLP, Semantic Conventions). Apply whenever the user asks to review, audit, verify, refactor, or check spec-compliance of a file citing specifications — docstrings with section references like `§3.3.1.3.1` or `spec §3.3`, module paths under `apps/otel_api/lib/otel/api/`, or comments referencing specs under `references/`. Also triggers for requests like "verify citations", "find spec gaps", "check spec compliance", "is this aligned with the spec", or plain "review this file" when the file is spec-aligned. Use this even when the user doesn't explicitly say "review" — any task cross-checking code against a published specification qualifies.
 ---
 
 # spec-module-review
@@ -52,9 +52,9 @@ Concrete rules:
   current truth.
 
 The submodule under `references/opentelemetry-specification/`
-(plus W3C / RFC / OTLP submodules) is the sole authoritative source.
-If a piece of information is not there, it is not part of this
-project's spec contract.
+(plus W3C / RFC / OTLP / semantic-conventions submodules) is the
+sole authoritative source. If a piece of information is not there,
+it is not part of this project's spec contract.
 
 ### Spec evolves. Prior reviews can become stale.
 
