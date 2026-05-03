@@ -16,11 +16,10 @@ defmodule Otel.ApplicationTest do
     test "providers seed persistent_term state from spec defaults + user :resource env" do
       reboot()
 
-      # TracerProvider state holds resource + span_limits + shut_down.
+      # TracerProvider state holds resource + span_limits.
       tracer_state = Otel.Trace.TracerProvider.config()
       assert %Otel.Resource{} = tracer_state.resource
       assert %Otel.Trace.SpanLimits{} = tracer_state.span_limits
-      assert tracer_state.shut_down == false
 
       # MeterProvider state holds resource + exemplar_filter + ETS refs.
       meter_state = Otel.Metrics.MeterProvider.config()

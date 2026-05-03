@@ -11,7 +11,6 @@ defmodule Otel.Metrics.MeterProviderTest do
       config = Otel.Metrics.MeterProvider.config()
       assert %Otel.Resource{} = config.resource
       assert config.exemplar_filter == :trace_based
-      assert config.shut_down == false
     end
 
     test "resource/0 returns the seeded resource" do
@@ -42,24 +41,10 @@ defmodule Otel.Metrics.MeterProviderTest do
     end
   end
 
-  describe "shutdown/1 + force_flush/1" do
-    test "first shutdown :ok; subsequent → :already_shutdown" do
-      assert :ok = Otel.Metrics.MeterProvider.shutdown()
-      assert {:error, :already_shutdown} = Otel.Metrics.MeterProvider.shutdown()
-      assert {:error, :already_shutdown} = Otel.Metrics.MeterProvider.force_flush()
-    end
-
-    test "after shutdown, get_meter returns a degenerate Meter" do
-      :ok = Otel.Metrics.MeterProvider.shutdown()
-
-      assert %Otel.Metrics.Meter{} = Otel.Metrics.MeterProvider.get_meter()
-    end
-
-    test "facades stay graceful when no provider state has been seeded" do
+  describe "introspection without provider state" do
+    test "resource/0 falls back to Otel.Resource.default/0" do
       Otel.TestSupport.stop_all()
 
-      assert :ok = Otel.Metrics.MeterProvider.force_flush()
-      assert :ok = Otel.Metrics.MeterProvider.shutdown()
       assert %Otel.Resource{} = Otel.Metrics.MeterProvider.resource()
       assert %{} = Otel.Metrics.MeterProvider.config()
     end

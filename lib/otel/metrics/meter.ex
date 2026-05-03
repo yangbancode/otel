@@ -19,7 +19,6 @@ defmodule Otel.Metrics.Meter do
   | `create_*` (counter, histogram, gauge, updown_counter, observable_*) | **SDK** (OTel API MUST) — `metrics/api.md` §Instruments |
   | `record/3` | **SDK** (OTel API MUST) — synchronous instrument measurement |
   | `register_callback/5` | **SDK** (OTel API MUST) — async instrument registration |
-  | `enabled?/2` | **SDK** (OTel API MUST) — `metrics/api.md` §Enabled (Stable, #4787) |
 
   ## Design notes
 
@@ -80,16 +79,6 @@ defmodule Otel.Metrics.Meter do
   (no overflow when distinct sets ≤ limit) does not strictly
   bind, since at the boundary the SHOULD is already best-
   effort.
-
-  ### Deferred Development-status features
-
-  - **MeterConfig (`enabled` flag).** Spec
-    `metrics/sdk.md` L1029-L1037 (Status: Development on the
-    `MeterConfig.enabled=false` bullet) — when set, the
-    Meter's instruments MUST report `enabled?/2` as `false`.
-    Not implemented. Waits for spec stabilisation. Without
-    Views, no Drop aggregation paths exist either, so
-    `enabled?/2` is unconditionally `true`.
 
   ## References
 
@@ -239,10 +228,6 @@ defmodule Otel.Metrics.Meter do
 
     {ref, config.callbacks_tab}
   end
-
-  # --- Enabled ---
-
-  def enabled?(%Otel.Metrics.Instrument{}, _opts), do: true
 
   # --- Private ---
 

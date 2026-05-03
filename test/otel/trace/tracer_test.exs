@@ -21,19 +21,4 @@ defmodule Otel.Trace.TracerTest do
     assert span.name == "test_span"
     assert span.instrumentation_scope.name == "otel"
   end
-
-  # Spec trace/sdk.md L223-L227 MUST: minikube hardcodes a single
-  # SpanProcessor, so `enabled?/2` is true while the SDK is up and
-  # false after `TracerProvider.shutdown/1`.
-  describe "enabled?/2" do
-    test "true while SDK is up", %{tracer: tracer} do
-      assert Otel.Trace.Tracer.enabled?(tracer)
-      assert Otel.Trace.Tracer.enabled?(tracer, span_name: "test")
-    end
-
-    test "false after TracerProvider.shutdown/1", %{tracer: tracer} do
-      :ok = Otel.Trace.TracerProvider.shutdown()
-      refute Otel.Trace.Tracer.enabled?(tracer)
-    end
-  end
 end

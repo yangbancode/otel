@@ -2,29 +2,31 @@ defmodule Otel.Metrics.MeterProvider do
   @moduledoc """
   MeterProvider — minikube hardcoded.
 
-  Issues `%Otel.Metrics.Meter{}` structs and forwards
-  `shutdown/1` / `force_flush/1` to the single hardcoded
-  `Otel.Metrics.MetricReader.PeriodicExporting` (60s/30s
-  interval/timeout). Configuration (`resource`,
-  `exemplar_filter`) is loaded once at boot via `init/0` and
-  stored in `:persistent_term` along with the named ETS
-  tables that hold metrics state.
+  Issues `%Otel.Metrics.Meter{}` structs. Configuration
+  (`resource`, `exemplar_filter`) is loaded once at boot via
+  `init/0` and stored in `:persistent_term` along with the
+  named ETS tables that hold metrics state.
 
   Not a GenServer — `init/0` creates the named ETS tables and
   seeds `:persistent_term`; the tables are owned by the
   caller process (the SDK Application controller in
   production, or the test process in tests).
 
+  ## Lifecycle
+
+  Application shutdown is delegated to OTP. `Application.stop(:otel)`
+  drives the supervisor down, which calls
+  `Otel.Metrics.MetricReader.PeriodicExporting.terminate/2`
+  to perform a final collect/export and shut the exporter.
+  There is no `shutdown/1` API on this module.
+
   ## Public API
 
   | Function | Role |
   |---|---|
   | `init/0` | **SDK** (boot hook) — create ETS, seed `:persistent_term` |
-  | `get_meter/1` | **Application** (OTel API MUST) — Get a Meter |
-  | `shutdown/1` | **Application** (OTel API MUST) — Shutdown |
-  | `force_flush/1` | **Application** (OTel API MUST) — ForceFlush |
+  | `get_meter/0` | **Application** — Get a Meter |
   | `resource/0`, `config/0` | **Application** (introspection) |
-  | `shut_down?/0` | **SDK** — internal flag for instrument `enabled?` |
   | `delete_storage/0` | **SDK** (test cleanup) — drop ETS tables |
 
   ## References
@@ -49,8 +51,7 @@ defmodule Otel.Metrics.MeterProvider do
           exemplar_filter: Otel.Metrics.Exemplar.Filter.t(),
           base_meter_config: map(),
           reader_meter_config: map(),
-          reader_id: reference() | nil,
-          shut_down: boolean()
+          reader_id: reference() | nil
         }
 
   @doc """
@@ -94,8 +95,7 @@ defmodule Otel.Metrics.MeterProvider do
       exemplar_filter: :trace_based,
       base_meter_config: base_meter_config,
       reader_meter_config: reader_meter_config,
-      reader_id: reader_id,
-      shut_down: false
+      reader_id: reader_id
     })
 
     :ok
@@ -129,73 +129,26 @@ defmodule Otel.Metrics.MeterProvider do
   end
 
   @doc """
-  **Application** (OTel API MUST) — Get a Meter
+  **Application** — Get a Meter
   (`metrics/api.md` §Get a Meter).
 
   Returns a configured `%Otel.Metrics.Meter{}` struct stamped
   with the boot-time meter config and the SDK's hardcoded
   instrumentation scope (see `Otel.InstrumentationScope`).
-  After `shutdown/1`, returns an empty Meter (no instruments,
-  no readers).
   """
   @spec get_meter() :: Otel.Metrics.Meter.t()
   def get_meter do
     state = state()
+    reader_meter_config = state.reader_meter_config
+    reader_opts = %{temporality_mapping: reader_meter_config.temporality_mapping}
 
-    if state.shut_down do
-      %Otel.Metrics.Meter{}
-    else
-      reader_meter_config = state.reader_meter_config
-      reader_opts = %{temporality_mapping: reader_meter_config.temporality_mapping}
+    meter_config =
+      Map.merge(state.base_meter_config, %{
+        scope: %Otel.InstrumentationScope{},
+        reader_configs: [{state.reader_id, reader_opts}]
+      })
 
-      meter_config =
-        Map.merge(state.base_meter_config, %{
-          scope: %Otel.InstrumentationScope{},
-          reader_configs: [{state.reader_id, reader_opts}]
-        })
-
-      %Otel.Metrics.Meter{config: meter_config}
-    end
-  end
-
-  @doc """
-  **Application** (OTel API MUST) — Shutdown
-  (`metrics/sdk.md` §Shutdown).
-
-  Sets the shut-down flag and forwards to
-  `Otel.Metrics.MetricReader.PeriodicExporting.shutdown/0`.
-  """
-  @spec shutdown(timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(_timeout \\ 5_000) do
-    case :persistent_term.get(@persistent_key, nil) do
-      nil ->
-        :ok
-
-      %{shut_down: true} ->
-        {:error, :already_shutdown}
-
-      state ->
-        :persistent_term.put(@persistent_key, %{state | shut_down: true})
-        Otel.Metrics.MetricReader.PeriodicExporting.shutdown()
-    end
-  end
-
-  @doc """
-  **Application** (OTel API MUST) — ForceFlush
-  (`metrics/sdk.md` §ForceFlush).
-
-  Returns `:ok` when the SDK isn't booted (no persistent_term
-  state) — matches the graceful "facade is always callable"
-  contract. Returns `{:error, :already_shutdown}` only after an
-  explicit `shutdown/1`.
-  """
-  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
-  def force_flush(_timeout \\ 5_000) do
-    case :persistent_term.get(@persistent_key, nil) do
-      nil -> :ok
-      %{shut_down: true} -> {:error, :already_shutdown}
-      _ -> Otel.Metrics.MetricReader.PeriodicExporting.force_flush()
-    end
+    %Otel.Metrics.Meter{config: meter_config}
   end
 
   @doc """
@@ -212,15 +165,6 @@ defmodule Otel.Metrics.MeterProvider do
   """
   @spec config() :: state() | %{}
   def config, do: :persistent_term.get(@persistent_key, %{})
-
-  @doc """
-  **SDK** — Returns `true` when shutdown has been invoked.
-  """
-  @spec shut_down?() :: boolean()
-  def shut_down? do
-    state = :persistent_term.get(@persistent_key, nil)
-    state == nil or state.shut_down
-  end
 
   @doc """
   **SDK** — Returns the reader_meter_config seeded by `init/0`.
@@ -247,8 +191,7 @@ defmodule Otel.Metrics.MeterProvider do
       exemplar_filter: :trace_based,
       base_meter_config: %{},
       reader_meter_config: %{},
-      reader_id: nil,
-      shut_down: false
+      reader_id: nil
     }
   end
 

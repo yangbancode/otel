@@ -148,22 +148,6 @@ defmodule Otel.Metrics.Instrument do
         ]
 
   @typedoc """
-  Options accepted by per-instrument `enabled?/2` and by
-  `Meter.enabled?/2`.
-
-  Spec `metrics/api.md` L485-L487 declares *"There are
-  currently no required parameters for this API.
-  Parameters can be added in the future, therefore, the
-  API MUST be structured in a way for parameters to be
-  added."* — this type is therefore kept open as
-  `keyword()` per `.claude/rules/code-conventions.md`
-  §Layer independence, which forbids enumerating
-  speculative SDK keys at the API layer when the spec
-  leaves the set unspecified.
-  """
-  @type enabled_opts :: keyword()
-
-  @typedoc """
   Options accepted by `Meter.register_callback/5`. The
   spec does not define required keys; kept as an open
   keyword list for future SDK-specific extensions.

@@ -19,7 +19,6 @@ defmodule Otel.Trace.Tracer do
   |---|---|
   | `start_span/4` | OTel API MUST — `trace/api.md` §Span Creation L378-L414 |
   | `with_span/5` | OTel API MAY — `trace/api.md` L385 closure form |
-  | `enabled?/2` | OTel API MUST — `trace/sdk.md` L223-L227 |
 
   ## References
 
@@ -40,9 +39,6 @@ defmodule Otel.Trace.Tracer do
 
   defstruct scope: %Otel.InstrumentationScope{},
             span_limits: %Otel.Trace.SpanLimits{}
-
-  @typedoc "Options accepted by `enabled?/2`. Per spec L208-L210 currently no required parameters."
-  @type enabled_opts :: keyword()
 
   @doc """
   OTel API MUST — Span Creation (`trace/api.md` §Span Creation
@@ -129,19 +125,5 @@ defmodule Otel.Trace.Tracer do
       Otel.Trace.Span.end_span(span_ctx)
       Otel.Ctx.detach(token)
     end
-  end
-
-  @doc """
-  OTel API MUST — `Enabled` (`trace/sdk.md` L223-L227,
-  Status: Development).
-
-  Returns `false` when the SDK is shut down. Otherwise `true`
-  — minikube hardcodes a single SpanProcessor, so the spec's
-  no-processors leg cannot fire after boot. TracerConfig
-  (`enabled` flag) is spec-Development and not implemented.
-  """
-  @spec enabled?(tracer :: t(), opts :: enabled_opts()) :: boolean()
-  def enabled?(%__MODULE__{} = _tracer, _opts \\ []) do
-    not Otel.Trace.TracerProvider.shut_down?()
   end
 end

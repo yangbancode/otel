@@ -45,7 +45,28 @@ defmodule Otel.Logs.LogRecordProcessorTest do
 
   defp start_batch(exporter) do
     Otel.TestSupport.stop_all()
-    {:ok, _pid} = Otel.Logs.LogRecordProcessor.start_link(%{exporter: exporter})
+    {:ok, pid} = Otel.Logs.LogRecordProcessor.start_link(%{exporter: exporter})
+    # Unlink so the test process dying doesn't propagate; on_exit
+    # below kills the orphan before the setup's on_exit restarts
+    # `:otel` (registration would conflict otherwise — there's no
+    # `shutdown/1` API anymore for graceful self-termination).
+    Process.unlink(pid)
+    on_exit(fn -> kill_orphan(pid) end)
+    :ok
+  end
+
+  defp kill_orphan(pid) do
+    if Process.alive?(pid) do
+      ref = Process.monitor(pid)
+      Process.exit(pid, :kill)
+
+      receive do
+        {:DOWN, ^ref, :process, ^pid, _reason} -> :ok
+      after
+        1_000 -> :ok
+      end
+    end
+
     :ok
   end
 
@@ -67,7 +88,7 @@ defmodule Otel.Logs.LogRecordProcessorTest do
     assert_receive {:exported, [%{body: "timed"}]}, 1500
   end
 
-  describe "force_flush/1 + shutdown/1" do
+  describe "force_flush/1" do
     test "force_flush exports queued records and invokes exporter.force_flush" do
       :ok = start_batch({TestExporter, %{test_pid: self()}})
       emit("pending")
@@ -76,63 +97,47 @@ defmodule Otel.Logs.LogRecordProcessorTest do
       assert_receive {:exported, [%{body: "pending"}]}
       assert_receive :exporter_force_flush
     end
+  end
 
-    test "shutdown drains queue, calls exporter force_flush + shutdown in order" do
+  describe "supervisor-driven termination" do
+    test "terminate/3 drains queue and calls exporter force_flush + shutdown in order" do
       :ok = start_batch({TestExporter, %{test_pid: self()}})
       emit("final")
 
-      assert :ok = Otel.Logs.LogRecordProcessor.shutdown()
+      pid = Process.whereis(Otel.Logs.LogRecordProcessor)
+      Process.unlink(pid)
+      ref = Process.monitor(pid)
+      Process.exit(pid, :shutdown)
+      assert_receive {:DOWN, ^ref, :process, ^pid, _reason}
+
       assert_receive {:exported, [%{body: "final"}]}
       assert_receive :exporter_force_flush
       assert_receive :exporter_shutdown
     end
-
-    test "second shutdown / force_flush after first → {:error, :already_shutdown}" do
-      :ok = start_batch({TestExporter, %{test_pid: self()}})
-      :ok = Otel.Logs.LogRecordProcessor.shutdown()
-
-      assert {:error, :already_shutdown} =
-               Otel.Logs.LogRecordProcessor.shutdown()
-
-      assert {:error, :already_shutdown} =
-               Otel.Logs.LogRecordProcessor.force_flush()
-    end
   end
 
   describe "caller-supplied timeout (spec L487-L491)" do
-    test "force_flush/1 + shutdown/1 → {:error, :timeout} when budget exceeded" do
+    test "force_flush/1 → {:error, :timeout} when budget exceeded" do
       slow_exporter = {SlowExporter, %{delay_ms: 1000, test_pid: self()}}
 
       :ok = start_batch(slow_exporter)
       emit("slow")
 
       assert {:error, :timeout} = Otel.Logs.LogRecordProcessor.force_flush(50)
-
-      :ok = start_batch(slow_exporter)
-      emit("slow")
-
-      assert {:error, :timeout} = Otel.Logs.LogRecordProcessor.shutdown(50)
     end
 
-    test "force_flush/1 + shutdown/1 wait for an in-flight runner when the deadline allows" do
+    test "force_flush/1 waits for an in-flight runner when the deadline allows" do
       :ok = start_batch({SlowExporter, %{delay_ms: 50, test_pid: self()}})
       emit("queued")
 
       assert :ok = Otel.Logs.LogRecordProcessor.force_flush(5_000)
       assert_receive :exported_after_delay, 500
-
-      :ok = start_batch({SlowExporter, %{delay_ms: 50, test_pid: self()}})
-      emit("queued")
-
-      assert :ok = Otel.Logs.LogRecordProcessor.shutdown(5_000)
-      assert_receive :exported_after_delay, 500
     end
 
     # PR #297 left a hole here: caller's deadline was ignored if a
-    # long-running export was already in flight. Both force_flush
-    # and shutdown must abort the runner when the deadline can't
-    # accommodate it.
-    test "force_flush/1 + shutdown/1 abort an in-flight runner whose remaining time exceeds the deadline" do
+    # long-running export was already in flight. force_flush must
+    # abort the runner when the deadline can't accommodate it.
+    test "force_flush/1 aborts an in-flight runner whose remaining time exceeds the deadline" do
       slow_5s = {SlowExporter, %{delay_ms: 5_000, test_pid: self()}}
 
       :ok = start_batch(slow_5s)
@@ -152,23 +157,6 @@ defmodule Otel.Logs.LogRecordProcessorTest do
 
       assert {:error, :timeout} = Otel.Logs.LogRecordProcessor.force_flush(100)
 
-      assert System.monotonic_time(:millisecond) - started < 1_000
-
-      :ok = start_batch(slow_5s)
-      emit("slow")
-
-      spawn(fn ->
-        try do
-          Otel.Logs.LogRecordProcessor.force_flush(5_000)
-        catch
-          _, _ -> :ok
-        end
-      end)
-
-      Process.sleep(20)
-
-      started = System.monotonic_time(:millisecond)
-      assert {:error, :timeout} = Otel.Logs.LogRecordProcessor.shutdown(100)
       assert System.monotonic_time(:millisecond) - started < 1_000
     end
 
@@ -223,13 +211,12 @@ defmodule Otel.Logs.LogRecordProcessorTest do
       ]
     )
 
-    logger =
-      Otel.Logs.LoggerProvider.get_logger()
+    logger = Otel.Logs.LoggerProvider.get_logger()
 
     Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{body: "log 1"})
     Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{body: "log 2"})
 
-    Otel.Logs.LoggerProvider.force_flush()
+    Otel.Logs.LogRecordProcessor.force_flush()
 
     assert_receive {:exported, records}, 1500
     bodies = Enum.map(records, & &1.body)

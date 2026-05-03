@@ -2,28 +2,31 @@ defmodule Otel.Trace.TracerProvider do
   @moduledoc """
   TracerProvider — minikube hardcoded.
 
-  Issues `%Otel.Trace.Tracer{}` structs and forwards
-  `shutdown/1` / `force_flush/1` to the single hardcoded
-  `Otel.Trace.SpanProcessor` (Batch). Configuration
+  Issues `%Otel.Trace.Tracer{}` structs. Configuration
   (`resource`, `span_limits`) is loaded once at boot via
   `init/0` and stored in `:persistent_term`; subsequent
-  `get_tracer/1` calls are pure persistent_term reads.
+  `get_tracer/0` calls are pure persistent_term reads.
 
   Not a GenServer — this module holds no process state. The
   three siblings under `Otel.Application` that *do* hold state
   are the BatchProcessor itself, `Otel.Trace.SpanStorage` (ETS
   owner), and the configured exporter.
 
+  ## Lifecycle
+
+  Application shutdown is delegated to OTP. `Application.stop(:otel)`
+  drives the supervisor down, which calls
+  `Otel.Trace.SpanProcessor.terminate/2` to drain pending spans
+  and shut the exporter. There is no `shutdown/1` API on this
+  module.
+
   ## Public API
 
   | Function | Role |
   |---|---|
   | `init/0` | **SDK** (boot hook) — seed `:persistent_term` (resource + spec-default span_limits) |
-  | `get_tracer/1` | **Application** (OTel API MUST) — Get a Tracer (`trace/api.md` L107-L157) |
-  | `shutdown/1` | **Application** (OTel API MUST) — Shutdown (`trace/sdk.md` §Shutdown) |
-  | `force_flush/1` | **Application** (OTel API MUST) — ForceFlush (`trace/sdk.md` §ForceFlush) |
+  | `get_tracer/0` | **Application** — Get a Tracer (`trace/api.md` L107-L157) |
   | `resource/0`, `config/0` | **Application** (introspection) |
-  | `shut_down?/0` | **SDK** — internal flag for `Tracer.enabled?/2` |
 
   ## References
 
@@ -33,17 +36,10 @@ defmodule Otel.Trace.TracerProvider do
 
   @persistent_key {__MODULE__, :state}
 
-  # Default timeout for `shutdown/1` and `force_flush/1`
-  # (30000ms). Matches BatchSpanProcessor's `exportTimeoutMillis`
-  # default.
-  @default_shutdown_timeout_ms 30_000
-  @default_force_flush_timeout_ms 30_000
-
   @typedoc "Internal provider state held in `:persistent_term`."
   @type state :: %{
           resource: Otel.Resource.t(),
-          span_limits: Otel.Trace.SpanLimits.t(),
-          shut_down: boolean()
+          span_limits: Otel.Trace.SpanLimits.t()
         }
 
   @doc """
@@ -58,74 +54,26 @@ defmodule Otel.Trace.TracerProvider do
   def init do
     :persistent_term.put(@persistent_key, %{
       resource: Otel.Resource.from_app_env(),
-      span_limits: %Otel.Trace.SpanLimits{},
-      shut_down: false
+      span_limits: %Otel.Trace.SpanLimits{}
     })
 
     :ok
   end
 
   @doc """
-  **Application** (OTel API MUST) — Get a Tracer
+  **Application** — Get a Tracer
   (`trace/api.md` §Get a Tracer L107-L157).
 
   Returns a configured `%Otel.Trace.Tracer{}` struct stamped
   with the boot-time resource/limits and the SDK's hardcoded
   instrumentation scope (see `Otel.InstrumentationScope`).
-  After `shutdown/1`, returns a degenerate Tracer (empty
-  defaults).
   """
   @spec get_tracer() :: Otel.Trace.Tracer.t()
   def get_tracer do
-    state = state()
-
-    if state.shut_down do
-      %Otel.Trace.Tracer{}
-    else
-      %Otel.Trace.Tracer{
-        scope: %Otel.InstrumentationScope{},
-        span_limits: state.span_limits
-      }
-    end
-  end
-
-  @doc """
-  **Application** (OTel API MUST) — Shutdown
-  (`trace/sdk.md` §Shutdown).
-
-  Sets the shut-down flag in `:persistent_term` and forwards
-  to `Otel.Trace.SpanProcessor.shutdown/1`. Subsequent calls
-  return `{:error, :already_shutdown}`.
-  """
-  @spec shutdown(timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(timeout \\ @default_shutdown_timeout_ms) do
-    case :persistent_term.get(@persistent_key, nil) do
-      nil ->
-        :ok
-
-      %{shut_down: true} ->
-        {:error, :already_shutdown}
-
-      state ->
-        :persistent_term.put(@persistent_key, %{state | shut_down: true})
-        Otel.Trace.SpanProcessor.shutdown(timeout)
-    end
-  end
-
-  @doc """
-  **Application** (OTel API MUST) — ForceFlush
-  (`trace/sdk.md` §ForceFlush).
-
-  Forwards to `Otel.Trace.SpanProcessor.force_flush/1`.
-  Returns `{:error, :already_shutdown}` after `shutdown/1`.
-  """
-  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
-  def force_flush(timeout \\ @default_force_flush_timeout_ms) do
-    case :persistent_term.get(@persistent_key, nil) do
-      nil -> :ok
-      %{shut_down: true} -> {:error, :already_shutdown}
-      _ -> Otel.Trace.SpanProcessor.force_flush(timeout)
-    end
+    %Otel.Trace.Tracer{
+      scope: %Otel.InstrumentationScope{},
+      span_limits: state().span_limits
+    }
   end
 
   @doc """
@@ -143,16 +91,6 @@ defmodule Otel.Trace.TracerProvider do
   @spec config() :: state() | %{}
   def config, do: :persistent_term.get(@persistent_key, %{})
 
-  @doc """
-  **SDK** — Returns `true` when shutdown has been invoked.
-  Used by `Otel.Trace.Tracer.enabled?/2`.
-  """
-  @spec shut_down?() :: boolean()
-  def shut_down? do
-    state = :persistent_term.get(@persistent_key, nil)
-    state == nil or state.shut_down
-  end
-
   # --- Private ---
 
   @spec state() :: state()
@@ -162,8 +100,7 @@ defmodule Otel.Trace.TracerProvider do
   defp default_state do
     %{
       resource: Otel.Resource.default(),
-      span_limits: %Otel.Trace.SpanLimits{},
-      shut_down: false
+      span_limits: %Otel.Trace.SpanLimits{}
     }
   end
 end
