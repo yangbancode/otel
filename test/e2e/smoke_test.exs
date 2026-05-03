@@ -14,9 +14,7 @@ defmodule Otel.E2E.SmokeTest do
   end
 
   test "log lands in Loki", %{e2e_id: e2e_id} do
-    logger = Otel.Logs.LoggerProvider.get_logger()
-
-    Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
+    Otel.Logs.emit(%Otel.Logs.LogRecord{
       body: "e2e smoke log #{e2e_id}",
       severity_number: 9,
       severity_text: "info",

@@ -9,7 +9,7 @@ defmodule Otel.Logs.LogRecordLimits do
   forward into `Otel.Logs.LogRecord.dropped_attributes_count`.
   Composition ordering and the spec-required discard message
   (`logs/sdk.md` L345-348) remain the orchestrator's
-  responsibility — see `Otel.Logs.Logger.build_log_record/3`.
+  responsibility — see `Otel.Logs.Logger.emit/2`.
 
   ## Configurable parameters
 
@@ -27,14 +27,10 @@ defmodule Otel.Logs.LogRecordLimits do
   ## Configuration sources
 
   Spec env vars `OTEL_LOGRECORD_ATTRIBUTE_COUNT_LIMIT` and
-  `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` are not
-  read at this layer. Configuration flows through two
-  paths: the struct defaults shown above, and explicit
-  programmatic overrides via
-  `Otel.Logs.LoggerProvider.start_link/1`. A future
-  cross-cutting env-config helper may surface those env
-  vars uniformly across modules; the per-module API is
-  unchanged either way.
+  `OTEL_LOGRECORD_ATTRIBUTE_VALUE_LENGTH_LIMIT` are not read.
+  Minikube hardcodes the spec defaults; `Otel.Logs.Logger`
+  carries the limits as a compile-time literal
+  (`@log_record_limits`) and there is no runtime override.
 
   ## Truncation rules
 

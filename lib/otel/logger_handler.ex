@@ -6,7 +6,7 @@ defmodule Otel.LoggerHandler do
 
   Converts `:logger.log_event/0` into an
   `Otel.Logs.LogRecord.t/0` and emits it via
-  `Otel.Logs.Logger.emit/3`. Records flow through registered
+  `Otel.Logs.emit/2`. Records flow through registered
   processors to exporters; if no processors are registered
   the emit is a silent no-op.
 
@@ -16,12 +16,7 @@ defmodule Otel.LoggerHandler do
 
   No handler-specific configuration is supported — minikube
   hardcodes the instrumentation scope to the SDK identity
-  (see `Otel.InstrumentationScope`). `log/2` resolves the
-  Logger through `Otel.Logs.LoggerProvider.get_logger/0` on
-  every event so that a Logger obtained before the SDK
-  started — or before its processor list was finalised —
-  does not lock the handler into stale state for the rest
-  of the system's lifetime.
+  (see `Otel.InstrumentationScope`).
 
   Batching and export are handled by the SDK's processor
   pipeline, not by this handler. Pair with `BatchProcessor`
@@ -332,10 +327,7 @@ defmodule Otel.LoggerHandler do
   @doc false
   @spec log(log_event :: :logger.log_event(), config :: :logger.handler_config()) :: :ok
   def log(log_event, _config) do
-    ctx = Otel.Ctx.current()
-    logger = Otel.Logs.LoggerProvider.get_logger()
-    log_record = build_log_record(log_event)
-    Otel.Logs.Logger.emit(logger, ctx, log_record)
+    Otel.Logs.emit(Otel.Ctx.current(), build_log_record(log_event))
     :ok
   end
 

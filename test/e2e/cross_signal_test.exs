@@ -35,13 +35,11 @@ defmodule Otel.E2E.CrossSignalTest do
   describe "cross-signal correlation" do
     test "1: log emitted inside with_span carries the same trace_id to Loki",
          %{e2e_id: e2e_id} do
-      logger = Otel.Logs.LoggerProvider.get_logger()
-
       Otel.Trace.with_span(
         "scenario-1-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
-          Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
+          Otel.Logs.emit(%Otel.Logs.LogRecord{
             body: "scenario-1-log-#{e2e_id}",
             severity_number: 9,
             attributes: %{"e2e.id" => e2e_id}
@@ -91,7 +89,6 @@ defmodule Otel.E2E.CrossSignalTest do
     end
 
     test "3: service.name is consistent across all 3 pillars", %{e2e_id: e2e_id} do
-      logger = Otel.Logs.LoggerProvider.get_logger()
       meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_3_#{e2e_id}"
 
@@ -101,7 +98,7 @@ defmodule Otel.E2E.CrossSignalTest do
         fn _ -> :ok end
       )
 
-      Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
+      Otel.Logs.emit(%Otel.Logs.LogRecord{
         body: "scenario-3-log-#{e2e_id}",
         severity_number: 9,
         attributes: %{"e2e.id" => e2e_id}
@@ -142,7 +139,6 @@ defmodule Otel.E2E.CrossSignalTest do
       # is checked for landing only — see moduledoc § Mimir
       # scope-name caveat.
       scope_name = "otel"
-      logger = Otel.Logs.LoggerProvider.get_logger()
       meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_4_#{e2e_id}"
 
@@ -152,7 +148,7 @@ defmodule Otel.E2E.CrossSignalTest do
         fn _ -> :ok end
       )
 
-      Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
+      Otel.Logs.emit(%Otel.Logs.LogRecord{
         body: "scenario-4-log-#{e2e_id}",
         severity_number: 9,
         attributes: %{"e2e.id" => e2e_id}
