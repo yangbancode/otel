@@ -2,17 +2,12 @@ defmodule Otel.Trace.TracerProvider do
   @moduledoc """
   TracerProvider — minikube hardcoded.
 
-  Issues `%Otel.Trace.Tracer{}` structs. The `resource` flows
-  from the user's `config :otel, resource: %{...}` and is
-  loaded once at boot via `init/0` into `:persistent_term`;
-  every other knob (`span_limits` etc.) is hardcoded to the
-  spec defaults at compile time and stamped on the Tracer
-  struct via its `defstruct` defaults.
-
-  Not a GenServer — this module holds no process state. The
-  three siblings under `Otel.Application` that *do* hold state
-  are the BatchProcessor itself, `Otel.Trace.SpanStorage` (ETS
-  owner), and the configured exporter.
+  Issues `%Otel.Trace.Tracer{}` structs. Holds no process or
+  persistent state; the SDK's only user-tunable knob is the
+  `:resource` `Application` env, which `Otel.Resource.from_app_env/0`
+  reads on every call. Every other knob (`span_limits`, scope, etc.)
+  is a compile-time literal carried by `Tracer`'s `defstruct`
+  defaults.
 
   ## Lifecycle
 
@@ -26,7 +21,6 @@ defmodule Otel.Trace.TracerProvider do
 
   | Function | Role |
   |---|---|
-  | `init/0` | **SDK** (boot hook) — seed `:persistent_term` with the resolved resource |
   | `get_tracer/0` | **Application** — Get a Tracer (`trace/api.md` L107-L157) |
   | `resource/0`, `config/0` | **Application** (introspection) |
 
@@ -36,54 +30,32 @@ defmodule Otel.Trace.TracerProvider do
   - OTel Trace API §Tracer Provider: `opentelemetry-specification/specification/trace/api.md` §TracerProvider
   """
 
-  @persistent_key {__MODULE__, :state}
-
-  @typedoc "Internal provider state held in `:persistent_term`."
-  @type state :: %{resource: Otel.Resource.t()}
-
-  @doc """
-  **SDK** (boot hook) — Called once from `Otel.Application.start/2`
-  to seed the `:persistent_term` slot. Idempotent — safe to call
-  multiple times (each call replaces the slot wholesale).
-  """
-  @spec init() :: :ok
-  def init do
-    :persistent_term.put(@persistent_key, %{resource: Otel.Resource.from_app_env()})
-    :ok
-  end
-
   @doc """
   **Application** — Get a Tracer
   (`trace/api.md` §Get a Tracer L107-L157).
 
   Returns a configured `%Otel.Trace.Tracer{}` struct stamped
   with the SDK's hardcoded instrumentation scope (see
-  `Otel.InstrumentationScope`). Span limits come from the
-  Tracer struct's compile-time defaults.
+  `Otel.InstrumentationScope`) and the spec-default
+  `Otel.Trace.SpanLimits` (both come from `Tracer`'s `defstruct`
+  defaults).
   """
   @spec get_tracer() :: Otel.Trace.Tracer.t()
   def get_tracer, do: %Otel.Trace.Tracer{}
 
   @doc """
   **Application** (introspection) — Returns the resource
-  associated with this provider, or `Otel.Resource.default/0`
-  when the SDK isn't booted.
+  resolved from the `:otel` `:resource` `Application` env, or
+  `Otel.Resource.default/0` when no env is set.
   """
   @spec resource() :: Otel.Resource.t()
-  def resource, do: state().resource
+  def resource, do: Otel.Resource.from_app_env()
 
   @doc """
-  **Application** (introspection) — Returns the persistent_term
-  state, or an empty map when the SDK isn't booted.
+  **Application** (introspection) — Returns a synthetic
+  config map with the resolved resource. Kept for symmetry
+  with the boot-time snapshot the Provider used to expose.
   """
-  @spec config() :: state() | %{}
-  def config, do: :persistent_term.get(@persistent_key, %{})
-
-  # --- Private ---
-
-  @spec state() :: state()
-  defp state, do: :persistent_term.get(@persistent_key, default_state())
-
-  @spec default_state() :: state()
-  defp default_state, do: %{resource: Otel.Resource.default()}
+  @spec config() :: %{resource: Otel.Resource.t()}
+  def config, do: %{resource: resource()}
 end

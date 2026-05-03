@@ -2,16 +2,16 @@ defmodule Otel.Metrics.MeterProvider do
   @moduledoc """
   MeterProvider — minikube hardcoded.
 
-  Issues `%Otel.Metrics.Meter{}` structs. The `resource` flows
-  from the user's `config :otel, resource: %{...}` and is
-  loaded once at boot via `init/0` into `:persistent_term`
-  alongside the named ETS tables and the per-reader id;
-  every other knob (`exemplar_filter`, `temporality_mapping`)
-  is hardcoded to the spec defaults at compile time.
+  Issues `%Otel.Metrics.Meter{}` structs. Holds no process or
+  persistent state; the SDK's only user-tunable knob is the
+  `:resource` `Application` env, which `Otel.Resource.from_app_env/0`
+  reads on every call. Every other knob (scope, exemplar filter,
+  ETS table identifiers, reader id, temporality mapping) is a
+  compile-time literal.
 
-  Not a GenServer — `init/0` creates the named ETS tables and
-  seeds `:persistent_term`; the tables are owned by the
-  caller process (the SDK Application controller in
+  `init/0` runs once from `Otel.Application.start/2` to create
+  the named ETS tables that hold metrics state; the tables are
+  owned by the caller process (the SDK Application controller in
   production, or the test process in tests).
 
   ## Lifecycle
@@ -26,7 +26,7 @@ defmodule Otel.Metrics.MeterProvider do
 
   | Function | Role |
   |---|---|
-  | `init/0` | **SDK** (boot hook) — create ETS, seed `:persistent_term` |
+  | `init/0` | **SDK** (boot hook) — create the named ETS tables |
   | `get_meter/0` | **Application** — Get a Meter |
   | `resource/0`, `config/0` | **Application** (introspection) |
   | `delete_storage/0` | **SDK** (test cleanup) — drop ETS tables |
@@ -36,7 +36,12 @@ defmodule Otel.Metrics.MeterProvider do
   - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
   """
 
-  @persistent_key {__MODULE__, :state}
+  # Hardcoded identifiers shared by Meter and MetricReader.
+  # `reader_id` was a `make_ref/0` reference back when the SDK
+  # supported multiple readers; minikube has exactly one, so a
+  # stable atom suffices and removes the only thing left that
+  # genuinely needed boot-time persistence.
+  @reader_id :default_reader
 
   @ets_tables [
     :otel_instruments,
@@ -47,61 +52,23 @@ defmodule Otel.Metrics.MeterProvider do
     :otel_observed_attrs
   ]
 
-  @typedoc "Internal provider state held in `:persistent_term`."
-  @type state :: %{
-          resource: Otel.Resource.t(),
-          base_meter_config: map(),
-          reader_meter_config: map(),
-          reader_id: reference() | nil
-        }
-
   @doc """
   **SDK** (boot hook) — Called once from
   `Otel.Application.start/2` (or from `Otel.TestSupport` for
-  tests) to create the named ETS tables and seed the
-  `:persistent_term` slot.
-
-  Idempotent: a second call replaces the persistent_term slot
-  and reuses the existing ETS tables (or creates them if
+  tests) to create the named ETS tables. Idempotent — a
+  second call reuses the existing tables (or creates them if
   missing).
   """
   @spec init() :: :ok
   def init do
     ensure_tables!()
-
-    resource = Otel.Resource.from_app_env()
-    reader_id = make_ref()
-
-    base_meter_config = %{
-      resource: resource,
-      instruments_tab: :otel_instruments,
-      streams_tab: :otel_streams,
-      metrics_tab: :otel_metrics,
-      callbacks_tab: :otel_callbacks,
-      exemplars_tab: :otel_exemplars,
-      observed_attrs_tab: :otel_observed_attrs,
-      exemplar_filter: :trace_based
-    }
-
-    reader_meter_config =
-      base_meter_config
-      |> Map.put(:reader_id, reader_id)
-      |> Map.put(:temporality_mapping, Otel.Metrics.Instrument.default_temporality_mapping())
-
-    :persistent_term.put(@persistent_key, %{
-      resource: resource,
-      base_meter_config: base_meter_config,
-      reader_meter_config: reader_meter_config,
-      reader_id: reader_id
-    })
-
     :ok
   end
 
   @doc """
-  **SDK** (test cleanup) — Drops all named ETS tables and the
-  persistent_term slot. Called from `Otel.TestSupport.stop_all/0`
-  so each test starts from a clean slate.
+  **SDK** (test cleanup) — Drops all named ETS tables. Called
+  from `Otel.TestSupport.stop_all/0` so each test starts from
+  a clean slate.
 
   Each `:ets.delete/1` is wrapped in a `try/rescue` because the
   table's owning process may die concurrently with `stop_all`
@@ -121,7 +88,6 @@ defmodule Otel.Metrics.MeterProvider do
       end
     end)
 
-    :persistent_term.erase(@persistent_key)
     :ok
   end
 
@@ -130,64 +96,66 @@ defmodule Otel.Metrics.MeterProvider do
   (`metrics/api.md` §Get a Meter).
 
   Returns a configured `%Otel.Metrics.Meter{}` struct stamped
-  with the boot-time meter config and the SDK's hardcoded
-  instrumentation scope (see `Otel.InstrumentationScope`).
+  with the SDK's hardcoded instrumentation scope (see
+  `Otel.InstrumentationScope`), the resolved resource, and
+  the named ETS table handles + reader id used by the
+  collect/record paths.
   """
   @spec get_meter() :: Otel.Metrics.Meter.t()
-  def get_meter do
-    state = state()
-    reader_meter_config = state.reader_meter_config
-    reader_opts = %{temporality_mapping: reader_meter_config.temporality_mapping}
+  def get_meter, do: %Otel.Metrics.Meter{config: meter_config()}
 
-    meter_config =
-      Map.merge(state.base_meter_config, %{
-        scope: %Otel.InstrumentationScope{},
-        reader_configs: [{state.reader_id, reader_opts}]
-      })
-
-    %Otel.Metrics.Meter{config: meter_config}
-  end
+  @doc """
+  **SDK** — Returns the meter config the
+  `Otel.Metrics.MetricReader.PeriodicExporting` reader uses to
+  collect from the named ETS tables. Same map as the config
+  stamped on a `%Meter{}` by `get_meter/0` — `meter_config/0`
+  carries both the producer-side `reader_configs` and the
+  consumer-side `reader_id` + `temporality_mapping` so either
+  caller can use the same map.
+  """
+  @spec reader_meter_config() :: map()
+  def reader_meter_config, do: meter_config()
 
   @doc """
   **Application** (introspection) — Returns the resource
-  associated with this provider, or `Otel.Resource.default/0`
-  when the SDK isn't booted.
+  resolved from the `:otel` `:resource` `Application` env, or
+  `Otel.Resource.default/0` when no env is set.
   """
   @spec resource() :: Otel.Resource.t()
-  def resource, do: state().resource
+  def resource, do: Otel.Resource.from_app_env()
 
   @doc """
-  **Application** (introspection) — Returns the persistent_term
-  state, or an empty map when the SDK isn't booted.
+  **Application** (introspection) — Returns a synthetic
+  config map with the resolved resource and the same shape
+  the boot-time snapshot used to expose.
   """
-  @spec config() :: state() | %{}
-  def config, do: :persistent_term.get(@persistent_key, %{})
-
-  @doc """
-  **SDK** — Returns the reader_meter_config seeded by `init/0`.
-  Used by `Otel.Metrics.MetricReader.PeriodicExporting.init/1`
-  to read the named ETS tables and reader_id.
-  """
-  @spec reader_meter_config() :: map() | nil
-  def reader_meter_config do
-    case :persistent_term.get(@persistent_key, nil) do
-      nil -> nil
-      state -> state.reader_meter_config
-    end
-  end
+  @spec config() :: map()
+  def config, do: meter_config()
 
   # --- Private ---
 
-  @spec state() :: state()
-  defp state, do: :persistent_term.get(@persistent_key, default_state())
+  @spec meter_config() :: map()
+  defp meter_config do
+    temporality_mapping = Otel.Metrics.Instrument.default_temporality_mapping()
 
-  @spec default_state() :: state()
-  defp default_state do
     %{
-      resource: Otel.Resource.default(),
-      base_meter_config: %{},
-      reader_meter_config: %{},
-      reader_id: nil
+      scope: %Otel.InstrumentationScope{},
+      resource: Otel.Resource.from_app_env(),
+      instruments_tab: :otel_instruments,
+      streams_tab: :otel_streams,
+      metrics_tab: :otel_metrics,
+      callbacks_tab: :otel_callbacks,
+      exemplars_tab: :otel_exemplars,
+      observed_attrs_tab: :otel_observed_attrs,
+      exemplar_filter: :trace_based,
+      # Consumer-side keys for `MetricReader.collect/1` —
+      # `meter.config` is interchangeable with the reader's
+      # collect config so callers don't have to juggle two shapes.
+      reader_id: @reader_id,
+      temporality_mapping: temporality_mapping,
+      # Producer-side key for `Meter.record/3` — single-element
+      # since minikube has exactly one reader.
+      reader_configs: [{@reader_id, %{temporality_mapping: temporality_mapping}}]
     }
   end
 

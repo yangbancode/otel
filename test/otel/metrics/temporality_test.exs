@@ -30,43 +30,33 @@ defmodule Otel.Metrics.TemporalityTest do
 
   defp default_provider do
     Otel.TestSupport.restart_with(metrics: [readers: []])
-
-    %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter()
-
-    %{meter: %Otel.Metrics.Meter{config: config}, config: config}
+    meter = Otel.Metrics.MeterProvider.get_meter()
+    %{meter: meter, config: meter.config}
   end
 
   defp delta_provider do
-    # restart_with(readers: []) zeroes reader_id; we want a real
-    # reader_id for delta-mode tests. Re-seed MeterProvider with a
-    # fresh reader_id + delta temporality_mapping, then start a
-    # DeltaReader bound to that meter_config.
+    # MeterProvider returns the cumulative-temporality meter_config;
+    # to exercise delta paths the test rebuilds the same map with
+    # the delta `temporality_mapping` (and corresponding
+    # `reader_configs` entry so `Meter.record` registers streams
+    # under that mapping).
     Otel.TestSupport.restart_with(metrics: [readers: []])
 
-    state_key = {Otel.Metrics.MeterProvider, :state}
-    state = :persistent_term.get(state_key)
+    base = Otel.Metrics.MeterProvider.reader_meter_config()
 
-    reader_id = make_ref()
-
-    delta_reader_meter_config = %{
-      state.reader_meter_config
-      | reader_id: reader_id,
-        temporality_mapping: @delta_mapping
+    delta_meter_config = %{
+      base
+      | temporality_mapping: @delta_mapping,
+        reader_configs: [{base.reader_id, %{temporality_mapping: @delta_mapping}}]
     }
 
-    :persistent_term.put(state_key, %{
-      state
-      | reader_id: reader_id,
-        reader_meter_config: delta_reader_meter_config
-    })
+    {:ok, reader_pid} = DeltaReader.start_link(%{meter_config: delta_meter_config})
 
-    {:ok, reader_pid} = DeltaReader.start_link(%{meter_config: delta_reader_meter_config})
-
-    %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter()
-
-    %{meter: %Otel.Metrics.Meter{config: config}, reader: reader_pid, config: config}
+    %{
+      meter: %Otel.Metrics.Meter{config: delta_meter_config},
+      reader: reader_pid,
+      config: delta_meter_config
+    }
   end
 
   describe "default temporality (cumulative for everything except gauges)" do

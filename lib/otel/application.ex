@@ -6,14 +6,13 @@ defmodule Otel.Application do
   @impl true
   @spec start(type :: Application.start_type(), args :: term()) :: {:ok, pid()}
   def start(_type, _args) do
-    # Seed `:persistent_term` for the three Provider modules
-    # (resource, span_limits, exemplar_filter, log_record_limits,
-    # ETS table refs). Must run before `MetricReader.PeriodicExporting`
-    # starts, since the reader reads `MeterProvider.reader_meter_config/0`
-    # in its init.
-    Otel.Trace.TracerProvider.init()
+    # Create the named ETS tables that hold metrics state. Must
+    # run before `MetricReader.PeriodicExporting` starts, since
+    # the reader reads `MeterProvider.reader_meter_config/0` in
+    # its init. Tracer/LoggerProvider hold no boot-time state —
+    # the only user-tunable knob is the `:resource` Application
+    # env, read via `Otel.Resource.from_app_env/0` on demand.
     Otel.Metrics.MeterProvider.init()
-    Otel.Logs.LoggerProvider.init()
 
     children = [
       Otel.Trace.SpanStorage,
