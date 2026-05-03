@@ -35,15 +35,16 @@ defmodule Otel.TestSupport do
 
   | Pillar | Keys |
   |---|---|
-  | `:trace` | `:processors`, `:resource` |
-  | `:metrics` | `:readers`, `:exemplar_filter` |
-  | `:logs` | `:processors`, `:resource` |
+  | `:trace` | `:processors` |
+  | `:metrics` | `:readers` |
+  | `:logs` | `:processors` |
 
-  Tests that need custom span/log-record limits build the
-  `%Otel.Trace.Tracer{}` / `%Otel.Logs.Logger{}` struct
-  directly with the desired limits — limits are no longer
-  carried in `:persistent_term`, only the `defstruct` defaults
-  apply through the Provider's `get_*/0` path.
+  Tests that need custom span/log-record limits, exemplar
+  filter, or resource construct the relevant struct (or the
+  meter `config` map) directly with the desired values —
+  none of those flow through `Otel.TestSupport` overrides
+  anymore. Resource changes propagate through
+  `Application.put_env(:otel, :resource, %{...})`.
 
   `:processors` / `:readers` are lists of `{module, config}`
   tuples. The first entry's module is started under the
@@ -54,9 +55,9 @@ defmodule Otel.TestSupport do
 
   import ExUnit.Callbacks, only: [on_exit: 1]
 
-  @trace_keys [:processors, :resource]
-  @metrics_keys [:readers, :exemplar_filter]
-  @logs_keys [:processors, :resource]
+  @trace_keys [:processors]
+  @metrics_keys [:readers]
+  @logs_keys [:processors]
 
   @doc """
   Stops `:otel`, applies overrides, re-seeds providers and
@@ -79,13 +80,12 @@ defmodule Otel.TestSupport do
 
     stop_all()
 
-    # 1. Seed persistent_term for all three providers (resource,
-    # ETS tables, reader_id).
-    Otel.Trace.TracerProvider.init()
+    # 1. Create the named ETS tables. Tracer/LoggerProvider hold
+    # no boot-time state — `:resource` is read via
+    # `Otel.Resource.from_app_env/0` on demand.
     Otel.Metrics.MeterProvider.init()
-    Otel.Logs.LoggerProvider.init()
 
-    # 2. Apply test-only overrides on top of the seeded state.
+    # 2. Apply test-only overrides via `Application.put_env/3`.
     apply_trace_overrides(trace_overrides)
     apply_metrics_overrides(metrics_overrides)
     apply_logs_overrides(logs_overrides)
@@ -127,9 +127,6 @@ defmodule Otel.TestSupport do
     )
 
     Otel.Metrics.MeterProvider.delete_storage()
-    :persistent_term.erase({Otel.Trace.TracerProvider, :state})
-    :persistent_term.erase({Otel.Logs.LoggerProvider, :state})
-
     :ok
   end
 
@@ -137,15 +134,10 @@ defmodule Otel.TestSupport do
 
   @spec apply_trace_overrides(overrides :: keyword()) :: :ok
   defp apply_trace_overrides(overrides) do
-    state = :persistent_term.get({Otel.Trace.TracerProvider, :state})
+    Enum.each(overrides, fn
+      {:processors, _} -> :ok
+    end)
 
-    state =
-      Enum.reduce(overrides, state, fn
-        {:resource, resource}, acc -> %{acc | resource: resource}
-        {:processors, _}, acc -> acc
-      end)
-
-    :persistent_term.put({Otel.Trace.TracerProvider, :state}, state)
     :ok
   end
 
@@ -177,15 +169,10 @@ defmodule Otel.TestSupport do
 
   @spec apply_logs_overrides(overrides :: keyword()) :: :ok
   defp apply_logs_overrides(overrides) do
-    state = :persistent_term.get({Otel.Logs.LoggerProvider, :state})
+    Enum.each(overrides, fn
+      {:processors, _} -> :ok
+    end)
 
-    state =
-      Enum.reduce(overrides, state, fn
-        {:resource, resource}, acc -> %{acc | resource: resource}
-        {:processors, _}, acc -> acc
-      end)
-
-    :persistent_term.put({Otel.Logs.LoggerProvider, :state}, state)
     :ok
   end
 
@@ -212,23 +199,10 @@ defmodule Otel.TestSupport do
 
   @spec apply_metrics_overrides(overrides :: keyword()) :: :ok
   defp apply_metrics_overrides(overrides) do
-    state_key = {Otel.Metrics.MeterProvider, :state}
-    state = :persistent_term.get(state_key)
+    Enum.each(overrides, fn
+      {:readers, _} -> :ok
+    end)
 
-    state =
-      Enum.reduce(overrides, state, fn
-        {:exemplar_filter, filter}, acc ->
-          %{
-            acc
-            | base_meter_config: %{acc.base_meter_config | exemplar_filter: filter},
-              reader_meter_config: %{acc.reader_meter_config | exemplar_filter: filter}
-          }
-
-        {:readers, _}, acc ->
-          acc
-      end)
-
-    :persistent_term.put(state_key, state)
     :ok
   end
 
@@ -239,22 +213,15 @@ defmodule Otel.TestSupport do
         start_orphan!(Otel.Metrics.MetricReader.PeriodicExporting, %{})
 
       [] ->
-        # No reader is running — patch MeterProvider's persistent_term
-        # so streams created via `get_meter` carry `reader_id: nil`.
-        # Tests that just inspect `MetricReader.collect/1` directly
-        # rely on this nil-vs-nil match.
-        state_key = {Otel.Metrics.MeterProvider, :state}
-        state = :persistent_term.get(state_key)
-
-        :persistent_term.put(state_key, %{
-          state
-          | reader_id: nil,
-            reader_meter_config: %{state.reader_meter_config | reader_id: nil}
-        })
+        # No reader is running — tests that just inspect
+        # `MetricReader.collect/1` directly do so by passing the
+        # config they want; the hardcoded `reader_id` in
+        # `MeterProvider` matches whatever stream they registered.
+        :ok
 
       [{module, config}] ->
         # Reader's init expects meter_config — supply it from
-        # MeterProvider's persistent_term.
+        # `MeterProvider.reader_meter_config/0` (computed inline).
         config =
           Map.put_new(config, :meter_config, Otel.Metrics.MeterProvider.reader_meter_config())
 

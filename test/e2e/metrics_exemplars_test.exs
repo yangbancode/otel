@@ -1,14 +1,15 @@
 defmodule Otel.E2E.MetricsExemplarsTest do
   @moduledoc """
-  E2E coverage for exemplar filter + reservoir.
+  E2E coverage for the hardcoded `:trace_based` exemplar
+  filter + the reservoir defaults derived from aggregation
+  kind by `Stream.resolve/1` (histogram →
+  `AlignedHistogramBucket`, otherwise `SimpleFixedSize`).
 
-  `exemplar_filter` is a provider-wide setting (each describe
-  restarts the SDK with a different filter). Reservoir is
-  derived from aggregation kind by `Stream.resolve/1` —
-  histogram → `AlignedHistogramBucket`, otherwise
-  `SimpleFixedSize`.
-
-  Tracking matrix: `docs/e2e.md` §Metrics, scenarios 25–29.
+  Tracking matrix: `docs/e2e.md` §Metrics, scenarios 27–29.
+  Scenarios 25 (always_on) and 26 (always_off) were removed
+  when minikube hardcoded `exemplar_filter` to `:trace_based`
+  — the per-filter behaviour is unit-tested in
+  `test/otel/metrics/metric_reader_test.exs`.
 
   ## Land-only signal
 
@@ -23,37 +24,7 @@ defmodule Otel.E2E.MetricsExemplarsTest do
 
   use Otel.E2E.Case, async: false
 
-  describe "filter :always_on" do
-    setup do
-      restart_with(exemplar_filter: :always_on)
-    end
-
-    test "25: always_on records under sampling-mode reservoir", %{e2e_id: e2e_id} do
-      record_counter("e2e_scenario_25_#{e2e_id}", e2e_id)
-
-      assert {:ok, [_ | _]} =
-               poll(Mimir.query(e2e_id, "e2e_scenario_25_#{e2e_id}_total"))
-    end
-  end
-
-  describe "filter :always_off" do
-    setup do
-      restart_with(exemplar_filter: :always_off)
-    end
-
-    test "26: always_off uses Drop reservoir — metric still records", %{e2e_id: e2e_id} do
-      record_counter("e2e_scenario_26_#{e2e_id}", e2e_id)
-
-      assert {:ok, [_ | _]} =
-               poll(Mimir.query(e2e_id, "e2e_scenario_26_#{e2e_id}_total"))
-    end
-  end
-
   describe "filter :trace_based (default)" do
-    setup do
-      restart_with(exemplar_filter: :trace_based)
-    end
-
     test "27: trace_based records inside a sampled span", %{e2e_id: e2e_id} do
       tracer = Otel.Trace.TracerProvider.get_tracer()
       meter = Otel.Metrics.MeterProvider.get_meter()
@@ -100,16 +71,5 @@ defmodule Otel.E2E.MetricsExemplarsTest do
       flush()
       assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "#{metric}_total"))
     end
-  end
-
-  # ---- helpers ----
-
-  defp restart_with(opts), do: Otel.TestSupport.restart_with(metrics: opts)
-
-  defp record_counter(name, e2e_id) do
-    meter = Otel.Metrics.MeterProvider.get_meter()
-    counter = Otel.Metrics.Meter.create_counter(meter, name)
-    Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
-    flush()
   end
 end

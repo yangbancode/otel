@@ -70,19 +70,23 @@ defmodule Otel.Metrics.MetricReaderTest do
 
   # Spec metrics/sdk.md L1374-L1389 — exemplar_filter (:always_on /
   # :always_off / :trace_based) gates whether reservoirs collect at
-  # all; reservoirs reset between collect calls.
+  # all; reservoirs reset between collect calls. The Provider
+  # hardcodes `:trace_based`; tests that exercise the other two
+  # branches override `exemplar_filter` directly on the meter
+  # config map.
   describe "exemplars" do
     test ":always_on collects exemplars; :always_off yields []" do
-      restart_sdk(metrics: [readers: [], exemplar_filter: :always_on])
-      config = meter_config()
+      restart_sdk(metrics: [readers: []])
+
+      config = %{meter_config() | exemplar_filter: :always_on}
       counter = Otel.Metrics.Meter.create_counter(meter(config), "sampled", [])
       Otel.Metrics.Meter.record(counter, 42, %{"method" => "GET"})
 
       [%{datapoints: [dp]}] = Otel.Metrics.MetricReader.collect(config)
       assert hd(dp.exemplars).value == 42
 
-      restart_sdk(metrics: [readers: [], exemplar_filter: :always_off])
-      config2 = meter_config()
+      restart_sdk(metrics: [readers: []])
+      config2 = %{meter_config() | exemplar_filter: :always_off}
       counter2 = Otel.Metrics.Meter.create_counter(meter(config2), "not_sampled", [])
       Otel.Metrics.Meter.record(counter2, 1, %{})
 
@@ -91,8 +95,8 @@ defmodule Otel.Metrics.MetricReaderTest do
     end
 
     test "reservoirs reset between collect calls" do
-      restart_sdk(metrics: [readers: [], exemplar_filter: :always_on])
-      config = meter_config()
+      restart_sdk(metrics: [readers: []])
+      config = %{meter_config() | exemplar_filter: :always_on}
       counter = Otel.Metrics.Meter.create_counter(meter(config), "reset_test", [])
 
       Otel.Metrics.Meter.record(counter, 1, %{})

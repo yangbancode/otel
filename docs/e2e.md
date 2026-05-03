@@ -110,9 +110,7 @@ mix test --only e2e test/e2e/
 | `[~]` | 17 | Delta temporality | reader configured `:delta` | Unit-tested only — Mimir's OTLP receiver in LGTM 0.26.0 drops delta-temporality counters (delta-to-cumulative is opt-in, off by default), so an e2e test would have no signal beyond what `test/otel/sdk/metrics/temporality_test.exs` and `test/otel/otlp/encoder_test.exs` already cover. The setup_all-driven SDK restart that the e2e test would need also leaks delta config into other modules' tests |
 | `[x]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
 | `[x]` | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
-| `[~]` | 25 | Exemplar filter `:always_on` | sampling-mode reservoir | Mimir: lands (exemplar exposure config-dependent in LGTM 0.26.0) |
-| `[~]` | 26 | Exemplar filter `:always_off` | reservoir is `Drop` | Mimir: lands (Drop is internal-only contract) |
-| `[~]` | 27 | Exemplar filter `:trace_based` (default) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
+| `[~]` | 27 | Exemplar filter `:trace_based` (hardcoded) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
 | `[~]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: histogram lands |
 | `[~]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: counter lands |
 | `[x]` | 30 | PeriodicExporting `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
@@ -175,7 +173,7 @@ pass without touching `Application.put_env`).
 | C-2b | `log_handler_test.exs` | 21 |
 | C-3a | `metrics_sync_test.exs` | ~10 (rows 1–5, 8, 16, 18, 21, 30, 31) |
 | C-3b | `metrics_async_test.exs` | ~5 (rows 9–13) |
-| C-3c | `metrics_exemplars_test.exs` | ~5 (rows 25–29) |
+| C-3c | `metrics_exemplars_test.exs` | ~3 (rows 27–29) |
 | C-4 | `propagator_test.exs` | 5 |
 | C-5 | `resource_test.exs` | 4 |
 | C-6 | `shutdown_test.exs` | 1 |
