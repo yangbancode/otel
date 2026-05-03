@@ -201,10 +201,7 @@ defmodule Otel.E2E.LogHandlerTest do
 
   describe "trace context" do
     test "20: emit inside with_span carries trace_id / span_id", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       Otel.Trace.with_span(
-        tracer,
         "scenario-20-span-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->

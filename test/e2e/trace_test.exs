@@ -14,11 +14,9 @@ defmodule Otel.E2E.TraceTest do
 
   describe "lifecycle" do
     test "1: single span via with_span lands with the configured name", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-1-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
@@ -31,11 +29,10 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "2: manual start_span + end_span lands the same span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-2-#{e2e_id}"
 
       span_ctx =
-        Otel.Trace.start_span(tracer, name, attributes: %{"e2e.id" => e2e_id})
+        Otel.Trace.start_span(name, attributes: %{"e2e.id" => e2e_id})
 
       Otel.Trace.Span.end_span(span_ctx)
 
@@ -47,17 +44,16 @@ defmodule Otel.E2E.TraceTest do
 
     test "3: start_span/4 with explicit parent context links the child to that parent",
          %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       parent_name = "parent-3-#{e2e_id}"
       child_name = "child-3-#{e2e_id}"
 
       parent_ctx =
-        Otel.Trace.start_span(tracer, parent_name, attributes: %{"e2e.id" => e2e_id})
+        Otel.Trace.start_span(parent_name, attributes: %{"e2e.id" => e2e_id})
 
       ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), parent_ctx)
 
       child_ctx =
-        Otel.Trace.start_span(ctx, tracer, child_name, attributes: %{"e2e.id" => e2e_id})
+        Otel.Trace.start_span(ctx, child_name, attributes: %{"e2e.id" => e2e_id})
 
       Otel.Trace.Span.end_span(child_ctx)
       Otel.Trace.Span.end_span(parent_ctx)
@@ -76,11 +72,9 @@ defmodule Otel.E2E.TraceTest do
 
   describe "initial opts" do
     test "4: initial attributes via opts are persisted on the span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-4-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [
           attributes: %{
@@ -100,12 +94,11 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "5: initial links via opts are persisted on the span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       linked_name = "linked-5-#{e2e_id}"
       main_name = "scenario-5-#{e2e_id}"
 
       linked_ctx =
-        Otel.Trace.start_span(tracer, linked_name, attributes: %{"e2e.id" => e2e_id})
+        Otel.Trace.start_span(linked_name, attributes: %{"e2e.id" => e2e_id})
 
       Otel.Trace.Span.end_span(linked_ctx)
 
@@ -115,7 +108,6 @@ defmodule Otel.E2E.TraceTest do
       }
 
       Otel.Trace.with_span(
-        tracer,
         main_name,
         [links: [link], attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
@@ -132,17 +124,14 @@ defmodule Otel.E2E.TraceTest do
 
     test "6: is_root: true creates a new root span ignoring the active parent",
          %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       outer_name = "outer-6-#{e2e_id}"
       inner_name = "inner-root-6-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         outer_name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
           Otel.Trace.with_span(
-            tracer,
             inner_name,
             [is_root: true, attributes: %{"e2e.id" => e2e_id}],
             fn _ -> :ok end
@@ -167,11 +156,9 @@ defmodule Otel.E2E.TraceTest do
 
   describe "mutations" do
     test "7: set_attribute/3 mid-span persists on the span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-7-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -185,11 +172,9 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "8: set_attributes/2 bulk persists every key", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-8-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -209,11 +194,9 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "9: add_event/2 single event lands on the span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-9-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -228,11 +211,9 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "10: add_event/2 multiple events preserve emission order", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-10-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -248,17 +229,14 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "11: add_link/2 single link mid-span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       target_ctx =
-        Otel.Trace.start_span(tracer, "target-11-#{e2e_id}", attributes: %{"e2e.id" => e2e_id})
+        Otel.Trace.start_span("target-11-#{e2e_id}", attributes: %{"e2e.id" => e2e_id})
 
       Otel.Trace.Span.end_span(target_ctx)
 
       name = "scenario-11-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -273,12 +251,10 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "12: add_link/2 multiple links preserve emission order", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       targets =
         for n <- 1..3 do
           ctx =
-            Otel.Trace.start_span(tracer, "target-12-#{n}-#{e2e_id}",
+            Otel.Trace.start_span("target-12-#{n}-#{e2e_id}",
               attributes: %{"e2e.id" => e2e_id}
             )
 
@@ -289,7 +265,6 @@ defmodule Otel.E2E.TraceTest do
       name = "scenario-12-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -307,11 +282,9 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "13: set_status/2 :ok lands on the span", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-13-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -326,11 +299,9 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "14: set_status/2 :error carries the description", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-14-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -345,12 +316,10 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "15: update_name/2 changes the reported name", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       initial = "initial-15-#{e2e_id}"
       final = "final-15-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         initial,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -366,8 +335,6 @@ defmodule Otel.E2E.TraceTest do
 
   describe "kinds" do
     test "16: each of the 5 SpanKind variants round-trips through Tempo", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       kinds_to_otlp = [
         {:internal, [1, "SPAN_KIND_INTERNAL"]},
         {:server, [2, "SPAN_KIND_SERVER"]},
@@ -378,7 +345,6 @@ defmodule Otel.E2E.TraceTest do
 
       for {kind, _} <- kinds_to_otlp do
         Otel.Trace.with_span(
-          tracer,
           "scenario-16-#{kind}-#{e2e_id}",
           [kind: kind, attributes: %{"e2e.id" => e2e_id}],
           fn _ -> :ok end
@@ -399,12 +365,10 @@ defmodule Otel.E2E.TraceTest do
 
   describe "exception" do
     test "17: with_span auto-records a raised exception + Error status", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-17-#{e2e_id}"
 
       assert_raise RuntimeError, "boom-17", fn ->
         Otel.Trace.with_span(
-          tracer,
           name,
           [attributes: %{"e2e.id" => e2e_id}],
           fn _ -> raise "boom-17" end
@@ -421,11 +385,9 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "18: record_exception/3 records a manually-built exception event", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-18-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -444,11 +406,9 @@ defmodule Otel.E2E.TraceTest do
 
     test "19: record_exception/4 caller-supplied attrs override exception.* defaults",
          %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       name = "scenario-19-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -472,17 +432,14 @@ defmodule Otel.E2E.TraceTest do
 
   describe "nesting" do
     test "20: with_span inside with_span links child to parent", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       parent_name = "parent-20-#{e2e_id}"
       child_name = "child-20-#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         parent_name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
           Otel.Trace.with_span(
-            tracer,
             child_name,
             [attributes: %{"e2e.id" => e2e_id}],
             fn _ -> :ok end
@@ -501,17 +458,16 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "21: two siblings under one parent share parentSpanId", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       parent_name = "parent-21-#{e2e_id}"
       sib_a = "sib-a-21-#{e2e_id}"
       sib_b = "sib-b-21-#{e2e_id}"
 
-      Otel.Trace.with_span(tracer, parent_name, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
-        Otel.Trace.with_span(tracer, sib_a, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
+      Otel.Trace.with_span(parent_name, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
+        Otel.Trace.with_span(sib_a, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
           :ok
         end)
 
-        Otel.Trace.with_span(tracer, sib_b, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
+        Otel.Trace.with_span(sib_b, [attributes: %{"e2e.id" => e2e_id}], fn _ ->
           :ok
         end)
       end)
@@ -528,11 +484,8 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "22: deep nesting (5 levels) preserves the full parent chain", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       nest = fn nest, depth ->
         Otel.Trace.with_span(
-          tracer,
           "level-#{depth}-22-#{e2e_id}",
           [attributes: %{"e2e.id" => e2e_id}],
           fn _ ->
@@ -557,8 +510,6 @@ defmodule Otel.E2E.TraceTest do
     end
 
     test "23: child span carries parent's tracestate to Tempo", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       ts =
         Otel.Trace.TraceState.new()
         |> Otel.Trace.TraceState.add("vendor", "abc-#{e2e_id}")
@@ -579,7 +530,6 @@ defmodule Otel.E2E.TraceTest do
 
       Otel.Trace.with_span(
         ctx,
-        tracer,
         "child-23-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end

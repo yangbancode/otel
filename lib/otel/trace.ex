@@ -1,23 +1,24 @@
 defmodule Otel.Trace do
   @moduledoc """
-  Trace API facade — TracerProvider, Context Interaction, and
-  Span Creation entry points (OTel `trace/api.md`
-  §TracerProvider L88-L157, §Context Interaction L159-L183,
-  §Span Creation L378-L414).
+  Trace API facade — Context Interaction and Span Creation
+  entry points (OTel `trace/api.md` §Context Interaction
+  L159-L183, §Span Creation L378-L414).
 
-  Thin dispatcher over `Otel.Trace.TracerProvider` and the
-  registered Tracer implementation. Context Interaction
-  functions read/write span-in-context using a module-private
-  key so user code never needs to know the Context Key
-  (spec L171-L173 *"API users SHOULD NOT have access to the
-  Context Key"*).
+  Minikube has no plugin ecosystem, so the spec's TracerProvider
+  + Tracer entities collapse to a single hardcoded identity. The
+  facade exposes the closure-form `with_span/3,4` and explicit
+  `start_span/2,3` directly — there's no Tracer handle to obtain
+  via `get_tracer/0` first.
 
-  Span Creation dispatches through the Tracer's
-  `start_span/4`; the new Span is **not** automatically set
-  as the active span (spec L382). Use `with_span/4,5` for
-  automatic context management including exception recording
-  (spec L385 *"MAY be offered additionally as a separate
-  operation"*).
+  Context Interaction functions read/write span-in-context using
+  a module-private key so user code never needs to know the
+  Context Key (spec L171-L173 *"API users SHOULD NOT have access
+  to the Context Key"*).
+
+  Span Creation does **not** automatically set the new span as
+  the active span (spec L382). Use `with_span/3,4` for automatic
+  context management including exception recording (spec L385
+  *"MAY be offered additionally as a separate operation"*).
 
   All functions are safe for concurrent use (spec
   `trace/api.md` L843-L853 *"all methods MUST be documented
@@ -30,20 +31,17 @@ defmodule Otel.Trace do
   |---|---|
   | `current_span/1` | **Application** (OTel API MUST) — Extract Span from Context (L167) |
   | `set_current_span/2` | **Application** (OTel API MUST) — Combine Span with Context (L168) |
-  | `start_span/3`, `start_span/4` | **Application** (OTel API MUST) — Span Creation (L378-L414) |
+  | `start_span/2`, `start_span/3` | **Application** (OTel API MUST) — Span Creation (L378-L414) |
   | `current_span/0` | **Application** (OTel API SHOULD) — Get active span from implicit context (L177) |
   | `set_current_span/1` | **Application** (OTel API SHOULD) — Set active span into implicit context (L178) |
-  | `with_span/4`, `with_span/5` | **Application** (OTel API MAY) — closure-form separate operation (L385) |
+  | `with_span/3`, `with_span/4` | **Application** (OTel API MAY) — closure-form separate operation (L385) |
   | `make_current/1` | **Application** (OTel API MAY) — manual "set active span" (L384-L386) |
   | `detach/1` | **Application** (OTel API MAY) — revert `make_current/1` (L384-L386) |
-  | `get_tracer/0` | **Application** (Convenience) — facade over `TracerProvider` |
 
   ## References
 
-  - OTel Trace API §TracerProvider: `opentelemetry-specification/specification/trace/api.md` L88-L157
   - OTel Trace API §Context Interaction: `opentelemetry-specification/specification/trace/api.md` L159-L183
   - OTel Trace API §Span Creation: `opentelemetry-specification/specification/trace/api.md` L378-L414
-  - Reference impl: `opentelemetry-erlang/apps/opentelemetry_api/src/otel_tracer.erl`
   """
 
   @typedoc "Options for span creation. See `Otel.Trace.Span.start_opts/0`."
@@ -111,7 +109,7 @@ defmodule Otel.Trace do
   L378-L414).
 
   Per spec L382, the newly created span is **not** automatically
-  set as the current span. Use `with_span/4,5` for automatic
+  set as the current span. Use `with_span/3,4` for automatic
   context management.
 
   Per spec L403, adding attributes via `opts[:attributes]` at
@@ -119,10 +117,9 @@ defmodule Otel.Trace do
   samplers can only consider information already present during
   creation.
   """
-  @spec start_span(tracer :: Otel.Trace.Tracer.t(), name :: String.t(), opts :: start_opts()) ::
-          Otel.Trace.SpanContext.t()
-  def start_span(tracer, name, opts \\ []) do
-    start_span(Otel.Ctx.current(), tracer, name, opts)
+  @spec start_span(name :: String.t(), opts :: start_opts()) :: Otel.Trace.SpanContext.t()
+  def start_span(name, opts \\ []) do
+    Otel.Trace.Tracer.start_span(Otel.Ctx.current(), name, opts)
   end
 
   @doc """
@@ -133,53 +130,44 @@ defmodule Otel.Trace do
   parent — not a raw Span or SpanContext. Per spec L382 the
   newly created span is not set as the current span.
   """
-  @spec start_span(
-          ctx :: Otel.Ctx.t(),
-          tracer :: Otel.Trace.Tracer.t(),
-          name :: String.t(),
-          opts :: start_opts()
-        ) ::
+  @spec start_span(ctx :: Otel.Ctx.t(), name :: String.t(), opts :: start_opts()) ::
           Otel.Trace.SpanContext.t()
-  def start_span(ctx, %Otel.Trace.Tracer{} = tracer, name, opts) do
-    Otel.Trace.Tracer.start_span(ctx, tracer, name, opts)
+  def start_span(ctx, name, opts) do
+    Otel.Trace.Tracer.start_span(ctx, name, opts)
   end
 
   @doc """
-  **Application** (OTel API MAY) — dispatches to the Tracer's
-  `with_span/5` callback using the implicit (process-local)
-  context as parent (`trace/api.md` L385).
+  **Application** (OTel API MAY) — closure-form span creation
+  using the implicit (process-local) context as parent
+  (`trace/api.md` L385).
 
-  Forwards to the registered Tracer implementation which owns
-  the full span lifecycle (attach/fun/detach/end). See
-  `Otel.Trace.Tracer.with_span/5` callback contract for
-  lifecycle-ownership rationale.
+  Starts the span, makes it the current span for the closure,
+  records any exception that escapes, ends the span, and
+  detaches the context.
   """
   @spec with_span(
-          tracer :: Otel.Trace.Tracer.t(),
           name :: String.t(),
           opts :: start_opts(),
           fun :: (Otel.Trace.SpanContext.t() -> result)
         ) :: result
         when result: term()
-  def with_span(tracer, name, opts \\ [], fun) do
-    with_span(Otel.Ctx.current(), tracer, name, opts, fun)
+  def with_span(name, opts \\ [], fun) do
+    Otel.Trace.Tracer.with_span(Otel.Ctx.current(), name, opts, fun)
   end
 
   @doc """
-  **Application** (OTel API MAY) — same as `with_span/4` but
+  **Application** (OTel API MAY) — same as `with_span/3` but
   with an explicit parent context (`trace/api.md` L385).
   """
   @spec with_span(
           ctx :: Otel.Ctx.t(),
-          tracer :: Otel.Trace.Tracer.t(),
           name :: String.t(),
           opts :: start_opts(),
           fun :: (Otel.Trace.SpanContext.t() -> result)
-        ) ::
-          result
+        ) :: result
         when result: term()
-  def with_span(ctx, %Otel.Trace.Tracer{} = tracer, name, opts, fun) do
-    Otel.Trace.Tracer.with_span(ctx, tracer, name, opts, fun)
+  def with_span(ctx, name, opts, fun) do
+    Otel.Trace.Tracer.with_span(ctx, name, opts, fun)
   end
 
   # --- Manual active-span management ---
@@ -190,7 +178,7 @@ defmodule Otel.Trace do
   (`trace/api.md` L384-L386 *"this functionality MAY be offered
   additionally as a separate operation"*).
 
-  For most call sites, prefer `with_span/4,5` — it handles
+  For most call sites, prefer `with_span/3,4` — it handles
   attach, exception recording, detach, and `end_span` in a
   single closure-safe call. `make_current/1` exists for
   cases where the active span must outlive a single
@@ -230,19 +218,4 @@ defmodule Otel.Trace do
   """
   @spec detach(token :: Otel.Ctx.t()) :: :ok
   def detach(token), do: Otel.Ctx.detach(token)
-
-  # --- Convenience ---
-
-  @doc """
-  **Application** (Convenience) — facade over
-  `Otel.Trace.TracerProvider`.
-
-  Returns a Tracer stamped with the SDK's hardcoded
-  instrumentation scope (see `Otel.InstrumentationScope`).
-  Equivalent to calling `Otel.Trace.TracerProvider.get_tracer/0`
-  directly but exposed on `Otel.Trace` as the user-facing
-  entry point.
-  """
-  @spec get_tracer() :: Otel.Trace.Tracer.t()
-  def get_tracer, do: Otel.Trace.TracerProvider.get_tracer()
 end

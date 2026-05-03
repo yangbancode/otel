@@ -3,16 +3,11 @@ defmodule Otel.Trace.TracerTest do
 
   setup do
     Otel.TestSupport.restart_with()
-
-    tracer =
-      Otel.Trace.TracerProvider.get_tracer()
-
-    %{tracer: tracer}
+    :ok
   end
 
-  test "start_span/4 returns a valid SpanContext, stores the span in ETS with the scope",
-       %{tracer: tracer} do
-    span_ctx = Otel.Trace.Tracer.start_span(Otel.Ctx.new(), tracer, "test_span", [])
+  test "start_span/3 returns a valid SpanContext and stores the span in ETS with the hardcoded scope" do
+    span_ctx = Otel.Trace.Tracer.start_span(Otel.Ctx.new(), "test_span", [])
 
     assert %Otel.Trace.SpanContext{} = span_ctx
     assert Otel.Trace.SpanContext.valid?(span_ctx)

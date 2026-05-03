@@ -15,10 +15,7 @@ defmodule Otel.E2E.TraceSamplersTest do
 
   describe "parentbased_always_on (hardcoded)" do
     test "30: root span is sampled (no parent)", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       Otel.Trace.with_span(
-        tracer,
         "scenario-30-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
@@ -29,7 +26,6 @@ defmodule Otel.E2E.TraceSamplersTest do
     end
 
     test "31: child of sampled remote parent is sampled", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       <<trace_id::128>> = :crypto.strong_rand_bytes(16)
       <<span_id::64>> = :crypto.strong_rand_bytes(8)
 
@@ -45,7 +41,6 @@ defmodule Otel.E2E.TraceSamplersTest do
 
       Otel.Trace.with_span(
         ctx,
-        tracer,
         "scenario-31-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
@@ -56,7 +51,6 @@ defmodule Otel.E2E.TraceSamplersTest do
     end
 
     test "32: child of not-sampled remote parent is dropped", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       <<trace_id::128>> = :crypto.strong_rand_bytes(16)
       <<span_id::64>> = :crypto.strong_rand_bytes(8)
 
@@ -72,7 +66,6 @@ defmodule Otel.E2E.TraceSamplersTest do
 
       Otel.Trace.with_span(
         ctx,
-        tracer,
         "scenario-32-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end

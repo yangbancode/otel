@@ -47,10 +47,7 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "26: event_count_limit (2) drops excess events", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       Otel.Trace.with_span(
-        tracer,
         "scenario-26-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -67,12 +64,10 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "27: link_count_limit (2) drops excess links", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       links =
         for n <- 1..5 do
           ctx =
-            Otel.Trace.start_span(tracer, "target-27-#{n}-#{e2e_id}",
+            Otel.Trace.start_span("target-27-#{n}-#{e2e_id}",
               attributes: %{"e2e.id" => e2e_id}
             )
 
@@ -81,7 +76,6 @@ defmodule Otel.E2E.TraceLimitsTest do
         end
 
       Otel.Trace.with_span(
-        tracer,
         "scenario-27-#{e2e_id}",
         [links: links, attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
@@ -94,10 +88,7 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "28: attribute_per_event_limit (1) drops excess event attrs", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       Otel.Trace.with_span(
-        tracer,
         "scenario-28-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
@@ -116,10 +107,8 @@ defmodule Otel.E2E.TraceLimitsTest do
     end
 
     test "29: attribute_per_link_limit (1) drops excess link attrs", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-
       target =
-        Otel.Trace.start_span(tracer, "target-29-#{e2e_id}", attributes: %{"e2e.id" => e2e_id})
+        Otel.Trace.start_span("target-29-#{e2e_id}", attributes: %{"e2e.id" => e2e_id})
 
       Otel.Trace.Span.end_span(target)
 
@@ -129,7 +118,6 @@ defmodule Otel.E2E.TraceLimitsTest do
       }
 
       Otel.Trace.with_span(
-        tracer,
         "scenario-29-#{e2e_id}",
         [links: [link], attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
@@ -146,10 +134,7 @@ defmodule Otel.E2E.TraceLimitsTest do
   # ---- helpers ----
 
   defp emit_with_attrs(name, e2e_id, attrs) do
-    tracer = Otel.Trace.TracerProvider.get_tracer()
-
     Otel.Trace.with_span(
-      tracer,
       name,
       [attributes: Map.put(attrs, "e2e.id", e2e_id)],
       fn _ -> :ok end

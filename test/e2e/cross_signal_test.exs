@@ -35,11 +35,9 @@ defmodule Otel.E2E.CrossSignalTest do
   describe "cross-signal correlation" do
     test "1: log emitted inside with_span carries the same trace_id to Loki",
          %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       logger = Otel.Logs.LoggerProvider.get_logger()
 
       Otel.Trace.with_span(
-        tracer,
         "scenario-1-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
@@ -62,13 +60,11 @@ defmodule Otel.E2E.CrossSignalTest do
 
     test "2: counter add inside with_span carries the trace_id to Mimir",
          %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_2_#{e2e_id}"
       counter = Otel.Metrics.Meter.create_counter(meter, metric)
 
       Otel.Trace.with_span(
-        tracer,
         "scenario-2-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
@@ -95,13 +91,11 @@ defmodule Otel.E2E.CrossSignalTest do
     end
 
     test "3: service.name is consistent across all 3 pillars", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       logger = Otel.Logs.LoggerProvider.get_logger()
       meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_3_#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         "scenario-3-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
@@ -148,14 +142,11 @@ defmodule Otel.E2E.CrossSignalTest do
       # is checked for landing only — see moduledoc § Mimir
       # scope-name caveat.
       scope_name = "otel"
-
-      tracer = Otel.Trace.TracerProvider.get_tracer()
       logger = Otel.Logs.LoggerProvider.get_logger()
       meter = Otel.Metrics.MeterProvider.get_meter()
       metric = "e2e_cross_signal_4_#{e2e_id}"
 
       Otel.Trace.with_span(
-        tracer,
         "scenario-4-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ -> :ok end
