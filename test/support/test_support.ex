@@ -35,9 +35,15 @@ defmodule Otel.TestSupport do
 
   | Pillar | Keys |
   |---|---|
-  | `:trace` | `:processors`, `:span_limits` |
-  | `:metrics` | `:readers` |
-  | `:logs` | `:processors`, `:log_record_limits` |
+  | `:trace` | `:processors`, `:resource` |
+  | `:metrics` | `:readers`, `:exemplar_filter` |
+  | `:logs` | `:processors`, `:resource` |
+
+  Tests that need custom span/log-record limits build the
+  `%Otel.Trace.Tracer{}` / `%Otel.Logs.Logger{}` struct
+  directly with the desired limits — limits are no longer
+  carried in `:persistent_term`, only the `defstruct` defaults
+  apply through the Provider's `get_*/0` path.
 
   `:processors` / `:readers` are lists of `{module, config}`
   tuples. The first entry's module is started under the
@@ -48,9 +54,9 @@ defmodule Otel.TestSupport do
 
   import ExUnit.Callbacks, only: [on_exit: 1]
 
-  @trace_keys [:processors, :span_limits, :resource]
+  @trace_keys [:processors, :resource]
   @metrics_keys [:readers, :exemplar_filter]
-  @logs_keys [:processors, :log_record_limits, :resource]
+  @logs_keys [:processors, :resource]
 
   @doc """
   Stops `:otel`, applies overrides, re-seeds providers and
@@ -74,7 +80,7 @@ defmodule Otel.TestSupport do
     stop_all()
 
     # 1. Seed persistent_term for all three providers (resource,
-    # span_limits, exemplar_filter, log_record_limits, ETS).
+    # ETS tables, reader_id).
     Otel.Trace.TracerProvider.init()
     Otel.Metrics.MeterProvider.init()
     Otel.Logs.LoggerProvider.init()
@@ -135,7 +141,6 @@ defmodule Otel.TestSupport do
 
     state =
       Enum.reduce(overrides, state, fn
-        {:span_limits, limits}, acc -> %{acc | span_limits: limits}
         {:resource, resource}, acc -> %{acc | resource: resource}
         {:processors, _}, acc -> acc
       end)
@@ -176,7 +181,6 @@ defmodule Otel.TestSupport do
 
     state =
       Enum.reduce(overrides, state, fn
-        {:log_record_limits, limits}, acc -> %{acc | log_record_limits: limits}
         {:resource, resource}, acc -> %{acc | resource: resource}
         {:processors, _}, acc -> acc
       end)
@@ -216,8 +220,7 @@ defmodule Otel.TestSupport do
         {:exemplar_filter, filter}, acc ->
           %{
             acc
-            | exemplar_filter: filter,
-              base_meter_config: %{acc.base_meter_config | exemplar_filter: filter},
+            | base_meter_config: %{acc.base_meter_config | exemplar_filter: filter},
               reader_meter_config: %{acc.reader_meter_config | exemplar_filter: filter}
           }
 

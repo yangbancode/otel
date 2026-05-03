@@ -33,15 +33,20 @@ defmodule Otel.Logs.LoggerTest do
 
   defp logger, do: Otel.Logs.LoggerProvider.get_logger()
 
+  # Build a Logger struct with custom `log_record_limits`. Limits are
+  # no longer carried in `:persistent_term`; the Provider's `get_logger/0`
+  # always stamps the spec defaults, so tests that need to exercise
+  # limit enforcement construct the struct directly.
   defp logger_with_limits(limit_overrides) do
-    restart_sdk(
-      logs: [
-        processors: [{CollectorProcessor, %{test_pid: self()}}],
-        log_record_limits: struct(Otel.Logs.LogRecordLimits, limit_overrides)
-      ]
-    )
+    restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
 
-    logger()
+    %Otel.Logs.Logger{
+      config: %{
+        scope: %Otel.InstrumentationScope{},
+        resource: Otel.Logs.LoggerProvider.resource(),
+        log_record_limits: struct(Otel.Logs.LogRecordLimits, limit_overrides)
+      }
+    }
   end
 
   setup do

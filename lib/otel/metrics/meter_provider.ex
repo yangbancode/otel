@@ -2,10 +2,12 @@ defmodule Otel.Metrics.MeterProvider do
   @moduledoc """
   MeterProvider — minikube hardcoded.
 
-  Issues `%Otel.Metrics.Meter{}` structs. Configuration
-  (`resource`, `exemplar_filter`) is loaded once at boot via
-  `init/0` and stored in `:persistent_term` along with the
-  named ETS tables that hold metrics state.
+  Issues `%Otel.Metrics.Meter{}` structs. The `resource` flows
+  from the user's `config :otel, resource: %{...}` and is
+  loaded once at boot via `init/0` into `:persistent_term`
+  alongside the named ETS tables and the per-reader id;
+  every other knob (`exemplar_filter`, `temporality_mapping`)
+  is hardcoded to the spec defaults at compile time.
 
   Not a GenServer — `init/0` creates the named ETS tables and
   seeds `:persistent_term`; the tables are owned by the
@@ -48,7 +50,6 @@ defmodule Otel.Metrics.MeterProvider do
   @typedoc "Internal provider state held in `:persistent_term`."
   @type state :: %{
           resource: Otel.Resource.t(),
-          exemplar_filter: Otel.Metrics.Exemplar.Filter.t(),
           base_meter_config: map(),
           reader_meter_config: map(),
           reader_id: reference() | nil
@@ -58,10 +59,7 @@ defmodule Otel.Metrics.MeterProvider do
   **SDK** (boot hook) — Called once from
   `Otel.Application.start/2` (or from `Otel.TestSupport` for
   tests) to create the named ETS tables and seed the
-  `:persistent_term` slot. `exemplar_filter` is hardcoded to
-  `:trace_based` (spec default per `metrics/sdk.md` L1123); only
-  the resource flows from the user's
-  `config :otel, resource: %{...}`.
+  `:persistent_term` slot.
 
   Idempotent: a second call replaces the persistent_term slot
   and reuses the existing ETS tables (or creates them if
@@ -92,7 +90,6 @@ defmodule Otel.Metrics.MeterProvider do
 
     :persistent_term.put(@persistent_key, %{
       resource: resource,
-      exemplar_filter: :trace_based,
       base_meter_config: base_meter_config,
       reader_meter_config: reader_meter_config,
       reader_id: reader_id
@@ -188,7 +185,6 @@ defmodule Otel.Metrics.MeterProvider do
   defp default_state do
     %{
       resource: Otel.Resource.default(),
-      exemplar_filter: :trace_based,
       base_meter_config: %{},
       reader_meter_config: %{},
       reader_id: nil

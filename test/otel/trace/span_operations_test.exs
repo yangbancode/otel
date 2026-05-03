@@ -38,12 +38,16 @@ defmodule Otel.Trace.SpanOperationsTest do
 
   defp tracer_for, do: Otel.Trace.TracerProvider.get_tracer()
 
+  # Custom `span_limits` are no longer routed through `:persistent_term`;
+  # build the Tracer struct directly with the desired limits when a test
+  # needs to exercise limit enforcement.
   defp start_span(opts \\ []) do
     processors = Keyword.get(opts, :processors, [])
     span_limits = Keyword.get(opts, :span_limits, %Otel.Trace.SpanLimits{})
-    restart_sdk(trace: [processors: processors, span_limits: span_limits])
+    restart_sdk(trace: [processors: processors])
 
-    Otel.Trace.Tracer.start_span(Otel.Ctx.new(), tracer_for(), "test_span", opts)
+    tracer = %Otel.Trace.Tracer{span_limits: span_limits}
+    Otel.Trace.Tracer.start_span(Otel.Ctx.new(), tracer, "test_span", opts)
   end
 
   defp stored(span_ctx), do: Otel.Trace.SpanStorage.get(span_ctx.span_id)

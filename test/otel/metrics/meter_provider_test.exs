@@ -7,10 +7,11 @@ defmodule Otel.Metrics.MeterProviderTest do
   end
 
   describe "init/0 + persistent_term state" do
-    test "seeds resource and exemplar_filter" do
+    test "seeds resource; exemplar_filter is hardcoded inside base_meter_config" do
       config = Otel.Metrics.MeterProvider.config()
       assert %Otel.Resource{} = config.resource
-      assert config.exemplar_filter == :trace_based
+      refute Map.has_key?(config, :exemplar_filter)
+      assert config.base_meter_config.exemplar_filter == :trace_based
     end
 
     test "resource/0 returns the seeded resource" do

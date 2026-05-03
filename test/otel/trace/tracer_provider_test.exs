@@ -7,10 +7,10 @@ defmodule Otel.Trace.TracerProviderTest do
   end
 
   describe "init/0 + persistent_term state" do
-    test "seeds resource and span_limits" do
+    test "seeds resource only" do
       config = Otel.Trace.TracerProvider.config()
       assert %Otel.Resource{} = config.resource
-      assert %Otel.Trace.SpanLimits{} = config.span_limits
+      refute Map.has_key?(config, :span_limits)
     end
 
     test "resource/0 returns the seeded resource" do
