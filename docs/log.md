@@ -98,17 +98,15 @@ extra wiring needed.
 
 ## SDK API
 
-```elixir
-logger = Otel.API.Logs.LoggerProvider.get_logger()
-```
-
 Minikube hardcodes the instrumentation scope to the SDK identity
-(`name: "otel"`, `version: <SDK vsn>`) — no user-supplied scope.
+(`name: "otel"`, `version: <SDK vsn>`) — there is no Logger
+handle to obtain via `get_logger/0` first; call `Otel.Logs.emit/1,2`
+directly.
 
 ### String body
 
 ```elixir
-Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+Otel.Logs.emit(%Otel.Logs.LogRecord{
   body: "checkout completed",
   severity_number: 9,
   severity_text: "info",
@@ -119,7 +117,7 @@ Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
 ### Structured (map) body
 
 ```elixir
-Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+Otel.Logs.emit(%Otel.Logs.LogRecord{
   body: %{"event" => "upload", "size" => 1024},
   severity_number: 9
 })
@@ -131,7 +129,7 @@ Wrap binary in a `{:bytes, _}` tag so the OTLP encoder serializes it
 as `bytes_value` instead of trying UTF-8.
 
 ```elixir
-Otel.API.Logs.Logger.emit(logger, %Otel.API.Logs.LogRecord{
+Otel.Logs.emit(%Otel.Logs.LogRecord{
   body: {:bytes, <<0xCA, 0xFE, 0xBA, 0xBE>>},
   severity_number: 9
 })

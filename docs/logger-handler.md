@@ -38,8 +38,9 @@ Reserved meta keys (never emitted as attributes): `:time`, `:gl`,
 
 ## Pairing with the SDK
 
-Boot the SDK with the standard top-level config — the bridge attaches
-to whichever LoggerProvider the SDK installs:
+Boot the SDK with the standard top-level config — the bridge emits
+through `Otel.Logs.emit/2` and inherits the SDK-hardcoded
+instrumentation scope and resource:
 
 ```elixir
 config :otel,

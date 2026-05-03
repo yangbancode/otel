@@ -126,23 +126,6 @@ defmodule Otel.Logs.LogRecordProcessor do
 
   @type config :: term()
 
-  @typedoc """
-  Subset of `Otel.Logs.Logger.enabled_opts/0` excluding
-  `:ctx`. Spec §LogRecordProcessor L423-L426 lists the four
-  `Enabled` parameters (Context, Instrumentation Scope, Severity
-  Number, Event Name) as separate inputs, so this layer surfaces
-  Context as the first argument of `enabled?/4` and keeps the
-  remaining caller-supplied keys here.
-
-  The SDK Logger pops `:ctx` out of the API-level
-  `enabled_opts/0` before invoking `enabled?/4`, so callers
-  only ever pass this subset.
-  """
-  @type enabled_opts :: [
-          {:severity_number, Otel.Logs.severity_number()}
-          | {:event_name, String.t()}
-        ]
-
   defmodule State do
     @moduledoc false
 

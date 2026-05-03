@@ -2,10 +2,11 @@ defmodule Otel.TestSupport do
   @moduledoc """
   Test-only helpers for booting the SDK with custom config.
 
-  Trace has no provider module anymore (`Otel.Trace.TracerProvider`
-  was dissolved into the `Otel.Trace` facade); Logs/Metrics
-  providers are pure-function modules with `MeterProvider.init/0`
-  the only boot-time work (creating the named ETS tables).
+  Trace and Logs have no provider modules anymore — both
+  `Otel.Trace.TracerProvider` and `Otel.Logs.LoggerProvider`
+  were dissolved into their facades (`Otel.Trace`, `Otel.Logs`).
+  Metrics still has `MeterProvider`, whose `init/0` is the
+  only boot-time work (creating the named ETS tables).
   Custom test config is delivered by:
 
   1. Setting `Application.put_env(:otel, ...)` to override the
@@ -83,8 +84,8 @@ defmodule Otel.TestSupport do
 
     stop_all()
 
-    # 1. Create the named ETS tables. Tracer/LoggerProvider hold
-    # no boot-time state — `:resource` is read via
+    # 1. Create the named ETS tables. `Otel.Trace` / `Otel.Logs`
+    # hold no boot-time state — `:resource` is read via
     # `Otel.Resource.from_app_env/0` on demand.
     Otel.Metrics.MeterProvider.init()
 

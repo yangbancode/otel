@@ -143,7 +143,6 @@ defmodule Otel.E2E.LogSdkTest do
   # finishing an enclosing span).
   defp emit(e2e_id, fields) do
     {do_flush?, fields} = Keyword.pop(fields, :flush, true)
-    logger = Otel.Logs.LoggerProvider.get_logger()
 
     attrs = Keyword.get(fields, :attributes, %{}) |> Map.put("e2e.id", e2e_id)
 
@@ -153,7 +152,7 @@ defmodule Otel.E2E.LogSdkTest do
       |> Keyword.put(:attributes, attrs)
       |> then(&struct(Otel.Logs.LogRecord, &1))
 
-    Otel.Logs.Logger.emit(logger, record)
+    Otel.Logs.emit(record)
     if do_flush?, do: flush()
     :ok
   end

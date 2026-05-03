@@ -1,11 +1,17 @@
 defmodule Otel.Logs.Logger do
   @moduledoc """
-  SDK implementation of the `Otel.Logs.Logger` behaviour
-  (`logs/sdk.md` §Logger).
+  Log record emission entry points for the SDK.
 
-  Emits log records by dispatching to all registered processors.
-  Populates trace context from the resolved Context and sets
-  observed_timestamp when not provided.
+  Minikube has no plugin ecosystem and the spec's
+  LoggerProvider/Logger entities collapse to a single hardcoded
+  identity:
+
+  - scope is `Otel.InstrumentationScope` defaults
+  - log record limits are `Otel.Logs.LogRecordLimits` defaults
+  - resource is `Otel.Resource.from_app_env/0` (read on each emit)
+
+  Scope and limits are compile-time literals; there is no Logger
+  struct to thread through.
 
   All functions are safe for concurrent use, satisfying spec
   `logs/api.md` L172-L176 (Status: Stable, #4885) — *"Logger —
@@ -16,11 +22,11 @@ defmodule Otel.Logs.Logger do
 
   | Function | Role |
   |---|---|
-  | `emit/3` | **SDK** (OTel API MUST) — `logs/api.md` L111-L131 + `logs/sdk.md` §Emit |
+  | `emit/2` | **SDK** (OTel API MUST) — `logs/api.md` L111-L131 + `logs/sdk.md` §Emit |
 
   ## LogRecord limits
 
-  `build_log_record/3` composes the two
+  `build_log_record/2` composes the two
   `Otel.Logs.LogRecordLimits` helpers in order —
   `truncate_attributes/2` first (so dropped count is taken
   on the post-truncation map), then `drop_attributes/2`.
@@ -33,8 +39,8 @@ defmodule Otel.Logs.Logger do
   Per `logs/sdk.md` L345-348, a single `Logger.warning/1` is
   emitted per LogRecord whenever either limit took effect.
   The MUST *"at most once per LogRecord"* is satisfied
-  structurally — `build_log_record/3` runs once per
-  `emit/3` call.
+  structurally — `build_log_record/2` runs once per
+  `emit/2` call.
 
   ### Self-reference
 
@@ -58,41 +64,20 @@ defmodule Otel.Logs.Logger do
 
   require Logger
 
-  @typedoc """
-  A Logger struct.
-
-  Configuration is held by the LoggerProvider; the Logger
-  carries the runtime config map (scope, resource,
-  log_record_limits) that `emit/3` needs.
-  """
-  @type t :: %__MODULE__{config: map()}
-
-  defstruct config: %{}
-
-  @doc """
-  Emit a LogRecord (`logs/api.md` L111-L131) using the implicit
-  (process-local) context. Per L119-L123 *"When implicit Context
-  is supported, then this parameter SHOULD be optional and if
-  unspecified then MUST use current Context"*.
-  """
-  @spec emit(logger :: t(), log_record :: Otel.Logs.LogRecord.t()) :: :ok
-  def emit(%__MODULE__{} = logger, log_record \\ %Otel.Logs.LogRecord{}) do
-    emit(logger, Otel.Ctx.current(), log_record)
-  end
+  @scope %Otel.InstrumentationScope{}
+  @log_record_limits %Otel.Logs.LogRecordLimits{}
 
   @doc """
   Emit a LogRecord (`logs/api.md` L111-L131) with an explicit
   context.
 
   Dispatches the limited record to every registered processor.
+  Per L119-L123 omitting `ctx` falls back to the implicit
+  process-local context.
   """
-  @spec emit(
-          logger :: t(),
-          ctx :: Otel.Ctx.t(),
-          log_record :: Otel.Logs.LogRecord.t()
-        ) :: :ok
-  def emit(%__MODULE__{config: config}, ctx, log_record) do
-    record = log_record |> apply_exception_attributes() |> build_log_record(config, ctx)
+  @spec emit(ctx :: Otel.Ctx.t(), log_record :: Otel.Logs.LogRecord.t()) :: :ok
+  def emit(ctx, log_record) do
+    record = log_record |> apply_exception_attributes() |> build_log_record(ctx)
     Otel.Logs.LogRecordProcessor.on_emit(record, ctx)
   end
 
@@ -100,10 +85,9 @@ defmodule Otel.Logs.Logger do
 
   @spec build_log_record(
           log_record :: Otel.Logs.LogRecord.t(),
-          config :: map(),
           ctx :: Otel.Ctx.t()
         ) :: Otel.Logs.LogRecord.t()
-  defp build_log_record(%Otel.Logs.LogRecord{} = log_record, config, ctx) do
+  defp build_log_record(%Otel.Logs.LogRecord{} = log_record, ctx) do
     now = System.system_time(:nanosecond)
 
     %Otel.Trace.SpanContext{
@@ -113,7 +97,7 @@ defmodule Otel.Logs.Logger do
     } = Otel.Trace.current_span(ctx)
 
     {limited_record, dropped_attributes_count} =
-      Otel.Logs.LogRecordLimits.apply(log_record, config.log_record_limits)
+      Otel.Logs.LogRecordLimits.apply(log_record, @log_record_limits)
 
     warn_log_record_limits_applied(
       dropped_attributes_count,
@@ -138,8 +122,8 @@ defmodule Otel.Logs.Logger do
       trace_id: trace_id,
       span_id: span_id,
       trace_flags: trace_flags,
-      scope: config.scope,
-      resource: config.resource
+      scope: @scope,
+      resource: Otel.Resource.from_app_env()
     }
   end
 

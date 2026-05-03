@@ -202,7 +202,7 @@ defmodule Otel.Logs.LogRecordProcessorTest do
     end
   end
 
-  test "end-to-end emit through LoggerProvider exports via the batch processor" do
+  test "end-to-end emit through Otel.Logs exports via the batch processor" do
     Otel.TestSupport.restart_with(
       logs: [
         processors: [
@@ -211,10 +211,8 @@ defmodule Otel.Logs.LogRecordProcessorTest do
       ]
     )
 
-    logger = Otel.Logs.LoggerProvider.get_logger()
-
-    Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{body: "log 1"})
-    Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{body: "log 2"})
+    Otel.Logs.emit(%Otel.Logs.LogRecord{body: "log 1"})
+    Otel.Logs.emit(%Otel.Logs.LogRecord{body: "log 2"})
 
     Otel.Logs.LogRecordProcessor.force_flush()
 
