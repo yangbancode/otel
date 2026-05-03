@@ -64,7 +64,6 @@ mix test --only e2e test/e2e/
 | `[x]` | 10 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` match |
 | `[x]` | 11 | LogRecord limits — `attribute_count_limit` | exceed attr count | Loki: `dropped_attributes_count` |
 | `[x]` | 12 | LogRecord limits — `attribute_value_length_limit` truncation | long string attr | Loki: value truncated |
-| `[x]` | 13 | Multi-logger (different scopes) | `get_logger(A)`, `get_logger(B)` | Loki: `scope_name` disambiguation |
 | `[x]` | 14 | Exception sidecar via SDK API | set `exception:` field on LogRecord | Loki: `exception.type` / `exception.message` |
 
 ## Log — `:logger` Handler bridge
@@ -91,7 +90,6 @@ mix test --only e2e test/e2e/
 | `[x]` | 18 | `domain` → `log.domain` | `meta: %{domain: [:a, :b]}` | Loki: array |
 | `[x]` | 19 | Reserved keys all filtered | `mfa, file, line, domain, crash_reason, time, report_cb, gl, pid` | Loki: none of these atoms appear |
 | `[x]` | 20 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` |
-| `[x]` | 21 | Scope config — 4 keys | `scope_name`, `scope_version`, `scope_schema_url`, `scope_attributes` | Loki: each value visible |
 
 ## Metrics
 
@@ -149,7 +147,7 @@ mix test --only e2e test/e2e/
 | `[x]` | 1 | **Span-internal log carries trace_id** | `Tempo.trace_id == Loki.trace_id` |
 | `[x]` | 2 | **Metric exemplar carries trace_id** | `Mimir.exemplar.trace_id == Tempo.trace_id` |
 | `[x]` | 3 | Resource consistency (3 pillars) | All backends share `service.name` |
-| `[~]` | 4 | `InstrumentationScope` (Trace + Log) | `scope.name` carried through Tempo + Loki; Mimir doesn't promote OTLP scope to PromQL labels in LGTM 0.26.0 (lands-only) |
+| `[~]` | 4 | `InstrumentationScope` (Trace + Log) | hardcoded `scope.name = "otel"` carried through Tempo + Loki; Mimir doesn't promote OTLP scope to PromQL labels in LGTM 0.26.0 (lands-only) |
 
 ## Concurrency
 

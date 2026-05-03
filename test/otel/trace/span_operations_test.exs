@@ -36,9 +36,7 @@ defmodule Otel.Trace.SpanOperationsTest do
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
-  defp tracer_for(scope_name \\ "test_lib") do
-    Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{name: scope_name})
-  end
+  defp tracer_for, do: Otel.Trace.TracerProvider.get_tracer()
 
   defp start_span(opts \\ []) do
     processors = Keyword.get(opts, :processors, [])

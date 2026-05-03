@@ -31,8 +31,6 @@ defmodule Otel.Trace.TracerProvider do
   - OTel Trace API §Tracer Provider: `opentelemetry-specification/specification/trace/api.md` §TracerProvider
   """
 
-  require Logger
-
   @persistent_key {__MODULE__, :state}
 
   # Default timeout for `shutdown/1` and `force_flush/1`
@@ -72,22 +70,20 @@ defmodule Otel.Trace.TracerProvider do
   (`trace/api.md` §Get a Tracer L107-L157).
 
   Returns a configured `%Otel.Trace.Tracer{}` struct stamped
-  with the boot-time resource/limits and the caller's
-  instrumentation scope. After `shutdown/1`, returns a
-  degenerate Tracer (empty defaults).
+  with the boot-time resource/limits and the SDK's hardcoded
+  instrumentation scope (see `Otel.InstrumentationScope`).
+  After `shutdown/1`, returns a degenerate Tracer (empty
+  defaults).
   """
-  @spec get_tracer(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
-          Otel.Trace.Tracer.t()
-  def get_tracer(%Otel.InstrumentationScope{} = instrumentation_scope) do
+  @spec get_tracer() :: Otel.Trace.Tracer.t()
+  def get_tracer do
     state = state()
 
     if state.shut_down do
       %Otel.Trace.Tracer{}
     else
-      warn_invalid_scope_name(instrumentation_scope)
-
       %Otel.Trace.Tracer{
-        scope: instrumentation_scope,
+        scope: %Otel.InstrumentationScope{},
         span_limits: state.span_limits
       }
     end
@@ -170,21 +166,4 @@ defmodule Otel.Trace.TracerProvider do
       shut_down: false
     }
   end
-
-  # Spec `trace/api.md` L107-L119 — *"In the case where an
-  # invalid `name` (null or empty string) is specified, a
-  # working `Tracer` MUST be returned as a fallback rather than
-  # returning null or throwing an exception, its `name` SHOULD
-  # keep the original invalid value, and a message reporting
-  # that the specified value is invalid SHOULD be logged."*
-  @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
-  defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
-    Logger.warning(
-      "Otel.Trace.TracerProvider: invalid Tracer name (empty string) — returning a working Tracer as fallback"
-    )
-
-    :ok
-  end
-
-  defp warn_invalid_scope_name(_scope), do: :ok
 end

@@ -32,7 +32,7 @@ defmodule Otel.Metrics.TemporalityTest do
     Otel.TestSupport.restart_with(metrics: [readers: []])
 
     %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "test_lib"})
+      Otel.Metrics.MeterProvider.get_meter()
 
     %{meter: %Otel.Metrics.Meter{config: config}, config: config}
   end
@@ -64,7 +64,7 @@ defmodule Otel.Metrics.TemporalityTest do
     {:ok, reader_pid} = DeltaReader.start_link(%{meter_config: delta_reader_meter_config})
 
     %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "test_lib"})
+      Otel.Metrics.MeterProvider.get_meter()
 
     %{meter: %Otel.Metrics.Meter{config: config}, reader: reader_pid, config: config}
   end

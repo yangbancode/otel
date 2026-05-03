@@ -106,7 +106,7 @@ defmodule Otel.E2E.LogSdkTest do
 
   describe "trace context" do
     test "10: emit inside with_span carries trace_id / span_id to Loki", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       Otel.Trace.with_span(
         tracer,
@@ -116,38 +116,6 @@ defmodule Otel.E2E.LogSdkTest do
           emit(e2e_id, body: "scenario-10-msg-#{e2e_id}", flush: false)
         end
       )
-
-      flush()
-
-      assert {:ok, [_ | _]} = poll(Loki.query(e2e_id))
-    end
-  end
-
-  describe "multi-logger" do
-    test "13: distinct scopes both land, disambiguated by scope_name", %{e2e_id: e2e_id} do
-      logger_a =
-        Otel.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
-          name: "lib-a-13",
-          version: "0.1.0"
-        })
-
-      logger_b =
-        Otel.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
-          name: "lib-b-13",
-          version: "0.1.0"
-        })
-
-      Otel.Logs.Logger.emit(logger_a, %Otel.Logs.LogRecord{
-        body: "from-a-#{e2e_id}",
-        severity_number: 9,
-        attributes: %{"e2e.id" => e2e_id}
-      })
-
-      Otel.Logs.Logger.emit(logger_b, %Otel.Logs.LogRecord{
-        body: "from-b-#{e2e_id}",
-        severity_number: 9,
-        attributes: %{"e2e.id" => e2e_id}
-      })
 
       flush()
 
@@ -178,7 +146,7 @@ defmodule Otel.E2E.LogSdkTest do
   # finishing an enclosing span).
   defp emit(e2e_id, fields) do
     {do_flush?, fields} = Keyword.pop(fields, :flush, true)
-    logger = Otel.Logs.LoggerProvider.get_logger(scope())
+    logger = Otel.Logs.LoggerProvider.get_logger()
 
     attrs = Keyword.get(fields, :attributes, %{}) |> Map.put("e2e.id", e2e_id)
 

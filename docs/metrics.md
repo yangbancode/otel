@@ -8,8 +8,7 @@
 ```
 
 ```elixir
-scope = %Otel.InstrumentationScope{name: "my_app"}
-meter = Otel.API.Metrics.MeterProvider.get_meter(scope)
+meter = Otel.API.Metrics.MeterProvider.get_meter()
 
 counter = Otel.API.Metrics.Meter.create_counter(meter, "http.requests")
 Otel.API.Metrics.Counter.add(counter, 1, %{"http.method" => "GET"})
@@ -38,9 +37,11 @@ interval).
 ## Get a meter
 
 ```elixir
-scope = %Otel.InstrumentationScope{name: "my_app", version: "1.0.0"}
-meter = Otel.API.Metrics.MeterProvider.get_meter(scope)
+meter = Otel.API.Metrics.MeterProvider.get_meter()
 ```
+
+Minikube hardcodes the instrumentation scope to the SDK identity
+(`name: "otel"`, `version: <SDK vsn>`) — no user-supplied scope.
 
 ## Synchronous instruments
 

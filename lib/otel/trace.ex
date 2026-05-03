@@ -36,7 +36,7 @@ defmodule Otel.Trace do
   | `with_span/4`, `with_span/5` | **Application** (OTel API MAY) — closure-form separate operation (L385) |
   | `make_current/1` | **Application** (OTel API MAY) — manual "set active span" (L384-L386) |
   | `detach/1` | **Application** (OTel API MAY) — revert `make_current/1` (L384-L386) |
-  | `get_tracer/1` | **Application** (Convenience) — facade over `TracerProvider` |
+  | `get_tracer/0` | **Application** (Convenience) — facade over `TracerProvider` |
 
   ## References
 
@@ -237,14 +237,12 @@ defmodule Otel.Trace do
   **Application** (Convenience) — facade over
   `Otel.Trace.TracerProvider`.
 
-  Returns a Tracer for the given instrumentation scope.
-  Equivalent to calling `Otel.Trace.TracerProvider.get_tracer/1`
+  Returns a Tracer stamped with the SDK's hardcoded
+  instrumentation scope (see `Otel.InstrumentationScope`).
+  Equivalent to calling `Otel.Trace.TracerProvider.get_tracer/0`
   directly but exposed on `Otel.Trace` as the user-facing
   entry point.
   """
-  @spec get_tracer(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
-          Otel.Trace.Tracer.t()
-  def get_tracer(%Otel.InstrumentationScope{} = instrumentation_scope) do
-    Otel.Trace.TracerProvider.get_tracer(instrumentation_scope)
-  end
+  @spec get_tracer() :: Otel.Trace.Tracer.t()
+  def get_tracer, do: Otel.Trace.TracerProvider.get_tracer()
 end

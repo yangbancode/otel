@@ -1,8 +1,6 @@
 defmodule Otel.Trace.TracerProviderTest do
   use ExUnit.Case, async: false
 
-  import ExUnit.CaptureLog
-
   setup do
     Otel.TestSupport.restart_with()
     :ok
@@ -21,42 +19,13 @@ defmodule Otel.Trace.TracerProviderTest do
     end
   end
 
-  describe "get_tracer/1" do
-    test "returns a %Tracer{} struct carrying scope and span_limits" do
-      tracer =
-        Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{
-          name: "my_lib",
-          version: "1.0.0",
-          schema_url: "https://example.com"
-        })
+  describe "get_tracer/0" do
+    test "returns a %Tracer{} struct carrying the hardcoded SDK scope and span_limits" do
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       assert %Otel.Trace.Tracer{} = tracer
-
-      assert %Otel.InstrumentationScope{
-               name: "my_lib",
-               version: "1.0.0",
-               schema_url: "https://example.com"
-             } = tracer.scope
-
+      assert %Otel.InstrumentationScope{name: "otel"} = tracer.scope
       assert %Otel.Trace.SpanLimits{} = tracer.span_limits
-    end
-
-    # Spec trace/sdk.md L125-L130 — invalid Tracer name SHOULD log a
-    # warning, but the original value MUST be preserved.
-    test "empty Tracer name → warns; valid name is silent" do
-      log =
-        capture_log(fn ->
-          Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{name: ""})
-        end)
-
-      assert log =~ "invalid Tracer name"
-
-      silent =
-        capture_log(fn ->
-          Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{name: "ok"})
-        end)
-
-      refute silent =~ "invalid Tracer name"
     end
   end
 
@@ -69,7 +38,7 @@ defmodule Otel.Trace.TracerProviderTest do
 
     test "after shutdown, get_tracer returns a degenerate Tracer" do
       :ok = Otel.Trace.TracerProvider.shutdown()
-      tracer = Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{name: "lib"})
+      tracer = Otel.Trace.TracerProvider.get_tracer()
       assert tracer == %Otel.Trace.Tracer{}
     end
 
