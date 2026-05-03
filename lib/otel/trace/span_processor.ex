@@ -5,11 +5,11 @@ defmodule Otel.Trace.SpanProcessor do
 
   Accumulates spans and exports in batches
   (`trace/sdk.md` §Batching processor L1086-L1118). Exports
-  are triggered by a timer, queue size threshold, or
-  `force_flush`. Uses a GenServer to serialize export calls
-  (spec L1146-L1147 — *"Export() should not be called
-  concurrently with other Export calls for the same exporter
-  instance"*).
+  are triggered by a timer, queue size threshold,
+  `force_flush`, or supervisor-driven termination. Uses a
+  GenServer to serialize export calls (spec L1146-L1147 —
+  *"Export() should not be called concurrently with other
+  Export calls for the same exporter instance"*).
 
   The behaviour abstraction (and a separate `Batch` impl
   module) was collapsed because the SDK ships only this
@@ -20,14 +20,21 @@ defmodule Otel.Trace.SpanProcessor do
   end is a synchronous export call), making it dangerous on
   BEAM under slow exporters.
 
+  ## Lifecycle
+
+  Application shutdown is delegated to OTP. `init/1` sets
+  `trap_exit: true` so `Application.stop(:otel)` (or any
+  supervisor termination signal) reaches `terminate/2`,
+  which drains the queue and calls the exporter's
+  `shutdown/1`. There is no public `shutdown` API.
+
   ## Public API
 
   | Function | Role |
   |---|---|
   | `start_link/1` | **SDK** (lifecycle) |
   | `on_end/1` | **SDK** (OTel API MUST) — `trace/sdk.md` L1005-L1027 |
-  | `shutdown/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §Shutdown |
-  | `force_flush/1` | **SDK** (OTel API MUST) — `trace/sdk.md` §ForceFlush |
+  | `force_flush/1` | **SDK** (test helper) — drains the queue and calls the exporter's `force_flush` |
 
   `on_start/3` (spec `trace/sdk.md` L963-L982) is a no-op for
   the Batch processor and is omitted — `Tracer.start_span`
@@ -86,20 +93,6 @@ defmodule Otel.Trace.SpanProcessor do
   end
 
   @doc """
-  Shuts down the processor. Includes the effects of
-  `force_flush/1`. `timeout` is the upper bound the
-  processor honours for the whole shutdown sequence per
-  `trace/sdk.md` §Shutdown.
-  """
-  @spec shutdown(timeout :: timeout()) :: :ok | {:error, term()}
-  def shutdown(timeout \\ @export_timeout_ms) do
-    GenServer.call(__MODULE__, :shutdown, timeout)
-  catch
-    :exit, {:noproc, _} -> {:error, :already_shutdown}
-    :exit, {:timeout, _} -> {:error, :timeout}
-  end
-
-  @doc """
   Forces the processor to export all pending spans
   immediately. `timeout` bounds the wait per
   `trace/sdk.md` §ForceFlush.
@@ -131,6 +124,8 @@ defmodule Otel.Trace.SpanProcessor do
     # `config :otel, exporter: %{...}` and `:resource` keys here.
     # Tests that want a custom exporter (e.g. FakeExporter) override
     # via the args.
+    Process.flag(:trap_exit, true)
+
     exporter =
       Map.get(config, :exporter, {Otel.Trace.SpanExporter, exporter_app_env()})
 
@@ -193,7 +188,21 @@ defmodule Otel.Trace.SpanProcessor do
     {:reply, :ok, new_state}
   end
 
-  def handle_call(:shutdown, _from, state) do
+  @impl GenServer
+  @spec handle_info(msg :: term(), state :: map()) :: {:noreply, map()}
+  def handle_info(:export_timer, state) do
+    new_state = export_batch(state)
+    schedule_export()
+    {:noreply, new_state}
+  end
+
+  # Supervisor-driven termination (`Application.stop(:otel)` or any
+  # `:shutdown` signal): drain the queue and call the exporter's
+  # `shutdown/1` so spans pending at termination still leave the
+  # process. `trap_exit: true` in `init/1` is what makes this run.
+  @impl GenServer
+  @spec terminate(reason :: term(), state :: map()) :: :ok
+  def terminate(_reason, state) do
     new_state = export_batch(state)
 
     case new_state.exporter do
@@ -201,15 +210,7 @@ defmodule Otel.Trace.SpanProcessor do
       nil -> :ok
     end
 
-    {:reply, :ok, %{new_state | exporter: nil}}
-  end
-
-  @impl GenServer
-  @spec handle_info(msg :: term(), state :: map()) :: {:noreply, map()}
-  def handle_info(:export_timer, state) do
-    new_state = export_batch(state)
-    schedule_export()
-    {:noreply, new_state}
+    :ok
   end
 
   # Spec `trace/sdk.md` L1113 — *"exportTimeoutMillis: how long
@@ -222,7 +223,7 @@ defmodule Otel.Trace.SpanProcessor do
   # `export_until/2` checks it before draining each batch.
   # When the deadline elapses partway through a multi-batch
   # drain, the remaining spans stay in the queue for the next
-  # export trigger (timer, force_flush, shutdown). The
+  # export trigger (timer, force_flush, terminate). The
   # individual `exporter.export/3` call itself is synchronous
   # and not preempted — the spec MUST about indefinite blocking
   # is the exporter's contract to satisfy (L1156).

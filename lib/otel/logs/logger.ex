@@ -17,7 +17,6 @@ defmodule Otel.Logs.Logger do
   | Function | Role |
   |---|---|
   | `emit/3` | **SDK** (OTel API MUST) — `logs/api.md` L111-L131 + `logs/sdk.md` §Emit |
-  | `enabled?/2` | **SDK** (OTel API SHOULD) — `logs/api.md` L133-L154 + `logs/sdk.md` §Enabled |
 
   ## LogRecord limits
 
@@ -64,37 +63,11 @@ defmodule Otel.Logs.Logger do
 
   Configuration is held by the LoggerProvider; the Logger
   carries the runtime config map (scope, resource,
-  log_record_limits, processors_key) that emit/enabled?
-  operations need.
+  log_record_limits) that `emit/3` needs.
   """
   @type t :: %__MODULE__{config: map()}
 
   defstruct config: %{}
-
-  @typedoc """
-  One option accepted by `enabled?/2`, per §Enabled
-  (`logs/api.md` L137-L142):
-
-  - `:severity_number` — severity the caller would emit
-    (0..24, L141)
-  - `:event_name` — event name the caller would emit (L142)
-  - `:ctx` — evaluation context (L137-L140; defaults to
-    `Otel.Ctx.current/0` when omitted)
-
-  Unlike `Otel.Trace.Tracer.enabled_opt/0` which is left
-  open (`keyword()`) because the Trace spec does not define
-  common keys, Logs §Enabled enumerates these three keys at
-  the API level — enumeration is appropriate here because it
-  mirrors a spec contract, not an SDK assumption
-  (`.claude/rules/code-conventions.md` §Layer independence).
-  """
-  @type enabled_opt ::
-          {:severity_number, Otel.Logs.severity_number()}
-          | {:event_name, String.t()}
-          | {:ctx, Otel.Ctx.t()}
-
-  @typedoc "A keyword list of `enabled_opt/0` values."
-  @type enabled_opts :: [enabled_opt()]
 
   @doc """
   Emit a LogRecord (`logs/api.md` L111-L131) using the implicit
@@ -121,26 +94,6 @@ defmodule Otel.Logs.Logger do
   def emit(%__MODULE__{config: config}, ctx, log_record) do
     record = log_record |> apply_exception_attributes() |> build_log_record(config, ctx)
     Otel.Logs.LogRecordProcessor.on_emit(record, ctx)
-  end
-
-  @doc """
-  **SDK** (OTel API SHOULD) — Enabled
-  (`logs/api.md` L133-L154 + `logs/sdk.md` §Enabled L256-L268).
-
-  Returns false when the LoggerProvider has been shut down.
-  Otherwise true — minikube hardcodes a single
-  `LogRecordProcessor` whose `enabled?/3` always returns true,
-  so the spec's "all processors disabled" leg cannot fire after
-  boot. The Development-status `LoggerConfig` filter legs
-  (L259-L266 — enabled / minimum_severity / trace_based) are
-  deferred per the project's Stable-only policy.
-  """
-  @spec enabled?(
-          logger :: t(),
-          opts :: enabled_opts()
-        ) :: boolean()
-  def enabled?(%__MODULE__{} = _logger, _opts \\ []) do
-    not Otel.Logs.LoggerProvider.shut_down?()
   end
 
   # --- Private ---

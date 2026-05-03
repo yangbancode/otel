@@ -138,7 +138,7 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[x]` | 2 | Provider shutdown then emit | call `TracerProvider.shutdown/1` etc., emit afterward | No new records appear in backends |
+| `[x]` | 2 | `Application.stop(:otel)` drains pending spans | emit a span, then `Application.stop(:otel)` | Tempo: span lands (terminate/2 flush) |
 
 ## Cross-signal / Resource
 

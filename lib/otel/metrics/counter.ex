@@ -45,9 +45,6 @@ defmodule Otel.Metrics.Counter do
     context-associated at the API boundary; the SDK
     attaches context per `Otel.Ctx` if relevant
 
-  Erlang also does not expose `enabled?/2` on sync
-  instruments; we add it per spec L475-L477 (SHOULD
-  provide) and spec L479-L495 (Enabled API).
 
   All functions are safe for concurrent use (spec
   L1351-L1352, §Concurrency §Instrument).
@@ -58,13 +55,11 @@ defmodule Otel.Metrics.Counter do
   |---|---|
   | `create/3` | **Application** (OTel API MUST) — Counter creation (L510-L542) |
   | `add/3` | **Application** (OTel API MUST) — Counter Add (L545-L598) |
-  | `enabled?/2` | **Application** (OTel API SHOULD) — Enabled (L479-L495) |
 
   ## References
 
   - OTel Metrics API §Counter: `opentelemetry-specification/specification/metrics/api.md` L497-L598
   - OTel Metrics API §Synchronous Instrument API: `opentelemetry-specification/specification/metrics/api.md` L302-L348
-  - OTel Metrics API §General operations / Enabled: `opentelemetry-specification/specification/metrics/api.md` L473-L495
   - OTel Metrics API §Concurrency §Instrument: `opentelemetry-specification/specification/metrics/api.md` L1351-L1352
   """
 
@@ -108,10 +103,6 @@ defmodule Otel.Metrics.Counter do
   structured to accept a variable number of attributes,
   including none"*.
 
-  Instrumentation authors should call `enabled?/2` before
-  each `add/3` to avoid expensive computation when the
-  instrument is disabled (spec L493-L495 — the enabled
-  state is not static).
 
   Delegates to `Otel.Metrics.Meter.record/3` — both
   Counter.add and the synchronous siblings share a single
@@ -124,29 +115,5 @@ defmodule Otel.Metrics.Counter do
         ) :: :ok
   def add(instrument, value, attributes \\ %{}) do
     Otel.Metrics.Meter.record(instrument, value, attributes)
-  end
-
-  @doc """
-  **Application** (OTel API SHOULD) — "Enabled"
-  (`metrics/api.md` §General operations — Enabled, L479-L495).
-
-  Returns whether the instrument is enabled. Per spec
-  L493-L495 the returned value is **not static** — it can
-  change over time as configuration or sampling state
-  evolves. Instrumentation authors SHOULD call this each
-  time before recording to have the most up-to-date
-  response.
-
-  Spec L485-L487: no required parameters today; the API is
-  structured to accept future additions via a keyword list.
-
-  Delegates to `Otel.Metrics.Meter.enabled?/2`.
-  """
-  @spec enabled?(
-          instrument :: Otel.Metrics.Instrument.t(),
-          opts :: Otel.Metrics.Instrument.enabled_opts()
-        ) :: boolean()
-  def enabled?(instrument, opts \\ []) do
-    Otel.Metrics.Meter.enabled?(instrument, opts)
   end
 end

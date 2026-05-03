@@ -11,7 +11,6 @@ defmodule Otel.Trace.TracerProviderTest do
       config = Otel.Trace.TracerProvider.config()
       assert %Otel.Resource{} = config.resource
       assert %Otel.Trace.SpanLimits{} = config.span_limits
-      assert config.shut_down == false
     end
 
     test "resource/0 returns the seeded resource" do
@@ -29,24 +28,10 @@ defmodule Otel.Trace.TracerProviderTest do
     end
   end
 
-  describe "shutdown/1 + force_flush/1" do
-    test "first shutdown :ok; subsequent → :already_shutdown" do
-      assert :ok = Otel.Trace.TracerProvider.shutdown()
-      assert {:error, :already_shutdown} = Otel.Trace.TracerProvider.shutdown()
-      assert {:error, :already_shutdown} = Otel.Trace.TracerProvider.force_flush()
-    end
-
-    test "after shutdown, get_tracer returns a degenerate Tracer" do
-      :ok = Otel.Trace.TracerProvider.shutdown()
-      tracer = Otel.Trace.TracerProvider.get_tracer()
-      assert tracer == %Otel.Trace.Tracer{}
-    end
-
-    test "facades stay graceful when no provider state has been seeded" do
+  describe "introspection without provider state" do
+    test "resource/0 falls back to Otel.Resource.default/0" do
       Otel.TestSupport.stop_all()
 
-      assert :ok = Otel.Trace.TracerProvider.force_flush()
-      assert :ok = Otel.Trace.TracerProvider.shutdown()
       assert %Otel.Resource{} = Otel.Trace.TracerProvider.resource()
       assert %{} = Otel.Trace.TracerProvider.config()
     end

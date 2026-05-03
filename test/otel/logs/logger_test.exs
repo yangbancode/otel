@@ -8,9 +8,7 @@ defmodule Otel.Logs.LoggerTest do
     Test substitute for `Otel.Logs.LogRecordProcessor`. Receives
     `:gen_statem.cast({:add_record, record})` from
     `Otel.Logs.Logger.emit/3` via the hardcoded name and forwards
-    each record to the test pid. `handle_call/3` swallows
-    `LoggerProvider.shutdown/1` calls so tests can exercise the
-    shutdown path without a full Batch processor.
+    each record to the test pid.
     """
 
     use GenServer
@@ -142,15 +140,6 @@ defmodule Otel.Logs.LoggerTest do
 
       assert_receive {:log_record, record}
       refute Map.has_key?(record.attributes, "exception.type")
-    end
-  end
-
-  describe "Logger.enabled?/2" do
-    test "true while LoggerProvider is up; false after shutdown", %{logger: logger} do
-      assert Otel.Logs.Logger.enabled?(logger, [])
-
-      :ok = Otel.Logs.LoggerProvider.shutdown()
-      refute Otel.Logs.Logger.enabled?(logger, [])
     end
   end
 

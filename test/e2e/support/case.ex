@@ -17,12 +17,17 @@ defmodule Otel.E2E.Case do
 
   use ExUnit.CaseTemplate
 
-  @doc "Force-flushes all three SDK providers (Tracer / Logger / Meter)."
+  @doc """
+  Drains and force-flushes all three SDK processors directly
+  (Span / LogRecord / PeriodicExporting). The Providers no
+  longer expose `force_flush` since lifecycle is delegated to
+  OTP — tests reach into the processors' SDK-internal helpers.
+  """
   @spec flush() :: :ok
   def flush do
-    Otel.Trace.TracerProvider.force_flush()
-    Otel.Logs.LoggerProvider.force_flush()
-    Otel.Metrics.MeterProvider.force_flush()
+    Otel.Trace.SpanProcessor.force_flush()
+    Otel.Logs.LogRecordProcessor.force_flush()
+    Otel.Metrics.MetricReader.PeriodicExporting.force_flush()
     :ok
   end
 

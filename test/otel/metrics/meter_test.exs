@@ -296,27 +296,4 @@ defmodule Otel.Metrics.MeterTest do
       assert stream.aggregation_cardinality_limit == 2000
     end
   end
-
-  describe "enabled?/2 — always true (no Drop aggregation paths without Views)" do
-    test "registered instrument", %{meter: meter} do
-      assert true ==
-               Otel.Metrics.Meter.enabled?(
-                 Otel.Metrics.Meter.create_counter(meter, "active", []),
-                 []
-               )
-    end
-
-    test "unregistered instrument", %{meter: meter} do
-      cfg = config_of(meter)
-
-      ghost = %Otel.Metrics.Instrument{
-        meter: meter,
-        name: "ghost",
-        kind: :counter,
-        scope: cfg.scope
-      }
-
-      assert Otel.Metrics.Meter.enabled?(ghost, [])
-    end
-  end
 end
