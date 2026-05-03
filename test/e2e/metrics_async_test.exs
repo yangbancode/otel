@@ -14,7 +14,7 @@ defmodule Otel.E2E.MetricsAsyncTest do
 
   describe "observable instruments" do
     test "9: ObservableCounter callback feeds the counter", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       cb = fn _args ->
         [%Otel.Metrics.Measurement{value: 7, attributes: %{"e2e.id" => e2e_id}}]
@@ -34,7 +34,7 @@ defmodule Otel.E2E.MetricsAsyncTest do
     end
 
     test "10: ObservableUpDownCounter callback feeds multi-attr series", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       cb = fn _args ->
         [
@@ -63,7 +63,7 @@ defmodule Otel.E2E.MetricsAsyncTest do
     end
 
     test "11: ObservableGauge callback feeds the gauge", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       cb = fn _args ->
         [%Otel.Metrics.Measurement{value: 99, attributes: %{"e2e.id" => e2e_id}}]
@@ -86,7 +86,7 @@ defmodule Otel.E2E.MetricsAsyncTest do
   describe "callback registration" do
     test "12: register_callback/5 fans out measurements across instruments",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       gauge_a =
         Otel.Metrics.Meter.create_observable_gauge(
@@ -115,7 +115,7 @@ defmodule Otel.E2E.MetricsAsyncTest do
     end
 
     test "13: unregister_callback/1 stops further measurements", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       gauge =
         Otel.Metrics.Meter.create_observable_gauge(

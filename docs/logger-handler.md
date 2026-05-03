@@ -9,36 +9,19 @@ import Config
 
 config :kernel,
   logger: [
-    {:handler, :otel, Otel.LoggerHandler, %{
-      config: %{
-        scope_name: "my_app",
-        scope_version: "1.0.0"
-      }
-    }}
+    {:handler, :otel, Otel.LoggerHandler, %{}}
   ]
 ```
 
 ## At runtime
 
 ```elixir
-:logger.add_handler(:otel, Otel.LoggerHandler, %{
-  config: %{
-    scope_name: "my_app",
-    scope_version: "1.0.0"
-  }
-})
+:logger.add_handler(:otel, Otel.LoggerHandler, %{})
 ```
 
-## Config keys
-
-All under `:config`. Optional.
-
-| Key | Default | Description |
-|---|---|---|
-| `scope_name` | `""` | InstrumentationScope name — your app/library name |
-| `scope_version` | `""` | typically `Application.spec(:my_app, :vsn) \|> to_string()` |
-| `scope_schema_url` | `""` | InstrumentationScope schema URL |
-| `scope_attributes` | `%{}` | InstrumentationScope attributes (primitives + homogeneous arrays) |
+The instrumentation scope is hardcoded to the SDK identity
+(`name: "otel"`, `version: <SDK vsn>`) — no handler config is
+supported.
 
 ## What gets emitted
 

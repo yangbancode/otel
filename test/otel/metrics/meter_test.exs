@@ -5,9 +5,7 @@ defmodule Otel.Metrics.MeterTest do
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
-  defp meter_for(scope_name \\ "test_lib") do
-    Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: scope_name})
-  end
+  defp meter_for, do: Otel.Metrics.MeterProvider.get_meter()
 
   defp config_of(%Otel.Metrics.Meter{config: config}), do: config
 
@@ -114,8 +112,8 @@ defmodule Otel.Metrics.MeterTest do
     end
   end
 
-  describe "duplicate detection (within and across scopes)" do
-    test "same scope: identical → same struct; case-insensitive → first-seen name wins" do
+  describe "duplicate detection" do
+    test "identical → same struct; case-insensitive → first-seen name wins" do
       meter = meter_for()
 
       first = Otel.Metrics.Meter.create_counter(meter, "RequestCount", unit: "1")
@@ -123,16 +121,6 @@ defmodule Otel.Metrics.MeterTest do
 
       case_dup = Otel.Metrics.Meter.create_counter(meter, "requestcount", unit: "1")
       assert case_dup.name == "RequestCount"
-    end
-
-    test "different scopes are independent namespaces (same name, different kind)" do
-      meter_a = meter_for("lib_a")
-      meter_b = meter_for("lib_b")
-
-      assert Otel.Metrics.Meter.create_counter(meter_a, "requests", []).kind == :counter
-
-      assert Otel.Metrics.Meter.create_histogram(meter_b, "requests", []).kind ==
-               :histogram
     end
   end
 
@@ -256,8 +244,6 @@ defmodule Otel.Metrics.MeterTest do
 
       [%{value: 42, attributes: %{"host" => "a"}}] =
         datapoints(meter, "cpu", Otel.Metrics.Aggregation.LastValue)
-
-      assert :ok == Otel.Metrics.Meter.run_callbacks(config_of(meter_for("empty")))
     end
 
     test "register_callback/5 returns a tagged handle; unregister_callback removes it",

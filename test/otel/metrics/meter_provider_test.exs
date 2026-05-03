@@ -1,8 +1,6 @@
 defmodule Otel.Metrics.MeterProviderTest do
   use ExUnit.Case, async: false
 
-  import ExUnit.CaptureLog
-
   setup do
     Otel.TestSupport.restart_with()
     :ok
@@ -28,45 +26,19 @@ defmodule Otel.Metrics.MeterProviderTest do
       Otel.TestSupport.restart_with()
 
       %Otel.Metrics.Meter{config: %{resource: resource}} =
-        Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "lib"})
+        Otel.Metrics.MeterProvider.get_meter()
 
       assert resource.attributes["service.name"] == custom.attributes["service.name"]
     end
   end
 
-  describe "get_meter/1" do
-    test "returns %Meter{} struct carrying scope and SDK identity resource" do
-      %Otel.Metrics.Meter{config: config} =
-        Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{
-          name: "my_lib",
-          version: "1.0.0",
-          schema_url: "https://example.com"
-        })
+  describe "get_meter/0" do
+    test "returns %Meter{} struct carrying the hardcoded SDK scope and resource" do
+      %Otel.Metrics.Meter{config: config} = Otel.Metrics.MeterProvider.get_meter()
 
-      assert %Otel.InstrumentationScope{
-               name: "my_lib",
-               version: "1.0.0",
-               schema_url: "https://example.com"
-             } = config.scope
-
+      assert %Otel.InstrumentationScope{name: "otel"} = config.scope
       assert %Otel.Resource{} = config.resource
       assert config.resource.attributes["telemetry.sdk.name"] == "otel"
-    end
-
-    test "empty Meter name → warns; valid name is silent" do
-      log =
-        capture_log(fn ->
-          Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: ""})
-        end)
-
-      assert log =~ "invalid Meter name"
-
-      silent =
-        capture_log(fn ->
-          Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "ok"})
-        end)
-
-      refute silent =~ "invalid Meter name"
     end
   end
 
@@ -80,8 +52,7 @@ defmodule Otel.Metrics.MeterProviderTest do
     test "after shutdown, get_meter returns a degenerate Meter" do
       :ok = Otel.Metrics.MeterProvider.shutdown()
 
-      assert %Otel.Metrics.Meter{} =
-               Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "lib"})
+      assert %Otel.Metrics.Meter{} = Otel.Metrics.MeterProvider.get_meter()
     end
 
     test "facades stay graceful when no provider state has been seeded" do

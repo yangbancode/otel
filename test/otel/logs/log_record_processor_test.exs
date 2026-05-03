@@ -224,7 +224,7 @@ defmodule Otel.Logs.LogRecordProcessorTest do
     )
 
     logger =
-      Otel.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{name: "test_lib"})
+      Otel.Logs.LoggerProvider.get_logger()
 
     Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{body: "log 1"})
     Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{body: "log 2"})

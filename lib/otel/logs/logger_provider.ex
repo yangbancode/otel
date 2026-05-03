@@ -27,8 +27,6 @@ defmodule Otel.Logs.LoggerProvider do
   - OTel Logs SDK §LoggerProvider: `opentelemetry-specification/specification/logs/sdk.md` §LoggerProvider
   """
 
-  require Logger
-
   @persistent_key {__MODULE__, :state}
 
   @default_shutdown_timeout_ms 30_000
@@ -64,22 +62,19 @@ defmodule Otel.Logs.LoggerProvider do
   (`logs/api.md` §Get a Logger).
 
   Returns a configured `%Otel.Logs.Logger{}` struct stamped
-  with the boot-time resource/limits and the caller's
-  instrumentation scope. After `shutdown/1`, returns an empty
-  Logger.
+  with the boot-time resource/limits and the SDK's hardcoded
+  instrumentation scope (see `Otel.InstrumentationScope`).
+  After `shutdown/1`, returns an empty Logger.
   """
-  @spec get_logger(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
-          Otel.Logs.Logger.t()
-  def get_logger(%Otel.InstrumentationScope{} = instrumentation_scope) do
+  @spec get_logger() :: Otel.Logs.Logger.t()
+  def get_logger do
     state = state()
 
     if state.shut_down do
       %Otel.Logs.Logger{}
     else
-      warn_invalid_scope_name(instrumentation_scope)
-
       logger_config = %{
-        scope: instrumentation_scope,
+        scope: %Otel.InstrumentationScope{},
         resource: state.resource,
         log_record_limits: state.log_record_limits
       }
@@ -157,15 +152,4 @@ defmodule Otel.Logs.LoggerProvider do
       shut_down: false
     }
   end
-
-  @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
-  defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
-    Logger.warning(
-      "Otel.Logs.LoggerProvider: invalid Logger name (empty string) — returning a working Logger as fallback per spec L78-L81"
-    )
-
-    :ok
-  end
-
-  defp warn_invalid_scope_name(_scope), do: :ok
 end

@@ -15,7 +15,7 @@ defmodule Otel.E2E.MetricsSyncTest do
 
   describe "sync instruments" do
     test "1: Counter records a single sample", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
       counter = Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_1_#{e2e_id}")
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
@@ -23,7 +23,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "2: Counter accumulates across N adds", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
       counter = Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_2_#{e2e_id}")
       for _ <- 1..5, do: Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
       flush()
@@ -31,7 +31,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "3: UpDownCounter accepts positive and negative deltas", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       udc =
         Otel.Metrics.Meter.create_updown_counter(meter, "e2e_scenario_3_#{e2e_id}")
@@ -43,7 +43,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "4: Histogram records bucketed samples", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
       hist = Otel.Metrics.Meter.create_histogram(meter, "e2e_scenario_4_#{e2e_id}")
 
       for v <- [1.0, 5.0, 10.0, 50.0],
@@ -55,7 +55,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "8: synchronous Gauge records the latest value", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
       gauge = Otel.Metrics.Meter.create_gauge(meter, "e2e_scenario_8_#{e2e_id}")
       Otel.Metrics.Gauge.record(gauge, 42, %{"e2e.id" => e2e_id})
       flush()
@@ -64,7 +64,7 @@ defmodule Otel.E2E.MetricsSyncTest do
 
     test "5: Histogram custom buckets via advisory carry through to Mimir",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
       bounds = [1.0, 5.0, 25.0]
 
       hist =
@@ -86,7 +86,7 @@ defmodule Otel.E2E.MetricsSyncTest do
 
     test "18: multi-dimensional attrs produce one Mimir series per attr combination",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       counter =
         Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_18_#{e2e_id}")
@@ -104,7 +104,7 @@ defmodule Otel.E2E.MetricsSyncTest do
   describe "semantics" do
     test "16: cumulative temporality is the default — counter monotonically increases",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       counter =
         Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_16_#{e2e_id}")
@@ -116,7 +116,7 @@ defmodule Otel.E2E.MetricsSyncTest do
     end
 
     test "21: float and int values mix on the same series", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
       hist = Otel.Metrics.Meter.create_histogram(meter, "e2e_scenario_21_#{e2e_id}")
       Otel.Metrics.Histogram.record(hist, 1, %{"e2e.id" => e2e_id})
       Otel.Metrics.Histogram.record(hist, 1.5, %{"e2e.id" => e2e_id})
@@ -127,7 +127,7 @@ defmodule Otel.E2E.MetricsSyncTest do
 
   describe "operations" do
     test "30: PeriodicExporting force_flush surfaces data immediately", %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
 
       counter =
         Otel.Metrics.Meter.create_counter(meter, "e2e_scenario_30_#{e2e_id}")
@@ -142,7 +142,7 @@ defmodule Otel.E2E.MetricsSyncTest do
 
     test "31: case-insensitive duplicate registration returns the first instrument",
          %{e2e_id: e2e_id} do
-      meter = Otel.Metrics.MeterProvider.get_meter(scope())
+      meter = Otel.Metrics.MeterProvider.get_meter()
       # First registration sets the canonical (lowercase) name —
       # Mimir stores series under that exact name. The second
       # call uses uppercase to exercise the case-insensitive

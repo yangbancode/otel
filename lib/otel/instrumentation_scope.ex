@@ -1,115 +1,70 @@
 defmodule Otel.InstrumentationScope do
   @moduledoc """
-  A logical unit of software identified by `(name, version, schema_url,
-  attributes)` that emits telemetry (spec
+  Identity of the code that produced telemetry (spec
   `common/instrumentation-scope.md`, Status: **Stable**).
 
-  The tuple SHOULD uniquely identify the emitting software unit and is
-  used to obtain a `Tracer`, `Meter`, or `Logger`.
+  The spec defines the scope as a `(name, version, schema_url,
+  attributes)` tuple that "SHOULD uniquely identify the
+  logical unit of software that emits the telemetry." In a
+  full plugin ecosystem this would be `opentelemetry_phoenix`,
+  `opentelemetry_ecto`, etc. — different identities for each
+  instrumentation library.
 
-  ## Name SHOULD be specified
+  ## Hardcoded to the SDK identity (minikube)
 
-  Per `common/instrumentation-scope.md` L27-L28:
+  This project ships no plugin ecosystem. All telemetry is
+  emitted directly through the SDK's API, so all spans / log
+  records / metrics share the same instrumentation scope:
+  the SDK itself.
 
-  > *"The instrumentation scope's name SHOULD be specified."*
+  `defstruct` defaults are hardcoded at compile time from
+  `mix.exs`:
 
-  The struct defaults `name: ""` to support the default-scope pattern
-  used by `Otel.Metrics.MeterProvider.get_meter/0`,
-  `Otel.Logs.LoggerProvider.get_logger/0`, and similar zero-arity
-  entry points, but an empty name represents an **unspecified** scope.
-  Instrumentation libraries SHOULD supply a meaningful name —
-  typically the library's own module path — when creating a Tracer,
-  Meter, or Logger, since downstream consumers (samplers, exporters,
-  backends) rely on the scope name to disambiguate telemetry by
-  origin.
+  - `name`    — `"otel"` (from `:app` in `mix.exs`)
+  - `version` — current SDK version (from `:version` in `mix.exs`)
 
-  `version`, `schema_url`, and `attributes` are optional.
+  Constructed via the struct literal directly:
 
-  ## API shape: struct, not variadic arguments
+      %Otel.InstrumentationScope{}
+      # => %Otel.InstrumentationScope{
+      #      name: "otel",
+      #      version: "0.2.0",
+      #      schema_url: "",
+      #      attributes: %{}
+      #    }
 
-  Each signal's `Get a Tracer` / `Get a Meter` / `Get a
-  Logger` spec requires that the API
-  *"MUST be structured to accept a variable number of
-  attributes, including none"*:
+  Tests can override individual fields:
 
-  - `trace/api.md` §TracerProvider operations
-  - `metrics/api.md` L147-L149
-  - `logs/api.md` L91-L93
-
-  We satisfy this MUST by passing a single
-  `%Otel.InstrumentationScope{}` struct whose
-  `attributes: %{}` field accepts 0 to N entries:
-
-      get_logger(%InstrumentationScope{})
-      # => 0 attributes
-
-      get_logger(%InstrumentationScope{attributes: %{"env" => "prod"}})
-      # => 1 attribute
-
-      get_logger(%InstrumentationScope{attributes: %{...}})
-      # => N attributes
-
-  ### Interpretation
-
-  *"structured to accept a variable number of attributes"*
-  describes the API's **acceptance range** — it must permit 0
-  to N attributes — not a particular caller syntax. Different
-  language implementations meet this with different shapes:
-  Java uses a builder, Go uses variadic options, Python uses
-  `**kwargs`, Erlang uses positional arguments, and Elixir
-  uses a struct with a map field.
-
-  ### Why struct rather than keyword list
-
-  - **Dialyzer checks fields at compile time** —
-    `%InstrumentationScope{name: 123}` is rejected;
-    `get_logger(name: 123)` would not be.
-  - **Struct equality supports the spec's cache rule.** The
-    *"identical vs distinct"* Tracer/Meter/Logger rule (spec:
-    same parameters → same instance) maps directly to Elixir
-    map equality on the four struct fields, evaluated in one
-    operation with no keyword-order sensitivity.
-  - **Consistency across signals.** `TracerProvider.get_tracer/1`,
-    `MeterProvider.get_meter/0,1`, and
-    `LoggerProvider.get_logger/0,1` all accept the same shape,
-    so callers learn one pattern.
-
-  ### Divergence from opentelemetry-erlang
-
-  Erlang's `otel_tracer_provider:get_tracer/4` takes positional
-  arguments (`Name, Vsn, SchemaUrl, Extra`). We accept a
-  struct instead. Both satisfy the spec MUST; the struct is
-  the Elixir-idiomatic choice for grouped identity tuples and
-  matches the broader ecosystem (`%Ecto.Schema{}`,
-  `%Plug.Conn{}`, `%Date{}`).
+      %Otel.InstrumentationScope{schema_url: "https://example.com"}
 
   ## References
 
   - OTel Instrumentation Scope: `opentelemetry-specification/specification/common/instrumentation-scope.md`
-  - Tracer creation mapping: `opentelemetry-specification/specification/trace/api.md` L118–L139
   - `attributes` field origin: OTEP `0201-scope-attributes.md` (added in spec v1.13.0)
   """
 
   use Otel.Common.Types
+
+  @name Mix.Project.config()[:app] |> Atom.to_string()
+  @version Mix.Project.config()[:version]
 
   @typedoc """
   An instrumentation scope tuple (spec `common/instrumentation-scope.md`).
 
   Fields:
 
-  - `name` — SHOULD be specified to identify the scope. An empty string
-    is permitted by this struct and represents an **unspecified** scope,
-    consistent with `Otel.Trace.get_tracer/0` allowing a default
-    `%InstrumentationScope{}`. The spec recommends specifying it.
-  - `version` — Optional. Version of the instrumentation library or
-    scope. Empty string when unspecified.
-  - `schema_url` — Optional. SHOULD identify the Telemetry Schema the
-    scope's emitted telemetry conforms to. Empty string when
-    unspecified.
-  - `attributes` — Optional. Additional scope-identifying key/value
-    pairs (OTEP 0201, added in spec v1.13.0). Values follow OTel
-    attribute rules: primitives and homogeneous arrays only, no maps
-    and no heterogeneous arrays. Empty map when unspecified.
+  - `name` — identity of the emitting software unit. Hardcoded
+    to the SDK app name (`"otel"`) per minikube scope.
+  - `version` — version of the emitting software unit.
+    Hardcoded to the SDK version (e.g. `"0.2.0"`).
+  - `schema_url` — Optional. SHOULD identify the Telemetry
+    Schema the scope's emitted telemetry conforms to. Empty
+    string when unspecified.
+  - `attributes` — Optional. Additional scope-identifying
+    key/value pairs (OTEP 0201, added in spec v1.13.0). Values
+    follow OTel attribute rules: primitives and homogeneous
+    arrays only, no maps and no heterogeneous arrays. Empty
+    map when unspecified.
   """
   @type t :: %__MODULE__{
           name: String.t(),
@@ -118,8 +73,8 @@ defmodule Otel.InstrumentationScope do
           attributes: %{String.t() => primitive_any()}
         }
 
-  defstruct name: "",
-            version: "",
+  defstruct name: @name,
+            version: @version,
             schema_url: "",
             attributes: %{}
 end

@@ -23,7 +23,7 @@ defmodule Otel.E2E.LogSdkLimitsTest do
 
   describe "log record limits" do
     test "11: attribute_count_limit (2) drops excess attributes", %{e2e_id: e2e_id} do
-      logger = Otel.Logs.LoggerProvider.get_logger(scope())
+      logger = Otel.Logs.LoggerProvider.get_logger()
 
       Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
         body: "scenario-11-#{e2e_id}",
@@ -55,7 +55,7 @@ defmodule Otel.E2E.LogSdkLimitsTest do
 
     test "12: attribute_value_length_limit (8) truncates long string values",
          %{e2e_id: e2e_id} do
-      logger = Otel.Logs.LoggerProvider.get_logger(scope())
+      logger = Otel.Logs.LoggerProvider.get_logger()
 
       Otel.Logs.Logger.emit(logger, %Otel.Logs.LogRecord{
         body: "scenario-12-#{e2e_id}",

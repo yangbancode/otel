@@ -37,17 +37,16 @@ defmodule Otel.LoggerHandlerTest do
     :ok
   end
 
-  defp emit(level, msg, meta \\ %{}, config \\ %{scope_name: "test_lib"}) do
+  defp emit(level, msg, meta \\ %{}) do
     # Mirrors `:logger`'s add_default_metadata/1 (OTP logger.erl L1193-L1214).
     meta = Map.put_new(meta, :time, System.system_time(:microsecond))
-    Otel.LoggerHandler.log(%{level: level, msg: msg, meta: meta}, %{config: config})
+    Otel.LoggerHandler.log(%{level: level, msg: msg, meta: meta}, %{})
   end
 
   describe "lifecycle callbacks" do
     test "adding_handler/1 passes config through unchanged; accepts empty / no :config" do
-      config = %{config: %{scope_name: "test_lib", scope_version: "1.0.0"}}
+      config = %{config: %{}}
       assert {:ok, ^config} = Otel.LoggerHandler.adding_handler(config)
-      assert {:ok, _} = Otel.LoggerHandler.adding_handler(%{config: %{}})
       assert {:ok, _} = Otel.LoggerHandler.adding_handler(%{})
     end
 
@@ -61,41 +60,19 @@ defmodule Otel.LoggerHandlerTest do
     end
 
     test "filter_config/1 returns config unchanged" do
-      config = %{config: %{scope_name: "test"}}
+      config = %{config: %{}}
       assert config == Otel.LoggerHandler.filter_config(config)
     end
   end
 
   describe "log/2 — Logger resolution" do
-    test "resolves Logger via LoggerProvider; propagates all four scope_* keys" do
-      emit(:info, {:string, "hi"}, %{}, %{
-        scope_name: "my_app",
-        scope_version: "2.0.0",
-        scope_schema_url: "https://example.com/schemas/1.26.0",
-        scope_attributes: %{"deployment.environment" => "test"}
-      })
+    test "resolves Logger via LoggerProvider with the hardcoded SDK scope" do
+      emit(:info, {:string, "hi"})
 
       assert_receive {:scope_resolved, scope}
-      assert scope.name == "my_app"
-      assert scope.version == "2.0.0"
-      assert scope.schema_url == "https://example.com/schemas/1.26.0"
-      assert scope.attributes == %{"deployment.environment" => "test"}
+      assert scope.name == "otel"
 
       assert_receive {:captured_log, _, _}
-    end
-
-    test "defaults empty scope_* keys when config map is empty or missing" do
-      for config <- [%{}, nil] do
-        message = %{level: :info, msg: {:string, "x"}, meta: %{time: 1}}
-        wrapper = if(config, do: %{config: config}, else: %{})
-        Otel.LoggerHandler.log(message, wrapper)
-
-        assert_receive {:scope_resolved, scope}
-        assert scope.name == ""
-        assert scope.version == ""
-        assert scope.schema_url == ""
-        assert scope.attributes == %{}
-      end
     end
   end
 
@@ -387,10 +364,7 @@ defmodule Otel.LoggerHandlerTest do
   end
 
   test "integration — handler registers under :logger and routes calls without crashing" do
-    :ok =
-      :logger.add_handler(@handler_id, Otel.LoggerHandler, %{
-        config: %{scope_name: "integration_test"}
-      })
+    :ok = :logger.add_handler(@handler_id, Otel.LoggerHandler, %{})
 
     :logger.info("integration test message")
     :logger.warning("warning message")

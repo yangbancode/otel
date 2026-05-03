@@ -5,7 +5,7 @@ defmodule Otel.Trace.TracerTest do
     Otel.TestSupport.restart_with()
 
     tracer =
-      Otel.Trace.TracerProvider.get_tracer(%Otel.InstrumentationScope{name: "test_lib"})
+      Otel.Trace.TracerProvider.get_tracer()
 
     %{tracer: tracer}
   end
@@ -19,7 +19,7 @@ defmodule Otel.Trace.TracerTest do
 
     span = Otel.Trace.SpanStorage.get(span_ctx.span_id)
     assert span.name == "test_span"
-    assert span.instrumentation_scope.name == "test_lib"
+    assert span.instrumentation_scope.name == "otel"
   end
 
   # Spec trace/sdk.md L223-L227 MUST: minikube hardcodes a single

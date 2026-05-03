@@ -32,8 +32,6 @@ defmodule Otel.Metrics.MeterProvider do
   - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
   """
 
-  require Logger
-
   @persistent_key {__MODULE__, :state}
 
   @ets_tables [
@@ -135,26 +133,24 @@ defmodule Otel.Metrics.MeterProvider do
   (`metrics/api.md` §Get a Meter).
 
   Returns a configured `%Otel.Metrics.Meter{}` struct stamped
-  with the boot-time meter config and the caller's
-  instrumentation scope. After `shutdown/1`, returns an empty
-  Meter (no instruments, no readers).
+  with the boot-time meter config and the SDK's hardcoded
+  instrumentation scope (see `Otel.InstrumentationScope`).
+  After `shutdown/1`, returns an empty Meter (no instruments,
+  no readers).
   """
-  @spec get_meter(instrumentation_scope :: Otel.InstrumentationScope.t()) ::
-          Otel.Metrics.Meter.t()
-  def get_meter(%Otel.InstrumentationScope{} = instrumentation_scope) do
+  @spec get_meter() :: Otel.Metrics.Meter.t()
+  def get_meter do
     state = state()
 
     if state.shut_down do
       %Otel.Metrics.Meter{}
     else
-      warn_invalid_scope_name(instrumentation_scope)
-
       reader_meter_config = state.reader_meter_config
       reader_opts = %{temporality_mapping: reader_meter_config.temporality_mapping}
 
       meter_config =
         Map.merge(state.base_meter_config, %{
-          scope: instrumentation_scope,
+          scope: %Otel.InstrumentationScope{},
           reader_configs: [{state.reader_id, reader_opts}]
         })
 
@@ -280,15 +276,4 @@ defmodule Otel.Metrics.MeterProvider do
 
     :ok
   end
-
-  @spec warn_invalid_scope_name(scope :: Otel.InstrumentationScope.t()) :: :ok
-  defp warn_invalid_scope_name(%Otel.InstrumentationScope{name: ""}) do
-    Logger.warning(
-      "Otel.Metrics.MeterProvider: invalid Meter name (empty string) — returning a working Meter as fallback"
-    )
-
-    :ok
-  end
-
-  defp warn_invalid_scope_name(_scope), do: :ok
 end

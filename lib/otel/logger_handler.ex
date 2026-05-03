@@ -12,34 +12,16 @@ defmodule Otel.LoggerHandler do
 
   ## Usage
 
-      :logger.add_handler(:otel, Otel.LoggerHandler, %{
-        config: %{
-          scope_name: "my_app",
-          scope_version: "1.0.0"
-        }
-      })
+      :logger.add_handler(:otel, Otel.LoggerHandler, %{})
 
-  ## Configuration
-
-  All handler-specific options live under the handler config's
-  `:config` key (`:logger.handler_config()` L116-L122). Every
-  key is optional.
-
-  | Key | Default | Description |
-  |---|---|---|
-  | `scope_name` | `""` | `Otel.InstrumentationScope.name` — **SHOULD** be set to the calling application/library name. Spec `common/instrumentation-scope.md` L23: *"The instrumentation scope's name SHOULD be specified to identify the `InstrumentationScope` name."* L18-22 names the typical approach as the *"fully qualified name of the emitting software unit (e.g. fully qualified library name or fully qualified class name)."* An empty name is accepted by `LoggerProvider.get_logger/1`-style fallbacks but loses origin identification at the backend |
-  | `scope_version` | `""` | `Otel.InstrumentationScope.version` — typically `Application.spec(:my_app, :vsn)` |
-  | `scope_schema_url` | `""` | `Otel.InstrumentationScope.schema_url` (OTel spec v1.13.0+) |
-  | `scope_attributes` | `%{}` | `Otel.InstrumentationScope.attributes` (OTEP 0201). Follows OTel attribute rules: primitives or homogeneous arrays only |
-
-  `log/2` builds an `%Otel.InstrumentationScope{}` from the
-  four `scope_*` keys on every event and resolves the Logger
-  through `Otel.Logs.LoggerProvider.get_logger/1`. Resolution
-  is per-event rather than cached at `adding_handler/1`
-  time so that a Logger obtained before the SDK started — or
-  before its processor list was finalised — does not lock the
-  handler into stale state for the rest of the system's
-  lifetime.
+  No handler-specific configuration is supported — minikube
+  hardcodes the instrumentation scope to the SDK identity
+  (see `Otel.InstrumentationScope`). `log/2` resolves the
+  Logger through `Otel.Logs.LoggerProvider.get_logger/0` on
+  every event so that a Logger obtained before the SDK
+  started — or before its processor list was finalised —
+  does not lock the handler into stale state for the rest
+  of the system's lifetime.
 
   Batching and export are handled by the SDK's processor
   pipeline, not by this handler. Pair with `BatchProcessor`
@@ -349,10 +331,9 @@ defmodule Otel.LoggerHandler do
 
   @doc false
   @spec log(log_event :: :logger.log_event(), config :: :logger.handler_config()) :: :ok
-  def log(log_event, config) do
+  def log(log_event, _config) do
     ctx = Otel.Ctx.current()
-    instrumentation_scope = build_instrumentation_scope(config)
-    logger = Otel.Logs.LoggerProvider.get_logger(instrumentation_scope)
+    logger = Otel.Logs.LoggerProvider.get_logger()
     log_record = build_log_record(log_event)
     Otel.Logs.Logger.emit(logger, ctx, log_record)
     :ok
@@ -373,19 +354,6 @@ defmodule Otel.LoggerHandler do
   def filter_config(config), do: config
 
   # --- Private ---
-
-  @spec build_instrumentation_scope(config :: :logger.handler_config()) ::
-          Otel.InstrumentationScope.t()
-  defp build_instrumentation_scope(config) do
-    otel_config = Map.get(config, :config) || %{}
-
-    %Otel.InstrumentationScope{
-      name: Map.get(otel_config, :scope_name) || "",
-      version: Map.get(otel_config, :scope_version) || "",
-      schema_url: Map.get(otel_config, :scope_schema_url) || "",
-      attributes: Map.get(otel_config, :scope_attributes) || %{}
-    }
-  end
 
   @spec build_log_record(log_event :: :logger.log_event()) ::
           Otel.Logs.LogRecord.t()

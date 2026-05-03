@@ -13,9 +13,7 @@ Two paths into OpenTelemetry Logs:
 # config/config.exs — attach the handler at boot
 config :kernel,
   logger: [
-    {:handler, :otel, Otel.LoggerHandler, %{
-      config: %{scope_name: "my_app"}
-    }}
+    {:handler, :otel, Otel.LoggerHandler, %{}}
   ]
 ```
 
@@ -101,9 +99,11 @@ extra wiring needed.
 ## SDK API
 
 ```elixir
-scope = %Otel.InstrumentationScope{name: "my_app", version: "1.0.0"}
-logger = Otel.API.Logs.LoggerProvider.get_logger(scope)
+logger = Otel.API.Logs.LoggerProvider.get_logger()
 ```
+
+Minikube hardcodes the instrumentation scope to the SDK identity
+(`name: "otel"`, `version: <SDK vsn>`) — no user-supplied scope.
 
 ### String body
 

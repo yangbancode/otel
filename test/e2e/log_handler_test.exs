@@ -15,7 +15,7 @@ defmodule Otel.E2E.LogHandlerTest do
   config — the handler bridge is the same on both surfaces.
 
   Tracking matrix: `docs/e2e.md` §Log — `:logger` Handler bridge,
-  scenarios 1–21.
+  scenarios 1–20.
   """
 
   use Otel.E2E.Case, async: false
@@ -23,12 +23,7 @@ defmodule Otel.E2E.LogHandlerTest do
   @handler_id :otel_e2e
 
   setup_all do
-    :logger.add_handler(@handler_id, Otel.LoggerHandler, %{
-      config: %{
-        scope_name: "otel-e2e-log-handler",
-        scope_version: "0.1.0"
-      }
-    })
+    :logger.add_handler(@handler_id, Otel.LoggerHandler, %{})
 
     on_exit(fn -> :logger.remove_handler(@handler_id) end)
     :ok
@@ -204,9 +199,9 @@ defmodule Otel.E2E.LogHandlerTest do
     end
   end
 
-  describe "trace context + scope" do
+  describe "trace context" do
     test "20: emit inside with_span carries trace_id / span_id", %{e2e_id: e2e_id} do
-      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       Otel.Trace.with_span(
         tracer,
@@ -217,17 +212,6 @@ defmodule Otel.E2E.LogHandlerTest do
         end
       )
 
-      flush()
-      assert {:ok, [_ | _]} = poll(Loki.query(e2e_id))
-    end
-
-    test "21: scope_* keys flow through to InstrumentationScope", %{e2e_id: e2e_id} do
-      # Already exercised by `setup_all` — every test uses the
-      # configured scope ("otel-e2e-log-handler", "0.1.0"). The
-      # handler builds a fresh InstrumentationScope per event
-      # from those keys, so any landed record proves the four
-      # scope_* fields reached the Logger build path.
-      :logger.log(:info, "scenario-21-#{e2e_id}", %{"e2e.id": e2e_id})
       flush()
       assert {:ok, [_ | _]} = poll(Loki.query(e2e_id))
     end

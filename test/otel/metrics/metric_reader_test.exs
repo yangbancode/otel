@@ -3,10 +3,8 @@ defmodule Otel.Metrics.MetricReaderTest do
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
-  defp meter_config(scope_name \\ "test_lib") do
-    %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: scope_name})
-
+  defp meter_config do
+    %Otel.Metrics.Meter{config: config} = Otel.Metrics.MeterProvider.get_meter()
     config
   end
 
@@ -34,7 +32,7 @@ defmodule Otel.Metrics.MetricReaderTest do
       assert metric.name == "requests"
       assert metric.unit == "1"
       assert metric.kind == :counter
-      assert metric.scope.name == "test_lib"
+      assert metric.scope.name == "otel"
       assert %Otel.Resource{} = metric.resource
 
       [dp] = metric.datapoints

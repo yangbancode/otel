@@ -33,12 +33,7 @@ defmodule Otel.Logs.LoggerTest do
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
-  defp logger_for(scope_name, version \\ "1.0.0") do
-    Otel.Logs.LoggerProvider.get_logger(%Otel.InstrumentationScope{
-      name: scope_name,
-      version: version
-    })
-  end
+  defp logger, do: Otel.Logs.LoggerProvider.get_logger()
 
   defp logger_with_limits(limit_overrides) do
     restart_sdk(
@@ -48,12 +43,12 @@ defmodule Otel.Logs.LoggerTest do
       ]
     )
 
-    logger_for("lib")
+    logger()
   end
 
   setup do
     restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
-    %{logger: logger_for("test_lib")}
+    %{logger: logger()}
   end
 
   describe "emit/3 — record enrichment" do
@@ -79,8 +74,7 @@ defmodule Otel.Logs.LoggerTest do
       Otel.Logs.Logger.emit(logger, Otel.Ctx.current(), %Otel.Logs.LogRecord{})
       assert_receive {:log_record, record}
 
-      assert record.scope.name == "test_lib"
-      assert record.scope.version == "1.0.0"
+      assert record.scope.name == "otel"
       assert %Otel.Resource{} = record.resource
       assert record.timestamp == 0
       assert record.severity_number == 0
@@ -233,7 +227,7 @@ defmodule Otel.Logs.LoggerTest do
       silent_log =
         capture_log(fn ->
           Otel.Logs.Logger.emit(
-            logger_for("lib"),
+            logger(),
             Otel.Ctx.current(),
             %Otel.Logs.LogRecord{attributes: %{"a" => 1, "b" => "short"}}
           )

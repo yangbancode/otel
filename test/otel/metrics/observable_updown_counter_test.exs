@@ -6,7 +6,7 @@ defmodule Otel.Metrics.ObservableUpDownCounterTest do
     Application.ensure_all_started(:otel)
 
     %{
-      meter: Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: "test"})
+      meter: Otel.Metrics.MeterProvider.get_meter()
     }
   end
 

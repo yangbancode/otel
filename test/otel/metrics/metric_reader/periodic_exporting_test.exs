@@ -22,10 +22,8 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
     end
   end
 
-  defp meter_config(scope_name \\ "test_lib") do
-    %Otel.Metrics.Meter{config: config} =
-      Otel.Metrics.MeterProvider.get_meter(%Otel.InstrumentationScope{name: scope_name})
-
+  defp meter_config do
+    %Otel.Metrics.Meter{config: config} = Otel.Metrics.MeterProvider.get_meter()
     config
   end
 
@@ -38,8 +36,8 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
     )
   end
 
-  defp record_one(scope_name \\ nil, name) do
-    config = if scope_name, do: meter_config(scope_name), else: meter_config()
+  defp record_one(name) do
+    config = meter_config()
     counter = Otel.Metrics.Meter.create_counter(%Otel.Metrics.Meter{config: config}, name, [])
     Otel.Metrics.Meter.record(counter, 1, %{})
     config
@@ -173,7 +171,7 @@ defmodule Otel.Metrics.MetricReader.PeriodicExportingTest do
       export_interval_ms: 60_000
     })
 
-    record_one("lib", "provider_counter")
+    record_one("provider_counter")
 
     assert :ok = Otel.Metrics.MeterProvider.force_flush()
     assert_receive {:exported, [%{name: "provider_counter"}]}

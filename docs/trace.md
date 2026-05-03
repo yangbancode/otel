@@ -8,8 +8,7 @@
 ```
 
 ```elixir
-scope = %Otel.InstrumentationScope{name: "my_app"}
-tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
+tracer = Otel.API.Trace.TracerProvider.get_tracer()
 
 Otel.API.Trace.with_span(tracer, "checkout", fn _span_ctx ->
   process_order()
@@ -21,14 +20,12 @@ See [Configuration](configuration.md) to change endpoint or limits.
 
 ## Get a tracer
 
-`InstrumentationScope` identifies *which library or module* produced
-the telemetry — pick a stable `name` per scope (your OTP app or
-module).
-
 ```elixir
-scope = %Otel.InstrumentationScope{name: "my_app", version: "1.0.0"}
-tracer = Otel.API.Trace.TracerProvider.get_tracer(scope)
+tracer = Otel.API.Trace.TracerProvider.get_tracer()
 ```
+
+Minikube hardcodes the instrumentation scope to the SDK identity
+(`name: "otel"`, `version: <SDK vsn>`) — no user-supplied scope.
 
 ## `with_span/4` — automatic lifecycle
 

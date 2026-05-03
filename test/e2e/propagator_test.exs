@@ -33,7 +33,7 @@ defmodule Otel.E2E.PropagatorTest do
       carrier = [{"traceparent", "00-#{trace_id_hex}-#{parent_id_hex}-01"}]
       ctx = Otel.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
-      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       Otel.Trace.with_span(
         ctx,
@@ -64,7 +64,7 @@ defmodule Otel.E2E.PropagatorTest do
       carrier = [{"traceparent", "00-#{trace_id_hex}-#{parent_id_hex}-01"}]
       ctx = Otel.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
-      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       Otel.Trace.with_span(
         ctx,
@@ -98,7 +98,7 @@ defmodule Otel.E2E.PropagatorTest do
       ]
 
       ctx = Otel.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
-      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       Otel.Trace.with_span(
         ctx,
@@ -123,7 +123,7 @@ defmodule Otel.E2E.PropagatorTest do
       carrier = Otel.Propagator.TextMap.inject(sender_ctx, [])
       receiver_ctx = Otel.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
 
-      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       Otel.Trace.with_span(
         receiver_ctx,
@@ -162,7 +162,7 @@ defmodule Otel.E2E.PropagatorTest do
       ]
 
       ctx = Otel.Propagator.TextMap.extract(Otel.Ctx.new(), carrier)
-      tracer = Otel.Trace.TracerProvider.get_tracer(scope())
+      tracer = Otel.Trace.TracerProvider.get_tracer()
 
       Otel.Trace.with_span(
         ctx,
