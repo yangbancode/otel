@@ -93,7 +93,7 @@ defmodule Otel.TestSupport do
     # 2. Start the supervised storage / processor children. The six
     # per-table `XxxStorage` GenServers own the metrics ETS tables and
     # must start before `start_metrics_reader` (the reader reads
-    # `reader_meter_config/0` in its init).
+    # `meter_config/0` in its init).
     start_orphan!(Otel.Trace.SpanStorage, [])
     start_orphan!(Otel.Metrics.InstrumentsStorage, [])
     start_orphan!(Otel.Metrics.StreamsStorage, [])
@@ -236,9 +236,9 @@ defmodule Otel.TestSupport do
 
       [{module, config}] ->
         # Reader's init expects meter_config — supply it from
-        # `Otel.Metrics.reader_meter_config/0` (computed inline).
+        # `Otel.Metrics.meter_config/0` (computed inline).
         config =
-          Map.put_new(config, :meter_config, Otel.Metrics.reader_meter_config())
+          Map.put_new(config, :meter_config, Otel.Metrics.meter_config())
 
         start_orphan_named!(module, config, Otel.Metrics.MetricReader.PeriodicExporting)
 

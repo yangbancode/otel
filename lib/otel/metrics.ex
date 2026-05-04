@@ -21,9 +21,7 @@ defmodule Otel.Metrics do
 
   | Function | Role |
   |---|---|
-  | `reader_meter_config/0` | **SDK** — config the reader uses to collect |
-  | `resource/0`, `config/0` | **Application** (introspection) |
-  | `meter_config/0` | **SDK** — the same map stamped on `Meter.create_*` paths |
+  | `meter_config/0` | **SDK** — config stamped on `Meter.create_*` and consumed by `MetricReader.collect/1`; also serves as Application-side introspection of the resource/scope |
 
   ## References
 
@@ -41,6 +39,10 @@ defmodule Otel.Metrics do
   (producer side, `reader_configs`) and `MetricReader.collect/1`
   (consumer side, `reader_id` + `temporality_mapping`). The same
   map serves both roles so callers don't juggle two shapes.
+
+  Application code may also call this for introspection (e.g.
+  reading `.resource` or `.scope`) — there is no separate
+  introspection API.
   """
   @spec meter_config() :: map()
   def meter_config do
@@ -61,25 +63,4 @@ defmodule Otel.Metrics do
       reader_configs: [{@reader_id, %{temporality_mapping: temporality_mapping}}]
     }
   end
-
-  @doc """
-  **SDK** — Same map as `meter_config/0`, kept for clarity at
-  the `Otel.Metrics.MetricReader.PeriodicExporting` callsite.
-  """
-  @spec reader_meter_config() :: map()
-  def reader_meter_config, do: meter_config()
-
-  @doc """
-  **Application** (introspection) — Returns the SDK resource
-  (`Otel.Resource.build/0`).
-  """
-  @spec resource() :: Otel.Resource.t()
-  def resource, do: Otel.Resource.build()
-
-  @doc """
-  **Application** (introspection) — Returns the synthetic meter
-  config map (`meter_config/0`).
-  """
-  @spec config() :: map()
-  def config, do: meter_config()
 end

@@ -42,7 +42,7 @@ defmodule Otel.Metrics.TemporalityTest do
     # mapping).
     Otel.TestSupport.restart_with(metrics: [readers: []])
 
-    base = Otel.Metrics.reader_meter_config()
+    base = Otel.Metrics.meter_config()
 
     delta_meter_config = %{
       base

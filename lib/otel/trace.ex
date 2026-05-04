@@ -218,11 +218,4 @@ defmodule Otel.Trace do
   """
   @spec detach(token :: Otel.Ctx.t()) :: :ok
   def detach(token), do: Otel.Ctx.detach(token)
-
-  @doc """
-  **Application** (introspection) — Returns the SDK resource
-  (`Otel.Resource.build/0`).
-  """
-  @spec resource() :: Otel.Resource.t()
-  def resource, do: Otel.Resource.build()
 end
