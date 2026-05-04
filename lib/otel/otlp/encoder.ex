@@ -149,7 +149,20 @@ defmodule Otel.OTLP.Encoder do
     end)
   end
 
+  # Each clause maps one shape of `Otel.Common.Types.primitive_any/0`
+  # to its OTLP `AnyValue` oneof case. Invalid types (atoms other
+  # than booleans, tuples that aren't `{:bytes, _}`, refs, pids,
+  # etc.) are not in the type contract and crash with
+  # `FunctionClauseError` — happy-path policy: invalid input is a
+  # caller bug, not encoder responsibility to silently coerce.
   @spec encode_any_value(value :: term()) :: Opentelemetry.Proto.Common.V1.AnyValue.t()
+  # `nil` → empty `AnyValue` (oneof unset). Spec
+  # `common/README.md` L50-L51 admits null as a valid AnyValue
+  # in languages that support it; L67-L68 MUST that null values
+  # within arrays MUST be preserved as-is. `%AnyValue{}` is the
+  # OTLP wire-level representation of "this AnyValue is empty".
+  defp encode_any_value(nil), do: %Opentelemetry.Proto.Common.V1.AnyValue{}
+
   defp encode_any_value({:bytes, value}) when is_binary(value) do
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:bytes_value, value}}
   end
@@ -158,20 +171,18 @@ defmodule Otel.OTLP.Encoder do
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, value}}
   end
 
+  # `is_boolean` must precede any `is_atom` — but the latter is
+  # absent now, leaving boolean as the only atom shape we accept.
+  defp encode_any_value(value) when is_boolean(value) do
+    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:bool_value, value}}
+  end
+
   defp encode_any_value(value) when is_integer(value) do
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:int_value, value}}
   end
 
   defp encode_any_value(value) when is_float(value) do
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:double_value, value}}
-  end
-
-  defp encode_any_value(value) when is_boolean(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:bool_value, value}}
-  end
-
-  defp encode_any_value(value) when is_atom(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, Atom.to_string(value)}}
   end
 
   defp encode_any_value(value) when is_list(value) do
@@ -193,10 +204,6 @@ defmodule Otel.OTLP.Encoder do
 
     kvlist = %Opentelemetry.Proto.Common.V1.KeyValueList{values: kvs}
     %Opentelemetry.Proto.Common.V1.AnyValue{value: {:kvlist_value, kvlist}}
-  end
-
-  defp encode_any_value(value) do
-    %Opentelemetry.Proto.Common.V1.AnyValue{value: {:string_value, inspect(value)}}
   end
 
   # --- Metrics ---
