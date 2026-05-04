@@ -122,9 +122,10 @@ defmodule Otel.Trace.SpanProcessor do
     # `Otel.Application` supervises this child with `[]` config —
     # exporter comes from the user's `config :otel, exporter: %{...}`
     # key. Tests that want a custom exporter (e.g. FakeExporter)
-    # override via the args. Resource is read from `Otel.Resource.build/0`
-    # at boot — call `Application.stop(:otel)` + `put_env(:otp_app, ...)`
-    # + restart cycle to refresh.
+    # override via the args. Resource is captured from
+    # `Otel.Resource.build/0` at boot — call `Application.stop(:otel)`
+    # + `System.put_env("RELEASE_NAME", ...)` + restart cycle to
+    # refresh.
     Process.flag(:trap_exit, true)
 
     exporter =

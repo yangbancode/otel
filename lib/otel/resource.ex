@@ -2,21 +2,31 @@ defmodule Otel.Resource do
   @moduledoc """
   SDK Resource (`resource/sdk.md` §"SDK").
 
-  Minikube hardcodes the resource to a fixed shape — the only
-  user knob is `:otp_app`, which derives `service.name` and
-  `service.version`. Resource merging is dropped (use
-  `opentelemetry-erlang` if you need it). The `schema_url`
-  field is preserved at the data-model level for OTLP wire
-  compliance, but stays at its default `""` — there is no API
-  to set it.
+  Minikube hardcodes the resource to a fixed shape. There is no
+  user config knob — `service.name` and `service.version` come
+  from the standard Mix release env vars (`RELEASE_NAME`,
+  `RELEASE_VSN`) at runtime, automatically set by Mix release
+  boot scripts. SDK identity (`telemetry.sdk.*`,
+  `deployment.environment`) is baked in at build time. Resource
+  merging and Schema URL are dropped — power users go to
+  `opentelemetry-erlang`. The `schema_url` field is preserved at
+  the data-model level for OTLP wire compliance, but stays at
+  its default `""` — there is no API to set it.
 
   ## Configuration
 
-      config :otel, otp_app: :my_app
+  No `config :otel, ...` knob for resource. In production with
+  `mix release`, `RELEASE_NAME` and `RELEASE_VSN` are exported
+  by the boot script (`bin/<app> start`) so `service.name` and
+  `service.version` are populated automatically.
 
-  Without `:otp_app`, `service.name` falls back to
-  `"unknown_service"` (spec MUST per `resource/sdk.md`
-  §"Service") and `service.version` is omitted entirely.
+  Outside a release (dev `iex -S mix`, `mix test`), the env
+  vars are unset and `service.name` falls back to
+  `"unknown_service"`; `service.version` is the empty string
+  `""`. Callers who need a specific identity in those contexts
+  can export the env vars manually:
+
+      RELEASE_NAME=my_app RELEASE_VSN=0.1.0 iex -S mix
 
   ## Emitted attributes
 
@@ -26,15 +36,24 @@ defmodule Otel.Resource do
   | `telemetry.sdk.language` | `"elixir"` |
   | `telemetry.sdk.version` | this SDK's `:version` (compile-time) |
   | `deployment.environment` | `MIX_ENV` env var at SDK compile time (default `"dev"`) |
-  | `service.name` | `:otp_app` config or `"unknown_service"` |
-  | `service.version` | `Application.spec(:otp_app, :vsn)` (key omitted when unavailable) |
+  | `service.name` | `RELEASE_NAME` (default `"unknown_service"`) |
+  | `service.version` | `RELEASE_VSN` (default `""`) |
 
-  `service.version` is a Recommended (not Required) attribute
-  per `semantic-conventions/docs/resource/service.md` L67;
-  spec defines no `unknown_version` fallback, so the key is
-  dropped when the value can't be determined — matching
-  `opentelemetry-erlang`'s `otel_resource_detector.erl:297-307`
-  release-version handling.
+  Reading `RELEASE_NAME` / `RELEASE_VSN` at runtime mirrors
+  `opentelemetry-erlang`'s `otel_resource_detector.erl:215-234`
+  (`find_release/0`). Both env vars are exported by Mix
+  release's generated boot script (`elixir/lib/mix/lib/mix/tasks/release.init.ex`
+  L103-L106). Compile-time read would always see them as
+  `nil` because the SDK's dep compilation phase predates any
+  release boot.
+
+  `service.version` falls back to `""` rather than being omitted
+  when `RELEASE_VSN` is unset. Spec convention (Recommended,
+  not Required) and `opentelemetry-erlang` would omit the key,
+  but minikube prefers a single inline read here. Mimir/Prometheus
+  treats `{label=""}` as equivalent to absent at query time;
+  Tempo/Loki distinguish empty-string from absent — accepted
+  trade-off for code simplicity.
 
   `deployment.environment` is captured at SDK compile time from
   `System.get_env("MIX_ENV")` directly — **not** `Mix.env/0`.
@@ -46,14 +65,15 @@ defmodule Otel.Resource do
   always evaluate to `:prod`. Reading `MIX_ENV` from the OS
   environment bypasses that override — Mix mutates only its
   internal `Mix.State` (`elixir/lib/mix/lib/mix/state.ex`
-  L65-L89), never the env var. The same `from_env` pattern Mix
-  itself uses on boot (nil/empty → `"dev"` default).
+  L65-L89), never the env var.
 
-  As a consequence, `deployment.environment` reflects the
-  consuming app's `MIX_ENV` at SDK build time. Rebuild with
-  `MIX_ENV=staging mix release` to switch — the SDK BEAM file
-  is recompiled per `MIX_ENV` (in `_build/<env>/lib/otel/`),
-  so each environment gets its own attribute literal.
+  ## Read-time per attribute
+
+  | Attribute | Read time | Why |
+  |---|---|---|
+  | `telemetry.sdk.*` | compile | dep mix.exs config only available during build |
+  | `deployment.environment` | compile | `MIX_ENV` is build-time intent; release boot doesn't export it |
+  | `service.name` / `service.version` | runtime | `RELEASE_NAME`/`VSN` are set by release boot script, not at build |
 
   ## References
 
@@ -78,62 +98,31 @@ defmodule Otel.Resource do
   @sdk_language "elixir"
   @sdk_version Mix.Project.config()[:version]
   @default_service_name "unknown_service"
-  # Mirrors `Mix.State.from_env/2` (`elixir/lib/mix/lib/mix/state.ex`
-  # L83-L89): read from OS env, treat both `nil` and `""` as "use
-  # default". Bypasses Mix.Dep.in_dependency's :prod override on
-  # `Mix.env()` (see moduledoc).
-  @deployment_environment (case System.get_env("MIX_ENV") do
-                             env when env in [nil, ""] -> "dev"
-                             env -> env
-                           end)
+  # Bypasses Mix.Dep.in_dependency's :prod override on `Mix.env()`
+  # (see moduledoc). `System.get_env/2` only falls back on `nil`,
+  # so an exotic `MIX_ENV=""` builds carry the empty string —
+  # accepted edge case.
+  @deployment_environment System.get_env("MIX_ENV", "dev")
 
   @doc """
   **Application** (introspection) — Returns the SDK's resource.
 
-  See module doc for the attribute set. Read on demand by each
-  pillar's emit / collect / export path; no caching, so a
-  test-time `Application.put_env(:otel, :otp_app, :other)`
-  takes effect immediately for every subsequent call.
+  See module doc for the attribute set. `service.name` and
+  `service.version` are read from `RELEASE_NAME` / `RELEASE_VSN`
+  env vars on every call (no caching), so updates take effect
+  immediately.
   """
   @spec build() :: t()
   def build do
-    otp_app = Application.get_env(:otel, :otp_app)
-
     %__MODULE__{
-      attributes:
-        %{
-          "telemetry.sdk.name" => @sdk_name,
-          "telemetry.sdk.language" => @sdk_language,
-          "telemetry.sdk.version" => @sdk_version,
-          "deployment.environment" => @deployment_environment
-        }
-        |> put_service_name(otp_app)
-        |> put_service_version(otp_app)
+      attributes: %{
+        "telemetry.sdk.name" => @sdk_name,
+        "telemetry.sdk.language" => @sdk_language,
+        "telemetry.sdk.version" => @sdk_version,
+        "deployment.environment" => @deployment_environment,
+        "service.name" => System.get_env("RELEASE_NAME", @default_service_name),
+        "service.version" => System.get_env("RELEASE_VSN", "")
+      }
     }
-  end
-
-  # --- Private ---
-
-  @spec put_service_name(
-          attrs :: %{String.t() => primitive_any()},
-          otp_app :: atom() | nil
-        ) :: %{String.t() => primitive_any()}
-  defp put_service_name(attrs, nil),
-    do: Map.put(attrs, "service.name", @default_service_name)
-
-  defp put_service_name(attrs, otp_app),
-    do: Map.put(attrs, "service.name", Atom.to_string(otp_app))
-
-  @spec put_service_version(
-          attrs :: %{String.t() => primitive_any()},
-          otp_app :: atom() | nil
-        ) :: %{String.t() => primitive_any()}
-  defp put_service_version(attrs, nil), do: attrs
-
-  defp put_service_version(attrs, otp_app) do
-    case Application.spec(otp_app, :vsn) do
-      nil -> attrs
-      vsn -> Map.put(attrs, "service.version", to_string(vsn))
-    end
   end
 end

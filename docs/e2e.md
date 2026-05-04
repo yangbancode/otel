@@ -122,7 +122,7 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[x]` | 4 | Mix Config `:otp_app` | `config :otel, otp_app: :my_app` | Tempo: derived `service.name` flows to all signals |
+| `[x]` | 4 | `RELEASE_NAME` / `RELEASE_VSN` env vars | `RELEASE_NAME=my_app RELEASE_VSN=1.0.0 ...` | Tempo: derived `service.name` flows to all signals |
 
 ## Global SDK control
 
