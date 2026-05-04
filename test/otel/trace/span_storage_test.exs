@@ -79,6 +79,52 @@ defmodule Otel.Trace.SpanStorageTest do
     end
   end
 
+  describe "sweep stale :active spans" do
+    # `Otel.Trace.Span.start_time` is in nanoseconds (OTLP wire
+    # format), and the sweep TTL constant is 30 minutes. These
+    # tests force-age a span by writing a `start_time` older than
+    # the cutoff, then trigger the sweep manually via the GenServer
+    # message and synchronize with `:sys.get_state/1`.
+    @ttl_minutes 30
+    @older_than_ttl_ns System.system_time(:nanosecond) -
+                         (@ttl_minutes + 1) * 60 * 1_000 * 1_000_000
+
+    test "removes :active spans older than the TTL" do
+      stale = %{@span | start_time: @older_than_ttl_ns}
+      Otel.Trace.SpanStorage.insert(stale)
+
+      send(Otel.Trace.SpanStorage, :sweep)
+      :sys.get_state(Otel.Trace.SpanStorage)
+
+      assert Otel.Trace.SpanStorage.get(stale.span_id) == nil
+    end
+
+    test "keeps :active spans within the TTL" do
+      Otel.Trace.SpanStorage.insert(@span)
+
+      send(Otel.Trace.SpanStorage, :sweep)
+      :sys.get_state(Otel.Trace.SpanStorage)
+
+      assert %Otel.Trace.Span{} = Otel.Trace.SpanStorage.get(@span.span_id)
+    end
+
+    test "does not touch :completed rows even with old start_time" do
+      stale_then_completed = %{
+        @span
+        | start_time: @older_than_ttl_ns,
+          end_time: @older_than_ttl_ns + 1_000
+      }
+
+      Otel.Trace.SpanStorage.insert(stale_then_completed)
+      Otel.Trace.SpanStorage.complete(stale_then_completed)
+
+      send(Otel.Trace.SpanStorage, :sweep)
+      :sys.get_state(Otel.Trace.SpanStorage)
+
+      assert [%Otel.Trace.Span{}] = Otel.Trace.SpanStorage.take_completed(10)
+    end
+  end
+
   test "ETS table is named, public, and write-concurrent" do
     info = :ets.info(Otel.Trace.SpanStorage)
 

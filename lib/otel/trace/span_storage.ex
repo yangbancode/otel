@@ -60,11 +60,30 @@ defmodule Otel.Trace.SpanStorage do
   `add_event` calls on a dropped span become no-ops because
   `update/1` matches no row.
 
+  ## Sweep — stale active spans
+
+  The GenServer runs a self-scheduled sweep every
+  `@sweep_interval_ms` (10 minutes) that issues a single
+  `:ets.select_delete/2` removing `:active` rows whose
+  `start_time` is older than `@span_ttl_ns` (30 minutes).
+  This is the safety net for spans that never reach
+  `end_span` (process crash, dropped context, leaked
+  span_ctx) — without it, stale rows would accumulate until
+  the `@max_queue_size` backpressure starts dropping fresh
+  spans.
+
+  Defaults match `opentelemetry-erlang`'s `otel_span_sweeper`
+  configuration. Sweep strategy is `drop` only — exporting
+  fragmentary spans muddles backend data; if observability
+  into sweep events is needed later, an
+  `end_span`-on-sweep variant can be added.
+
   ## References
 
   - OTel Trace SDK §Span: `opentelemetry-specification/specification/trace/sdk.md` L692-L944
   - OTel Trace SDK Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
   - Erlang `:ets.select_replace/2`: <https://www.erlang.org/doc/man/ets#select_replace-2>
+  - Erlang reference sweeper: `opentelemetry-erlang/apps/opentelemetry/src/otel_span_sweeper.erl`
   """
 
   use GenServer
@@ -74,6 +93,11 @@ defmodule Otel.Trace.SpanStorage do
   # "the maximum queue size. After the size is reached, spans are
   # dropped. The default value is `2048`."
   @max_queue_size 2_048
+
+  # Sweep cadence and TTL — defaults match `opentelemetry-erlang`'s
+  # `otel_span_sweeper` (10-minute interval, 30-minute TTL).
+  @sweep_interval_ms :timer.minutes(10)
+  @span_ttl_ns :timer.minutes(30) * 1_000_000
 
   # --- Client API ---
 
@@ -182,6 +206,25 @@ defmodule Otel.Trace.SpanStorage do
       {:read_concurrency, true}
     ])
 
+    Process.send_after(self(), :sweep, @sweep_interval_ms)
     {:ok, @table}
+  end
+
+  @impl true
+  def handle_info(:sweep, state) do
+    sweep_stale_active()
+    Process.send_after(self(), :sweep, @sweep_interval_ms)
+    {:noreply, state}
+  end
+
+  @spec sweep_stale_active() :: non_neg_integer()
+  defp sweep_stale_active do
+    cutoff = System.system_time(:nanosecond) - @span_ttl_ns
+
+    spec = [
+      {{:_, :"$1", :active}, [{:<, {:map_get, :start_time, :"$1"}, cutoff}], [true]}
+    ]
+
+    :ets.select_delete(@table, spec)
   end
 end
