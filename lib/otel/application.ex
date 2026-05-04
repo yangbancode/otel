@@ -10,9 +10,8 @@ defmodule Otel.Application do
     # tables; they must start before `MetricReader.PeriodicExporting`
     # since the reader reads `Otel.Metrics.reader_meter_config/0`
     # in its init. `Otel.Trace` and `Otel.Logs` hold no boot-time
-    # state — the only user-tunable knob is the `:resource`
-    # Application env, read via `Otel.Resource.from_app_env/0`
-    # on demand.
+    # state — the only user-tunable knob is the `:otp_app`
+    # Application env, read via `Otel.Resource.build/0` on demand.
     children = [
       Otel.Trace.SpanStorage,
       Otel.Metrics.InstrumentsStorage,

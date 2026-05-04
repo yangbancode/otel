@@ -8,7 +8,7 @@ defmodule Otel.Logs.Logger do
 
   - scope is `Otel.InstrumentationScope` defaults
   - log record limits are `Otel.Logs.LogRecordLimits` defaults
-  - resource is `Otel.Resource.from_app_env/0` (read on each emit)
+  - resource is `Otel.Resource.build/0` (read on each emit)
 
   Scope and limits are compile-time literals; there is no Logger
   struct to thread through.
@@ -123,7 +123,7 @@ defmodule Otel.Logs.Logger do
       span_id: span_id,
       trace_flags: trace_flags,
       scope: @scope,
-      resource: Otel.Resource.from_app_env()
+      resource: Otel.Resource.build()
     }
   end
 

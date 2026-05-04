@@ -1,66 +1,88 @@
 defmodule Otel.ResourceTest do
-  # async: false — `default/0` reads OTEL_RESOURCE_ATTRIBUTES /
-  # OTEL_SERVICE_NAME from the process-global environment.
+  # async: false — `build/0` reads `:otp_app` from `Application` env;
+  # tests mutate it.
   use ExUnit.Case, async: false
 
-  describe "create/2" do
-    test "accepts attributes as a map or keyword list; schema_url defaults to \"\"" do
-      assert Otel.Resource.create(%{"key" => "value"}).attributes == %{"key" => "value"}
-      assert Otel.Resource.create([{"key", "value"}]).attributes == %{"key" => "value"}
-      assert Otel.Resource.create(%{}).schema_url == ""
+  setup do
+    prev = Application.get_env(:otel, :otp_app)
+    Application.delete_env(:otel, :otp_app)
 
-      assert Otel.Resource.create(%{}, "https://example.com/schema").schema_url ==
-               "https://example.com/schema"
-    end
+    on_exit(fn ->
+      case prev do
+        nil -> Application.delete_env(:otel, :otp_app)
+        app -> Application.put_env(:otel, :otp_app, app)
+      end
+    end)
+
+    :ok
   end
 
-  describe "merge/2" do
-    test "updating attributes overwrite same keys; old keys without conflict survive" do
-      old = Otel.Resource.create(%{"a" => "1", "b" => "old"})
-      updating = Otel.Resource.create(%{"b" => "new", "c" => "3"})
-      merged = Otel.Resource.merge(old, updating)
+  describe "build/0 — no :otp_app" do
+    test "service.name falls back to \"unknown_service\"; service.version key is absent" do
+      attrs = Otel.Resource.build().attributes
 
-      assert merged.attributes == %{"a" => "1", "b" => "new", "c" => "3"}
+      assert attrs["service.name"] == "unknown_service"
+      refute Map.has_key?(attrs, "service.version")
     end
 
-    # Spec resource/sdk.md L153-L160 — schema_url merge:
-    # one empty + one set → use the set one;
-    # both equal → keep that;
-    # different non-empty → empty.
-    test "schema_url merge: one-empty / matching / conflicting" do
-      assert Otel.Resource.merge(
-               Otel.Resource.create(%{}, ""),
-               Otel.Resource.create(%{}, "https://new.com")
-             ).schema_url == "https://new.com"
-
-      assert Otel.Resource.merge(
-               Otel.Resource.create(%{}, "https://old.com"),
-               Otel.Resource.create(%{}, "")
-             ).schema_url == "https://old.com"
-
-      assert Otel.Resource.merge(
-               Otel.Resource.create(%{}, "https://same.com"),
-               Otel.Resource.create(%{}, "https://same.com")
-             ).schema_url == "https://same.com"
-
-      assert Otel.Resource.merge(
-               Otel.Resource.create(%{}, "https://old.com"),
-               Otel.Resource.create(%{}, "https://new.com")
-             ).schema_url == ""
-    end
-  end
-
-  describe "default/0" do
-    test "SDK identity attributes + service.name=\"unknown_service\" fallback" do
-      attrs = Otel.Resource.default().attributes
+    test "always emits SDK identity + deployment.environment" do
+      attrs = Otel.Resource.build().attributes
 
       assert attrs["telemetry.sdk.name"] == "otel"
       assert attrs["telemetry.sdk.language"] == "elixir"
       assert is_binary(attrs["telemetry.sdk.version"]) and attrs["telemetry.sdk.version"] != ""
-      assert attrs["service.name"] == "unknown_service"
+      assert attrs["deployment.environment"] in ["dev", "test", "prod"]
+    end
+  end
 
-      assert Map.keys(attrs) |> Enum.sort() == [
+  describe "build/0 — with :otp_app" do
+    test "service.name + service.version come from the configured otp_app" do
+      Application.put_env(:otel, :otp_app, :otel)
+
+      attrs = Otel.Resource.build().attributes
+
+      assert attrs["service.name"] == "otel"
+      assert attrs["service.version"] == to_string(Application.spec(:otel, :vsn))
+    end
+
+    test "unknown otp_app: service.name takes the atom; service.version key is absent" do
+      Application.put_env(:otel, :otp_app, :nonexistent_app_xyz)
+
+      attrs = Otel.Resource.build().attributes
+
+      assert attrs["service.name"] == "nonexistent_app_xyz"
+      refute Map.has_key?(attrs, "service.version")
+    end
+  end
+
+  describe "build/0 — attribute key set" do
+    test "5 keys without :otp_app (no service.version)" do
+      keys =
+        Otel.Resource.build().attributes
+        |> Map.keys()
+        |> Enum.sort()
+
+      assert keys == [
+               "deployment.environment",
                "service.name",
+               "telemetry.sdk.language",
+               "telemetry.sdk.name",
+               "telemetry.sdk.version"
+             ]
+    end
+
+    test "6 keys with a loaded :otp_app (service.version included)" do
+      Application.put_env(:otel, :otp_app, :otel)
+
+      keys =
+        Otel.Resource.build().attributes
+        |> Map.keys()
+        |> Enum.sort()
+
+      assert keys == [
+               "deployment.environment",
+               "service.name",
+               "service.version",
                "telemetry.sdk.language",
                "telemetry.sdk.name",
                "telemetry.sdk.version"

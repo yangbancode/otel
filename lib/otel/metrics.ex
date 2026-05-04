@@ -48,7 +48,7 @@ defmodule Otel.Metrics do
 
     %{
       scope: %Otel.InstrumentationScope{},
-      resource: Otel.Resource.from_app_env(),
+      resource: Otel.Resource.build(),
       instruments_tab: Otel.Metrics.InstrumentsStorage,
       streams_tab: Otel.Metrics.StreamsStorage,
       metrics_tab: Otel.Metrics.MetricsStorage,
@@ -70,12 +70,11 @@ defmodule Otel.Metrics do
   def reader_meter_config, do: meter_config()
 
   @doc """
-  **Application** (introspection) — Returns the resource
-  resolved from the `:otel` `:resource` `Application` env, or
-  `Otel.Resource.default/0` when no env is set.
+  **Application** (introspection) — Returns the SDK resource
+  (`Otel.Resource.build/0`).
   """
   @spec resource() :: Otel.Resource.t()
-  def resource, do: Otel.Resource.from_app_env()
+  def resource, do: Otel.Resource.build()
 
   @doc """
   **Application** (introspection) — Returns the synthetic meter

@@ -12,7 +12,7 @@ defmodule Otel.Trace.SpanExporterTest do
     tracestate: Otel.Trace.TraceState.new()
   }
 
-  @resource Otel.Resource.create(%{"service.name" => "test"})
+  @resource %Otel.Resource{attributes: %{"service.name" => "test"}}
 
   defp init!(opts \\ %{}) do
     {:ok, state} = Otel.Trace.SpanExporter.init(opts)

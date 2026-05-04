@@ -1,7 +1,7 @@
 defmodule Otel.Logs.LogRecordExporterTest do
   use ExUnit.Case, async: true
 
-  @resource Otel.Resource.create(%{"service.name" => "test"})
+  @resource %Otel.Resource{attributes: %{"service.name" => "test"}}
 
   @log_record %Otel.Logs.LogRecord{
     body: "test log message",

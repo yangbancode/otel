@@ -13,11 +13,11 @@ defmodule Otel.ApplicationTest do
   end
 
   describe "Provider boot" do
-    test "providers seed persistent_term state from spec defaults + user :resource env" do
+    test "facades expose the SDK resource via Otel.Resource.build/0" do
       reboot()
 
       # MeterProvider.config/0 synthesizes the resource via
-      # `Otel.Resource.from_app_env/0` — no persistent_term.
+      # `Otel.Resource.build/0` — no persistent_term.
       # (Tracer/LoggerProvider were dissolved into `Otel.Trace`
       # / `Otel.Logs`; resource is read on demand there too.)
       meter_state = Otel.Metrics.config()

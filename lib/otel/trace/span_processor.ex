@@ -120,21 +120,19 @@ defmodule Otel.Trace.SpanProcessor do
   @spec init(config :: config()) :: {:ok, map()}
   def init(config) do
     # `Otel.Application` supervises this child with `[]` config —
-    # exporter and resource come from the user's
-    # `config :otel, exporter: %{...}` and `:resource` keys here.
-    # Tests that want a custom exporter (e.g. FakeExporter) override
-    # via the args.
+    # exporter comes from the user's `config :otel, exporter: %{...}`
+    # key. Tests that want a custom exporter (e.g. FakeExporter)
+    # override via the args. Resource is read from `Otel.Resource.build/0`
+    # at boot — call `Application.stop(:otel)` + `put_env(:otp_app, ...)`
+    # + restart cycle to refresh.
     Process.flag(:trap_exit, true)
 
     exporter =
       Map.get(config, :exporter, {Otel.Trace.SpanExporter, exporter_app_env()})
 
-    resource =
-      Map.get_lazy(config, :resource, &Otel.Resource.from_app_env/0)
-
     state = %{
       exporter: init_exporter(exporter),
-      resource: resource,
+      resource: Otel.Resource.build(),
       queue: [],
       queue_size: 0
     }

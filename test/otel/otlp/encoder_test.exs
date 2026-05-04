@@ -1,10 +1,12 @@
 defmodule Otel.OTLP.EncoderTest do
   use ExUnit.Case, async: true
 
-  @resource Otel.Resource.create(%{
-              "service.name" => "test-service",
-              "telemetry.sdk.language" => "elixir"
-            })
+  @resource %Otel.Resource{
+    attributes: %{
+      "service.name" => "test-service",
+      "telemetry.sdk.language" => "elixir"
+    }
+  }
 
   describe "encode_traces/2" do
     @span %Otel.Trace.Span{
@@ -235,7 +237,7 @@ defmodule Otel.OTLP.EncoderTest do
       description: "Request count",
       unit: "1",
       scope: %Otel.InstrumentationScope{name: "test_lib", version: "1.0.0"},
-      resource: Otel.Resource.create(%{"service.name" => "test"}),
+      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
       kind: :counter,
       temporality: :cumulative,
       is_monotonic: true,
@@ -255,7 +257,7 @@ defmodule Otel.OTLP.EncoderTest do
       description: "CPU usage",
       unit: "%",
       scope: %Otel.InstrumentationScope{name: "test_lib"},
-      resource: Otel.Resource.create(%{"service.name" => "test"}),
+      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
       kind: :gauge,
       temporality: nil,
       is_monotonic: nil,
@@ -275,7 +277,7 @@ defmodule Otel.OTLP.EncoderTest do
       description: "Request duration",
       unit: "ms",
       scope: %Otel.InstrumentationScope{name: "test_lib"},
-      resource: Otel.Resource.create(%{"service.name" => "test"}),
+      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
       kind: :histogram,
       temporality: :cumulative,
       is_monotonic: nil,
@@ -549,7 +551,7 @@ defmodule Otel.OTLP.EncoderTest do
       attributes: %{"method" => "GET"},
       event_name: "",
       scope: %Otel.InstrumentationScope{name: "test_lib", version: "1.0.0"},
-      resource: Otel.Resource.create(%{"service.name" => "test"}),
+      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
       trace_id: 0,
       span_id: 0,
       trace_flags: 0,
