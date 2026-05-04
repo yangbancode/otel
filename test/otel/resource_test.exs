@@ -1,28 +1,32 @@
 defmodule Otel.ResourceTest do
-  # async: false — `build/0` reads `:otp_app` from `Application` env;
-  # tests mutate it.
+  # async: false — `build/0` reads `RELEASE_NAME`/`RELEASE_VSN`
+  # OS env vars; tests mutate them.
   use ExUnit.Case, async: false
 
   setup do
-    prev = Application.get_env(:otel, :otp_app)
-    Application.delete_env(:otel, :otp_app)
+    saved = %{
+      "RELEASE_NAME" => System.get_env("RELEASE_NAME"),
+      "RELEASE_VSN" => System.get_env("RELEASE_VSN")
+    }
+
+    Enum.each(saved, fn {k, _} -> System.delete_env(k) end)
 
     on_exit(fn ->
-      case prev do
-        nil -> Application.delete_env(:otel, :otp_app)
-        app -> Application.put_env(:otel, :otp_app, app)
-      end
+      Enum.each(saved, fn
+        {k, nil} -> System.delete_env(k)
+        {k, v} -> System.put_env(k, v)
+      end)
     end)
 
     :ok
   end
 
-  describe "build/0 — no :otp_app" do
-    test "service.name falls back to \"unknown_service\"; service.version key is absent" do
+  describe "build/0 — no release env" do
+    test "service.name falls back to \"unknown_service\"; service.version is empty string" do
       attrs = Otel.Resource.build().attributes
 
       assert attrs["service.name"] == "unknown_service"
-      refute Map.has_key?(attrs, "service.version")
+      assert attrs["service.version"] == ""
     end
 
     test "always emits SDK identity + deployment.environment" do
@@ -35,45 +39,37 @@ defmodule Otel.ResourceTest do
     end
   end
 
-  describe "build/0 — with :otp_app" do
-    test "service.name + service.version come from the configured otp_app" do
-      Application.put_env(:otel, :otp_app, :otel)
+  describe "build/0 — RELEASE_NAME set" do
+    test "service.name from RELEASE_NAME" do
+      System.put_env("RELEASE_NAME", "my_app")
 
       attrs = Otel.Resource.build().attributes
 
-      assert attrs["service.name"] == "otel"
-      assert attrs["service.version"] == to_string(Application.spec(:otel, :vsn))
+      assert attrs["service.name"] == "my_app"
+      assert attrs["service.version"] == ""
     end
 
-    test "unknown otp_app: service.name takes the atom; service.version key is absent" do
-      Application.put_env(:otel, :otp_app, :nonexistent_app_xyz)
+    test "RELEASE_NAME and RELEASE_VSN both populate service.* attributes" do
+      System.put_env("RELEASE_NAME", "my_app")
+      System.put_env("RELEASE_VSN", "1.2.3")
 
       attrs = Otel.Resource.build().attributes
 
-      assert attrs["service.name"] == "nonexistent_app_xyz"
-      refute Map.has_key?(attrs, "service.version")
+      assert attrs["service.name"] == "my_app"
+      assert attrs["service.version"] == "1.2.3"
+    end
+
+    test "empty RELEASE_NAME stays as empty string (System.get_env default only on nil)" do
+      System.put_env("RELEASE_NAME", "")
+
+      attrs = Otel.Resource.build().attributes
+
+      assert attrs["service.name"] == ""
     end
   end
 
   describe "build/0 — attribute key set" do
-    test "5 keys without :otp_app (no service.version)" do
-      keys =
-        Otel.Resource.build().attributes
-        |> Map.keys()
-        |> Enum.sort()
-
-      assert keys == [
-               "deployment.environment",
-               "service.name",
-               "telemetry.sdk.language",
-               "telemetry.sdk.name",
-               "telemetry.sdk.version"
-             ]
-    end
-
-    test "6 keys with a loaded :otp_app (service.version included)" do
-      Application.put_env(:otel, :otp_app, :otel)
-
+    test "always emits 6 keys" do
       keys =
         Otel.Resource.build().attributes
         |> Map.keys()
