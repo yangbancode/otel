@@ -9,12 +9,12 @@ defmodule Otel.TestSupport do
 
   1. Setting `Application.put_env(:otel, ...)` to override the
      user-facing `:resource` / `:exporter` keys.
-  2. `Otel.Metrics.init/0` to (re)create the named ETS tables.
-  3. Starting the supervised processor children
-     (`SpanStorage`, `SpanProcessor`, `PeriodicExporting`,
-     `LogRecordProcessor`) — or substitutes thereof — so
-     dispatch from `Span` / `Logs.emit` / `Meter` lands
-     somewhere observable.
+  2. Starting the supervised storage / processor children
+     (`SpanStorage`, the six per-table `XxxStorage` GenServers
+     for metrics, `SpanProcessor`, `PeriodicExporting`,
+     `LogRecordProcessor`) — or substitutes thereof — so the
+     ETS tables exist and dispatch from `Span` / `Logs.emit` /
+     `Meter` lands somewhere observable.
 
   Tests inject custom processors by registering a different
   GenServer under the hardcoded names
@@ -81,18 +81,24 @@ defmodule Otel.TestSupport do
 
     stop_all()
 
-    # 1. Create the named ETS tables. `Otel.Trace` / `Otel.Logs`
-    # hold no boot-time state — `:resource` is read via
-    # `Otel.Resource.from_app_env/0` on demand.
-    Otel.Metrics.init()
-
-    # 2. Apply test-only overrides via `Application.put_env/3`.
+    # 1. Apply test-only overrides via `Application.put_env/3`.
+    # `Otel.Trace` / `Otel.Logs` hold no boot-time state — `:resource`
+    # is read via `Otel.Resource.from_app_env/0` on demand.
     apply_trace_overrides(trace_overrides)
     apply_metrics_overrides(metrics_overrides)
     apply_logs_overrides(logs_overrides)
 
-    # 3. Start the supervised processor children (or substitutes).
+    # 2. Start the supervised storage / processor children. The six
+    # per-table `XxxStorage` GenServers own the metrics ETS tables and
+    # must start before `start_metrics_reader` (the reader reads
+    # `reader_meter_config/0` in its init).
     start_orphan!(Otel.Trace.SpanStorage, [])
+    start_orphan!(Otel.Metrics.InstrumentsStorage, [])
+    start_orphan!(Otel.Metrics.StreamsStorage, [])
+    start_orphan!(Otel.Metrics.MetricsStorage, [])
+    start_orphan!(Otel.Metrics.CallbacksStorage, [])
+    start_orphan!(Otel.Metrics.ExemplarsStorage, [])
+    start_orphan!(Otel.Metrics.ObservedAttrsStorage, [])
     start_trace_processor(trace_overrides)
     start_metrics_reader(metrics_overrides)
     start_logs_processor(logs_overrides)
@@ -122,12 +128,17 @@ defmodule Otel.TestSupport do
         Otel.Trace.SpanProcessor,
         Otel.Metrics.MetricReader.PeriodicExporting,
         Otel.Logs.LogRecordProcessor,
-        Otel.Trace.SpanStorage
+        Otel.Trace.SpanStorage,
+        Otel.Metrics.InstrumentsStorage,
+        Otel.Metrics.StreamsStorage,
+        Otel.Metrics.MetricsStorage,
+        Otel.Metrics.CallbacksStorage,
+        Otel.Metrics.ExemplarsStorage,
+        Otel.Metrics.ObservedAttrsStorage
       ],
       &stop_named/1
     )
 
-    Otel.Metrics.delete_storage()
     :ok
   end
 

@@ -6,17 +6,21 @@ defmodule Otel.Application do
   @impl true
   @spec start(type :: Application.start_type(), args :: term()) :: {:ok, pid()}
   def start(_type, _args) do
-    # Create the named ETS tables that hold metrics state. Must
-    # run before `MetricReader.PeriodicExporting` starts, since
-    # the reader reads `Otel.Metrics.reader_meter_config/0` in
-    # its init. `Otel.Trace` and `Otel.Logs` hold no boot-time
+    # Six per-table `XxxStorage` GenServers own the metrics ETS
+    # tables; they must start before `MetricReader.PeriodicExporting`
+    # since the reader reads `Otel.Metrics.reader_meter_config/0`
+    # in its init. `Otel.Trace` and `Otel.Logs` hold no boot-time
     # state — the only user-tunable knob is the `:resource`
     # Application env, read via `Otel.Resource.from_app_env/0`
     # on demand.
-    Otel.Metrics.init()
-
     children = [
       Otel.Trace.SpanStorage,
+      Otel.Metrics.InstrumentsStorage,
+      Otel.Metrics.StreamsStorage,
+      Otel.Metrics.MetricsStorage,
+      Otel.Metrics.CallbacksStorage,
+      Otel.Metrics.ExemplarsStorage,
+      Otel.Metrics.ObservedAttrsStorage,
       Otel.Trace.SpanProcessor,
       Otel.Metrics.MetricReader.PeriodicExporting,
       Otel.Logs.LogRecordProcessor
