@@ -10,7 +10,6 @@ defmodule Otel.Trace.SpanExporterTest do
     kind: :internal,
     start_time: 1_000_000,
     end_time: 2_000_000,
-    is_recording: false,
     tracestate: Otel.Trace.TraceState.new(),
     instrumentation_scope: %Otel.InstrumentationScope{}
   }

@@ -81,14 +81,20 @@ defmodule Otel.Trace.Span do
   spec `common/README.md` L262-L274, value-length truncation
   is **not** a drop — only count-limit overflow is.
 
-  ### `is_recording`, `instrumentation_scope` on the span
+  ### `instrumentation_scope` on the span
 
-  Both fields exist on the span (lines 34-35) but neither
-  appears in the proto `Span` message. They mirror erlang's
-  `otel_span.hrl` (L60, L62) — `is_recording` is an
-  implementation optimization not propagated to wire format,
-  and `instrumentation_scope` is held on the span for
-  grouping into `ScopeSpans` at export time.
+  This field exists on the span but does not appear in the
+  proto `Span` message — it is held on the span for grouping
+  into `ScopeSpans` at export time.
+
+  Recording status is **not** a struct field. spec
+  `trace/api.md` §IsRecording L463-L495 requires only a
+  *function returning bool* (no struct shape mandated);
+  `Otel.Trace.Span.recording?/1` derives it from
+  `Otel.Trace.SpanStorage.get_active/1` (presence of an
+  `:active` row). Storage status is the single source of
+  truth, avoiding stale-replica risk between the struct field
+  and storage.
 
   ## References
 
@@ -139,7 +145,6 @@ defmodule Otel.Trace.Span do
           dropped_links_count: non_neg_integer(),
           status: Otel.Trace.Status.t(),
           trace_flags: Otel.Trace.SpanContext.trace_flags(),
-          is_recording: boolean(),
           instrumentation_scope: Otel.InstrumentationScope.t() | nil,
           span_limits: Otel.Trace.SpanLimits.t()
         }
@@ -163,7 +168,6 @@ defmodule Otel.Trace.Span do
     dropped_links_count: 0,
     status: %Otel.Trace.Status{},
     trace_flags: 0,
-    is_recording: true,
     span_limits: %Otel.Trace.SpanLimits{}
   ]
 
@@ -231,8 +235,7 @@ defmodule Otel.Trace.Span do
         dropped_events_count: 0,
         links: sdk_links,
         dropped_links_count: dropped_links_count,
-        trace_flags: trace_flags,
-        is_recording: true
+        trace_flags: trace_flags
       }
 
       {span_ctx, span}
@@ -390,8 +393,9 @@ defmodule Otel.Trace.Span do
   @doc """
   Ends the span.
 
-  Removes the span from ETS, sets end_time and is_recording=false,
-  then calls on_end on all processors.
+  Marks the span as `:completed` in `SpanStorage` (status flip
+  + `end_time` stamp). `SpanExporter` picks it up on the next
+  timer tick.
   """
 
   @spec end_span(span_ctx :: Otel.Trace.SpanContext.t(), timestamp :: non_neg_integer()) ::

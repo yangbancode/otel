@@ -12,8 +12,7 @@ defmodule Otel.Trace.SpanStorageTest do
     span_id: 0xFF00000000000001,
     name: "test_span",
     kind: :internal,
-    start_time: System.system_time(:nanosecond),
-    is_recording: true
+    start_time: System.system_time(:nanosecond)
   }
 
   describe "insert_active/1 + get_active/1 + update_active/2" do
@@ -42,7 +41,7 @@ defmodule Otel.Trace.SpanStorageTest do
     test "mark_completed flips status; take_completed yields it once" do
       Otel.Trace.SpanStorage.insert_active(@span)
 
-      assert %Otel.Trace.Span{end_time: end_time, is_recording: false} =
+      assert %Otel.Trace.Span{end_time: end_time} =
                Otel.Trace.SpanStorage.mark_completed(@span.span_id, 1_234)
 
       assert end_time == 1_234

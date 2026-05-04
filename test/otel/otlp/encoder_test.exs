@@ -29,7 +29,6 @@ defmodule Otel.OTLP.EncoderTest do
       links: [],
       status: %Otel.Trace.Status{code: :ok},
       trace_flags: 1,
-      is_recording: false,
       instrumentation_scope: %Otel.InstrumentationScope{
         name: "test_lib",
         version: "1.0.0"

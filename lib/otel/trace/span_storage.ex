@@ -98,9 +98,9 @@ defmodule Otel.Trace.SpanStorage do
   end
 
   @doc """
-  Mark an active span as `:completed`, stamping `end_time` and
-  flipping `is_recording` to `false`. Returns the completed span
-  for caller-side post-processing (e.g. limits warning).
+  Mark an active span as `:completed`, stamping `end_time`.
+  Returns the completed span for caller-side post-processing
+  (e.g. limits warning).
   """
   @spec mark_completed(
           span_id :: Otel.Trace.SpanId.t(),
@@ -109,7 +109,7 @@ defmodule Otel.Trace.SpanStorage do
   def mark_completed(span_id, end_time) do
     case :ets.lookup(@table, span_id) do
       [{^span_id, span, :active}] ->
-        ended = %{span | end_time: end_time, is_recording: false}
+        ended = %{span | end_time: end_time}
         :ets.insert(@table, {span_id, ended, :completed})
         ended
 
