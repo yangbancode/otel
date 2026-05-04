@@ -69,11 +69,14 @@ defmodule Otel.Trace.SpanCreatorTest do
     # The hardcoded `parentbased_always_on` sampler produces:
     #   - root or sampled parent → record_and_sample
     #   - not-sampled parent     → drop
-    test "root span → record_and_sample (flags=1, recording, span emitted)" do
+    test "root span → record_and_sample (flags=1, span emitted)" do
       {sampled_ctx, sampled} = start(Otel.Ctx.new(), "sampled")
       assert Bitwise.band(sampled_ctx.trace_flags, 1) == 1
-      assert sampled.is_recording == true
       assert sampled.trace_flags == 1
+      # `record_and_sample` 의 증거는 struct 가 생성된 것 (drop 시
+      # `nil`). Storage-based `recording?/1` 검증은 `Tracer.start_span`
+      # (Tracer.start_span which calls SpanStorage.insert) — see `tracer_test`.
+      assert match?(%Otel.Trace.Span{}, sampled)
     end
 
     test "child of not-sampled parent → drop (flags=0, no span, span_id still generated)" do

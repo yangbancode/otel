@@ -12,14 +12,14 @@ defmodule Otel.TestSupport do
      set `RELEASE_NAME` / `RELEASE_VSN` for resource attrs.
   2. Starting the supervised storage / processor children
      (`SpanStorage`, the six per-table `XxxStorage` GenServers
-     for metrics, `SpanProcessor`, `PeriodicExporting`,
+     for metrics, `SpanExporter`, `PeriodicExporting`,
      `LogRecordProcessor`) — or substitutes thereof — so the
      ETS tables exist and dispatch from `Span` / `Logs.emit` /
      `Meter` lands somewhere observable.
 
   Tests inject custom processors by registering a different
   GenServer under the hardcoded names
-  (`Otel.Trace.SpanProcessor`, `Otel.Logs.LogRecordProcessor`,
+  (`Otel.Trace.SpanExporter`, `Otel.Logs.LogRecordProcessor`,
   `Otel.Metrics.MetricReader.PeriodicExporting`). The Span /
   Logger dispatch sites use `send/2` (or `:gen_statem.cast/2`)
   to those names, so any compatible GenServer registered there
@@ -127,7 +127,7 @@ defmodule Otel.TestSupport do
 
     Enum.each(
       [
-        Otel.Trace.SpanProcessor,
+        Otel.Trace.SpanExporter,
         Otel.Metrics.MetricReader.PeriodicExporting,
         Otel.Logs.LogRecordProcessor,
         Otel.Trace.SpanStorage,
@@ -159,8 +159,8 @@ defmodule Otel.TestSupport do
   defp start_trace_processor(overrides) do
     case Keyword.get(overrides, :processors) do
       nil ->
-        # Default: hardcoded BatchSpanProcessor reading from SDK config.
-        start_orphan!(Otel.Trace.SpanProcessor, %{})
+        # Default: hardcoded SpanExporter reading from SDK config.
+        start_orphan!(Otel.Trace.SpanExporter, [])
 
       [] ->
         # Empty list — dispatch goes nowhere; tests that don't care
@@ -169,11 +169,11 @@ defmodule Otel.TestSupport do
 
       [{module, config}] ->
         # Single substitute processor under the hardcoded name.
-        start_orphan_named!(module, config, Otel.Trace.SpanProcessor)
+        start_orphan_named!(module, config, Otel.Trace.SpanExporter)
 
       _ ->
         raise ArgumentError,
-              "minikube only supports a single SpanProcessor; got #{inspect(overrides[:processors])}"
+              "minikube only supports a single SpanExporter; got #{inspect(overrides[:processors])}"
     end
 
     :ok

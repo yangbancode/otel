@@ -20,7 +20,7 @@ defmodule Otel.Application do
       Otel.Metrics.CallbacksStorage,
       Otel.Metrics.ExemplarsStorage,
       Otel.Metrics.ObservedAttrsStorage,
-      Otel.Trace.SpanProcessor,
+      Otel.Trace.SpanExporter,
       Otel.Metrics.MetricReader.PeriodicExporting,
       Otel.Logs.LogRecordProcessor
     ]

@@ -51,9 +51,11 @@ defmodule Otel.Trace.Tracer do
     {span_ctx, span} = Otel.Trace.Span.start_span(ctx, name, @span_limits, opts)
 
     if span do
-      # Hardcoded `Otel.Trace.SpanProcessor` is a no-op `on_start`,
-      # so we skip dispatch entirely. ETS insertion is the only
-      # side effect.
+      # Insert as `:active`. On backpressure SpanStorage silently
+      # drops the span (spec normal behaviour, not a failure);
+      # the SpanContext is already returned and subsequent
+      # `set_attribute` etc. become no-ops via `update/1`
+      # matching no row.
       span
       |> Map.merge(%{instrumentation_scope: @scope, span_limits: @span_limits})
       |> Otel.Trace.SpanStorage.insert()

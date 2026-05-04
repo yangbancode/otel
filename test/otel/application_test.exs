@@ -29,7 +29,7 @@ defmodule Otel.ApplicationTest do
     test "supervised processor children are alive" do
       reboot()
 
-      assert is_pid(Process.whereis(Otel.Trace.SpanProcessor))
+      assert is_pid(Process.whereis(Otel.Trace.SpanExporter))
       assert is_pid(Process.whereis(Otel.Metrics.MetricReader.PeriodicExporting))
       assert is_pid(Process.whereis(Otel.Logs.LogRecordProcessor))
       assert is_pid(Process.whereis(Otel.Trace.SpanStorage))

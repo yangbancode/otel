@@ -27,9 +27,10 @@ defmodule Otel.Trace.SpanContext do
   *"The API SHOULD NOT expose details about how they are
   internally stored"*.
 
-  SDK-specific concerns (e.g. `is_recording`, SDK dispatch) are
-  deliberately absent per `.claude/rules/code-conventions.md`
-  §Layer independence — those fields belong to the SDK layer.
+  SDK-specific concerns (e.g. `span_limits`, `instrumentation_scope`,
+  SDK dispatch) are deliberately absent per
+  `.claude/rules/code-conventions.md` §Layer independence — those
+  fields belong to the SDK layer.
 
   ## Public API
 

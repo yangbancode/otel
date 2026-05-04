@@ -1,134 +1,97 @@
 defmodule Otel.Trace.SpanExporterTest do
-  use ExUnit.Case, async: true
+  # async: false — mutates `:otel` Application env (`:exporter`)
+  # and shares the global `SpanStorage` ETS table.
+  use ExUnit.Case, async: false
 
   @span %Otel.Trace.Span{
     trace_id: 1,
-    span_id: 2,
+    span_id: 0xFF00000000000099,
     name: "test",
     kind: :internal,
     start_time: 1_000_000,
     end_time: 2_000_000,
-    is_recording: false,
-    tracestate: Otel.Trace.TraceState.new()
+    tracestate: Otel.Trace.TraceState.new(),
+    instrumentation_scope: %Otel.InstrumentationScope{}
   }
 
-  @resource %Otel.Resource{attributes: %{"service.name" => "test"}}
+  setup do
+    Application.stop(:otel)
+    Application.ensure_all_started(:otel)
 
-  defp init!(opts \\ %{}) do
-    {:ok, state} = Otel.Trace.SpanExporter.init(opts)
-    state
+    on_exit(fn ->
+      Application.delete_env(:otel, :exporter)
+      Application.stop(:otel)
+      Application.ensure_all_started(:otel)
+    end)
+
+    :ok
   end
 
-  defp server(status_code) do
+  describe "force_flush/1" do
+    test "empty storage → :ok (no HTTP request sent)" do
+      start_server_and_configure(200)
+
+      assert :ok = Otel.Trace.SpanExporter.force_flush()
+      refute_receive :request_received, 200
+    end
+
+    test "completed spans → drain + HTTP POST + storage emptied" do
+      start_server_and_configure(200)
+
+      Otel.Trace.SpanStorage.insert(@span)
+      Otel.Trace.SpanStorage.complete(%{@span | end_time: 2_000_000})
+
+      assert :ok = Otel.Trace.SpanExporter.force_flush()
+      assert_receive :request_received, 5_000
+      assert [] = Otel.Trace.SpanStorage.take_completed(10)
+    end
+
+    test "active (not yet completed) spans are not exported" do
+      start_server_and_configure(200)
+
+      Otel.Trace.SpanStorage.insert(@span)
+      # No complete — span is still :active
+
+      assert :ok = Otel.Trace.SpanExporter.force_flush()
+      refute_receive :request_received, 200
+
+      # Active span untouched
+      assert %Otel.Trace.Span{} = Otel.Trace.SpanStorage.get(@span.span_id)
+    end
+  end
+
+  # --- Test helpers ---
+
+  defp start_server_and_configure(status_code) do
     {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
     {:ok, port} = :inet.port(listen)
-    pid = spawn_link(fn -> accept_loop(listen, status_code) end)
+    parent = self()
+    pid = spawn_link(fn -> accept_loop(listen, status_code, parent) end)
 
     on_exit(fn ->
       :gen_tcp.close(listen)
       ref = Process.monitor(pid)
-      receive do: ({:DOWN, ^ref, _, _, _} -> :ok), after: (1000 -> :ok)
+      receive do: ({:DOWN, ^ref, _, _, _} -> :ok), after: (1_000 -> :ok)
     end)
 
-    "http://localhost:#{port}"
+    Application.put_env(:otel, :exporter, %{endpoint: "http://localhost:#{port}"})
+    :ok
   end
 
-  defp accept_loop(listen, status_code) do
-    case :gen_tcp.accept(listen, 1000) do
+  defp accept_loop(listen, status_code, parent) do
+    case :gen_tcp.accept(listen, 1_000) do
       {:ok, socket} ->
-        {:ok, _} = :gen_tcp.recv(socket, 0, 5000)
+        _ = :gen_tcp.recv(socket, 0, 5_000)
+        send(parent, :request_received)
         :gen_tcp.send(socket, "HTTP/1.1 #{status_code} OK\r\ncontent-length: 0\r\n\r\n")
         :gen_tcp.close(socket)
-        accept_loop(listen, status_code)
+        accept_loop(listen, status_code, parent)
 
       {:error, :timeout} ->
-        accept_loop(listen, status_code)
+        accept_loop(listen, status_code, parent)
 
       _ ->
         :ok
     end
-  end
-
-  describe "init/1 endpoint" do
-    test "default appends /v1/traces" do
-      assert init!().endpoint == "http://localhost:4318/v1/traces"
-    end
-
-    test "config :endpoint trims trailing slash and appends /v1/traces" do
-      assert init!(%{endpoint: "http://custom:4318"}).endpoint == "http://custom:4318/v1/traces"
-      assert init!(%{endpoint: "http://custom:4318/"}).endpoint == "http://custom:4318/v1/traces"
-    end
-  end
-
-  describe "init/1 headers" do
-    test "user-agent always included; config :headers map flow through" do
-      headers = init!(%{headers: %{"key1" => "val1", "key2" => "val2"}}).headers
-
-      assert {~c"key1", ~c"val1"} in headers
-      assert {~c"key2", ~c"val2"} in headers
-      assert Enum.any?(headers, fn {k, _} -> k == ~c"user-agent" end)
-    end
-
-    test "empty headers map → only user-agent" do
-      headers = init!().headers
-      assert [{~c"user-agent", _}] = headers
-    end
-  end
-
-  describe "init/1 compression" do
-    test "default :none; explicit :gzip flows through" do
-      assert init!().compression == :none
-      assert init!(%{compression: :gzip}).compression == :gzip
-    end
-  end
-
-  describe "init/1 timeout" do
-    test "default 10_000ms; explicit value flows through" do
-      assert init!().timeout == 10_000
-      assert init!(%{timeout: 5000}).timeout == 5000
-    end
-  end
-
-  describe "init/1 ssl_options" do
-    test "http→empty; https→verify_peer; custom override" do
-      assert init!().ssl_options == []
-      assert init!(%{endpoint: "https://collector:4318"}).ssl_options[:verify] == :verify_peer
-
-      assert init!(%{
-               endpoint: "https://collector:4318",
-               ssl_options: [verify: :verify_none]
-             }).ssl_options == [verify: :verify_none]
-    end
-  end
-
-  describe "export/3" do
-    test "empty list short-circuits to :ok" do
-      assert :ok = Otel.Trace.SpanExporter.export([], @resource, init!())
-    end
-
-    test "200 → :ok; gzip and ssl_options variants succeed" do
-      ok = init!(%{endpoint: server(200)})
-      assert :ok = Otel.Trace.SpanExporter.export([@span], @resource, ok)
-
-      gz = init!(%{endpoint: server(200), compression: :gzip})
-      assert :ok = Otel.Trace.SpanExporter.export([@span], @resource, gz)
-
-      ssl = %{init!(%{endpoint: server(200)}) | ssl_options: [verify: :verify_none]}
-      assert :ok = Otel.Trace.SpanExporter.export([@span], @resource, ssl)
-    end
-
-    # Retryable / non-retryable status code handling is exercised
-    # comprehensively by `Otel.OTLP.HTTP.RetryTest`. The exporter
-    # delegates verbatim to that module with the hardcoded Java
-    # OTLP defaults, so a 5-attempt 503 loop here would just
-    # take ~10 seconds without adding coverage.
-    test "non-retryable 4xx → :error immediately" do
-      bad = init!(%{endpoint: server(400)})
-      assert :error = Otel.Trace.SpanExporter.export([@span], @resource, bad)
-    end
-  end
-
-  test "shutdown/1 returns :ok" do
-    assert :ok = Otel.Trace.SpanExporter.shutdown(init!())
   end
 end

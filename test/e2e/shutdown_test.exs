@@ -23,8 +23,8 @@ defmodule Otel.E2E.ShutdownTest do
       )
 
       # `Application.stop(:otel)` triggers the supervisor's child
-      # termination, which routes through SpanProcessor.terminate/2
-      # → drain queue + exporter.shutdown.
+      # termination, which routes through SpanExporter.terminate/2
+      # → drain remaining completed spans before exit.
       Application.stop(:otel)
 
       assert {:ok, [_ | _]} = poll(Tempo.search(e2e_id))
