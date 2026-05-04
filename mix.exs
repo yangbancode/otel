@@ -66,6 +66,7 @@ defmodule Otel.MixProject do
     [
       # Runtime — required for OTLP/HTTP exporters
       {:protobuf, "~> 0.16.0"},
+      {:req, "~> 0.5"},
       # Dev / test only
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},

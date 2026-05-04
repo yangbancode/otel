@@ -44,8 +44,7 @@ instrumentation scope and resource:
 
 ```elixir
 config :otel,
-  resource: %{"service.name" => "my_app"},
-  exporter: %{endpoint: "http://localhost:4318"}
+  endpoint: "http://localhost:4318"
 ```
 
 See [Configuration](configuration.md) for the full surface.

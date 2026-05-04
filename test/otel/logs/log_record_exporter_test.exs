@@ -94,15 +94,15 @@ defmodule Otel.Logs.LogRecordExporterTest do
     end
   end
 
-  describe "init/1 ssl_options" do
+  describe "init/1 ssl" do
     test "http→empty; https→verify_peer; custom override" do
-      assert init!().ssl_options == []
-      assert init!(%{endpoint: "https://collector:4318"}).ssl_options[:verify] == :verify_peer
+      assert init!().ssl == []
+      assert init!(%{endpoint: "https://collector:4318"}).ssl[:verify] == :verify_peer
 
       assert init!(%{
                endpoint: "https://collector:4318",
-               ssl_options: [verify: :verify_none]
-             }).ssl_options == [verify: :verify_none]
+               ssl: [verify: :verify_none]
+             }).ssl == [verify: :verify_none]
     end
   end
 
@@ -111,14 +111,14 @@ defmodule Otel.Logs.LogRecordExporterTest do
       assert :ok = Otel.Logs.LogRecordExporter.export([], init!())
     end
 
-    test "200 → :ok; gzip and ssl_options variants succeed" do
+    test "200 → :ok; gzip and ssl variants succeed" do
       ok = init!(%{endpoint: server(200)})
       assert :ok = Otel.Logs.LogRecordExporter.export([@log_record], ok)
 
       gz = init!(%{endpoint: server(200), compression: :gzip})
       assert :ok = Otel.Logs.LogRecordExporter.export([@log_record], gz)
 
-      ssl = %{init!(%{endpoint: server(200)}) | ssl_options: [verify: :verify_none]}
+      ssl = %{init!(%{endpoint: server(200)}) | ssl: [verify: :verify_none]}
       assert :ok = Otel.Logs.LogRecordExporter.export([@log_record], ssl)
     end
 

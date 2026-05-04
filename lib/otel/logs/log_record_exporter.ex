@@ -6,14 +6,13 @@ defmodule Otel.Logs.LogRecordExporter do
 
   ## Configuration
 
-  Pass options through the top-level `:exporter` map — the same
-  map flows to all three OTLP exporters (trace / metrics / logs):
+  Top-level `:otel` keys — the same flat config flows to all
+  three OTLP exporters (trace / metrics / logs):
 
       # config/runtime.exs
       config :otel,
-        exporter: %{
-          endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
-        }
+        endpoint:
+          System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
 
   Accepted keys (all optional):
 
@@ -23,14 +22,14 @@ defmodule Otel.Logs.LogRecordExporter do
   | `:headers` | `%{}` | `%{header_name => value}` map of additional headers |
   | `:compression` | `:none` | `:gzip` or `:none` |
   | `:timeout` | `10_000` | Request timeout in milliseconds |
-  | `:ssl_options` | system CAs for HTTPS | See "SSL/TLS" below |
+  | `:ssl` | system CAs for HTTPS | See "SSL/TLS" below |
 
   ## SSL/TLS
 
   For HTTPS endpoints, SSL certificate verification is enabled by default
   using system CA certificates (`:public_key.cacerts_get/0`).
 
-  Custom SSL options can be provided via the `:ssl_options` config key.
+  Custom SSL options can be provided via the `:ssl` config key.
 
   ## Retry
 
@@ -53,7 +52,7 @@ defmodule Otel.Logs.LogRecordExporter do
           headers: [{charlist(), charlist()}],
           compression: :gzip | :none,
           timeout: non_neg_integer(),
-          ssl_options: keyword()
+          ssl: keyword()
         }
 
   @spec init(config :: term()) :: {:ok, state()}
@@ -62,7 +61,7 @@ defmodule Otel.Logs.LogRecordExporter do
     headers = resolve_headers(config)
     compression = Map.get(config, :compression, :none)
     timeout = Map.get(config, :timeout, @default_timeout)
-    ssl_options = build_ssl_options(endpoint, config)
+    ssl = build_ssl(endpoint, config)
 
     {:ok,
      %{
@@ -70,7 +69,7 @@ defmodule Otel.Logs.LogRecordExporter do
        headers: headers,
        compression: compression,
        timeout: timeout,
-       ssl_options: ssl_options
+       ssl: ssl
      }}
   end
 
@@ -124,23 +123,23 @@ defmodule Otel.Logs.LogRecordExporter do
   @spec user_agent() :: String.t()
   defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
 
-  @spec build_ssl_options(endpoint :: String.t(), config :: map()) :: keyword()
-  defp build_ssl_options(endpoint, config) do
-    case Map.get(config, :ssl_options) do
+  @spec build_ssl(endpoint :: String.t(), config :: map()) :: keyword()
+  defp build_ssl(endpoint, config) do
+    case Map.get(config, :ssl) do
       opts when is_list(opts) ->
         opts
 
       _ ->
         if String.starts_with?(endpoint, "https") do
-          default_ssl_options(endpoint)
+          default_ssl(endpoint)
         else
           []
         end
     end
   end
 
-  @spec default_ssl_options(endpoint :: String.t()) :: keyword()
-  defp default_ssl_options(endpoint) do
+  @spec default_ssl(endpoint :: String.t()) :: keyword()
+  defp default_ssl(endpoint) do
     host = endpoint |> URI.parse() |> Map.get(:host, "localhost")
 
     [
@@ -155,8 +154,8 @@ defmodule Otel.Logs.LogRecordExporter do
   defp build_http_options(state) do
     opts = [{:timeout, state.timeout}]
 
-    if state.ssl_options != [] do
-      [{:ssl, state.ssl_options} | opts]
+    if state.ssl != [] do
+      [{:ssl, state.ssl} | opts]
     else
       opts
     end

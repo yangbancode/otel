@@ -154,12 +154,13 @@ defmodule Otel.Logs.LogRecordProcessor do
 
   @typedoc """
   `start_link/1` configuration map. `:exporter` is optional and
-  defaults to the OTLP/HTTP `Otel.Logs.LogRecordExporter` with
-  the user's `config :otel, exporter: %{...}` map when absent —
-  tests that need a substitute exporter override it. The four
-  batch knobs (`max_queue_size`, `scheduled_delay_ms`,
-  `export_timeout_ms`, `max_export_batch_size`) are hardcoded
-  module attributes per minikube-style scope.
+  defaults to the OTLP/HTTP `Otel.Logs.LogRecordExporter` built
+  from the user's flat `config :otel, endpoint: ..., headers:
+  ..., ssl: ...` keys when absent — tests that need a
+  substitute exporter override it. The four batch knobs
+  (`max_queue_size`, `scheduled_delay_ms`, `export_timeout_ms`,
+  `max_export_batch_size`) are hardcoded module attributes per
+  minikube-style scope.
   """
   @type start_link_config :: %{
           optional(:exporter) => {module(), term()}
@@ -254,9 +255,9 @@ defmodule Otel.Logs.LogRecordProcessor do
   @spec init(config :: start_link_config()) :: {:ok, :idle, State.t()}
   def init(config) do
     # `Otel.Application` supervises this child with `[]` config —
-    # exporter comes from the user's `config :otel, exporter: %{...}`
-    # key here. Tests that want a custom exporter override via the
-    # args.
+    # exporter comes from the user's flat `config :otel,
+    # endpoint: ..., headers: ..., ssl: ...` keys here. Tests
+    # that want a custom exporter override via the args.
     Process.flag(:trap_exit, true)
 
     exporter =
@@ -269,7 +270,13 @@ defmodule Otel.Logs.LogRecordProcessor do
   end
 
   @spec exporter_app_env() :: map()
-  defp exporter_app_env, do: Application.get_env(:otel, :exporter, %{})
+  defp exporter_app_env do
+    for key <- [:endpoint, :headers, :ssl, :compression, :timeout],
+        v = Application.get_env(:otel, key),
+        not is_nil(v),
+        into: %{},
+        do: {key, v}
+  end
 
   # Runs the exporter's own `init/1` so OTLP HTTP can populate
   # compression / SSL defaults; `:ignore` demotes to `nil`.

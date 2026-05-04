@@ -1,5 +1,5 @@
 defmodule Otel.Trace.SpanExporterTest do
-  # async: false — mutates `:otel` Application env (`:exporter`)
+  # async: false — mutates `:otel` Application env (`:endpoint`)
   # and shares the global `SpanStorage` ETS table.
   use ExUnit.Case, async: false
 
@@ -19,7 +19,7 @@ defmodule Otel.Trace.SpanExporterTest do
     Application.ensure_all_started(:otel)
 
     on_exit(fn ->
-      Application.delete_env(:otel, :exporter)
+      Application.delete_env(:otel, :endpoint)
       Application.stop(:otel)
       Application.ensure_all_started(:otel)
     end)
@@ -74,7 +74,7 @@ defmodule Otel.Trace.SpanExporterTest do
       receive do: ({:DOWN, ^ref, _, _, _} -> :ok), after: (1_000 -> :ok)
     end)
 
-    Application.put_env(:otel, :exporter, %{endpoint: "http://localhost:#{port}"})
+    Application.put_env(:otel, :endpoint, "http://localhost:#{port}")
     :ok
   end
 

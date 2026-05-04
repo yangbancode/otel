@@ -66,7 +66,13 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
   end
 
   @spec exporter_app_env() :: map()
-  defp exporter_app_env, do: Application.get_env(:otel, :exporter, %{})
+  defp exporter_app_env do
+    for key <- [:endpoint, :headers, :ssl, :compression, :timeout],
+        v = Application.get_env(:otel, key),
+        not is_nil(v),
+        into: %{},
+        do: {key, v}
+  end
 
   # Runs the exporter's own `init/1` so OTLP HTTP can populate
   # compression / SSL defaults; `:ignore` demotes to `nil`.

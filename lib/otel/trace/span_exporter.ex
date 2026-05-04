@@ -13,17 +13,37 @@ defmodule Otel.Trace.SpanExporter do
   | `force_flush/1` | drain *all* completed spans synchronously |
   | `terminate/2` (Application stop) | drain remaining spans before exit |
 
-  ## OTLP transport
+  ## OTLP transport — Req
 
-  HTTP POST via `:httpc` to the configured collector endpoint.
-  Endpoint resolved from `Application.get_env(:otel, :exporter)[:endpoint]`
-  on every export — no init-time caching, so test-time reconfiguration
-  takes effect immediately.
+  HTTP POST via [`Req`](https://hex.pm/packages/req) (Finch / Mint
+  under the hood). Endpoint and related options are read from
+  `Application.get_env(:otel, ...)` on every export — no init-time
+  caching, so test-time reconfiguration takes effect immediately.
+
+  Retry uses an OTLP-specific predicate over Req's built-in retry
+  mechanism — only 429 / 502 / 503 / 504 and network errors are
+  retried, matching `opentelemetry-proto/docs/specification.md`
+  §"Retryable Response Codes" L565-L573. Req's default delay
+  function honors `Retry-After` automatically when the predicate
+  returns true.
+
+  ## Configuration
+
+      config :otel,
+        endpoint: "http://localhost:4318",
+        headers: %{"authorization" => "Bearer ..."},
+        ssl: [verify: :verify_peer, cacertfile: "/path/to/ca.pem"],
+        compression: :gzip
+
+  All keys are optional. Defaults are HTTP `localhost:4318`, no
+  custom headers, OTP system trust store for HTTPS, no
+  compression.
 
   ## References
 
   - OTel Trace SDK §Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
   - OTel Trace SDK §SpanExporter: `opentelemetry-specification/specification/trace/sdk.md` L1119-L1207
+  - OTLP Exporter §Retry: `opentelemetry-proto/docs/specification.md` L565-L611
   """
 
   use GenServer
@@ -114,70 +134,82 @@ defmodule Otel.Trace.SpanExporter do
   defp do_export(batch) do
     body = Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build())
 
-    config = Application.get_env(:otel, :exporter, %{})
-    body = maybe_compress(body, Map.get(config, :compression, :none))
+    endpoint = Application.get_env(:otel, :endpoint, @default_endpoint)
+    user_headers = Application.get_env(:otel, :headers, %{})
+    ssl_opts = Application.get_env(:otel, :ssl, [])
+    compression = Application.get_env(:otel, :compression, :none)
+    timeout = Application.get_env(:otel, :timeout, @default_timeout)
 
-    endpoint = resolve_endpoint(config)
-    headers = resolve_headers(config, body)
-    http_options = build_http_options(config, endpoint)
+    body = maybe_compress(body, compression)
+    headers = build_headers(user_headers, compression)
+    url = String.trim_trailing(endpoint, "/") <> @traces_path
 
-    Otel.OTLP.HTTP.Retry.request(
-      {String.to_charlist(endpoint), headers, ~c"application/x-protobuf", body},
-      http_options,
-      []
-    )
+    opts =
+      [
+        body: body,
+        headers: headers,
+        receive_timeout: timeout,
+        retry: &otlp_retry?/2,
+        max_retries: 4
+      ]
+      |> maybe_add_connect_options(ssl_opts)
+
+    case Req.post(url, opts) do
+      {:ok, %Req.Response{status: status}} when status in 200..299 ->
+        :ok
+
+      {:ok, %Req.Response{status: status}} ->
+        Logger.warning("OTLP trace export failed with HTTP #{status}")
+        :error
+
+      {:error, exception} ->
+        Logger.warning("OTLP trace export failed: #{inspect(exception)}")
+        :error
+    end
   end
 
   defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
 
-  # --- HTTP config (per-call lookup, no init caching) ---
-
-  defp resolve_endpoint(config) do
-    base = Map.get(config, :endpoint, @default_endpoint)
-    String.trim_trailing(base, "/") <> @traces_path
+  defp build_headers(user_headers, compression) do
+    %{
+      "user-agent" => user_agent(),
+      "content-type" => "application/x-protobuf"
+    }
+    |> maybe_add_compression_header(compression)
+    |> Map.merge(stringify_headers(user_headers))
   end
 
-  defp resolve_headers(config, _body) do
-    user_headers =
-      config
-      |> Map.get(:headers, %{})
-      |> Enum.map(fn {k, v} -> {String.to_charlist(k), String.to_charlist(v)} end)
-
-    [{~c"user-agent", String.to_charlist(user_agent())} | user_headers]
+  defp stringify_headers(headers) when is_map(headers) do
+    Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
   end
+
+  defp maybe_add_compression_header(headers, :gzip),
+    do: Map.put(headers, "content-encoding", "gzip")
+
+  defp maybe_add_compression_header(headers, _), do: headers
 
   defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
 
-  defp build_http_options(config, endpoint) do
-    timeout = Map.get(config, :timeout, @default_timeout)
-    ssl_options = build_ssl_options(endpoint, config)
-    opts = [{:timeout, timeout}]
-    if ssl_options != [], do: [{:ssl, ssl_options} | opts], else: opts
-  end
+  defp maybe_add_connect_options(opts, []), do: opts
 
-  defp build_ssl_options(endpoint, config) do
-    case Map.get(config, :ssl_options) do
-      opts when is_list(opts) ->
-        opts
-
-      _ ->
-        if String.starts_with?(endpoint, "https"),
-          do: default_ssl_options(endpoint),
-          else: []
-    end
-  end
-
-  defp default_ssl_options(endpoint) do
-    host = endpoint |> URI.parse() |> Map.get(:host, "localhost")
-
-    [
-      verify: :verify_peer,
-      cacerts: :public_key.cacerts_get(),
-      server_name_indication: String.to_charlist(host),
-      customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
-    ]
-  end
+  defp maybe_add_connect_options(opts, ssl_opts) when is_list(ssl_opts),
+    do: Keyword.put(opts, :connect_options, transport_opts: ssl_opts)
 
   defp maybe_compress(body, :gzip), do: :zlib.gzip(body)
   defp maybe_compress(body, _), do: body
+
+  # OTLP retry predicate — `protocol/exporter.md` §"Retryable
+  # Response Codes" L565-L573:
+  # - 429 / 502 / 503 / 504 → retry (Retry-After honored by Req)
+  # - other 4xx/5xx        → non-retryable, fail
+  # - connection errors    → retry
+  defp otlp_retry?(_request, %Req.Response{status: status})
+       when status in [429, 502, 503, 504],
+       do: true
+
+  defp otlp_retry?(_request, %Req.Response{}), do: false
+
+  defp otlp_retry?(_request, %{__exception__: true}), do: true
+
+  defp otlp_retry?(_request, _), do: false
 end

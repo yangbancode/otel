@@ -10,20 +10,24 @@ The SDK reads only Application env. Sources, highest priority first:
 
 ## User-facing keys
 
-One top-level key covers most users. Resource attributes
-(`service.name`, `service.version`) come from Mix release env
-vars at runtime — no config needed.
+A handful of flat top-level keys covers most users. Resource
+attributes (`service.name`, `service.version`) come from Mix
+release env vars at runtime — no config needed.
 
 ```elixir
 import Config
 
 config :otel,
-  exporter: %{endpoint: "http://localhost:4318"}
+  endpoint: "http://localhost:4318"
 ```
 
 | Key | Type | Default |
 |---|---|---|
-| `:exporter` | `%{endpoint, headers, ssl_options, ...}` | `%{}` (uses exporter defaults) |
+| `:endpoint` | `String.t()` | `"http://localhost:4318"` |
+| `:headers` | `%{String.t() => String.t()}` | `%{}` |
+| `:ssl` | `keyword()` | `[]` (Mint uses OTP system CAs for HTTPS) |
+| `:compression` | `:gzip \| :none` | `:none` |
+| `:timeout` | `non_neg_integer()` | `10_000` (ms) |
 
 ## Resource attributes
 
@@ -52,19 +56,66 @@ either should use [`opentelemetry-erlang`](https://github.com/open-telemetry/ope
 
 ## Exporter
 
-The `:exporter` map is forwarded verbatim to all three OTLP/HTTP
-exporters (trace, metrics, logs). Common keys:
+The flat top-level keys feed all three OTLP/HTTP exporters
+(trace, metrics, logs):
 
-| Exporter key | Default | Notes |
+| Key | Default | Notes |
 |---|---|---|
-| `:endpoint` | `http://localhost:4318` | `/v1/traces`, `/v1/metrics`, `/v1/logs` are appended per signal |
-| `:headers` | `%{}` | `%{header_name => value}` — use for SaaS auth tokens |
-| `:ssl_options` | system CAs for HTTPS | Erlang `:ssl` client options |
+| `:endpoint` | `http://localhost:4318` | Base URL; `/v1/traces`, `/v1/metrics`, `/v1/logs` are appended per signal |
+| `:headers` | `%{}` | `%{header_name => value}` — use for SaaS auth tokens (see Grafana Cloud example below) |
+| `:ssl` | system CAs for HTTPS | Erlang `:ssl` client options |
+| `:compression` | `:none` | `:gzip` or `:none` |
+| `:timeout` | `10_000` (ms) | Per-attempt request timeout |
 
-`:compression` and `:timeout` are also accepted by the exporter
-modules but rarely need adjustment. Retry behavior is hardcoded to
-the Java OTLP defaults (5 attempts, 1s → 5s exponential backoff,
-±20% jitter) and is not user-tunable.
+Retry is hardcoded — only OTLP-spec retryable codes
+(429, 502, 503, 504) plus connection errors are retried, with
+exponential backoff and `Retry-After` honored. Not
+user-tunable.
+
+## Example — Grafana Cloud (OTLP gateway)
+
+Grafana Cloud accepts traces, metrics, and logs at a single
+OTLP gateway endpoint with HTTP Basic auth (instance ID +
+API token):
+
+```elixir
+# config/runtime.exs
+import Config
+
+config :otel,
+  endpoint: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp",
+  headers: %{
+    "authorization" =>
+      "Basic " <>
+        Base.encode64(
+          "#{System.get_env("GRAFANA_INSTANCE_ID")}:#{System.get_env("GRAFANA_API_TOKEN")}"
+        )
+  }
+```
+
+Public CA — no `:ssl` config needed.
+
+## Example — Self-hosted Grafana Stack
+
+Plain HTTP to a local OpenTelemetry Collector (the collector
+forwards to Tempo / Mimir / Loki and handles TLS termination
+externally):
+
+```elixir
+config :otel,
+  endpoint: "http://otel-collector.observability.svc.cluster.local:4318"
+```
+
+Internal CA over HTTPS:
+
+```elixir
+config :otel,
+  endpoint: "https://tempo.internal.corp:4318",
+  ssl: [
+    verify: :verify_peer,
+    cacertfile: "/etc/ssl/certs/internal-ca.pem"
+  ]
+```
 
 ## Bridging OS environment variables (Phoenix pattern)
 
@@ -77,9 +128,8 @@ Phoenix's `PHX_SERVER`:
 import Config
 
 config :otel,
-  exporter: %{
-    endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
-  }
+  endpoint:
+    System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
 ```
 
 `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES` are not
@@ -173,25 +223,25 @@ needing them should use `opentelemetry-erlang`.
 
 ## OTLP HTTP — SSL / TLS
 
-The OTLP HTTP exporter uses Erlang's `:httpc`. For `https://` endpoints,
-certificate verification is enabled by default using system CA
-certificates (`:public_key.cacerts_get/0`).
+The trace exporter uses [`Req`](https://hex.pm/packages/req)
+(Finch / Mint underneath); the logs / metrics exporters use
+Erlang's `:httpc`. Both honor the same `:ssl` keyword list and,
+for `https://` endpoints, verify against the OS trust store
+(`:public_key.cacerts_get/0`) by default.
 
-To override the defaults — custom CA bundle, mutual TLS, etc. — pass
-options through the top-level `:exporter` map:
+To override — custom CA bundle, mutual TLS, etc. — set the
+top-level `:ssl` key:
 
 ```elixir
 config :otel,
-  exporter: %{
-    endpoint: "https://collector.example.com:4318",
-    ssl_options: [
-      verify: :verify_peer,
-      cacertfile: "/etc/ssl/certs/ca.crt"
-    ]
-  }
+  endpoint: "https://collector.example.com:4318",
+  ssl: [
+    verify: :verify_peer,
+    cacertfile: "/etc/ssl/certs/ca.crt"
+  ]
 ```
 
-`ssl_options:` accepts any
+`:ssl` accepts any
 [Erlang `:ssl` client_option](https://www.erlang.org/doc/apps/ssl/ssl.html#client_option).
 Common patterns:
 
