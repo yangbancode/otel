@@ -80,23 +80,23 @@ defmodule Otel.Trace.SpanStorageTest do
   end
 
   describe "sweep stale :active spans" do
-    # `Otel.Trace.Span.start_time` is in nanoseconds (OTLP wire
-    # format), and the sweep TTL constant is 30 minutes. These
-    # tests force-age a span by writing a `start_time` older than
-    # the cutoff, then trigger the sweep manually via the GenServer
-    # message and synchronize with `:sys.get_state/1`.
-    @ttl_minutes 30
-    @older_than_ttl_ns System.system_time(:nanosecond) -
-                         (@ttl_minutes + 1) * 60 * 1_000 * 1_000_000
+    # Sweep keys off the row's `inserted_at_ms` (4th column),
+    # not `span.start_time`. `insert/1` always stamps it with
+    # `System.system_time(:millisecond)` at call time, so to
+    # simulate a stale row these tests bypass the public API
+    # and `:ets.insert/2` directly with a backdated value.
+    @stale_inserted_at System.system_time(:millisecond) - :timer.minutes(31)
 
-    test "removes :active spans older than the TTL" do
-      stale = %{@span | start_time: @older_than_ttl_ns}
-      Otel.Trace.SpanStorage.insert(stale)
+    test "removes :active spans whose inserted_at is older than the TTL" do
+      :ets.insert(
+        Otel.Trace.SpanStorage,
+        {@span.span_id, @span, :active, @stale_inserted_at}
+      )
 
       send(Otel.Trace.SpanStorage, :sweep)
       :sys.get_state(Otel.Trace.SpanStorage)
 
-      assert Otel.Trace.SpanStorage.get(stale.span_id) == nil
+      assert Otel.Trace.SpanStorage.get(@span.span_id) == nil
     end
 
     test "keeps :active spans within the TTL" do
@@ -108,15 +108,13 @@ defmodule Otel.Trace.SpanStorageTest do
       assert %Otel.Trace.Span{} = Otel.Trace.SpanStorage.get(@span.span_id)
     end
 
-    test "does not touch :completed rows even with old start_time" do
-      stale_then_completed = %{
-        @span
-        | start_time: @older_than_ttl_ns,
-          end_time: @older_than_ttl_ns + 1_000
-      }
+    test "does not touch :completed rows even with old inserted_at" do
+      ended = %{@span | end_time: System.system_time(:nanosecond)}
 
-      Otel.Trace.SpanStorage.insert(stale_then_completed)
-      Otel.Trace.SpanStorage.complete(stale_then_completed)
+      :ets.insert(
+        Otel.Trace.SpanStorage,
+        {ended.span_id, ended, :completed, @stale_inserted_at}
+      )
 
       send(Otel.Trace.SpanStorage, :sweep)
       :sys.get_state(Otel.Trace.SpanStorage)

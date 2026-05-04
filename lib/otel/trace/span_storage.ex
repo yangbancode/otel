@@ -5,8 +5,16 @@ defmodule Otel.Trace.SpanStorage do
   completed (waiting for export after `end_span`) spans live
   in a single table.
 
-  Each row is a 3-tuple `{span_id, %Otel.Trace.Span{}, status}`
-  where `status` is `:active` or `:completed`.
+  Each row is a 4-tuple
+  `{span_id, %Otel.Trace.Span{}, status, inserted_at_ms}`
+  where `status` is `:active` or `:completed` and
+  `inserted_at_ms` is the millisecond timestamp stamped at
+  `insert/1` time. The 4th column is *internal-only* — it
+  exists solely so the sweep loop can identify stale rows by
+  insertion time (not by `span.start_time`, which the caller
+  may legitimately backdate via `start_span/3`'s `:start_time`
+  opt). It is set once and preserved unchanged by `update/1`
+  and `complete/1`.
 
   ## Public API — generic CRUD on active spans
 
@@ -65,12 +73,17 @@ defmodule Otel.Trace.SpanStorage do
   The GenServer runs a self-scheduled sweep every
   `@sweep_interval_ms` (10 minutes) that issues a single
   `:ets.select_delete/2` removing `:active` rows whose
-  `start_time` is older than `@span_ttl_ns` (30 minutes).
-  This is the safety net for spans that never reach
-  `end_span` (process crash, dropped context, leaked
-  span_ctx) — without it, stale rows would accumulate until
-  the `@max_queue_size` backpressure starts dropping fresh
-  spans.
+  `inserted_at_ms` (row position 4) is older than
+  `@span_ttl_ms` (30 minutes). This is the safety net for
+  spans that never reach `end_span` (process crash, dropped
+  context, leaked span_ctx) — without it, stale rows would
+  accumulate until the `@max_queue_size` backpressure starts
+  dropping fresh spans.
+
+  Sweep keys off `inserted_at_ms`, not `span.start_time`,
+  because callers may pass a backdated `:start_time` (history
+  replay, batch ingestion). Insertion time is the SDK-internal
+  signal of "how long has this row sat in storage."
 
   Defaults match `opentelemetry-erlang`'s `otel_span_sweeper`
   configuration. Sweep strategy is `drop` only — exporting
@@ -97,7 +110,7 @@ defmodule Otel.Trace.SpanStorage do
   # Sweep cadence and TTL — defaults match `opentelemetry-erlang`'s
   # `otel_span_sweeper` (10-minute interval, 30-minute TTL).
   @sweep_interval_ms :timer.minutes(10)
-  @span_ttl_ns :timer.minutes(30) * 1_000_000
+  @span_ttl_ms :timer.minutes(30)
 
   # --- Client API ---
 
@@ -122,7 +135,8 @@ defmodule Otel.Trace.SpanStorage do
         :ok
 
       _ ->
-        :ets.insert(@table, {span_id, span, :active})
+        inserted_at = System.system_time(:millisecond)
+        :ets.insert(@table, {span_id, span, :active, inserted_at})
         :ok
     end
   end
@@ -134,7 +148,7 @@ defmodule Otel.Trace.SpanStorage do
   @spec get(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
   def get(span_id) do
     case :ets.lookup(@table, span_id) do
-      [{^span_id, span, :active}] -> span
+      [{^span_id, span, :active, _}] -> span
       _ -> nil
     end
   end
@@ -148,7 +162,10 @@ defmodule Otel.Trace.SpanStorage do
   """
   @spec update(span :: Otel.Trace.Span.t()) :: :ok
   def update(%Otel.Trace.Span{span_id: span_id} = span) do
-    spec = [{{span_id, :_, :active}, [], [{{span_id, {:const, span}, :active}}]}]
+    spec = [
+      {{span_id, :_, :active, :"$1"}, [], [{{span_id, {:const, span}, :active, :"$1"}}]}
+    ]
+
     _ = :ets.select_replace(@table, spec)
     :ok
   end
@@ -169,7 +186,10 @@ defmodule Otel.Trace.SpanStorage do
   """
   @spec complete(span :: Otel.Trace.Span.t()) :: :ok
   def complete(%Otel.Trace.Span{span_id: span_id} = span) do
-    spec = [{{span_id, :_, :active}, [], [{{span_id, {:const, span}, :completed}}]}]
+    spec = [
+      {{span_id, :_, :active, :"$1"}, [], [{{span_id, {:const, span}, :completed, :"$1"}}]}
+    ]
+
     _ = :ets.select_replace(@table, spec)
     :ok
   end
@@ -180,7 +200,7 @@ defmodule Otel.Trace.SpanStorage do
   """
   @spec take_completed(n :: pos_integer()) :: [Otel.Trace.Span.t()]
   def take_completed(n) when n > 0 do
-    spec = [{{:"$1", :"$2", :completed}, [], [{{:"$1", :"$2"}}]}]
+    spec = [{{:"$1", :"$2", :completed, :_}, [], [{{:"$1", :"$2"}}]}]
 
     case :ets.select(@table, spec, n) do
       :"$end_of_table" ->
@@ -212,11 +232,9 @@ defmodule Otel.Trace.SpanStorage do
 
   @impl true
   def handle_info(:sweep, state) do
-    cutoff = System.system_time(:nanosecond) - @span_ttl_ns
+    cutoff = System.system_time(:millisecond) - @span_ttl_ms
 
-    spec = [
-      {{:_, :"$1", :active}, [{:<, {:map_get, :start_time, :"$1"}, cutoff}], [true]}
-    ]
+    spec = [{{:_, :_, :active, :"$1"}, [{:<, :"$1", cutoff}], [true]}]
 
     :ets.select_delete(@table, spec)
     schedule_sweep()
