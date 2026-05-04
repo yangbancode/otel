@@ -39,7 +39,7 @@ defmodule Otel.Trace.SpanExporterTest do
       start_server_and_configure(200)
 
       Otel.Trace.SpanStorage.insert(@span)
-      Otel.Trace.SpanStorage.mark_completed(%{@span | end_time: 2_000_000})
+      Otel.Trace.SpanStorage.complete(%{@span | end_time: 2_000_000})
 
       assert :ok = Otel.Trace.SpanExporter.force_flush()
       assert_receive :request_received, 5_000
@@ -50,7 +50,7 @@ defmodule Otel.Trace.SpanExporterTest do
       start_server_and_configure(200)
 
       Otel.Trace.SpanStorage.insert(@span)
-      # No mark_completed — span is still :active
+      # No complete — span is still :active
 
       assert :ok = Otel.Trace.SpanExporter.force_flush()
       refute_receive :request_received, 200

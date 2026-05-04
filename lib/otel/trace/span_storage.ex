@@ -15,7 +15,7 @@ defmodule Otel.Trace.SpanStorage do
   | `insert/1` | insert a fresh span as `:active` (back-pressure aware) |
   | `get/1` | look up an active span by `span_id` |
   | `update/1` | atomic replace of an active span (no-op if already completed) |
-  | `mark_completed/1` | atomic flip `:active → :completed` with the caller's final span value |
+  | `complete/1` | atomic flip `:active → :completed` with the caller's final span value |
   | `take_completed/1` | take + delete a batch of completed spans (Exporter only) |
 
   Mutation flow used by `Otel.Trace.Span`:
@@ -28,16 +28,16 @@ defmodule Otel.Trace.SpanStorage do
 
       span = SpanStorage.get(span_id)
       ended = %{span | end_time: end_time}
-      SpanStorage.mark_completed(ended)     # atomic flip with the final span value
+      SpanStorage.complete(ended)     # atomic flip with the final span value
 
   ## Concurrency
 
   Multi-writer + single-reader (the Exporter):
 
-  - `insert` / `get` / `update` / `mark_completed` run on the
+  - `insert` / `get` / `update` / `complete` run on the
     caller process and write to ETS directly
     (`write_concurrency` makes this lock-free).
-  - `update/1` and `mark_completed/1` use a single atomic
+  - `update/1` and `complete/1` use a single atomic
     `:ets.select_replace/2` BIF whose match-spec only matches
     `:active` rows. Completed spans are never accidentally
     re-mutated.
@@ -46,7 +46,7 @@ defmodule Otel.Trace.SpanStorage do
   - Span mutation is bound to the process that owns the span
     (the one that called `start_span`); `end_span` is the
     authoritative termination boundary — concurrent mutations
-    not committed by the time `mark_completed/1` runs are not
+    not committed by the time `complete/1` runs are not
     preserved.
 
   ## Backpressure
@@ -143,8 +143,8 @@ defmodule Otel.Trace.SpanStorage do
   concurrent mutations not committed by the time this BIF
   runs are not preserved.
   """
-  @spec mark_completed(span :: Otel.Trace.Span.t()) :: :ok
-  def mark_completed(%Otel.Trace.Span{span_id: span_id} = span) do
+  @spec complete(span :: Otel.Trace.Span.t()) :: :ok
+  def complete(%Otel.Trace.Span{span_id: span_id} = span) do
     spec = [{{span_id, :_, :active}, [], [{{span_id, {:const, span}, :completed}}]}]
     _ = :ets.select_replace(@table, spec)
     :ok
