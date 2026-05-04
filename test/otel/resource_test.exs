@@ -22,11 +22,14 @@ defmodule Otel.ResourceTest do
   end
 
   describe "build/0 — no release env" do
-    test "service.name falls back to \"unknown_service\"; service.version is empty string" do
+    test "service.name falls back to \"unknown_service\"; service.version is nil" do
       attrs = Otel.Resource.build().attributes
 
       assert attrs["service.name"] == "unknown_service"
-      assert attrs["service.version"] == ""
+      # Key present, value nil — OTLP encoder maps to %AnyValue{}
+      # (oneof unset) per `common/README.md` L50-L51.
+      assert Map.has_key?(attrs, "service.version")
+      assert is_nil(attrs["service.version"])
     end
 
     test "always emits SDK identity + deployment.environment" do
@@ -40,13 +43,13 @@ defmodule Otel.ResourceTest do
   end
 
   describe "build/0 — RELEASE_NAME set" do
-    test "service.name from RELEASE_NAME" do
+    test "service.name from RELEASE_NAME; service.version stays nil" do
       System.put_env("RELEASE_NAME", "my_app")
 
       attrs = Otel.Resource.build().attributes
 
       assert attrs["service.name"] == "my_app"
-      assert attrs["service.version"] == ""
+      assert is_nil(attrs["service.version"])
     end
 
     test "RELEASE_NAME and RELEASE_VSN both populate service.* attributes" do
