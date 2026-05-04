@@ -1,118 +1,143 @@
 defmodule Otel.Trace.SpanExporter do
   @moduledoc """
-  OTLP HTTP Exporter for traces.
+  Trace export pipeline — timer-driven take from `SpanStorage` +
+  OTLP encode + HTTP POST. Single GenServer absorbing what was
+  previously split between `SpanProcessor` (queue + timer + drain)
+  and a HTTP-only Exporter.
 
-  Exports spans as binary protobuf over HTTP POST to an OTLP endpoint.
-  Implements the SpanExporter behaviour.
+  ## Lifecycle
 
-  ## Configuration
+  | Trigger | Action |
+  |---|---|
+  | `:loop` self-message every `@scheduled_delay_ms` | take one batch (`@max_export_batch_size`) of `:completed` spans, encode, POST |
+  | `force_flush/1` | drain *all* completed spans synchronously |
+  | `terminate/2` (Application stop) | drain remaining spans before exit |
 
-  Pass options through the top-level `:exporter` map — the same
-  map flows to all three OTLP exporters (trace / metrics / logs):
+  ## OTLP transport
 
-      # config/runtime.exs
-      config :otel,
-        exporter: %{
-          endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
-        }
+  HTTP POST via `:httpc` to the configured collector endpoint.
+  Endpoint resolved from `Application.get_env(:otel, :exporter)[:endpoint]`
+  on every export — no init-time caching, so test-time reconfiguration
+  takes effect immediately.
 
-  Accepted keys (all optional):
+  ## References
 
-  | Key | Default | Notes |
-  |---|---|---|
-  | `:endpoint` | `http://localhost:4318` | Base URL; `/v1/traces` is appended |
-  | `:headers` | `%{}` | `%{header_name => value}` map of additional headers |
-  | `:compression` | `:none` | `:gzip` or `:none` |
-  | `:timeout` | `10_000` | Request timeout in milliseconds |
-  | `:ssl_options` | system CAs for HTTPS | See "SSL/TLS" below |
-
-  ## SSL/TLS
-
-  For HTTPS endpoints, SSL certificate verification is enabled by default
-  using system CA certificates (`:public_key.cacerts_get/0`).
-
-  Custom SSL options can be provided via the `:ssl_options` config key.
-
-  ## Retry
-
-  Transient errors are retried with exponential backoff and
-  jitter per `protocol/exporter.md` §Retry L181-L183. Retry
-  behavior is delegated to `Otel.OTLP.HTTP.Retry` and uses
-  the Java OTLP SDK defaults verbatim (5 attempts, 1s → 5s
-  capped, 1.5x multiplier, ±20% jitter). Not user-tunable —
-  the spec does not mandate values, and the Java defaults are
-  the de-facto OTLP standard.
+  - OTel Trace SDK §Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
+  - OTel Trace SDK §SpanExporter: `opentelemetry-specification/specification/trace/sdk.md` L1119-L1207
   """
 
-  @typedoc "Internal exporter state — opaque to callers."
-  @type state :: map()
+  use GenServer
+
+  require Logger
+
+  # OTel spec `trace/sdk.md` L1109-L1118 defaults.
+  @scheduled_delay_ms 5_000
+  @max_export_batch_size 512
+  @export_timeout_ms 30_000
 
   @default_endpoint "http://localhost:4318"
   @traces_path "/v1/traces"
   @default_timeout 10_000
 
-  @spec init(config :: term()) :: {:ok, state()} | :ignore
+  # --- Public API ---
 
-  def init(config) do
-    endpoint = resolve_endpoint(config)
-    headers = resolve_headers(config)
-    compression = Map.get(config, :compression, :none)
-    timeout = Map.get(config, :timeout, @default_timeout)
-    ssl_options = build_ssl_options(endpoint, config)
-
-    {:ok,
-     %{
-       endpoint: endpoint,
-       headers: headers,
-       compression: compression,
-       timeout: timeout,
-       ssl_options: ssl_options
-     }}
+  @spec start_link(opts :: keyword()) :: GenServer.on_start()
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @spec export(
-          spans :: [Otel.Trace.Span.t()],
-          resource :: Otel.Resource.t(),
-          state :: state()
-        ) :: :ok | :error
+  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
+  def force_flush(timeout \\ @export_timeout_ms) do
+    GenServer.call(__MODULE__, :force_flush, timeout)
+  catch
+    :exit, {:noproc, _} -> {:error, :already_shutdown}
+    :exit, {:timeout, _} -> {:error, :timeout}
+  end
 
-  def export([], _resource, _state), do: :ok
+  # --- GenServer ---
 
-  def export(spans, resource, state) do
-    body = Otel.OTLP.Encoder.encode_traces(spans, resource)
-    body = maybe_compress(body, state.compression)
+  @impl true
+  def init(_opts) do
+    Process.flag(:trap_exit, true)
+    loop()
+    {:ok, %{}}
+  end
 
-    headers = request_headers(state.headers, state.compression)
-    url = String.to_charlist(state.endpoint)
-    http_options = build_http_options(state)
+  @impl true
+  def handle_info(:loop, state) do
+    drain_one_batch()
+    loop()
+    {:noreply, state}
+  end
 
-    case Otel.OTLP.HTTP.Retry.request(
-           {url, headers, ~c"application/x-protobuf", body},
-           http_options,
-           []
-         ) do
-      :ok -> :ok
-      {:error, _reason} -> :error
+  @impl true
+  def handle_call(:force_flush, _from, state) do
+    drain_all()
+    {:reply, :ok, state}
+  end
+
+  # Application stop / supervisor shutdown — drain remaining
+  # completed spans before exit. Wrapped in try/catch so exporter
+  # failure doesn't crash the supervisor (lifecycle hook exempt
+  # from happy-path rule).
+  @impl true
+  def terminate(_reason, _state) do
+    try do
+      drain_all()
+    catch
+      _kind, _reason -> :ok
     end
+
+    :ok
   end
-
-  @spec shutdown(state :: state()) :: :ok
-
-  def shutdown(_state), do: :ok
-
-  @spec force_flush(state :: state()) :: :ok
-
-  def force_flush(_state), do: :ok
 
   # --- Private ---
 
-  @spec resolve_endpoint(config :: map()) :: String.t()
-  defp resolve_endpoint(config) do
-    String.trim_trailing(Map.get(config, :endpoint, @default_endpoint), "/") <> @traces_path
+  defp drain_one_batch do
+    case Otel.Trace.SpanStorage.take_completed(@max_export_batch_size) do
+      [] -> :ok
+      batch -> do_export(batch)
+    end
   end
 
-  @spec resolve_headers(config :: map()) :: [{charlist(), charlist()}]
-  defp resolve_headers(config) do
+  defp drain_all do
+    case Otel.Trace.SpanStorage.take_completed(@max_export_batch_size) do
+      [] ->
+        :ok
+
+      batch ->
+        do_export(batch)
+        drain_all()
+    end
+  end
+
+  defp do_export(batch) do
+    body = Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build())
+
+    config = Application.get_env(:otel, :exporter, %{})
+    body = maybe_compress(body, Map.get(config, :compression, :none))
+
+    endpoint = resolve_endpoint(config)
+    headers = resolve_headers(config, body)
+    http_options = build_http_options(config, endpoint)
+
+    Otel.OTLP.HTTP.Retry.request(
+      {String.to_charlist(endpoint), headers, ~c"application/x-protobuf", body},
+      http_options,
+      []
+    )
+  end
+
+  defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
+
+  # --- HTTP config (per-call lookup, no init caching) ---
+
+  defp resolve_endpoint(config) do
+    base = Map.get(config, :endpoint, @default_endpoint)
+    String.trim_trailing(base, "/") <> @traces_path
+  end
+
+  defp resolve_headers(config, _body) do
     user_headers =
       config
       |> Map.get(:headers, %{})
@@ -121,25 +146,27 @@ defmodule Otel.Trace.SpanExporter do
     [{~c"user-agent", String.to_charlist(user_agent())} | user_headers]
   end
 
-  @spec user_agent() :: String.t()
   defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
 
-  @spec build_ssl_options(endpoint :: String.t(), config :: map()) :: keyword()
+  defp build_http_options(config, endpoint) do
+    timeout = Map.get(config, :timeout, @default_timeout)
+    ssl_options = build_ssl_options(endpoint, config)
+    opts = [{:timeout, timeout}]
+    if ssl_options != [], do: [{:ssl, ssl_options} | opts], else: opts
+  end
+
   defp build_ssl_options(endpoint, config) do
     case Map.get(config, :ssl_options) do
       opts when is_list(opts) ->
         opts
 
       _ ->
-        if String.starts_with?(endpoint, "https") do
-          default_ssl_options(endpoint)
-        else
-          []
-        end
+        if String.starts_with?(endpoint, "https"),
+          do: default_ssl_options(endpoint),
+          else: []
     end
   end
 
-  @spec default_ssl_options(endpoint :: String.t()) :: keyword()
   defp default_ssl_options(endpoint) do
     host = endpoint |> URI.parse() |> Map.get(:host, "localhost")
 
@@ -151,25 +178,6 @@ defmodule Otel.Trace.SpanExporter do
     ]
   end
 
-  @spec build_http_options(state :: map()) :: keyword()
-  defp build_http_options(state) do
-    opts = [{:timeout, state.timeout}]
-
-    if state.ssl_options != [] do
-      [{:ssl, state.ssl_options} | opts]
-    else
-      opts
-    end
-  end
-
-  @spec request_headers(
-          base_headers :: [{charlist(), charlist()}],
-          compression :: :gzip | :none
-        ) :: [{charlist(), charlist()}]
-  defp request_headers(headers, :gzip), do: [{~c"content-encoding", ~c"gzip"} | headers]
-  defp request_headers(headers, _compression), do: headers
-
-  @spec maybe_compress(body :: binary(), compression :: :gzip | :none) :: binary()
   defp maybe_compress(body, :gzip), do: :zlib.gzip(body)
-  defp maybe_compress(body, _compression), do: body
+  defp maybe_compress(body, _), do: body
 end

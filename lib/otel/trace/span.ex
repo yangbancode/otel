@@ -258,7 +258,7 @@ defmodule Otel.Trace.Span do
 
   @spec recording?(span_ctx :: Otel.Trace.SpanContext.t()) :: boolean()
   def recording?(%Otel.Trace.SpanContext{span_id: span_id}) do
-    Otel.Trace.SpanStorage.get(span_id) != nil
+    Otel.Trace.SpanStorage.get_active(span_id) != nil
   end
 
   @doc """
@@ -271,25 +271,19 @@ defmodule Otel.Trace.Span do
           value :: primitive_any()
         ) :: :ok
   def set_attribute(%Otel.Trace.SpanContext{span_id: span_id}, key, value) do
-    case Otel.Trace.SpanStorage.get(span_id) do
-      nil ->
-        :ok
+    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
+      limits = span.span_limits
+      value = truncate_value(value, limits.attribute_value_length_limit)
 
-      span ->
-        limits = span.span_limits
-        value = truncate_value(value, limits.attribute_value_length_limit)
+      {attributes, drop_inc} =
+        put_attribute(span.attributes, key, value, limits.attribute_count_limit)
 
-        {attributes, drop_inc} =
-          put_attribute(span.attributes, key, value, limits.attribute_count_limit)
-
-        Otel.Trace.SpanStorage.insert(%{
-          span
-          | attributes: attributes,
-            dropped_attributes_count: span.dropped_attributes_count + drop_inc
-        })
-
-        :ok
-    end
+      %{
+        span
+        | attributes: attributes,
+          dropped_attributes_count: span.dropped_attributes_count + drop_inc
+      }
+    end)
   end
 
   @doc """
@@ -306,22 +300,16 @@ defmodule Otel.Trace.Span do
     new_attributes =
       if is_list(new_attributes), do: Map.new(new_attributes), else: new_attributes
 
-    case Otel.Trace.SpanStorage.get(span_id) do
-      nil ->
-        :ok
+    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
+      {attributes, drop_inc} =
+        merge_attributes(new_attributes, span.attributes, span.span_limits)
 
-      span ->
-        {attributes, drop_inc} =
-          merge_attributes(new_attributes, span.attributes, span.span_limits)
-
-        Otel.Trace.SpanStorage.insert(%{
-          span
-          | attributes: attributes,
-            dropped_attributes_count: span.dropped_attributes_count + drop_inc
-        })
-
-        :ok
-    end
+      %{
+        span
+        | attributes: attributes,
+          dropped_attributes_count: span.dropped_attributes_count + drop_inc
+      }
+    end)
   end
 
   @doc """
@@ -336,25 +324,16 @@ defmodule Otel.Trace.Span do
         %Otel.Trace.SpanContext{span_id: span_id},
         %Otel.Trace.Event{} = event
       ) do
-    case Otel.Trace.SpanStorage.get(span_id) do
-      nil ->
-        :ok
+    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
+      limits = span.span_limits
 
-      span ->
-        limits = span.span_limits
-
-        if length(span.events) < limits.event_count_limit do
-          sdk_event = to_sdk_event(event, limits)
-          Otel.Trace.SpanStorage.insert(%{span | events: span.events ++ [sdk_event]})
-        else
-          Otel.Trace.SpanStorage.insert(%{
-            span
-            | dropped_events_count: span.dropped_events_count + 1
-          })
-        end
-
-        :ok
-    end
+      if length(span.events) < limits.event_count_limit do
+        sdk_event = to_sdk_event(event, limits)
+        %{span | events: span.events ++ [sdk_event]}
+      else
+        %{span | dropped_events_count: span.dropped_events_count + 1}
+      end
+    end)
   end
 
   @doc """
@@ -369,25 +348,16 @@ defmodule Otel.Trace.Span do
         %Otel.Trace.SpanContext{span_id: span_id},
         %Otel.Trace.Link{} = link
       ) do
-    case Otel.Trace.SpanStorage.get(span_id) do
-      nil ->
-        :ok
+    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
+      limits = span.span_limits
 
-      span ->
-        limits = span.span_limits
-
-        if length(span.links) < limits.link_count_limit do
-          sdk_link = to_sdk_link(link, limits)
-          Otel.Trace.SpanStorage.insert(%{span | links: span.links ++ [sdk_link]})
-        else
-          Otel.Trace.SpanStorage.insert(%{
-            span
-            | dropped_links_count: span.dropped_links_count + 1
-          })
-        end
-
-        :ok
-    end
+      if length(span.links) < limits.link_count_limit do
+        sdk_link = to_sdk_link(link, limits)
+        %{span | links: span.links ++ [sdk_link]}
+      else
+        %{span | dropped_links_count: span.dropped_links_count + 1}
+      end
+    end)
   end
 
   @doc """
@@ -405,15 +375,7 @@ defmodule Otel.Trace.Span do
         %Otel.Trace.SpanContext{span_id: span_id},
         %Otel.Trace.Status{} = status
       ) do
-    case Otel.Trace.SpanStorage.get(span_id) do
-      nil ->
-        :ok
-
-      span ->
-        updated = apply_set_status(span, status)
-        Otel.Trace.SpanStorage.insert(updated)
-        :ok
-    end
+    Otel.Trace.SpanStorage.update_active(span_id, &apply_set_status(&1, status))
   end
 
   @doc """
@@ -422,14 +384,7 @@ defmodule Otel.Trace.Span do
 
   @spec update_name(span_ctx :: Otel.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(%Otel.Trace.SpanContext{span_id: span_id}, name) do
-    case Otel.Trace.SpanStorage.get(span_id) do
-      nil ->
-        :ok
-
-      span ->
-        Otel.Trace.SpanStorage.insert(%{span | name: name})
-        :ok
-    end
+    Otel.Trace.SpanStorage.update_active(span_id, &%{&1 | name: name})
   end
 
   @doc """
@@ -444,17 +399,14 @@ defmodule Otel.Trace.Span do
   def end_span(span_ctx, timestamp \\ System.system_time(:nanosecond))
 
   def end_span(%Otel.Trace.SpanContext{span_id: span_id}, timestamp) do
-    case Otel.Trace.SpanStorage.take(span_id) do
-      nil ->
-        :ok
+    end_time = timestamp || System.system_time(:nanosecond)
 
-      span ->
-        end_time = timestamp || System.system_time(:nanosecond)
-        ended_span = %{span | end_time: end_time, is_recording: false}
-        warn_span_limits_applied(ended_span)
-        Otel.Trace.SpanProcessor.on_end(ended_span)
-        :ok
+    case Otel.Trace.SpanStorage.mark_completed(span_id, end_time) do
+      nil -> :ok
+      ended_span -> warn_span_limits_applied(ended_span)
     end
+
+    :ok
   end
 
   @doc """

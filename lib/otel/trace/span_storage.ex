@@ -1,108 +1,154 @@
 defmodule Otel.Trace.SpanStorage do
   @moduledoc """
-  ETS-backed storage for active spans.
+  ETS-backed storage for spans across their full lifecycle —
+  active (mutable, `set_attribute` / `add_event` 가능) 와
+  completed (`end_span` 후 export 대기) 둘 다 한 table 에 보관.
 
-  A GenServer that owns the ETS table. The table is `public` with
-  `write_concurrency` and `read_concurrency` so any process can
-  read/write spans without going through this server.
+  Row 의 status field 로 두 상태 구별:
+  `{span_id, %Otel.Trace.Span{}, :active | :completed}` —
+  ETS 관용 `{key, value, metadata}` 패턴 따름.
 
-  ## Design notes
+  ## Lifecycle
 
-  ### ETS layout
-
-  A single named table (`#{inspect(__MODULE__)}`) stores every active
-  span. The table key is the 64-bit `span_id`, giving O(1) lookup and
-  removal. The value is the internal `Otel.Trace.Span` struct
-  carrying all mutable fields (name, kind, attributes, events, links,
-  status, trace/span identifiers, timestamps, recording flag,
-  instrumentation scope).
-
-  The GenServer's sole job is to own the table so that it lives with
-  the SDK supervisor and dies with it. Reads and writes happen
-  **directly against the ETS table** from whichever process is holding
-  the span — the GenServer is not on the hot path for any operation.
-
-  ### Concurrency model
-
-  Spans are typically mutated only by the process that created them,
-  reached through the current Ctx. `write_concurrency` + `read_concurrency`
-  allow lock-free parallel access from multiple processes on the rare
-  cross-process path (e.g. a span handed across `Task.async/1`). No
-  additional synchronisation is required.
-
-  ### Lifecycle
-
-  | Step | Operation | ETS call |
+  | Step | Operation | Function |
   |---|---|---|
-  | `start_span` | insert struct | `insert/2` |
-  | `set_attribute`, `add_event`, ... | mutate in place | `insert/2` |
-  | `end_span` | remove and hand to processors | `take/1` |
+  | `start_span` | active 상태로 insert | `insert_active/1` |
+  | `set_attribute`, `add_event`, etc. | active span 만 mutate | `update_active/2` |
+  | `end_span` | active → completed status 전환 | `mark_completed/2` |
+  | export timer | completed batch take + delete | `take_completed/1` |
 
-  `take/1` is used rather than `lookup + delete` so the span leaves the
-  table atomically — no window in which a second reader could see an
-  ended-but-still-stored span.
+  ## Concurrency
+
+  Multi-writer + single-reader (Exporter):
+  - emit/mutation/end_span 은 *각 caller process 에서 직접 ETS 조작*
+    (write_concurrency 로 lock-free)
+  - take_completed 는 *SpanExporter 만* 호출 (single reader, race 없음)
+  - Span mutation 은 *보통 같은 process 가 자기 span 만 만짐* — practical
+    race-free (현재 SpanStorage 가 같은 가정)
+
+  ## Backpressure
+
+  `insert_active/1` 가 ETS size 가 `@max_size` 초과 시 `:dropped` 반환.
+  Caller (`Otel.Trace.Tracer.start_span`) 는 이때 *non-recording span*
+  로 fall back. spec `trace/sdk.md` Batching processor 의 `maxQueueSize`
+  와 동일 의미.
+
+  ## References
+
+  - OTel Trace SDK §Span: `opentelemetry-specification/specification/trace/sdk.md` L692-L944
+  - OTel Trace SDK Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
   """
 
   use GenServer
 
   @table __MODULE__
+  @max_size 2_048
 
   # --- Client API ---
 
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
-  def start_link(opts) do
+  def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @doc """
-  Inserts a span into the table.
+  Insert a fresh span as `:active`. Returns `:dropped` when the
+  table is at `@max_size` (back-pressure).
   """
-  @spec insert(span :: Otel.Trace.Span.t()) :: true
-  def insert(span) do
-    :ets.insert(@table, {span.span_id, span})
+  @spec insert_active(span :: Otel.Trace.Span.t()) :: :ok | :dropped
+  def insert_active(%Otel.Trace.Span{span_id: span_id} = span) do
+    case :ets.info(@table, :size) do
+      n when n >= @max_size ->
+        :dropped
+
+      _ ->
+        :ets.insert(@table, {span_id, span, :active})
+        :ok
+    end
   end
 
   @doc """
-  Looks up a span by span_id.
+  Look up an active span (used by `recording?/1`).
   """
-  @spec get(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
-  def get(span_id) do
+  @spec get_active(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
+  def get_active(span_id) do
     case :ets.lookup(@table, span_id) do
-      [{^span_id, span}] -> span
-      [] -> nil
+      [{^span_id, span, :active}] -> span
+      _ -> nil
     end
   end
 
   @doc """
-  Removes and returns a span by span_id.
+  Apply `fun` to an active span and write the result back. No-op if
+  the span is missing or already `:completed`.
   """
-  @spec take(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
-  def take(span_id) do
-    case :ets.take(@table, span_id) do
-      [{^span_id, span}] -> span
-      [] -> nil
+  @spec update_active(
+          span_id :: Otel.Trace.SpanId.t(),
+          fun :: (Otel.Trace.Span.t() -> Otel.Trace.Span.t())
+        ) :: :ok
+  def update_active(span_id, fun) do
+    case :ets.lookup(@table, span_id) do
+      [{^span_id, span, :active}] ->
+        :ets.insert(@table, {span_id, fun.(span), :active})
+        :ok
+
+      _ ->
+        :ok
     end
   end
 
   @doc """
-  Returns the ETS table name.
+  Mark an active span as `:completed`, stamping `end_time` and
+  flipping `is_recording` to `false`. Returns the completed span
+  for caller-side post-processing (e.g. limits warning).
   """
-  @spec table() :: atom()
-  def table, do: @table
+  @spec mark_completed(
+          span_id :: Otel.Trace.SpanId.t(),
+          end_time :: non_neg_integer()
+        ) :: Otel.Trace.Span.t() | nil
+  def mark_completed(span_id, end_time) do
+    case :ets.lookup(@table, span_id) do
+      [{^span_id, span, :active}] ->
+        ended = %{span | end_time: end_time, is_recording: false}
+        :ets.insert(@table, {span_id, ended, :completed})
+        ended
+
+      _ ->
+        nil
+    end
+  end
+
+  @doc """
+  Take up to `n` `:completed` spans atomically. Called only by
+  `Otel.Trace.SpanExporter` (single reader).
+  """
+  @spec take_completed(n :: pos_integer()) :: [Otel.Trace.Span.t()]
+  def take_completed(n) when n > 0 do
+    spec = [{{:"$1", :"$2", :completed}, [], [{{:"$1", :"$2"}}]}]
+
+    case :ets.select(@table, spec, n) do
+      :"$end_of_table" ->
+        []
+
+      {pairs, _continuation} ->
+        Enum.each(pairs, fn {span_id, _} -> :ets.delete(@table, span_id) end)
+        Enum.map(pairs, &elem(&1, 1))
+    end
+  end
 
   # --- Server Callbacks ---
 
   @impl true
+  @spec init(opts :: keyword()) :: {:ok, atom()}
   def init(_opts) do
-    table =
-      :ets.new(@table, [
-        :named_table,
-        :public,
-        :set,
-        {:write_concurrency, true},
-        {:read_concurrency, true}
-      ])
+    :ets.new(@table, [
+      :named_table,
+      :public,
+      :set,
+      {:write_concurrency, true},
+      {:read_concurrency, true}
+    ])
 
-    {:ok, %{table: table}}
+    {:ok, @table}
   end
 end
