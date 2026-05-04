@@ -13,7 +13,7 @@ defmodule Otel.Trace.SpanStorage do
   |---|---|---|
   | 1 | `span_id` | row key |
   | 2 | `%Otel.Trace.Span{}` | span data — written only by `update/1` |
-  | 3 | `status` | `0` = active, `1` = completed — flipped only by `mark_completed/2` |
+  | 3 | `status` | `:active` or `:completed` — flipped only by `mark_completed/2` |
   | 4 | `end_time` | `nil` while active, nanosecond timestamp once completed — set only by `mark_completed/2` |
 
   Status and end_time are split out of the span struct into
@@ -33,7 +33,7 @@ defmodule Otel.Trace.SpanStorage do
   | `insert/1` | insert a fresh span as active (back-pressure aware) |
   | `get/1` | look up an active span by `span_id` |
   | `update/1` | atomic replace of an active span's data (no-op if already completed) |
-  | `mark_completed/2` | atomic flip `0 → 1`, stamp `end_time` |
+  | `mark_completed/2` | atomic flip `:active → :completed`, stamp `end_time` |
   | `take_completed/1` | take + delete a batch of completed spans (Exporter only) |
 
   Mutation flow used by `Otel.Trace.Span`:
@@ -93,7 +93,7 @@ defmodule Otel.Trace.SpanStorage do
   end
 
   @doc """
-  Insert a fresh span as active (`status = 0`, `end_time = nil`).
+  Insert a fresh span as `:active` with `end_time = nil`.
   Always returns `:ok` — silent drop when the table is at
   `@max_queue_size` (spec `trace/sdk.md` L1109 *"After the size
   is reached, spans are dropped"*: drop is a normal lifecycle
@@ -109,19 +109,19 @@ defmodule Otel.Trace.SpanStorage do
         :ok
 
       _ ->
-        :ets.insert(@table, {span_id, span, 0, nil})
+        :ets.insert(@table, {span_id, span, :active, nil})
         :ok
     end
   end
 
   @doc """
   Look up an active span. Returns `nil` for missing or
-  already-completed spans (status = 1 rows are exporter-only).
+  already-completed spans (`:completed` rows are exporter-only).
   """
   @spec get(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
   def get(span_id) do
     case :ets.lookup(@table, span_id) do
-      [{^span_id, span, 0, _}] -> span
+      [{^span_id, span, :active, _}] -> span
       _ -> nil
     end
   end
@@ -129,17 +129,17 @@ defmodule Otel.Trace.SpanStorage do
   @doc """
   Atomic replace of an active span's data via
   `:ets.select_replace/2`. Writes only position 2 of the row;
-  status (position 3) is held at `0`, end_time (position 4) is
-  preserved via `:"$1"` capture.
+  status (position 3) is held at `:active`, end_time
+  (position 4) is preserved via `:"$1"` capture.
 
-  No-op when the span is missing or already completed — the
-  match-spec only matches `status = 0` rows, so completed spans
+  No-op when the span is missing or already `:completed` — the
+  match-spec only matches `:active` rows, so completed spans
   are never accidentally re-activated.
   """
   @spec update(span :: Otel.Trace.Span.t()) :: :ok
-  def update(%Otel.Trace.Span{span_id: span_id} = new_span) do
+  def update(%Otel.Trace.Span{span_id: span_id} = span) do
     spec = [
-      {{span_id, :_, 0, :"$1"}, [], [{{span_id, {:const, new_span}, 0, :"$1"}}]}
+      {{span_id, :_, :active, :"$1"}, [], [{{span_id, {:const, span}, :active, :"$1"}}]}
     ]
 
     _ = :ets.select_replace(@table, spec)
@@ -147,50 +147,39 @@ defmodule Otel.Trace.SpanStorage do
   end
 
   @doc """
-  Atomically flip an active span to completed (status `0 → 1`,
-  stamp `end_time`) via `:ets.select_replace/2`. Writes only
-  positions 3 and 4 of the row; the span struct at position 2
-  is preserved via `:"$1"` capture, so a concurrent `update/1`
-  is never clobbered.
+  Atomically flip an active span to `:completed` and stamp
+  `end_time` via `:ets.select_replace/2`. Writes only positions
+  3 and 4 of the row; the span struct at position 2 is
+  preserved via `:"$1"` capture, so a concurrent `update/1` is
+  never clobbered.
 
-  Returns the span (with `end_time` merged into the struct)
-  for caller-side post-processing (e.g. limits warning).
-  Returns `nil` if the span was already completed or has been
-  dropped.
+  Always returns `:ok` — silent no-op when the span is missing
+  or already `:completed`. Callers needing the span data (e.g.
+  for limits warning) `get/1` it before calling
+  `mark_completed/2`.
   """
   @spec mark_completed(
           span_id :: Otel.Trace.SpanId.t(),
           end_time :: non_neg_integer()
-        ) :: Otel.Trace.Span.t() | nil
+        ) :: :ok
   def mark_completed(span_id, end_time) do
     spec = [
-      {{span_id, :"$1", 0, :_}, [], [{{span_id, :"$1", 1, end_time}}]}
+      {{span_id, :"$1", :active, :_}, [], [{{span_id, :"$1", :completed, end_time}}]}
     ]
 
-    case :ets.select_replace(@table, spec) do
-      1 ->
-        # Lookup the just-completed row to return the span the flip
-        # actually saw at position 2 (a concurrent `update/1` may have
-        # landed between our caller's intent and the atomic flip).
-        case :ets.lookup(@table, span_id) do
-          [{^span_id, span, 1, _}] -> %{span | end_time: end_time}
-          _ -> nil
-        end
-
-      0 ->
-        nil
-    end
+    _ = :ets.select_replace(@table, spec)
+    :ok
   end
 
   @doc """
-  Take up to `n` completed spans atomically (status = 1).
-  Merges each row's position-4 `end_time` into the returned
-  struct's `end_time` field. Called only by
-  `Otel.Trace.SpanExporter` (single reader).
+  Take up to `n` `:completed` spans atomically. Merges each
+  row's position-4 `end_time` into the returned struct's
+  `end_time` field. Called only by `Otel.Trace.SpanExporter`
+  (single reader).
   """
   @spec take_completed(n :: pos_integer()) :: [Otel.Trace.Span.t()]
   def take_completed(n) when n > 0 do
-    spec = [{{:"$1", :"$2", 1, :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}]
+    spec = [{{:"$1", :"$2", :completed, :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}]
 
     case :ets.select(@table, spec, n) do
       :"$end_of_table" ->

@@ -431,14 +431,16 @@ defmodule Otel.Trace.Span do
   def end_span(span_ctx, timestamp \\ System.system_time(:nanosecond))
 
   def end_span(%Otel.Trace.SpanContext{span_id: span_id}, timestamp) do
-    end_time = timestamp || System.system_time(:nanosecond)
+    case Otel.Trace.SpanStorage.get(span_id) do
+      nil ->
+        :ok
 
-    case Otel.Trace.SpanStorage.mark_completed(span_id, end_time) do
-      nil -> :ok
-      ended_span -> warn_span_limits_applied(ended_span)
+      span ->
+        end_time = timestamp || System.system_time(:nanosecond)
+        Otel.Trace.SpanStorage.mark_completed(span_id, end_time)
+        warn_span_limits_applied(span)
+        :ok
     end
-
-    :ok
   end
 
   @doc """

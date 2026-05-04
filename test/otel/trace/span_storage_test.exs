@@ -41,18 +41,14 @@ defmodule Otel.Trace.SpanStorageTest do
   describe "mark_completed/2 + take_completed/1" do
     test "mark_completed flips status; take_completed yields it once" do
       Otel.Trace.SpanStorage.insert(@span)
-
-      assert %Otel.Trace.Span{end_time: end_time} =
-               Otel.Trace.SpanStorage.mark_completed(@span.span_id, 1_234)
-
-      assert end_time == 1_234
+      assert :ok = Otel.Trace.SpanStorage.mark_completed(@span.span_id, 1_234)
 
       # update no longer affects this span (status is :completed) —
       # select_replace's match-spec only matches :active rows.
       Otel.Trace.SpanStorage.update(%{@span | name: "noop"})
       assert Otel.Trace.SpanStorage.get(@span.span_id) == nil
 
-      # take_completed returns the completed span.
+      # take_completed merges position-4 end_time into the returned struct.
       assert [%Otel.Trace.Span{span_id: sid, name: "test_span", end_time: 1_234}] =
                Otel.Trace.SpanStorage.take_completed(10)
 
@@ -62,8 +58,8 @@ defmodule Otel.Trace.SpanStorageTest do
       assert [] = Otel.Trace.SpanStorage.take_completed(10)
     end
 
-    test "mark_completed on missing span → nil" do
-      assert nil == Otel.Trace.SpanStorage.mark_completed(999, 1_000)
+    test "mark_completed on missing span → :ok (silent no-op)" do
+      assert :ok = Otel.Trace.SpanStorage.mark_completed(999, 1_000)
     end
 
     test "take_completed only returns :completed, leaves :active alone" do
