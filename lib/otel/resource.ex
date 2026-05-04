@@ -22,9 +22,11 @@ defmodule Otel.Resource do
 
   Outside a release (dev `iex -S mix`, `mix test`), the env
   vars are unset and `service.name` falls back to
-  `"unknown_service"`; `service.version` is the empty string
-  `""`. Callers who need a specific identity in those contexts
-  can export the env vars manually:
+  `"unknown_service"`; `service.version` is `nil` (encoded as
+  the OTLP empty `AnyValue` — same wire treatment in every
+  backend, no Tempo/Mimir divergence). Callers who need a
+  specific identity in those contexts can export the env vars
+  manually:
 
       RELEASE_NAME=my_app RELEASE_VSN=0.1.0 iex -S mix
 
@@ -37,7 +39,7 @@ defmodule Otel.Resource do
   | `telemetry.sdk.version` | this SDK's `:version` (compile-time) |
   | `deployment.environment` | `MIX_ENV` env var at SDK compile time (default `"dev"`) |
   | `service.name` | `RELEASE_NAME` (default `"unknown_service"`) |
-  | `service.version` | `RELEASE_VSN` (default `""`) |
+  | `service.version` | `RELEASE_VSN` (default `nil` → empty `AnyValue` on the wire) |
 
   Reading `RELEASE_NAME` / `RELEASE_VSN` at runtime mirrors
   `opentelemetry-erlang`'s `otel_resource_detector.erl:215-234`
@@ -47,13 +49,17 @@ defmodule Otel.Resource do
   `nil` because the SDK's dep compilation phase predates any
   release boot.
 
-  `service.version` falls back to `""` rather than being omitted
-  when `RELEASE_VSN` is unset. Spec convention (Recommended,
-  not Required) and `opentelemetry-erlang` would omit the key,
-  but minikube prefers a single inline read here. Mimir/Prometheus
-  treats `{label=""}` as equivalent to absent at query time;
-  Tempo/Loki distinguish empty-string from absent — accepted
-  trade-off for code simplicity.
+  `service.version` falls back to `nil` rather than being
+  omitted when `RELEASE_VSN` is unset. Spec convention
+  (Recommended, not Required) and `opentelemetry-erlang` would
+  omit the key entirely; minikube keeps the key with a `nil`
+  value, which the OTLP encoder maps to `%AnyValue{}`
+  (oneof unset) per `common/README.md` L50-L51 ("empty value if
+  supported by the language") and `common.proto` L29-L31
+  ("It is valid for all values to be unspecified in which case
+  this AnyValue is considered to be 'empty'"). Wire-level effect
+  is uniform across backends — Tempo/Loki/Mimir all read this
+  as null/absent, no `{label=""}` divergence.
 
   `deployment.environment` is captured at SDK compile time from
   `System.get_env("MIX_ENV")` directly — **not** `Mix.env/0`.
@@ -121,7 +127,7 @@ defmodule Otel.Resource do
         "telemetry.sdk.version" => @sdk_version,
         "deployment.environment" => @deployment_environment,
         "service.name" => System.get_env("RELEASE_NAME", @default_service_name),
-        "service.version" => System.get_env("RELEASE_VSN", "")
+        "service.version" => System.get_env("RELEASE_VSN")
       }
     }
   end
