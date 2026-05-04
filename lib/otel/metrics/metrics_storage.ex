@@ -1,6 +1,6 @@
 defmodule Otel.Metrics.MetricsStorage do
   @moduledoc """
-  ETS owner for the `:otel_metrics` table — aggregated
+  ETS owner for the named ETS table — aggregated
   datapoints keyed by `{stream_name, scope, reader_id, attrs}`
   (spec `metrics/data-model.md` §Metric).
 
@@ -12,7 +12,7 @@ defmodule Otel.Metrics.MetricsStorage do
 
   use GenServer
 
-  @table :otel_metrics
+  @table __MODULE__
 
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do

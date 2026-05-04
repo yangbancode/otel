@@ -1,6 +1,6 @@
 defmodule Otel.Metrics.ExemplarsStorage do
   @moduledoc """
-  ETS owner for the `:otel_exemplars` table — exemplar
+  ETS owner for the named ETS table — exemplar
   reservoirs keyed by aggregation key
   (spec `metrics/sdk.md` §Exemplar).
 
@@ -10,7 +10,7 @@ defmodule Otel.Metrics.ExemplarsStorage do
 
   use GenServer
 
-  @table :otel_exemplars
+  @table __MODULE__
 
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do

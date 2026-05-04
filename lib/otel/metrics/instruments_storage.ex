@@ -1,6 +1,6 @@
 defmodule Otel.Metrics.InstrumentsStorage do
   @moduledoc """
-  ETS owner for the `:otel_instruments` table — one row per
+  ETS owner for the named ETS table — one row per
   registered Instrument keyed by `{scope, downcased_name}`
   (spec `metrics/api.md` §Instrument identity L190-L191).
 
@@ -13,7 +13,7 @@ defmodule Otel.Metrics.InstrumentsStorage do
 
   use GenServer
 
-  @table :otel_instruments
+  @table __MODULE__
 
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do

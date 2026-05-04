@@ -1,6 +1,6 @@
 defmodule Otel.Metrics.CallbacksStorage do
   @moduledoc """
-  ETS owner for the `:otel_callbacks` table — registered
+  ETS owner for the named ETS table — registered
   observable-instrument callbacks
   (spec `metrics/api.md` §Asynchronous Instrument API).
 
@@ -13,7 +13,7 @@ defmodule Otel.Metrics.CallbacksStorage do
 
   use GenServer
 
-  @table :otel_callbacks
+  @table __MODULE__
 
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
