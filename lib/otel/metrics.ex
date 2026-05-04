@@ -11,18 +11,16 @@ defmodule Otel.Metrics do
   (`Otel.Metrics.Counter`, `Otel.Metrics.Histogram`, etc.)
   directly with just the instrument name + opts.
 
-  `init/0` creates the named ETS tables that hold metrics state;
-  `Otel.Application.start/2` calls it once at boot. The reader
-  reads `reader_meter_config/0` to know which tables to collect
-  from. Every other knob (scope, exemplar filter, reader id,
+  Six SDK-internal `XxxStorage` GenServers (one per ETS table)
+  own the metrics state; they're started by
+  `Otel.Application.start/2` and die with the SDK supervisor.
+  Every other knob (scope, exemplar filter, reader id,
   temporality mapping) is a compile-time literal.
 
   ## Public API
 
   | Function | Role |
   |---|---|
-  | `init/0` | **SDK** (boot hook) — create the named ETS tables |
-  | `delete_storage/0` | **SDK** (test cleanup) — drop ETS tables |
   | `reader_meter_config/0` | **SDK** — config the reader uses to collect |
   | `resource/0`, `config/0` | **Application** (introspection) |
   | `meter_config/0` | **SDK** — the same map stamped on `Meter.create_*` paths |
@@ -37,53 +35,6 @@ defmodule Otel.Metrics do
   # supported multiple readers; minikube has exactly one, so a
   # stable atom suffices.
   @reader_id :default_reader
-
-  @ets_tables [
-    :otel_instruments,
-    :otel_streams,
-    :otel_metrics,
-    :otel_callbacks,
-    :otel_exemplars,
-    :otel_observed_attrs
-  ]
-
-  @doc """
-  **SDK** (boot hook) — Called once from
-  `Otel.Application.start/2` (or from `Otel.TestSupport` for
-  tests) to create the named ETS tables. Idempotent — a second
-  call reuses the existing tables (or creates them if missing).
-  """
-  @spec init() :: :ok
-  def init do
-    ensure_tables!()
-    :ok
-  end
-
-  @doc """
-  **SDK** (test cleanup) — Drops all named ETS tables. Called
-  from `Otel.TestSupport.stop_all/0` so each test starts from a
-  clean slate.
-
-  Each `:ets.delete/1` is wrapped in a `try/rescue` because the
-  table's owning process may die concurrently with `stop_all`
-  (e.g., when `Application.stop(:otel)` happens just before this
-  runs and the app controller process owned the tables): the
-  `whereis/1` check sees a live table, but the table is gone by
-  the time `delete/1` fires. CI runs hit this race; local runs
-  rarely do.
-  """
-  @spec delete_storage() :: :ok
-  def delete_storage do
-    Enum.each(@ets_tables, fn name ->
-      try do
-        :ets.delete(name)
-      rescue
-        ArgumentError -> :ok
-      end
-    end)
-
-    :ok
-  end
 
   @doc """
   **SDK** — Returns the meter config used by both `Meter.create_*`
@@ -132,31 +83,4 @@ defmodule Otel.Metrics do
   """
   @spec config() :: map()
   def config, do: meter_config()
-
-  # --- Private ---
-
-  @spec ensure_tables!() :: :ok
-  defp ensure_tables! do
-    table_specs = [
-      {:otel_instruments, [:set, :public, :named_table]},
-      {:otel_streams, [:bag, :public, :named_table]},
-      {:otel_metrics, [:set, :public, :named_table]},
-      {:otel_callbacks, [:bag, :public, :named_table]},
-      {:otel_exemplars, [:set, :public, :named_table]},
-      {:otel_observed_attrs, [:set, :public, :named_table]}
-    ]
-
-    Enum.each(table_specs, fn {name, opts} ->
-      case :ets.whereis(name) do
-        :undefined ->
-          :ets.new(name, opts ++ [read_concurrency: true, write_concurrency: true])
-          :ok
-
-        _tid ->
-          :ok
-      end
-    end)
-
-    :ok
-  end
 end
