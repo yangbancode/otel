@@ -15,7 +15,6 @@ defmodule Otel.Logs do
   | Function | Role |
   |---|---|
   | `emit/1`, `emit/2` | **Application** (OTel API MUST) — `logs/api.md` L111-L131 |
-  | `resource/0` | **Application** (introspection) |
 
   ## Data model types
 
@@ -74,11 +73,4 @@ defmodule Otel.Logs do
   def emit(ctx, log_record) do
     Otel.Logs.Logger.emit(ctx, log_record)
   end
-
-  @doc """
-  **Application** (introspection) — Returns the SDK resource
-  (`Otel.Resource.build/0`).
-  """
-  @spec resource() :: Otel.Resource.t()
-  def resource, do: Otel.Resource.build()
 end

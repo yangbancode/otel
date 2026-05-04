@@ -40,13 +40,13 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
   def init(config) do
     # `Otel.Application` supervises this child with `[]` config —
     # meter_config (ETS table refs, reader_id) comes from
-    # `Otel.Metrics.reader_meter_config/0`. Tests that want a
-    # custom exporter or interval override via the args.
+    # `Otel.Metrics.meter_config/0`. Tests that want a custom
+    # exporter or interval override via the args.
     Process.flag(:trap_exit, true)
 
     meter_config =
       Map.get_lazy(config, :meter_config, fn ->
-        Otel.Metrics.reader_meter_config()
+        Otel.Metrics.meter_config()
       end)
 
     exporter =

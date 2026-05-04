@@ -13,20 +13,17 @@ defmodule Otel.ApplicationTest do
   end
 
   describe "Provider boot" do
-    test "facades expose the SDK resource via Otel.Resource.build/0" do
+    test "Otel.Resource.build/0 is the single resource source; meter_config carries it" do
       reboot()
 
-      # MeterProvider.config/0 synthesizes the resource via
-      # `Otel.Resource.build/0` — no persistent_term.
-      # (Tracer/LoggerProvider were dissolved into `Otel.Trace`
-      # / `Otel.Logs`; resource is read on demand there too.)
-      meter_state = Otel.Metrics.config()
+      meter_state = Otel.Metrics.meter_config()
       assert %Otel.Resource{} = meter_state.resource
       assert meter_state.exemplar_filter == :trace_based
       assert meter_state.reader_id == :default_reader
 
-      assert %Otel.Resource{} = Otel.Logs.resource()
-      assert %Otel.Resource{} = Otel.Trace.resource()
+      # Pillars no longer expose `resource/0` wrappers — call
+      # `Otel.Resource.build/0` directly for SDK introspection.
+      assert %Otel.Resource{} = Otel.Resource.build()
     end
 
     test "supervised processor children are alive" do
