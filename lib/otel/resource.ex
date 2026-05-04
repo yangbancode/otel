@@ -25,7 +25,7 @@ defmodule Otel.Resource do
   | `telemetry.sdk.name` | this SDK's `:app` from `mix.exs` (compile-time) |
   | `telemetry.sdk.language` | `"elixir"` |
   | `telemetry.sdk.version` | this SDK's `:version` (compile-time) |
-  | `deployment.environment` | `Mix.env()` (compile-time) |
+  | `deployment.environment` | `MIX_ENV` env var at SDK compile time (default `"dev"`) |
   | `service.name` | `:otp_app` config or `"unknown_service"` |
   | `service.version` | `Application.spec(:otp_app, :vsn)` (key omitted when unavailable) |
 
@@ -36,11 +36,24 @@ defmodule Otel.Resource do
   `opentelemetry-erlang`'s `otel_resource_detector.erl:297-307`
   release-version handling.
 
-  `deployment.environment` is frozen at SDK compile time —
-  staging and prod releases both built with `MIX_ENV=prod`
-  report `"prod"`. Acceptable trade-off for the minikube
-  config surface; users wanting per-deploy granularity should
-  use `opentelemetry-erlang`.
+  `deployment.environment` is captured at SDK compile time from
+  `System.get_env("MIX_ENV")` directly — **not** `Mix.env/0`.
+  `Mix.Tasks.Deps.Compile` wraps every dep build in
+  `Mix.Dep.in_dependency` (`elixir/lib/mix/lib/mix/dep.ex`
+  L246-L270) which forces `Mix.env(:prod)` for the dep's
+  compilation context regardless of the consuming app's
+  `MIX_ENV`, so a `Mix.env()` call inside this module would
+  always evaluate to `:prod`. Reading `MIX_ENV` from the OS
+  environment bypasses that override — Mix mutates only its
+  internal `Mix.State` (`elixir/lib/mix/lib/mix/state.ex`
+  L65-L89), never the env var. The same `from_env` pattern Mix
+  itself uses on boot (nil/empty → `"dev"` default).
+
+  As a consequence, `deployment.environment` reflects the
+  consuming app's `MIX_ENV` at SDK build time. Rebuild with
+  `MIX_ENV=staging mix release` to switch — the SDK BEAM file
+  is recompiled per `MIX_ENV` (in `_build/<env>/lib/otel/`),
+  so each environment gets its own attribute literal.
 
   ## References
 
@@ -65,7 +78,14 @@ defmodule Otel.Resource do
   @sdk_language "elixir"
   @sdk_version Mix.Project.config()[:version]
   @default_service_name "unknown_service"
-  @deployment_environment Mix.env() |> Atom.to_string()
+  # Mirrors `Mix.State.from_env/2` (`elixir/lib/mix/lib/mix/state.ex`
+  # L83-L89): read from OS env, treat both `nil` and `""` as "use
+  # default". Bypasses Mix.Dep.in_dependency's :prod override on
+  # `Mix.env()` (see moduledoc).
+  @deployment_environment (case System.get_env("MIX_ENV") do
+                             env when env in [nil, ""] -> "dev"
+                             env -> env
+                           end)
 
   @doc """
   **Application** (introspection) — Returns the SDK's resource.
