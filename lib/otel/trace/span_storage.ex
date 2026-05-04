@@ -1,37 +1,49 @@
 defmodule Otel.Trace.SpanStorage do
   @moduledoc """
   ETS-backed storage for spans across their full lifecycle —
-  active (mutable, `set_attribute` / `add_event` 가능) 와
-  completed (`end_span` 후 export 대기) 둘 다 한 table 에 보관.
+  both active (mutable via `set_attribute` / `add_event`) and
+  completed (waiting for export after `end_span`) spans live
+  in a single table.
 
-  Row 의 status field 로 두 상태 구별:
-  `{span_id, %Otel.Trace.Span{}, :active | :completed}` —
-  ETS 관용 `{key, value, metadata}` 패턴 따름.
+  Each row carries a status marker as its third element,
+  following the ETS convention `{key, value, metadata}`:
+  `{span_id, %Otel.Trace.Span{}, :active | :completed}`.
 
   ## Lifecycle
 
   | Step | Operation | Function |
   |---|---|---|
-  | `start_span` | active 상태로 insert | `insert_active/1` |
-  | `set_attribute`, `add_event`, etc. | active span 만 mutate | `update_active/2` |
-  | `end_span` | active → completed status 전환 | `mark_completed/2` |
-  | export timer | completed batch take + delete | `take_completed/1` |
+  | `start_span` | insert as `:active` | `insert_active/1` |
+  | `set_attribute`, `add_event`, etc. | mutate active span | `update_active/2` |
+  | `end_span` | flip status `:active` → `:completed` | `mark_completed/2` |
+  | export timer | take + delete completed batch | `take_completed/1` |
 
   ## Concurrency
 
-  Multi-writer + single-reader (Exporter):
-  - emit/mutation/end_span 은 *각 caller process 에서 직접 ETS 조작*
-    (write_concurrency 로 lock-free)
-  - take_completed 는 *SpanExporter 만* 호출 (single reader, race 없음)
-  - Span mutation 은 *보통 같은 process 가 자기 span 만 만짐* — practical
-    race-free (현재 SpanStorage 가 같은 가정)
+  Multi-writer + single-reader (the Exporter):
+
+  - emit / mutation / end_span run on the caller process and
+    write to ETS directly (`write_concurrency` makes this
+    lock-free).
+  - `take_completed/1` is called only by `SpanExporter`
+    (single reader — no take/insert races).
+  - Span mutation is normally bound to the process that owns
+    the span (the one that called `start_span`); cross-process
+    mutation of the same span is rare and treated as caller
+    responsibility — `lookup + insert` is *practically*
+    race-free under that assumption (same convention the
+    previous SpanStorage used).
 
   ## Backpressure
 
-  `insert_active/1` 가 ETS size 가 `@max_size` 초과 시 `:dropped` 반환.
-  Caller (`Otel.Trace.Tracer.start_span`) 는 이때 *non-recording span*
-  로 fall back. spec `trace/sdk.md` Batching processor 의 `maxQueueSize`
-  와 동일 의미.
+  `insert_active/1` returns `:dropped` when the ETS table is
+  already at `@max_size`, matching the spec's `maxQueueSize`
+  semantics for the Batching processor (`trace/sdk.md`
+  L1086-L1118). The caller
+  (`Otel.Trace.Tracer.start_span`) silently treats the dropped
+  span as non-recording — subsequent `set_attribute` /
+  `add_event` calls become no-ops because `update_active/2`
+  matches no row.
 
   ## References
 
@@ -131,8 +143,9 @@ defmodule Otel.Trace.SpanStorage do
         []
 
       {pairs, _continuation} ->
+        spans = Enum.map(pairs, &elem(&1, 1))
         Enum.each(pairs, fn {span_id, _} -> :ets.delete(@table, span_id) end)
-        Enum.map(pairs, &elem(&1, 1))
+        spans
     end
   end
 
