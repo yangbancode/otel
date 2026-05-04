@@ -5,42 +5,30 @@ defmodule Otel.Trace.SpanStorage do
   completed (waiting for export after `end_span`) spans live
   in a single table.
 
-  Each row is a 4-tuple:
-
-      {span_id, %Otel.Trace.Span{}, status, end_time}
-
-  | Position | Field | Values |
-  |---|---|---|
-  | 1 | `span_id` | row key |
-  | 2 | `%Otel.Trace.Span{}` | span data — written only by `update/1` |
-  | 3 | `status` | `:active` or `:completed` — flipped only by `mark_completed/2` |
-  | 4 | `end_time` | `nil` while active, nanosecond timestamp once completed — set only by `mark_completed/2` |
-
-  Status and end_time are split out of the span struct into
-  separate row positions so that `update/1` (writes position 2)
-  and `mark_completed/2` (writes positions 3, 4) target
-  disjoint fields. Both use a single atomic `select_replace/2`
-  BIF, so neither operation can clobber the other regardless
-  of how their executions interleave. The struct's `end_time`
-  field is set on the read side — `mark_completed/2` and
-  `take_completed/1` merge position 4 into the returned
-  struct.
+  Each row is a 3-tuple `{span_id, %Otel.Trace.Span{}, status}`
+  where `status` is `:active` or `:completed`.
 
   ## Public API — generic CRUD on active spans
 
   | Function | Role |
   |---|---|
-  | `insert/1` | insert a fresh span as active (back-pressure aware) |
+  | `insert/1` | insert a fresh span as `:active` (back-pressure aware) |
   | `get/1` | look up an active span by `span_id` |
-  | `update/1` | atomic replace of an active span's data (no-op if already completed) |
-  | `mark_completed/2` | atomic flip `:active → :completed`, stamp `end_time` |
+  | `update/1` | atomic replace of an active span (no-op if already completed) |
+  | `mark_completed/1` | atomic flip `:active → :completed` with the caller's final span value |
   | `take_completed/1` | take + delete a batch of completed spans (Exporter only) |
 
   Mutation flow used by `Otel.Trace.Span`:
 
       span = SpanStorage.get(span_id)
       new_span = apply_limits(span, ...)   # caller-side transformation
-      SpanStorage.update(new_span)         # atomic replace of position 2
+      SpanStorage.update(new_span)         # atomic replace via :ets.select_replace
+
+  Termination flow (`end_span`):
+
+      span = SpanStorage.get(span_id)
+      ended = %{span | end_time: end_time}
+      SpanStorage.mark_completed(ended)     # atomic flip with the final span value
 
   ## Concurrency
 
@@ -49,15 +37,17 @@ defmodule Otel.Trace.SpanStorage do
   - `insert` / `get` / `update` / `mark_completed` run on the
     caller process and write to ETS directly
     (`write_concurrency` makes this lock-free).
-  - `update/1` matches active rows and rewrites position 2
-    only — preserves end_time at position 4 via `:"$1"`
-    capture.
-  - `mark_completed/2` matches active rows and rewrites
-    positions 3, 4 only — preserves the span struct at
-    position 2 via `:"$1"` capture, so it cannot clobber a
-    concurrent `update/1`.
+  - `update/1` and `mark_completed/1` use a single atomic
+    `:ets.select_replace/2` BIF whose match-spec only matches
+    `:active` rows. Completed spans are never accidentally
+    re-mutated.
   - `take_completed/1` is called only by `SpanExporter`
     (single reader — no take/insert races).
+  - Span mutation is bound to the process that owns the span
+    (the one that called `start_span`); `end_span` is the
+    authoritative termination boundary — concurrent mutations
+    not committed by the time `mark_completed/1` runs are not
+    preserved.
 
   ## Backpressure
 
@@ -93,11 +83,10 @@ defmodule Otel.Trace.SpanStorage do
   end
 
   @doc """
-  Insert a fresh span as `:active` with `end_time = nil`.
-  Always returns `:ok` — silent drop when the table is at
-  `@max_queue_size` (spec `trace/sdk.md` L1109 *"After the size
-  is reached, spans are dropped"*: drop is a normal lifecycle
-  event, not a failure).
+  Insert a fresh span as `:active`. Always returns `:ok` —
+  silent drop when the table is at `@max_queue_size` (spec
+  `trace/sdk.md` L1109 *"After the size is reached, spans are
+  dropped"*: drop is a normal lifecycle event, not a failure).
 
   Drop counting / observability lives inside `SpanStorage` —
   callers don't branch on the result.
@@ -109,7 +98,7 @@ defmodule Otel.Trace.SpanStorage do
         :ok
 
       _ ->
-        :ets.insert(@table, {span_id, span, :active, nil})
+        :ets.insert(@table, {span_id, span, :active})
         :ok
     end
   end
@@ -121,77 +110,61 @@ defmodule Otel.Trace.SpanStorage do
   @spec get(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
   def get(span_id) do
     case :ets.lookup(@table, span_id) do
-      [{^span_id, span, :active, _}] -> span
+      [{^span_id, span, :active}] -> span
       _ -> nil
     end
   end
 
   @doc """
-  Atomic replace of an active span's data via
-  `:ets.select_replace/2`. Writes only position 2 of the row;
-  status (position 3) is held at `:active`, end_time
-  (position 4) is preserved via `:"$1"` capture.
+  Atomic replace of an active span via `:ets.select_replace/2`.
 
-  No-op when the span is missing or already `:completed` — the
-  match-spec only matches `:active` rows, so completed spans
-  are never accidentally re-activated.
+  No-op when the span is missing or already `:completed` —
+  the match-spec only matches `:active` rows, so completed
+  spans are never accidentally re-activated.
   """
   @spec update(span :: Otel.Trace.Span.t()) :: :ok
   def update(%Otel.Trace.Span{span_id: span_id} = span) do
-    spec = [
-      {{span_id, :_, :active, :"$1"}, [], [{{span_id, {:const, span}, :active, :"$1"}}]}
-    ]
-
+    spec = [{{span_id, :_, :active}, [], [{{span_id, {:const, span}, :active}}]}]
     _ = :ets.select_replace(@table, spec)
     :ok
   end
 
   @doc """
-  Atomically flip an active span to `:completed` and stamp
-  `end_time` via `:ets.select_replace/2`. Writes only positions
-  3 and 4 of the row; the span struct at position 2 is
-  preserved via `:"$1"` capture, so a concurrent `update/1` is
-  never clobbered.
+  Atomically flip an active span to `:completed` with the
+  caller's final span value via `:ets.select_replace/2`. The
+  caller is expected to have set `end_time` on the span before
+  calling.
 
   Always returns `:ok` — silent no-op when the span is missing
-  or already `:completed`. Callers needing the span data (e.g.
-  for limits warning) `get/1` it before calling
-  `mark_completed/2`.
-  """
-  @spec mark_completed(
-          span_id :: Otel.Trace.SpanId.t(),
-          end_time :: non_neg_integer()
-        ) :: :ok
-  def mark_completed(span_id, end_time) do
-    spec = [
-      {{span_id, :"$1", :active, :_}, [], [{{span_id, :"$1", :completed, end_time}}]}
-    ]
+  or already `:completed` (match-spec only matches `:active`
+  rows).
 
+  `end_span` is the authoritative termination boundary —
+  concurrent mutations not committed by the time this BIF
+  runs are not preserved.
+  """
+  @spec mark_completed(span :: Otel.Trace.Span.t()) :: :ok
+  def mark_completed(%Otel.Trace.Span{span_id: span_id} = span) do
+    spec = [{{span_id, :_, :active}, [], [{{span_id, {:const, span}, :completed}}]}]
     _ = :ets.select_replace(@table, spec)
     :ok
   end
 
   @doc """
-  Take up to `n` `:completed` spans atomically. Merges each
-  row's position-4 `end_time` into the returned struct's
-  `end_time` field. Called only by `Otel.Trace.SpanExporter`
-  (single reader).
+  Take up to `n` `:completed` spans atomically. Called only by
+  `Otel.Trace.SpanExporter` (single reader).
   """
   @spec take_completed(n :: pos_integer()) :: [Otel.Trace.Span.t()]
   def take_completed(n) when n > 0 do
-    spec = [{{:"$1", :"$2", :completed, :"$3"}, [], [{{:"$1", :"$2", :"$3"}}]}]
+    spec = [{{:"$1", :"$2", :completed}, [], [{{:"$1", :"$2"}}]}]
 
     case :ets.select(@table, spec, n) do
       :"$end_of_table" ->
         []
 
-      {triples, _continuation} ->
-        spans =
-          Enum.map(triples, fn {_span_id, span, end_time} ->
-            %{span | end_time: end_time}
-          end)
-
-        Enum.each(triples, fn {span_id, _, _} -> :ets.delete(@table, span_id) end)
+      {pairs, _continuation} ->
+        spans = Enum.map(pairs, fn {_span_id, span} -> span end)
+        Enum.each(pairs, fn {span_id, _} -> :ets.delete(@table, span_id) end)
         spans
     end
   end

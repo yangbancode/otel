@@ -39,7 +39,7 @@ defmodule Otel.Trace.SpanExporterTest do
       start_server_and_configure(200)
 
       Otel.Trace.SpanStorage.insert(@span)
-      Otel.Trace.SpanStorage.mark_completed(@span.span_id, 2_000_000)
+      Otel.Trace.SpanStorage.mark_completed(%{@span | end_time: 2_000_000})
 
       assert :ok = Otel.Trace.SpanExporter.force_flush()
       assert_receive :request_received, 5_000
