@@ -63,11 +63,11 @@ defmodule Otel.OTLP.Encoder do
           Opentelemetry.Proto.Common.V1.InstrumentationScope.t() | nil
   defp encode_scope(nil), do: nil
 
-  defp encode_scope(scope) do
+  defp encode_scope(%Otel.InstrumentationScope{} = scope) do
     %Opentelemetry.Proto.Common.V1.InstrumentationScope{
       name: scope.name,
       version: scope.version,
-      attributes: encode_attributes(scope.attributes || %{})
+      attributes: encode_attributes(scope.attributes)
     }
   end
 
@@ -75,7 +75,7 @@ defmodule Otel.OTLP.Encoder do
 
   @spec encode_span(span :: Otel.Trace.Span.t()) ::
           Opentelemetry.Proto.Trace.V1.Span.t()
-  defp encode_span(span) do
+  defp encode_span(%Otel.Trace.Span{} = span) do
     %Opentelemetry.Proto.Trace.V1.Span{
       trace_id: encode_id(span.trace_id, 16),
       span_id: encode_id(span.span_id, 8),
@@ -84,12 +84,12 @@ defmodule Otel.OTLP.Encoder do
       name: span.name,
       kind: encode_span_kind(span.kind),
       start_time_unix_nano: span.start_time,
-      end_time_unix_nano: span.end_time || 0,
-      attributes: encode_attributes(span.attributes || %{}),
+      end_time_unix_nano: span.end_time,
+      attributes: encode_attributes(span.attributes),
       dropped_attributes_count: span.dropped_attributes_count,
-      events: Enum.map(span.events || [], &encode_event/1),
+      events: Enum.map(span.events, &encode_event/1),
       dropped_events_count: span.dropped_events_count,
-      links: Enum.map(span.links || [], &encode_link/1),
+      links: Enum.map(span.links, &encode_link/1),
       dropped_links_count: span.dropped_links_count,
       status: encode_status(span.status),
       flags: span.trace_flags
@@ -245,7 +245,7 @@ defmodule Otel.OTLP.Encoder do
 
   @spec scope_schema_url(scope :: Otel.InstrumentationScope.t() | nil) :: String.t()
   defp scope_schema_url(nil), do: ""
-  defp scope_schema_url(scope), do: scope.schema_url
+  defp scope_schema_url(%Otel.InstrumentationScope{} = scope), do: scope.schema_url
 
   @spec encode_metric(metric :: Otel.Metrics.MetricReader.metric()) ::
           Opentelemetry.Proto.Metrics.V1.Metric.t()
@@ -288,7 +288,7 @@ defmodule Otel.OTLP.Encoder do
      %Opentelemetry.Proto.Metrics.V1.Sum{
        data_points: Enum.map(metric.datapoints, &encode_number_data_point/1),
        aggregation_temporality: encode_temporality(metric.temporality),
-       is_monotonic: metric.is_monotonic || false
+       is_monotonic: metric.is_monotonic
      }}
   end
 
@@ -316,7 +316,7 @@ defmodule Otel.OTLP.Encoder do
       start_time_unix_nano: dp.start_time,
       time_unix_nano: dp.time,
       value: encode_number_value(dp.value),
-      exemplars: encode_metric_exemplars(Map.get(dp, :exemplars, []))
+      exemplars: encode_metric_exemplars(dp.exemplars)
     }
   end
 
@@ -335,7 +335,7 @@ defmodule Otel.OTLP.Encoder do
       explicit_bounds: Enum.map(histogram.boundaries, &(&1 + 0.0)),
       min: encode_optional_double(histogram.min),
       max: encode_optional_double(histogram.max),
-      exemplars: encode_metric_exemplars(Map.get(dp, :exemplars, []))
+      exemplars: encode_metric_exemplars(dp.exemplars)
     }
   end
 
@@ -358,7 +358,7 @@ defmodule Otel.OTLP.Encoder do
       min: encode_optional_double(histogram.min),
       max: encode_optional_double(histogram.max),
       zero_threshold: histogram.zero_threshold + 0.0,
-      exemplars: encode_metric_exemplars(Map.get(dp, :exemplars, []))
+      exemplars: encode_metric_exemplars(dp.exemplars)
     }
   end
 

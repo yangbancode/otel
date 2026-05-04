@@ -1,7 +1,7 @@
 defmodule Otel.Metrics.MetricExporterTest do
   use ExUnit.Case, async: true
 
-  @resource Otel.Resource.create(%{"service.name" => "test"})
+  @resource %Otel.Resource{attributes: %{"service.name" => "test"}}
 
   @metric %{
     name: "http.requests",

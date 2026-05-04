@@ -220,10 +220,9 @@ defmodule Otel.Trace do
   def detach(token), do: Otel.Ctx.detach(token)
 
   @doc """
-  **Application** (introspection) — Returns the resource resolved
-  from the `:otel` `:resource` `Application` env, or
-  `Otel.Resource.default/0` when no env is set.
+  **Application** (introspection) — Returns the SDK resource
+  (`Otel.Resource.build/0`).
   """
   @spec resource() :: Otel.Resource.t()
-  def resource, do: Otel.Resource.from_app_env()
+  def resource, do: Otel.Resource.build()
 end

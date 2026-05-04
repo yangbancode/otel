@@ -1,39 +1,52 @@
 defmodule Otel.Resource do
   @moduledoc """
-  Immutable representation of the entity producing telemetry
-  (`resource/sdk.md` §"SDK").
+  SDK Resource (`resource/sdk.md` §"SDK").
 
-  A Resource is a set of key-value attributes describing the service
-  (e.g., service.name, host.name) and an optional Schema URL.
-  Each pillar entry point (`Otel.Trace`, `Otel.Logs`,
-  `Otel.Metrics`) reads the resource via `from_app_env/0`
-  on demand — no boot-time snapshot.
+  Minikube hardcodes the resource to a fixed shape — the only
+  user knob is `:otp_app`, which derives `service.name` and
+  `service.version`. Resource merging is dropped (use
+  `opentelemetry-erlang` if you need it). The `schema_url`
+  field is preserved at the data-model level for OTLP wire
+  compliance, but stays at its default `""` — there is no API
+  to set it.
 
-  ## Default Resource
+  ## Configuration
 
-  `default/0` returns the SDK-provided base
-  (`telemetry.sdk.{name,language,version}`) plus a fallback
-  `service.name` of `"unknown_service"`. The SDK reads no
-  OS environment variables; user attributes are configured via
-  `config :otel, resource: %{...}` (a map, not a struct).
-  `from_app_env/0` merges the user's map onto the default base.
+      config :otel, otp_app: :my_app
 
-  Bridge OS env vars (`OTEL_SERVICE_NAME` /
-  `OTEL_RESOURCE_ATTRIBUTES`) from `runtime.exs` (Phoenix
-  `PHX_SERVER` pattern):
+  Without `:otp_app`, `service.name` falls back to
+  `"unknown_service"` (spec MUST per `resource/sdk.md`
+  §"Service") and `service.version` is omitted entirely.
 
-      # config/runtime.exs
-      import Config
+  ## Emitted attributes
 
-      config :otel,
-        resource: %{
-          "service.name" => System.get_env("OTEL_SERVICE_NAME") || "my_app"
-        }
+  | Attribute | Source |
+  |---|---|
+  | `telemetry.sdk.name` | this SDK's `:app` from `mix.exs` (compile-time) |
+  | `telemetry.sdk.language` | `"elixir"` |
+  | `telemetry.sdk.version` | this SDK's `:version` (compile-time) |
+  | `deployment.environment` | `Mix.env()` (compile-time) |
+  | `service.name` | `:otp_app` config or `"unknown_service"` |
+  | `service.version` | `Application.spec(:otp_app, :vsn)` (key omitted when unavailable) |
+
+  `service.version` is a Recommended (not Required) attribute
+  per `semantic-conventions/docs/resource/service.md` L67;
+  spec defines no `unknown_version` fallback, so the key is
+  dropped when the value can't be determined — matching
+  `opentelemetry-erlang`'s `otel_resource_detector.erl:297-307`
+  release-version handling.
+
+  `deployment.environment` is frozen at SDK compile time —
+  staging and prod releases both built with `MIX_ENV=prod`
+  report `"prod"`. Acceptable trade-off for the minikube
+  config surface; users wanting per-deploy granularity should
+  use `opentelemetry-erlang`.
 
   ## References
 
   - OTel Resource SDK: `opentelemetry-specification/specification/resource/sdk.md`
   - OTLP proto Resource: `opentelemetry-proto/opentelemetry/proto/resource/v1/resource.proto`
+  - Semantic Conventions §service: `semantic-conventions/docs/resource/service.md`
   """
 
   use Otel.Common.Types
@@ -45,84 +58,62 @@ defmodule Otel.Resource do
 
   defstruct attributes: %{}, schema_url: ""
 
-  @doc """
-  Creates a new Resource from attributes and optional schema_url.
-  """
-  @spec create(
-          attributes :: %{String.t() => term()} | [{String.t(), term()}],
-          schema_url :: String.t()
-        ) :: t()
-  def create(attributes, schema_url \\ "") do
-    attrs =
-      case attributes do
-        map when is_map(map) -> map
-        list when is_list(list) -> Map.new(list)
-      end
-
-    %__MODULE__{attributes: attrs, schema_url: schema_url}
-  end
+  # SDK identity captured from the SDK's own `mix.exs` at
+  # build time — these values describe `:otel`, not the
+  # consuming application.
+  @sdk_name Mix.Project.config()[:app] |> Atom.to_string()
+  @sdk_language "elixir"
+  @sdk_version Mix.Project.config()[:version]
+  @default_service_name "unknown_service"
+  @deployment_environment Mix.env() |> Atom.to_string()
 
   @doc """
-  Merges two Resources.
+  **Application** (introspection) — Returns the SDK's resource.
 
-  The `updating` resource's attribute values take precedence when keys
-  overlap. Schema URL rules:
-  - If old has empty schema_url → use updating's
-  - If updating has empty schema_url → use old's
-  - If both match → use that URL
-  - If both differ → empty (merge conflict)
+  See module doc for the attribute set. Read on demand by each
+  pillar's emit / collect / export path; no caching, so a
+  test-time `Application.put_env(:otel, :otp_app, :other)`
+  takes effect immediately for every subsequent call.
   """
-  @spec merge(old :: t(), updating :: t()) :: t()
-  def merge(%__MODULE__{} = old, %__MODULE__{} = updating) do
-    merged_attributes = Map.merge(old.attributes, updating.attributes)
-    merged_schema_url = merge_schema_url(old.schema_url, updating.schema_url)
-    %__MODULE__{attributes: merged_attributes, schema_url: merged_schema_url}
-  end
+  @spec build() :: t()
+  def build do
+    otp_app = Application.get_env(:otel, :otp_app)
 
-  @doc """
-  Returns the resolved boot-time Resource — `default/0` merged
-  with the user's `config :otel, resource: %{...}` map.
-
-  Called once per provider at `init/0` time. User attributes
-  take precedence on key conflicts; the `service.name` fallback
-  applies only when the user supplies no value.
-  """
-  @spec from_app_env() :: t()
-  def from_app_env do
-    user_attrs = Application.get_env(:otel, :resource, %{})
-    merge(default(), create(user_attrs))
-  end
-
-  @doc """
-  Returns the SDK-provided default Resource.
-
-  Includes `telemetry.sdk.*` attributes plus a fallback
-  `service.name` of `"unknown_service"`. The SDK reads no
-  OS environment variables — bridge `OTEL_SERVICE_NAME` /
-  `OTEL_RESOURCE_ATTRIBUTES` from `runtime.exs` (see module doc).
-  """
-  @spec default() :: t()
-  def default do
-    attributes = %{
-      "telemetry.sdk.name" => "otel",
-      "telemetry.sdk.language" => "elixir",
-      "telemetry.sdk.version" => sdk_version(),
-      "service.name" => "unknown_service"
+    %__MODULE__{
+      attributes:
+        %{
+          "telemetry.sdk.name" => @sdk_name,
+          "telemetry.sdk.language" => @sdk_language,
+          "telemetry.sdk.version" => @sdk_version,
+          "deployment.environment" => @deployment_environment
+        }
+        |> put_service_name(otp_app)
+        |> put_service_version(otp_app)
     }
-
-    %__MODULE__{attributes: attributes, schema_url: ""}
   end
 
   # --- Private ---
 
-  @spec merge_schema_url(old :: String.t(), updating :: String.t()) :: String.t()
-  defp merge_schema_url("", updating), do: updating
-  defp merge_schema_url(old, ""), do: old
-  defp merge_schema_url(same, same), do: same
-  defp merge_schema_url(_old, _updating), do: ""
+  @spec put_service_name(
+          attrs :: %{String.t() => primitive_any()},
+          otp_app :: atom() | nil
+        ) :: %{String.t() => primitive_any()}
+  defp put_service_name(attrs, nil),
+    do: Map.put(attrs, "service.name", @default_service_name)
 
-  @spec sdk_version() :: String.t()
-  defp sdk_version do
-    Application.spec(:otel, :vsn) |> to_string()
+  defp put_service_name(attrs, otp_app),
+    do: Map.put(attrs, "service.name", Atom.to_string(otp_app))
+
+  @spec put_service_version(
+          attrs :: %{String.t() => primitive_any()},
+          otp_app :: atom() | nil
+        ) :: %{String.t() => primitive_any()}
+  defp put_service_version(attrs, nil), do: attrs
+
+  defp put_service_version(attrs, otp_app) do
+    case Application.spec(otp_app, :vsn) do
+      nil -> attrs
+      vsn -> Map.put(attrs, "service.version", to_string(vsn))
+    end
   end
 end

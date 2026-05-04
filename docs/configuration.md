@@ -16,18 +16,25 @@ Two top-level keys cover everything most users need.
 import Config
 
 config :otel,
-  resource: %{"service.name" => "my_app"},
+  otp_app: :my_app,
   exporter: %{endpoint: "http://localhost:4318"}
 ```
 
 | Key | Type | Default |
 |---|---|---|
-| `:resource` | `%{String.t() => term()}` (attribute pairs) | merges to `%{"service.name" => "unknown_service"}` |
+| `:otp_app` | `atom()` (your application's `:app` from `mix.exs`) | none — `service.name` falls back to `"unknown_service"` |
 | `:exporter` | `%{endpoint, headers, ssl_options, ...}` | `%{}` (uses exporter defaults) |
 
-User-provided `:resource` attributes are merged on top of the SDK
-identity attributes (`telemetry.sdk.{name,language,version}`); user
-keys take precedence on conflict.
+`:otp_app` is the only resource knob. The SDK derives:
+
+- `service.name` from `:otp_app` (or `"unknown_service"` when absent)
+- `service.version` from `Application.spec(:otp_app, :vsn)` (or `""`)
+- `telemetry.sdk.{name,language,version}` and `deployment.environment`
+  from compile-time literals
+
+See `Otel.Resource` for the full attribute set. Custom resource
+attributes and Schema URL are not supported — power users wanting
+either should use [`opentelemetry-erlang`](https://github.com/open-telemetry/opentelemetry-erlang).
 
 The `:exporter` map is forwarded verbatim to all three OTLP/HTTP
 exporters (trace, metrics, logs). Common keys:
@@ -45,29 +52,23 @@ the Java OTLP defaults (5 attempts, 1s → 5s exponential backoff,
 
 ## Bridging OS environment variables (Phoenix pattern)
 
-The SDK does not read `OTEL_*` env vars directly. Bridge them in
-your `runtime.exs` — same pattern as Phoenix's `PHX_SERVER`:
+The SDK does not read `OTEL_*` env vars directly. Bridge the
+exporter endpoint in your `runtime.exs` — same pattern as
+Phoenix's `PHX_SERVER`:
 
 ```elixir
 # config/runtime.exs
 import Config
 
-resource_attrs =
-  "OTEL_RESOURCE_ATTRIBUTES"
-  |> System.get_env("")
-  |> String.split(",", trim: true)
-  |> Map.new(fn pair ->
-    [k, v] = String.split(pair, "=", parts: 2)
-    {k, v}
-  end)
-  |> Map.put("service.name", System.get_env("OTEL_SERVICE_NAME") || "my_app")
-
 config :otel,
-  resource: resource_attrs,
+  otp_app: :my_app,
   exporter: %{
     endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
   }
 ```
+
+`OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES` are not
+bridged — `:otp_app` is the single resource knob.
 
 ## Disabling the SDK
 
@@ -164,7 +165,7 @@ options through the top-level `:exporter` map:
 
 ```elixir
 config :otel,
-  resource: %{"service.name" => "my_app"},
+  otp_app: :my_app,
   exporter: %{
     endpoint: "https://collector.example.com:4318",
     ssl_options: [
@@ -193,7 +194,8 @@ By design (minikube-style), there is no knob for:
 - SpanLimits / LogRecordLimits (spec defaults)
 - Exemplar filter (always `:trace_based`)
 - Retry behavior (Java OTLP defaults)
-- Per-pillar resource (only the top-level `:resource` is used)
+- Custom resource attributes (only `:otp_app`-derived `service.*` and SDK identity attributes are emitted)
+- Resource Schema URL
 
 Power users wanting custom processors / readers / limits / filters
 should use [`opentelemetry-erlang`](https://github.com/open-telemetry/opentelemetry-erlang).
