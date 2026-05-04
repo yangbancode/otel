@@ -12,7 +12,7 @@ defmodule Otel.Trace.TracerTest do
     assert %Otel.Trace.SpanContext{} = span_ctx
     assert Otel.Trace.SpanContext.valid?(span_ctx)
 
-    span = Otel.Trace.SpanStorage.get_active(span_ctx.span_id)
+    span = Otel.Trace.SpanStorage.get(span_ctx.span_id)
     assert span.name == "test_span"
     assert span.instrumentation_scope.name == "otel"
   end

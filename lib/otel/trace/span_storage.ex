@@ -9,46 +9,54 @@ defmodule Otel.Trace.SpanStorage do
   following the ETS convention `{key, value, metadata}`:
   `{span_id, %Otel.Trace.Span{}, :active | :completed}`.
 
-  ## Lifecycle
+  ## Public API — generic CRUD on active spans
 
-  | Step | Operation | Function |
-  |---|---|---|
-  | `start_span` | insert as `:active` | `insert_active/1` |
-  | `set_attribute`, `add_event`, etc. | mutate active span | `update_active/2` |
-  | `end_span` | flip status `:active` → `:completed` | `mark_completed/2` |
-  | export timer | take + delete completed batch | `take_completed/1` |
+  | Function | Role |
+  |---|---|
+  | `insert/1` | insert a fresh span as `:active` (back-pressure aware) |
+  | `get/1` | look up an active span by `span_id` |
+  | `update/1` | atomic replace of an active span (no-op if already completed) |
+  | `mark_completed/2` | flip status `:active` → `:completed`, stamp `end_time` |
+  | `take_completed/1` | take + delete a batch of completed spans (Exporter only) |
+
+  Mutation flow used by `Otel.Trace.Span`:
+
+      span = SpanStorage.get(span_id)
+      new_span = apply_limits(span, ...)   # caller-side transformation
+      SpanStorage.update(new_span)         # atomic replace via :ets.select_replace
 
   ## Concurrency
 
   Multi-writer + single-reader (the Exporter):
 
-  - emit / mutation / end_span run on the caller process and
+  - `insert` / `get` / `update` run on the caller process and
     write to ETS directly (`write_concurrency` makes this
     lock-free).
+  - `update/1` uses `:ets.select_replace/2` — a single BIF that
+    matches `:active` rows and replaces atomically. No race
+    window between match and replace.
   - `take_completed/1` is called only by `SpanExporter`
     (single reader — no take/insert races).
   - Span mutation is normally bound to the process that owns
     the span (the one that called `start_span`); cross-process
     mutation of the same span is rare and treated as caller
-    responsibility — `lookup + insert` is *practically*
-    race-free under that assumption (same convention the
-    previous SpanStorage used).
+    responsibility.
 
   ## Backpressure
 
-  `insert_active/1` returns `:dropped` when the ETS table is
-  already at `@max_size`, matching the spec's `maxQueueSize`
-  semantics for the Batching processor (`trace/sdk.md`
-  L1086-L1118). The caller
-  (`Otel.Trace.Tracer.start_span`) silently treats the dropped
-  span as non-recording — subsequent `set_attribute` /
-  `add_event` calls become no-ops because `update_active/2`
-  matches no row.
+  `insert/1` returns `:dropped` when the ETS table is already
+  at `@max_size`, matching the spec's `maxQueueSize` semantics
+  for the Batching processor (`trace/sdk.md` L1086-L1118). The
+  caller (`Otel.Trace.Tracer.start_span`) silently treats the
+  dropped span as non-recording — subsequent `set_attribute` /
+  `add_event` calls become no-ops because `update/1` matches
+  no row.
 
   ## References
 
   - OTel Trace SDK §Span: `opentelemetry-specification/specification/trace/sdk.md` L692-L944
   - OTel Trace SDK Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
+  - Erlang `:ets.select_replace/2`: <https://www.erlang.org/doc/man/ets#select_replace-2>
   """
 
   use GenServer
@@ -67,8 +75,8 @@ defmodule Otel.Trace.SpanStorage do
   Insert a fresh span as `:active`. Returns `:dropped` when the
   table is at `@max_size` (back-pressure).
   """
-  @spec insert_active(span :: Otel.Trace.Span.t()) :: :ok | :dropped
-  def insert_active(%Otel.Trace.Span{span_id: span_id} = span) do
+  @spec insert(span :: Otel.Trace.Span.t()) :: :ok | :dropped
+  def insert(%Otel.Trace.Span{span_id: span_id} = span) do
     case :ets.info(@table, :size) do
       n when n >= @max_size ->
         :dropped
@@ -80,10 +88,11 @@ defmodule Otel.Trace.SpanStorage do
   end
 
   @doc """
-  Look up an active span (used by `recording?/1`).
+  Look up an active span. Returns `nil` for missing or
+  already-completed spans (`:completed` rows are exporter-only).
   """
-  @spec get_active(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
-  def get_active(span_id) do
+  @spec get(span_id :: Otel.Trace.SpanId.t()) :: Otel.Trace.Span.t() | nil
+  def get(span_id) do
     case :ets.lookup(@table, span_id) do
       [{^span_id, span, :active}] -> span
       _ -> nil
@@ -91,22 +100,20 @@ defmodule Otel.Trace.SpanStorage do
   end
 
   @doc """
-  Apply `fun` to an active span and write the result back. No-op if
-  the span is missing or already `:completed`.
-  """
-  @spec update_active(
-          span_id :: Otel.Trace.SpanId.t(),
-          fun :: (Otel.Trace.Span.t() -> Otel.Trace.Span.t())
-        ) :: :ok
-  def update_active(span_id, fun) do
-    case :ets.lookup(@table, span_id) do
-      [{^span_id, span, :active}] ->
-        :ets.insert(@table, {span_id, fun.(span), :active})
-        :ok
+  Atomic replace of an active span via `:ets.select_replace/2`.
 
-      _ ->
-        :ok
-    end
+  No-op when the span is missing or already `:completed` —
+  the match-spec only matches `:active` rows, so completed
+  spans are never accidentally re-activated.
+  """
+  @spec update(span :: Otel.Trace.Span.t()) :: :ok
+  def update(%Otel.Trace.Span{span_id: span_id} = new_span) do
+    spec = [
+      {{span_id, :"$1", :active}, [], [{{span_id, {:const, new_span}, :active}}]}
+    ]
+
+    _ = :ets.select_replace(@table, spec)
+    :ok
   end
 
   @doc """

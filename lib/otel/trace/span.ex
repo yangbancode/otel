@@ -91,7 +91,7 @@ defmodule Otel.Trace.Span do
   `trace/api.md` §IsRecording L463-L495 requires only a
   *function returning bool* (no struct shape mandated);
   `Otel.Trace.Span.recording?/1` derives it from
-  `Otel.Trace.SpanStorage.get_active/1` (presence of an
+  `Otel.Trace.SpanStorage.get/1` (presence of an
   `:active` row). Storage status is the single source of
   truth, avoiding stale-replica risk between the struct field
   and storage.
@@ -261,7 +261,7 @@ defmodule Otel.Trace.Span do
 
   @spec recording?(span_ctx :: Otel.Trace.SpanContext.t()) :: boolean()
   def recording?(%Otel.Trace.SpanContext{span_id: span_id}) do
-    Otel.Trace.SpanStorage.get_active(span_id) != nil
+    Otel.Trace.SpanStorage.get(span_id) != nil
   end
 
   @doc """
@@ -274,19 +274,23 @@ defmodule Otel.Trace.Span do
           value :: primitive_any()
         ) :: :ok
   def set_attribute(%Otel.Trace.SpanContext{span_id: span_id}, key, value) do
-    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
-      limits = span.span_limits
-      value = truncate_value(value, limits.attribute_value_length_limit)
+    case Otel.Trace.SpanStorage.get(span_id) do
+      nil ->
+        :ok
 
-      {attributes, drop_inc} =
-        put_attribute(span.attributes, key, value, limits.attribute_count_limit)
+      span ->
+        limits = span.span_limits
+        value = truncate_value(value, limits.attribute_value_length_limit)
 
-      %{
-        span
-        | attributes: attributes,
-          dropped_attributes_count: span.dropped_attributes_count + drop_inc
-      }
-    end)
+        {attributes, drop_inc} =
+          put_attribute(span.attributes, key, value, limits.attribute_count_limit)
+
+        Otel.Trace.SpanStorage.update(%{
+          span
+          | attributes: attributes,
+            dropped_attributes_count: span.dropped_attributes_count + drop_inc
+        })
+    end
   end
 
   @doc """
@@ -303,16 +307,20 @@ defmodule Otel.Trace.Span do
     new_attributes =
       if is_list(new_attributes), do: Map.new(new_attributes), else: new_attributes
 
-    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
-      {attributes, drop_inc} =
-        merge_attributes(new_attributes, span.attributes, span.span_limits)
+    case Otel.Trace.SpanStorage.get(span_id) do
+      nil ->
+        :ok
 
-      %{
-        span
-        | attributes: attributes,
-          dropped_attributes_count: span.dropped_attributes_count + drop_inc
-      }
-    end)
+      span ->
+        {attributes, drop_inc} =
+          merge_attributes(new_attributes, span.attributes, span.span_limits)
+
+        Otel.Trace.SpanStorage.update(%{
+          span
+          | attributes: attributes,
+            dropped_attributes_count: span.dropped_attributes_count + drop_inc
+        })
+    end
   end
 
   @doc """
@@ -327,16 +335,23 @@ defmodule Otel.Trace.Span do
         %Otel.Trace.SpanContext{span_id: span_id},
         %Otel.Trace.Event{} = event
       ) do
-    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
-      limits = span.span_limits
+    case Otel.Trace.SpanStorage.get(span_id) do
+      nil ->
+        :ok
 
-      if length(span.events) < limits.event_count_limit do
-        sdk_event = to_sdk_event(event, limits)
-        %{span | events: span.events ++ [sdk_event]}
-      else
-        %{span | dropped_events_count: span.dropped_events_count + 1}
-      end
-    end)
+      span ->
+        limits = span.span_limits
+
+        new_span =
+          if length(span.events) < limits.event_count_limit do
+            sdk_event = to_sdk_event(event, limits)
+            %{span | events: span.events ++ [sdk_event]}
+          else
+            %{span | dropped_events_count: span.dropped_events_count + 1}
+          end
+
+        Otel.Trace.SpanStorage.update(new_span)
+    end
   end
 
   @doc """
@@ -351,16 +366,23 @@ defmodule Otel.Trace.Span do
         %Otel.Trace.SpanContext{span_id: span_id},
         %Otel.Trace.Link{} = link
       ) do
-    Otel.Trace.SpanStorage.update_active(span_id, fn span ->
-      limits = span.span_limits
+    case Otel.Trace.SpanStorage.get(span_id) do
+      nil ->
+        :ok
 
-      if length(span.links) < limits.link_count_limit do
-        sdk_link = to_sdk_link(link, limits)
-        %{span | links: span.links ++ [sdk_link]}
-      else
-        %{span | dropped_links_count: span.dropped_links_count + 1}
-      end
-    end)
+      span ->
+        limits = span.span_limits
+
+        new_span =
+          if length(span.links) < limits.link_count_limit do
+            sdk_link = to_sdk_link(link, limits)
+            %{span | links: span.links ++ [sdk_link]}
+          else
+            %{span | dropped_links_count: span.dropped_links_count + 1}
+          end
+
+        Otel.Trace.SpanStorage.update(new_span)
+    end
   end
 
   @doc """
@@ -378,7 +400,10 @@ defmodule Otel.Trace.Span do
         %Otel.Trace.SpanContext{span_id: span_id},
         %Otel.Trace.Status{} = status
       ) do
-    Otel.Trace.SpanStorage.update_active(span_id, &apply_set_status(&1, status))
+    case Otel.Trace.SpanStorage.get(span_id) do
+      nil -> :ok
+      span -> Otel.Trace.SpanStorage.update(apply_set_status(span, status))
+    end
   end
 
   @doc """
@@ -387,7 +412,10 @@ defmodule Otel.Trace.Span do
 
   @spec update_name(span_ctx :: Otel.Trace.SpanContext.t(), name :: String.t()) :: :ok
   def update_name(%Otel.Trace.SpanContext{span_id: span_id}, name) do
-    Otel.Trace.SpanStorage.update_active(span_id, &%{&1 | name: name})
+    case Otel.Trace.SpanStorage.get(span_id) do
+      nil -> :ok
+      span -> Otel.Trace.SpanStorage.update(%{span | name: name})
+    end
   end
 
   @doc """

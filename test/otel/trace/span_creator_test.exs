@@ -75,7 +75,7 @@ defmodule Otel.Trace.SpanCreatorTest do
       assert sampled.trace_flags == 1
       # `record_and_sample` 의 증거는 struct 가 생성된 것 (drop 시
       # `nil`). Storage-based `recording?/1` 검증은 `Tracer.start_span`
-      # (insert_active 까지 거치는) 통합 test 에서 — `tracer_test`.
+      # (Tracer.start_span which calls SpanStorage.insert) — see `tracer_test`.
       assert match?(%Otel.Trace.Span{}, sampled)
     end
 

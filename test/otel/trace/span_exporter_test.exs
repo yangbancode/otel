@@ -38,7 +38,7 @@ defmodule Otel.Trace.SpanExporterTest do
     test "completed spans → drain + HTTP POST + storage emptied" do
       start_server_and_configure(200)
 
-      Otel.Trace.SpanStorage.insert_active(@span)
+      Otel.Trace.SpanStorage.insert(@span)
       Otel.Trace.SpanStorage.mark_completed(@span.span_id, 2_000_000)
 
       assert :ok = Otel.Trace.SpanExporter.force_flush()
@@ -49,14 +49,14 @@ defmodule Otel.Trace.SpanExporterTest do
     test "active (not yet completed) spans are not exported" do
       start_server_and_configure(200)
 
-      Otel.Trace.SpanStorage.insert_active(@span)
+      Otel.Trace.SpanStorage.insert(@span)
       # No mark_completed — span is still :active
 
       assert :ok = Otel.Trace.SpanExporter.force_flush()
       refute_receive :request_received, 200
 
       # Active span untouched
-      assert %Otel.Trace.Span{} = Otel.Trace.SpanStorage.get_active(@span.span_id)
+      assert %Otel.Trace.Span{} = Otel.Trace.SpanStorage.get(@span.span_id)
     end
   end
 

@@ -54,10 +54,10 @@ defmodule Otel.Trace.Tracer do
       # Insert as `:active`. SpanStorage rejects on backpressure
       # (`:dropped`) but the SpanContext is already returned —
       # caller's `set_attribute` etc. will simply no-op via
-      # `update_active/2` matching no row.
+      # `update/1` matching no row.
       span
       |> Map.merge(%{instrumentation_scope: @scope, span_limits: @span_limits})
-      |> Otel.Trace.SpanStorage.insert_active()
+      |> Otel.Trace.SpanStorage.insert()
     end
 
     span_ctx
