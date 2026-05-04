@@ -437,9 +437,9 @@ defmodule Otel.Trace.Span do
 
       span ->
         end_time = timestamp || System.system_time(:nanosecond)
-        ended = %{span | end_time: end_time}
-        Otel.Trace.SpanStorage.complete(ended)
-        warn_span_limits_applied(ended)
+        span = %{span | end_time: end_time}
+        Otel.Trace.SpanStorage.complete(span)
+        warn_span_limits_applied(span)
         :ok
     end
   end
