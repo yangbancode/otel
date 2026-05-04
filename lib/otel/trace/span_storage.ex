@@ -44,13 +44,14 @@ defmodule Otel.Trace.SpanStorage do
 
   ## Backpressure
 
-  `insert/1` returns `:dropped` when the ETS table is already
-  at `@max_size`, matching the spec's `maxQueueSize` semantics
-  for the Batching processor (`trace/sdk.md` L1086-L1118). The
-  caller (`Otel.Trace.Tracer.start_span`) silently treats the
-  dropped span as non-recording — subsequent `set_attribute` /
-  `add_event` calls become no-ops because `update/1` matches
-  no row.
+  `insert/1` silently drops the span when the ETS table is
+  already at `@max_queue_size`, matching the spec's
+  `maxQueueSize` parameter for the Batching processor
+  (`trace/sdk.md` L1086-L1118). Drop is a normal lifecycle
+  event (per spec) rather than a failure — callers don't
+  branch on the result. Subsequent `set_attribute` /
+  `add_event` calls on a dropped span become no-ops because
+  `update/1` matches no row.
 
   ## References
 
@@ -62,7 +63,10 @@ defmodule Otel.Trace.SpanStorage do
   use GenServer
 
   @table __MODULE__
-  @max_size 2_048
+  # Spec `trace/sdk.md` L1109 §Batching processor `maxQueueSize`:
+  # "the maximum queue size. After the size is reached, spans are
+  # dropped. The default value is `2048`."
+  @max_queue_size 2_048
 
   # --- Client API ---
 
@@ -72,14 +76,19 @@ defmodule Otel.Trace.SpanStorage do
   end
 
   @doc """
-  Insert a fresh span as `:active`. Returns `:dropped` when the
-  table is at `@max_size` (back-pressure).
+  Insert a fresh span as `:active`. Always returns `:ok` —
+  silent drop when the table is at `@max_queue_size` (spec
+  `trace/sdk.md` L1109 *"After the size is reached, spans are
+  dropped"*: drop is a normal lifecycle event, not a failure).
+
+  Drop counting / observability lives inside `SpanStorage` —
+  callers don't branch on the result.
   """
-  @spec insert(span :: Otel.Trace.Span.t()) :: :ok | :dropped
+  @spec insert(span :: Otel.Trace.Span.t()) :: :ok
   def insert(%Otel.Trace.Span{span_id: span_id} = span) do
     case :ets.info(@table, :size) do
-      n when n >= @max_size ->
-        :dropped
+      n when n >= @max_queue_size ->
+        :ok
 
       _ ->
         :ets.insert(@table, {span_id, span, :active})
