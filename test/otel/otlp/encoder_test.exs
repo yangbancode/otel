@@ -159,7 +159,7 @@ defmodule Otel.OTLP.EncoderTest do
       assert hd(span.links).dropped_attributes_count == 4
     end
 
-    test "encodes attribute primitives, list, atom→string, unknown→inspect" do
+    test "encodes every primitive_any case; nil → empty AnyValue (oneof unset)" do
       attrs_span = %{
         @span
         | attributes: %{
@@ -167,20 +167,34 @@ defmodule Otel.OTLP.EncoderTest do
             "int" => 42,
             "float" => 3.14,
             "bool" => true,
-            "atom" => :test,
             "list" => [1, 2, 3],
-            "tuple" => {1, 2}
+            "map" => %{"a" => 1, "b" => "x"},
+            "nil" => nil
           }
       }
 
-      attrs = Map.new(first_span([attrs_span]).attributes, &{&1.key, &1.value.value})
-      assert {:string_value, "val"} = attrs["string"]
-      assert {:int_value, 42} = attrs["int"]
-      assert {:double_value, 3.14} = attrs["float"]
-      assert {:bool_value, true} = attrs["bool"]
-      assert {:string_value, "test"} = attrs["atom"]
-      assert {:array_value, _} = attrs["list"]
-      assert {:string_value, "{1, 2}"} = attrs["tuple"]
+      attrs = Map.new(first_span([attrs_span]).attributes, &{&1.key, &1.value})
+      assert {:string_value, "val"} = attrs["string"].value
+      assert {:int_value, 42} = attrs["int"].value
+      assert {:double_value, 3.14} = attrs["float"].value
+      assert {:bool_value, true} = attrs["bool"].value
+      assert {:array_value, _} = attrs["list"].value
+      assert {:kvlist_value, _} = attrs["map"].value
+      # nil → %AnyValue{value: nil} — oneof unset, the OTLP wire
+      # representation of "this AnyValue is empty" per
+      # `common/README.md` L50-L51, L67-L68.
+      assert is_nil(attrs["nil"].value)
+    end
+
+    test "rejects non-primitive_any values (atoms, tuples, refs)" do
+      for invalid <- [:bare_atom, {1, 2}, make_ref()] do
+        assert_raise FunctionClauseError, fn ->
+          Otel.OTLP.Encoder.encode_traces(
+            [%{@span | attributes: %{"bad" => invalid}}],
+            @resource
+          )
+        end
+      end
     end
 
     test "binary attributes: utf8 → string; {:bytes, _} → bytes; invalid utf8 raises unless tagged" do
