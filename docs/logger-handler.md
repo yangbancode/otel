@@ -44,7 +44,7 @@ instrumentation scope and resource:
 
 ```elixir
 config :otel,
-  endpoint: "http://localhost:4318"
+  req_options: [base_url: "http://localhost:4318"]
 ```
 
 See [Configuration](configuration.md) for the full surface.

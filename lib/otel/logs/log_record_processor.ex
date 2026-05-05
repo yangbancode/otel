@@ -255,13 +255,13 @@ defmodule Otel.Logs.LogRecordProcessor do
   @spec init(config :: start_link_config()) :: {:ok, :idle, State.t()}
   def init(config) do
     # `Otel.Application` supervises this child with `[]` config —
-    # exporter comes from the user's flat `config :otel,
-    # endpoint: ..., headers: ..., ssl: ...` keys here. Tests
-    # that want a custom exporter override via the args.
+    # the default OTLP/HTTP exporter reads `:req_options` from
+    # `Application.get_env/2` on every export, so its `init/1`
+    # takes no config. Tests that want a substitute exporter
+    # override via the args.
     Process.flag(:trap_exit, true)
 
-    exporter =
-      Map.get(config, :exporter, {Otel.Logs.LogRecordExporter, exporter_app_env()})
+    exporter = Map.get(config, :exporter, {Otel.Logs.LogRecordExporter, %{}})
 
     state = %State{exporter: init_exporter(exporter)}
 
@@ -269,17 +269,7 @@ defmodule Otel.Logs.LogRecordProcessor do
     {:ok, :idle, state}
   end
 
-  @spec exporter_app_env() :: map()
-  defp exporter_app_env do
-    for key <- [:endpoint, :headers, :ssl, :compression, :timeout],
-        v = Application.get_env(:otel, key),
-        not is_nil(v),
-        into: %{},
-        do: {key, v}
-  end
-
-  # Runs the exporter's own `init/1` so OTLP HTTP can populate
-  # compression / SSL defaults; `:ignore` demotes to `nil`.
+  # Runs the exporter's own `init/1`; `:ignore` demotes to `nil`.
   @spec init_exporter({module(), term()} | nil) :: {module(), term()} | nil
   defp init_exporter(nil), do: nil
 
