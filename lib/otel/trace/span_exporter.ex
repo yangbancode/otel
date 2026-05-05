@@ -83,55 +83,56 @@ defmodule Otel.Trace.SpanExporter do
 
   @impl true
   def handle_info(:loop, state) do
-    drain_one_batch()
+    do_export()
     loop()
     {:noreply, state}
   end
 
   @impl true
   def handle_call(:force_flush, _from, state) do
-    drain_all()
+    export()
     {:reply, :ok, state}
   end
 
   @impl true
   def terminate(_reason, _state) do
-    drain_all()
+    export()
     :ok
   end
 
   # --- Private ---
 
-  defp drain_one_batch do
-    case Otel.Trace.SpanStorage.take_completed(@max_export_batch_size) do
-      [] -> :ok
-      batch -> do_export(batch)
+  # Drain the storage until empty — one batch at a time so each
+  # export stays under `@max_export_batch_size`.
+  defp export do
+    case do_export() do
+      :ok -> :ok
+      _ -> export()
     end
   end
 
-  defp drain_all do
+  # Take one batch (≤ `@max_export_batch_size`) and POST it.
+  # Returns `:ok` when storage was empty, or Req's
+  # `{:ok, %Req.Response{}} | {:error, Exception.t()}` when
+  # an export ran.
+  defp do_export do
     case Otel.Trace.SpanStorage.take_completed(@max_export_batch_size) do
       [] ->
         :ok
 
       batch ->
-        do_export(batch)
-        drain_all()
+        Req.new(
+          method: :post,
+          base_url: @default_base_url,
+          url: @default_url,
+          retry: &retry?/2
+        )
+        |> Req.merge(Application.get_env(:otel, :req_options, []))
+        |> Req.merge(body: Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build()))
+        |> Req.Request.put_new_header("content-type", @content_type)
+        |> Req.Request.put_new_header("user-agent", @user_agent)
+        |> Req.request()
     end
-  end
-
-  defp do_export(batch) do
-    Req.new(
-      method: :post,
-      base_url: @default_base_url,
-      url: @default_url,
-      retry: &retry?/2
-    )
-    |> Req.merge(Application.get_env(:otel, :req_options, []))
-    |> Req.merge(body: Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build()))
-    |> Req.Request.put_new_header("content-type", @content_type)
-    |> Req.Request.put_new_header("user-agent", @user_agent)
-    |> Req.request()
   end
 
   defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
