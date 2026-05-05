@@ -134,14 +134,11 @@ defmodule Otel.Trace.SpanExporter do
   end
 
   defp do_export(batch) do
-    body = Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build())
-    user_opts = Application.get_env(:otel, :req_options, [])
-
-    user_opts
+    Application.get_env(:otel, :req_options, [])
     |> Keyword.put_new(:base_url, @default_base_url)
     |> Keyword.put_new(:url, @default_url)
-    |> Keyword.put(:body, body)
-    |> Keyword.put_new(:retry, &otlp_retry?/2)
+    |> Keyword.put_new(:retry, &retry?/2)
+    |> Keyword.put(:body, Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build()))
     |> with_required_headers()
     |> Req.post()
     |> handle_response()
@@ -178,15 +175,19 @@ defmodule Otel.Trace.SpanExporter do
     :error
   end
 
-  # OTLP retry predicate — `protocol/exporter.md` §"Retryable
-  # Response Codes" L565-L573.
-  defp otlp_retry?(_request, %Req.Response{status: status})
+  # OTLP retry predicate — `opentelemetry-proto/docs/specification.md`
+  # §"Retryable Response Codes" L564-575: only the four listed
+  # codes SHOULD be retried; "All other 4xx or 5xx ... MUST NOT
+  # be retried". Hence the explicit `false` for any other
+  # `%Req.Response{}` — Req's built-in `:transient` preset
+  # retries 408 / 500 too and would violate that MUST NOT.
+  defp retry?(_request, %Req.Response{status: status})
        when status in [429, 502, 503, 504],
        do: true
 
-  defp otlp_retry?(_request, %Req.Response{}), do: false
+  defp retry?(_request, %Req.Response{}), do: false
 
-  defp otlp_retry?(_request, %{__exception__: true}), do: true
+  defp retry?(_request, %{__exception__: true}), do: true
 
-  defp otlp_retry?(_request, _), do: false
+  defp retry?(_request, _), do: false
 end
