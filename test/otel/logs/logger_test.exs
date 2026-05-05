@@ -3,36 +3,17 @@ defmodule Otel.Logs.LoggerTest do
 
   import ExUnit.CaptureLog
 
-  defmodule CollectorProcessor do
-    @moduledoc """
-    Test substitute for `Otel.Logs.LogRecordProcessor`. Receives
-    `:gen_statem.cast({:add_record, record})` from
-    `Otel.Logs.Logger.emit/2` via the hardcoded name and forwards
-    each record to the test pid.
-    """
+  defp restart_sdk, do: Otel.TestSupport.restart_with([])
 
-    use GenServer
-
-    def start_link(%{test_pid: _pid} = config),
-      do: GenServer.start_link(__MODULE__, config, name: Otel.Logs.LogRecordProcessor)
-
-    @impl true
-    def init(config), do: {:ok, config}
-
-    @impl true
-    def handle_cast({:add_record, record}, %{test_pid: pid} = state) do
-      send(pid, {:log_record, record})
-      {:noreply, state}
+  defp emitted do
+    case Otel.Logs.LogRecordStorage.take(1) do
+      [record] -> record
+      [] -> nil
     end
-
-    @impl true
-    def handle_call(_msg, _from, state), do: {:reply, :ok, state}
   end
 
-  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
-
   setup do
-    restart_sdk(logs: [processors: [{CollectorProcessor, %{test_pid: self()}}]])
+    restart_sdk()
     :ok
   end
 
@@ -42,7 +23,7 @@ defmodule Otel.Logs.LoggerTest do
 
       before = System.system_time(:nanosecond)
       Otel.Logs.emit(ctx, %Otel.Logs.LogRecord{body: "auto"})
-      assert_receive {:log_record, auto}
+      auto = emitted()
       assert auto.observed_timestamp >= before
 
       Otel.Logs.emit(ctx, %Otel.Logs.LogRecord{
@@ -50,13 +31,13 @@ defmodule Otel.Logs.LoggerTest do
         observed_timestamp: 42
       })
 
-      assert_receive {:log_record, manual}
+      manual = emitted()
       assert manual.observed_timestamp == 42
     end
 
     test "decorates with scope, resource, trace context, and proto3 defaults" do
       Otel.Logs.emit(Otel.Ctx.current(), %Otel.Logs.LogRecord{})
-      assert_receive {:log_record, record}
+      record = emitted()
 
       assert record.scope.name == "otel"
       assert %Otel.Resource{} = record.resource
@@ -82,7 +63,7 @@ defmodule Otel.Logs.LoggerTest do
         event_name: "http.request"
       })
 
-      assert_receive {:log_record, record}
+      record = emitted()
       assert record.timestamp == 1_000_000
       assert record.severity_number == 9
       assert record.severity_text == "INFO"
@@ -94,7 +75,7 @@ defmodule Otel.Logs.LoggerTest do
 
   test "emit/1 dispatches with the implicit context" do
     Otel.Logs.emit(%Otel.Logs.LogRecord{body: "via API"})
-    assert_receive {:log_record, %{body: "via API"}}
+    assert %{body: "via API"} = emitted()
   end
 
   describe "exception handling" do
@@ -103,7 +84,7 @@ defmodule Otel.Logs.LoggerTest do
       ex = %RuntimeError{message: "auto"}
 
       Otel.Logs.emit(ctx, %Otel.Logs.LogRecord{body: "e", exception: ex})
-      assert_receive {:log_record, auto}
+      auto = emitted()
       assert auto.attributes["exception.type"] == "Elixir.RuntimeError"
       assert auto.attributes["exception.message"] == "auto"
 
@@ -113,7 +94,7 @@ defmodule Otel.Logs.LoggerTest do
         attributes: %{"exception.message" => "user override"}
       })
 
-      assert_receive {:log_record, override}
+      override = emitted()
       assert override.attributes["exception.message"] == "user override"
       assert override.attributes["exception.type"] == "Elixir.RuntimeError"
     end
@@ -121,7 +102,7 @@ defmodule Otel.Logs.LoggerTest do
     test "no exception → no exception attributes injected" do
       Otel.Logs.emit(Otel.Ctx.current(), %Otel.Logs.LogRecord{body: "normal"})
 
-      assert_receive {:log_record, record}
+      record = emitted()
       refute Map.has_key?(record.attributes, "exception.type")
     end
   end
@@ -135,7 +116,7 @@ defmodule Otel.Logs.LoggerTest do
           Otel.Logs.emit(Otel.Ctx.current(), %Otel.Logs.LogRecord{attributes: attrs})
         end)
 
-      assert_receive {:log_record, record}
+      record = emitted()
       assert map_size(record.attributes) == 128
       assert record.dropped_attributes_count == 22
 

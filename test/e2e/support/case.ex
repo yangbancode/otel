@@ -26,7 +26,7 @@ defmodule Otel.E2E.Case do
   @spec flush() :: :ok
   def flush do
     Otel.Trace.SpanExporter.force_flush()
-    Otel.Logs.LogRecordProcessor.force_flush()
+    Otel.Logs.LogRecordExporter.force_flush()
     Otel.Metrics.MetricReader.PeriodicExporting.force_flush()
     :ok
   end

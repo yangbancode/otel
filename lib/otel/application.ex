@@ -14,6 +14,7 @@ defmodule Otel.Application do
     # OS env vars on every call (no Mix Config knob for resource).
     children = [
       Otel.Trace.SpanStorage,
+      Otel.Logs.LogRecordStorage,
       Otel.Metrics.InstrumentsStorage,
       Otel.Metrics.StreamsStorage,
       Otel.Metrics.MetricsStorage,
@@ -21,8 +22,8 @@ defmodule Otel.Application do
       Otel.Metrics.ExemplarsStorage,
       Otel.Metrics.ObservedAttrsStorage,
       Otel.Trace.SpanExporter,
-      Otel.Metrics.MetricReader.PeriodicExporting,
-      Otel.Logs.LogRecordProcessor
+      Otel.Logs.LogRecordExporter,
+      Otel.Metrics.MetricReader.PeriodicExporting
     ]
 
     Supervisor.start_link(children, strategy: :one_for_one, name: Otel.Supervisor)

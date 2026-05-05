@@ -11,7 +11,7 @@ defmodule Otel.Trace.SpanExporter do
   |---|---|
   | `:loop` self-message every `@scheduled_delay_ms` | take one batch (`@max_export_batch_size`) of `:completed` spans, encode, POST |
   | `force_flush/1` | drain *all* completed spans synchronously |
-  | `terminate/2` (Application stop) | drain remaining spans before exit |
+  | `terminate/2` | drain remaining spans before exit |
 
   ## OTLP HTTP transport
 

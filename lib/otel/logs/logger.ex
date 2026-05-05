@@ -77,8 +77,10 @@ defmodule Otel.Logs.Logger do
   """
   @spec emit(ctx :: Otel.Ctx.t(), log_record :: Otel.Logs.LogRecord.t()) :: :ok
   def emit(ctx, log_record) do
-    record = log_record |> apply_exception_attributes() |> build_log_record(ctx)
-    Otel.Logs.LogRecordProcessor.on_emit(record, ctx)
+    log_record
+    |> apply_exception_attributes()
+    |> build_log_record(ctx)
+    |> Otel.Logs.LogRecordStorage.insert()
   end
 
   # --- Private ---

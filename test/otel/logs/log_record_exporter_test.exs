@@ -1,5 +1,7 @@
 defmodule Otel.Logs.LogRecordExporterTest do
-  # async: false — mutates `:otel` Application env (`:req_options`).
+  # async: false — mutates `:otel` Application env
+  # (`:req_options`) and shares the global `LogRecordStorage`
+  # ETS table.
   use ExUnit.Case, async: false
 
   @resource %Otel.Resource{attributes: %{"service.name" => "test"}}
@@ -20,65 +22,70 @@ defmodule Otel.Logs.LogRecordExporterTest do
     dropped_attributes_count: 0
   }
 
-  defp init_state do
-    {:ok, state} = Otel.Logs.LogRecordExporter.init(%{})
-    state
-  end
-
-  defp configure_server(status_code) do
-    {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
-    {:ok, port} = :inet.port(listen)
-    pid = spawn_link(fn -> accept_loop(listen, status_code) end)
-
-    Application.put_env(:otel, :req_options, base_url: "http://localhost:#{port}")
+  setup do
+    Application.stop(:otel)
+    Application.ensure_all_started(:otel)
 
     on_exit(fn ->
       Application.delete_env(:otel, :req_options)
+      Application.stop(:otel)
+      Application.ensure_all_started(:otel)
+    end)
+
+    :ok
+  end
+
+  describe "force_flush/1" do
+    test "empty storage → :ok (no HTTP request sent)" do
+      start_server_and_configure(200)
+
+      assert :ok = Otel.Logs.LogRecordExporter.force_flush()
+      refute_receive :request_received, 200
+    end
+
+    test "queued records → drain + HTTP POST + storage emptied" do
+      start_server_and_configure(200)
+
+      Otel.Logs.LogRecordStorage.insert(@log_record)
+
+      assert :ok = Otel.Logs.LogRecordExporter.force_flush()
+      assert_receive :request_received, 5_000
+      assert [] = Otel.Logs.LogRecordStorage.take(10)
+    end
+  end
+
+  # --- Test helpers ---
+
+  defp start_server_and_configure(status_code) do
+    {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
+    {:ok, port} = :inet.port(listen)
+    parent = self()
+    pid = spawn_link(fn -> accept_loop(listen, status_code, parent) end)
+
+    on_exit(fn ->
       :gen_tcp.close(listen)
       ref = Process.monitor(pid)
       receive do: ({:DOWN, ^ref, _, _, _} -> :ok), after: (1_000 -> :ok)
     end)
+
+    Application.put_env(:otel, :req_options, base_url: "http://localhost:#{port}")
+    :ok
   end
 
-  defp accept_loop(listen, status_code) do
+  defp accept_loop(listen, status_code, parent) do
     case :gen_tcp.accept(listen, 1_000) do
       {:ok, socket} ->
-        {:ok, _} = :gen_tcp.recv(socket, 0, 5_000)
+        _ = :gen_tcp.recv(socket, 0, 5_000)
+        send(parent, :request_received)
         :gen_tcp.send(socket, "HTTP/1.1 #{status_code} OK\r\ncontent-length: 0\r\n\r\n")
         :gen_tcp.close(socket)
-        accept_loop(listen, status_code)
+        accept_loop(listen, status_code, parent)
 
       {:error, :timeout} ->
-        accept_loop(listen, status_code)
+        accept_loop(listen, status_code, parent)
 
       _ ->
         :ok
     end
-  end
-
-  describe "export/2" do
-    test "empty list short-circuits to :ok" do
-      assert :ok = Otel.Logs.LogRecordExporter.export([], init_state())
-    end
-
-    test "200 → {:ok, response}" do
-      configure_server(200)
-
-      assert {:ok, %Req.Response{status: 200}} =
-               Otel.Logs.LogRecordExporter.export([@log_record], init_state())
-    end
-
-    test "non-retryable 4xx returns the response as-is (no error tuple)" do
-      configure_server(400)
-
-      assert {:ok, %Req.Response{status: 400}} =
-               Otel.Logs.LogRecordExporter.export([@log_record], init_state())
-    end
-  end
-
-  test "shutdown/1 and force_flush/1 return :ok" do
-    state = init_state()
-    assert :ok = Otel.Logs.LogRecordExporter.shutdown(state)
-    assert :ok = Otel.Logs.LogRecordExporter.force_flush(state)
   end
 end
