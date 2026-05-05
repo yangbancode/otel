@@ -16,9 +16,9 @@ defmodule Otel.Trace.SpanExporter do
   ## OTLP transport — Req
 
   HTTP POST via [`Req`](https://hex.pm/packages/req) (Finch / Mint
-  under the hood). Endpoint and related options are read from
-  `Application.get_env(:otel, ...)` on every export — no init-time
-  caching, so test-time reconfiguration takes effect immediately.
+  under the hood). Read from `Application.get_env(:otel, :req_options, [])`
+  on every export — no init-time caching, so test-time
+  reconfiguration takes effect immediately.
 
   Retry uses an OTLP-specific predicate over Req's built-in retry
   mechanism — only 429 / 502 / 503 / 504 and network errors are
@@ -29,21 +29,37 @@ defmodule Otel.Trace.SpanExporter do
 
   ## Configuration
 
-      config :otel,
-        endpoint: "http://localhost:4318",
-        headers: %{"authorization" => "Bearer ..."},
-        ssl: [verify: :verify_peer, cacertfile: "/path/to/ca.pem"],
-        compression: :gzip
+  Pass any [`Req.new/1`](https://hexdocs.pm/req/Req.html#new/1)
+  option through `:req_options` — the SDK treats it as a thin
+  wrapper:
 
-  All keys are optional. Defaults are HTTP `localhost:4318`, no
-  custom headers, OTP system trust store for HTTPS, no
-  compression.
+      config :otel,
+        req_options: [
+          base_url: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp",
+          headers: %{
+            "authorization" => "Basic " <> Base.encode64("instance:token")
+          }
+        ]
+
+  The SDK forces `:url` (per-signal path, `/v1/traces`) and
+  `:body` (encoded protobuf). It defaults `:base_url` to
+  `http://localhost:4318` if omitted, and applies the OTLP
+  retry predicate as `:retry` / `:max_retries` defaults
+  (overridable via `:req_options` if needed for tests). All
+  other options — `:connect_options` for TLS, `:receive_timeout`,
+  `:plug` for mock injection, `:redirect`, `:cache`, etc. —
+  fall through to Req unchanged.
+
+  Two headers are merged into the user's headers (user wins on
+  collision): `content-type: application/x-protobuf` and a
+  `user-agent` carrying the SDK version.
 
   ## References
 
   - OTel Trace SDK §Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
   - OTel Trace SDK §SpanExporter: `opentelemetry-specification/specification/trace/sdk.md` L1119-L1207
   - OTLP Exporter §Retry: `opentelemetry-proto/docs/specification.md` L565-L611
+  - Req options: <https://hexdocs.pm/req/Req.html#new/1>
   """
 
   use GenServer
@@ -55,9 +71,8 @@ defmodule Otel.Trace.SpanExporter do
   @max_export_batch_size 512
   @export_timeout_ms 30_000
 
-  @default_endpoint "http://localhost:4318"
+  @default_base_url "http://localhost:4318"
   @traces_path "/v1/traces"
-  @default_timeout 10_000
 
   # --- Public API ---
 
@@ -133,70 +148,51 @@ defmodule Otel.Trace.SpanExporter do
 
   defp do_export(batch) do
     body = Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build())
+    user_opts = Application.get_env(:otel, :req_options, [])
 
-    endpoint = Application.get_env(:otel, :endpoint, @default_endpoint)
-    user_headers = Application.get_env(:otel, :headers, %{})
-    ssl_opts = Application.get_env(:otel, :ssl, [])
-    compression = Application.get_env(:otel, :compression, :none)
-    timeout = Application.get_env(:otel, :timeout, @default_timeout)
-
-    body = maybe_compress(body, compression)
-    headers = build_headers(user_headers, compression)
-    url = String.trim_trailing(endpoint, "/") <> @traces_path
-
-    opts =
-      [
-        body: body,
-        headers: headers,
-        receive_timeout: timeout,
-        retry: &otlp_retry?/2,
-        max_retries: 4
-      ]
-      |> maybe_add_connect_options(ssl_opts)
-
-    case Req.post(url, opts) do
-      {:ok, %Req.Response{status: status}} when status in 200..299 ->
-        :ok
-
-      {:ok, %Req.Response{status: status}} ->
-        Logger.warning("OTLP trace export failed with HTTP #{status}")
-        :error
-
-      {:error, exception} ->
-        Logger.warning("OTLP trace export failed: #{inspect(exception)}")
-        :error
-    end
+    user_opts
+    |> Keyword.put_new(:base_url, @default_base_url)
+    |> Keyword.put(:url, @traces_path)
+    |> Keyword.put(:body, body)
+    |> Keyword.put_new(:retry, &otlp_retry?/2)
+    |> Keyword.put_new(:max_retries, 4)
+    |> with_required_headers()
+    |> Req.post()
+    |> handle_response()
   end
 
   defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
 
-  defp build_headers(user_headers, compression) do
-    %{
-      "user-agent" => user_agent(),
-      "content-type" => "application/x-protobuf"
+  defp with_required_headers(opts) do
+    required = %{
+      "content-type" => "application/x-protobuf",
+      "user-agent" => user_agent()
     }
-    |> maybe_add_compression_header(compression)
-    |> Map.merge(stringify_headers(user_headers))
+
+    Keyword.update(opts, :headers, required, fn user_headers ->
+      Map.merge(required, normalize_headers(user_headers))
+    end)
   end
 
-  defp stringify_headers(headers) when is_map(headers) do
-    Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
-  end
+  defp normalize_headers(headers) when is_map(headers),
+    do: Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
 
-  defp maybe_add_compression_header(headers, :gzip),
-    do: Map.put(headers, "content-encoding", "gzip")
-
-  defp maybe_add_compression_header(headers, _), do: headers
+  defp normalize_headers(headers) when is_list(headers),
+    do: Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
 
   defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
 
-  defp maybe_add_connect_options(opts, []), do: opts
+  defp handle_response({:ok, %Req.Response{status: status}}) when status in 200..299, do: :ok
 
-  defp maybe_add_connect_options(opts, ssl_opts) when is_list(ssl_opts),
-    do: Keyword.put(opts, :connect_options, transport_opts: ssl_opts)
+  defp handle_response({:ok, %Req.Response{status: status}}) do
+    Logger.warning("OTLP trace export failed with HTTP #{status}")
+    :error
+  end
 
-  defp maybe_compress(body, :gzip), do: :zlib.gzip(body)
-  defp maybe_compress(body, _), do: body
+  defp handle_response({:error, exception}) do
+    Logger.warning("OTLP trace export failed: #{inspect(exception)}")
+    :error
+  end
 
   # OTLP retry predicate — `protocol/exporter.md` §"Retryable
   # Response Codes" L565-L573:
