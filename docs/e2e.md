@@ -105,7 +105,7 @@ mix test --only e2e test/e2e/
 | `[~]` | 27 | Exemplar filter `:trace_based` (hardcoded) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
 | `[~]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: histogram lands |
 | `[~]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: counter lands |
-| `[x]` | 30 | PeriodicExporting `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
+| `[x]` | 30 | MetricExporter `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
 | `[x]` | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
 
 ## Propagator (cross-process trace continuation)

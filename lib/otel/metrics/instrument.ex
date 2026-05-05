@@ -48,8 +48,8 @@ defmodule Otel.Metrics.Instrument do
   1. **`monotonic?/1` on Histogram** — erlang
      `is_monotonic(#instrument{kind=histogram}) -> true`;
      we return `false`. Our callsite is
-     `Otel.Metrics.MetricReader`, which forwards the
-     value to OTLP's `Sum.is_monotonic` field
+     `Otel.Metrics.MetricExporter.collect/1`, which
+     forwards the value to OTLP's `Sum.is_monotonic` field
      (`metrics.proto`). `is_monotonic` is a Sum-aggregation
      predicate; Histogram datapoints are not Sum
      datapoints, so the narrower definition matches that

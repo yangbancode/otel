@@ -73,9 +73,10 @@ defmodule Otel.Metrics.Meter do
   callbacks racing on different new attribute sets at the
   boundary `current = limit - 1` could both pass the count
   check and both insert, briefly exceeding the limit by one.
-  In practice `MetricReader.collect/1` serialises callbacks
-  per reader, so this race only fires across multiple readers
-  collecting simultaneously — a corner the spec MUST at L840
+  In practice `Otel.Metrics.MetricExporter.collect/1`
+  serialises callbacks per reader, so this race only fires
+  across multiple readers collecting simultaneously — a
+  corner the spec MUST at L840
   (no overflow when distinct sets ≤ limit) does not strictly
   bind, since at the boundary the SHOULD is already best-
   effort.
@@ -419,9 +420,9 @@ defmodule Otel.Metrics.Meter do
   config and aggregates the observations into the metrics
   pipeline.
 
-  Called by MetricReader during collection. Two callback
-  shapes are supported, distinguished by the shape marker
-  stored in each ETS entry:
+  Called by `Otel.Metrics.MetricExporter.collect/1` during
+  collection. Two callback shapes are supported,
+  distinguished by the shape marker stored in each ETS entry:
 
   - `:single` — inline callback registered via
     `create_observable_*/5` → `store_callback/4`. Callback
