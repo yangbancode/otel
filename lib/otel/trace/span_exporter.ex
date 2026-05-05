@@ -68,19 +68,15 @@ defmodule Otel.Trace.SpanExporter do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
+  @spec force_flush(timeout :: timeout()) :: :ok
   def force_flush(timeout \\ @export_timeout_ms) do
     GenServer.call(__MODULE__, :force_flush, timeout)
-  catch
-    :exit, {:noproc, _} -> {:error, :already_shutdown}
-    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
   # --- GenServer ---
 
   @impl true
   def init(_opts) do
-    Process.flag(:trap_exit, true)
     loop()
     {:ok, %{}}
   end
@@ -98,18 +94,9 @@ defmodule Otel.Trace.SpanExporter do
     {:reply, :ok, state}
   end
 
-  # Application stop / supervisor shutdown — drain remaining
-  # completed spans before exit. Wrapped in try/catch so exporter
-  # failure doesn't crash the supervisor (lifecycle hook exempt
-  # from happy-path rule).
   @impl true
   def terminate(_reason, _state) do
-    try do
-      drain_all()
-    catch
-      _kind, _reason -> :ok
-    end
-
+    drain_all()
     :ok
   end
 
