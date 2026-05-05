@@ -61,14 +61,18 @@ defmodule Otel.Logs.LogRecordExporterTest do
       assert :ok = Otel.Logs.LogRecordExporter.export([], init_state())
     end
 
-    test "200 → :ok" do
+    test "200 → {:ok, response}" do
       configure_server(200)
-      assert :ok = Otel.Logs.LogRecordExporter.export([@log_record], init_state())
+
+      assert {:ok, %Req.Response{status: 200}} =
+               Otel.Logs.LogRecordExporter.export([@log_record], init_state())
     end
 
-    test "non-retryable 4xx → :error immediately" do
+    test "non-retryable 4xx returns the response as-is (no error tuple)" do
       configure_server(400)
-      assert :error = Otel.Logs.LogRecordExporter.export([@log_record], init_state())
+
+      assert {:ok, %Req.Response{status: 400}} =
+               Otel.Logs.LogRecordExporter.export([@log_record], init_state())
     end
   end
 

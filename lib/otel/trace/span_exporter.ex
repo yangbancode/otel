@@ -51,8 +51,6 @@ defmodule Otel.Trace.SpanExporter do
 
   use GenServer
 
-  require Logger
-
   # OTel spec `trace/sdk.md` L1109-L1118 defaults.
   @scheduled_delay_ms 5_000
   @max_export_batch_size 512
@@ -145,22 +143,9 @@ defmodule Otel.Trace.SpanExporter do
     |> Req.Request.put_new_header("content-type", @content_type)
     |> Req.Request.put_new_header("user-agent", @user_agent)
     |> Req.post()
-    |> handle_response()
   end
 
   defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
-
-  defp handle_response({:ok, %Req.Response{status: status}}) when status in 200..299, do: :ok
-
-  defp handle_response({:ok, %Req.Response{status: status}}) do
-    Logger.warning("OTLP trace export failed with HTTP #{status}")
-    :error
-  end
-
-  defp handle_response({:error, exception}) do
-    Logger.warning("OTLP trace export failed: #{inspect(exception)}")
-    :error
-  end
 
   # OTLP retry predicate — `opentelemetry-proto/docs/specification.md`
   # §"Retryable Response Codes" L564-575: only the four listed

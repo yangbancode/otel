@@ -65,14 +65,18 @@ defmodule Otel.Metrics.MetricExporterTest do
       assert :ok = Otel.Metrics.MetricExporter.export([], init_state())
     end
 
-    test "200 → :ok" do
+    test "200 → {:ok, response}" do
       configure_server(200)
-      assert :ok = Otel.Metrics.MetricExporter.export([@metric], init_state())
+
+      assert {:ok, %Req.Response{status: 200}} =
+               Otel.Metrics.MetricExporter.export([@metric], init_state())
     end
 
-    test "non-retryable 4xx → :error immediately" do
+    test "non-retryable 4xx returns the response as-is (no error tuple)" do
       configure_server(400)
-      assert :error = Otel.Metrics.MetricExporter.export([@metric], init_state())
+
+      assert {:ok, %Req.Response{status: 400}} =
+               Otel.Metrics.MetricExporter.export([@metric], init_state())
     end
   end
 

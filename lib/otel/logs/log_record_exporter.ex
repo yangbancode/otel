@@ -43,8 +43,6 @@ defmodule Otel.Logs.LogRecordExporter do
   - OTLP retryable response codes: `opentelemetry-proto/docs/specification.md` L565-L573
   """
 
-  require Logger
-
   @default_base_url "http://localhost:4318"
   @default_url "/v1/logs"
   @content_type "application/x-protobuf"
@@ -58,7 +56,7 @@ defmodule Otel.Logs.LogRecordExporter do
   @spec export(
           log_records :: [Otel.Logs.LogRecord.t()],
           state :: state()
-        ) :: :ok | :error
+        ) :: :ok | {:ok, Req.Response.t()} | {:error, Exception.t()}
   def export([], _state), do: :ok
 
   def export(log_records, _state) do
@@ -71,7 +69,6 @@ defmodule Otel.Logs.LogRecordExporter do
     |> Req.Request.put_new_header("content-type", @content_type)
     |> Req.Request.put_new_header("user-agent", @user_agent)
     |> Req.post()
-    |> handle_response()
   end
 
   @spec force_flush(state :: state()) :: :ok
@@ -81,18 +78,6 @@ defmodule Otel.Logs.LogRecordExporter do
   def shutdown(_state), do: :ok
 
   # --- Private ---
-
-  defp handle_response({:ok, %Req.Response{status: status}}) when status in 200..299, do: :ok
-
-  defp handle_response({:ok, %Req.Response{status: status}}) do
-    Logger.warning("OTLP log export failed with HTTP #{status}")
-    :error
-  end
-
-  defp handle_response({:error, exception}) do
-    Logger.warning("OTLP log export failed: #{inspect(exception)}")
-    :error
-  end
 
   # OTLP retry predicate — `opentelemetry-proto/docs/specification.md`
   # §"Retryable Response Codes" L564-575: only the four listed
