@@ -87,6 +87,13 @@ defmodule Otel.Metrics.MetricExporter do
   # be retried". Hence the explicit `false` for any other
   # `%Req.Response{}` — Req's built-in `:transient` preset
   # retries 408 / 500 too and would violate that MUST NOT.
+  #
+  # Network / protocol failures arrive here as Exception structs
+  # (Req.TransportError, Req.HTTPError, etc.) — retry on any.
+  @spec retry?(
+          request :: Req.Request.t(),
+          response_or_exception :: Req.Response.t() | Exception.t()
+        ) :: boolean()
   defp retry?(_request, %Req.Response{status: status})
        when status in [429, 502, 503, 504],
        do: true
@@ -94,6 +101,4 @@ defmodule Otel.Metrics.MetricExporter do
   defp retry?(_request, %Req.Response{}), do: false
 
   defp retry?(_request, %{__exception__: true}), do: true
-
-  defp retry?(_request, _), do: false
 end
