@@ -8,22 +8,25 @@ defmodule Otel.TestSupport do
   delivered by:
 
   1. Setting `Application.put_env(:otel, ...)` to override the
-     user-facing `:exporter` key, or `System.put_env(...)` to
-     set `RELEASE_NAME` / `RELEASE_VSN` for resource attrs.
-  2. Starting the supervised storage / processor children
-     (`SpanStorage`, the six per-table `XxxStorage` GenServers
-     for metrics, `SpanExporter`, `PeriodicExporting`,
-     `LogRecordProcessor`) — or substitutes thereof — so the
-     ETS tables exist and dispatch from `Span` / `Logs.emit` /
-     `Meter` lands somewhere observable.
+     user-facing `:req_options` key, or `System.put_env(...)`
+     to set `RELEASE_NAME` / `RELEASE_VSN` for resource attrs.
+  2. Starting the supervised storage / exporter children
+     (`SpanStorage`, `LogRecordStorage`, the six per-table
+     `XxxStorage` GenServers for metrics, `SpanExporter`,
+     `LogRecordExporter`, `PeriodicExporting`) — or
+     substitutes thereof — so the ETS tables exist and
+     dispatch from `Span` / `Logs.emit` / `Meter` lands
+     somewhere observable.
 
-  Tests inject custom processors by registering a different
-  GenServer under the hardcoded names
-  (`Otel.Trace.SpanExporter`, `Otel.Logs.LogRecordProcessor`,
-  `Otel.Metrics.MetricReader.PeriodicExporting`). The Span /
-  Logger dispatch sites use `send/2` (or `:gen_statem.cast/2`)
-  to those names, so any compatible GenServer registered there
-  receives the messages.
+  Trace / Metrics tests can substitute the *exporter* by
+  registering a different GenServer under the hardcoded names
+  (`Otel.Trace.SpanExporter`,
+  `Otel.Metrics.MetricReader.PeriodicExporting`). Logs do not
+  support exporter substitution because `Otel.Logs.Logger.emit/2`
+  calls `Otel.Logs.LogRecordStorage.insert/1` directly (a
+  module-level function, not a name-based message). Tests
+  verify log behaviour by inspecting `LogRecordStorage` itself
+  via `take/1` or `:ets.tab2list/1`.
 
   ## Usage
 
@@ -39,7 +42,7 @@ defmodule Otel.TestSupport do
   |---|---|
   | `:trace` | `:processors` |
   | `:metrics` | `:readers` |
-  | `:logs` | `:processors` |
+  | `:logs` | (none — inspect `LogRecordStorage` directly) |
 
   Tests that need custom span/log-record limits, exemplar
   filter, or resource construct the relevant struct (or the
@@ -60,7 +63,7 @@ defmodule Otel.TestSupport do
 
   @trace_keys [:processors]
   @metrics_keys [:readers]
-  @logs_keys [:processors]
+  @logs_keys []
 
   @doc """
   Stops `:otel`, applies overrides, re-seeds providers and
@@ -95,6 +98,7 @@ defmodule Otel.TestSupport do
     # must start before `start_metrics_reader` (the reader reads
     # `meter_config/0` in its init).
     start_orphan!(Otel.Trace.SpanStorage, [])
+    start_orphan!(Otel.Logs.LogRecordStorage, [])
     start_orphan!(Otel.Metrics.InstrumentsStorage, [])
     start_orphan!(Otel.Metrics.StreamsStorage, [])
     start_orphan!(Otel.Metrics.MetricsStorage, [])
@@ -103,7 +107,7 @@ defmodule Otel.TestSupport do
     start_orphan!(Otel.Metrics.ObservedAttrsStorage, [])
     start_trace_processor(trace_overrides)
     start_metrics_reader(metrics_overrides)
-    start_logs_processor(logs_overrides)
+    start_orphan!(Otel.Logs.LogRecordExporter, [])
 
     on_exit(fn ->
       stop_all()
@@ -128,9 +132,10 @@ defmodule Otel.TestSupport do
     Enum.each(
       [
         Otel.Trace.SpanExporter,
+        Otel.Logs.LogRecordExporter,
         Otel.Metrics.MetricReader.PeriodicExporting,
-        Otel.Logs.LogRecordProcessor,
         Otel.Trace.SpanStorage,
+        Otel.Logs.LogRecordStorage,
         Otel.Metrics.InstrumentsStorage,
         Otel.Metrics.StreamsStorage,
         Otel.Metrics.MetricsStorage,
@@ -180,34 +185,15 @@ defmodule Otel.TestSupport do
   end
 
   # --- Logs overrides ---
+  #
+  # No overrides — `Otel.Logs.Logger.emit/2` calls
+  # `Otel.Logs.LogRecordStorage.insert/1` directly, which is a
+  # module-level function that cannot be substituted by
+  # registering a different process under the name. Tests
+  # inspect the storage via `take/1` or `:ets.tab2list/1`.
 
   @spec apply_logs_overrides(overrides :: keyword()) :: :ok
-  defp apply_logs_overrides(overrides) do
-    Enum.each(overrides, fn
-      {:processors, _} -> :ok
-    end)
-
-    :ok
-  end
-
-  @spec start_logs_processor(overrides :: keyword()) :: :ok
-  defp start_logs_processor(overrides) do
-    case Keyword.get(overrides, :processors) do
-      nil ->
-        start_orphan!(Otel.Logs.LogRecordProcessor, %{})
-
-      [] ->
-        :ok
-
-      [{module, config}] ->
-        start_orphan_named!(module, config, Otel.Logs.LogRecordProcessor)
-
-      _ ->
-        raise ArgumentError, "minikube only supports a single LogRecordProcessor"
-    end
-
-    :ok
-  end
+  defp apply_logs_overrides(_overrides), do: :ok
 
   # --- Metrics overrides ---
 

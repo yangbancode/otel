@@ -1,9 +1,17 @@
 defmodule Otel.Logs.LogRecordExporter do
   @moduledoc """
-  OTLP/HTTP exporter for log records. Implements the
-  `LogRecordExporter` behaviour expected by
-  `Otel.Logs.LogRecordProcessor` — `init/1`, `export/2`,
-  `force_flush/1`, `shutdown/1`.
+  Logs export pipeline — timer-driven take from
+  `LogRecordStorage` + OTLP encode + HTTP POST. Single GenServer
+  collapsing what was previously a separate `LogRecordProcessor`
+  (queue + timer + drain) plus a passive HTTP-only Exporter.
+
+  ## Lifecycle
+
+  | Trigger | Action |
+  |---|---|
+  | `:loop` self-message every `@scheduled_delay_ms` | take one batch (`@max_export_batch_size`) of records, encode, POST |
+  | `force_flush/1` | drain *all* records synchronously |
+  | `terminate/2` (Application stop) | drain remaining records before exit |
 
   ## OTLP HTTP transport
 
@@ -34,52 +42,111 @@ defmodule Otel.Logs.LogRecordExporter do
   attempts) — the OTLP spec mandates the *strategy* but not a
   specific attempt count.
 
-  `init/1` keeps no state; config is read per export so
-  test-time reconfiguration takes effect immediately.
-
   ## References
 
-  - OTel Logs SDK §LogRecordExporter: `opentelemetry-specification/specification/logs/sdk.md` L420-L520
+  - OTel Logs SDK §LogRecordProcessor: `opentelemetry-specification/specification/logs/sdk.md` L468-L545
+  - OTel Logs SDK §LogRecordExporter: `opentelemetry-specification/specification/logs/sdk.md` L546-L660
   - OTLP retryable response codes: `opentelemetry-proto/docs/specification.md` L565-L573
   """
+
+  use GenServer
+
+  # Spec `logs/sdk.md` L538 §LogRecordProcessor `scheduledDelayMillis`:
+  # "the delay interval in milliseconds between two consecutive
+  # exports. The default value is `1000`." (Logs default differs
+  # from trace's 5000.)
+  @scheduled_delay_ms 1_000
+  @max_export_batch_size 512
+  @export_timeout_ms 30_000
 
   @default_base_url "http://localhost:4318"
   @default_url "/v1/logs"
   @content_type "application/x-protobuf"
   @user_agent "#{Mix.Project.config()[:app]}/#{Mix.Project.config()[:version]}"
 
-  @type state :: %{}
+  # --- Public API ---
 
-  @spec init(config :: term()) :: {:ok, state()}
-  def init(_config), do: {:ok, %{}}
-
-  @spec export(
-          log_records :: [Otel.Logs.LogRecord.t()],
-          state :: state()
-        ) :: :ok | {:ok, Req.Response.t()} | {:error, Exception.t()}
-  def export([], _state), do: :ok
-
-  def export(log_records, _state) do
-    Req.new(
-      method: :post,
-      base_url: @default_base_url,
-      url: @default_url,
-      retry: &retry?/2
-    )
-    |> Req.merge(Application.get_env(:otel, :req_options, []))
-    |> Req.merge(body: Otel.OTLP.Encoder.encode_logs(log_records))
-    |> Req.Request.put_new_header("content-type", @content_type)
-    |> Req.Request.put_new_header("user-agent", @user_agent)
-    |> Req.request()
+  @spec start_link(opts :: keyword()) :: GenServer.on_start()
+  def start_link(opts \\ []) do
+    GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @spec force_flush(state :: state()) :: :ok
-  def force_flush(_state), do: :ok
+  @spec force_flush(timeout :: timeout()) :: :ok
+  def force_flush(timeout \\ @export_timeout_ms) do
+    GenServer.call(__MODULE__, :force_flush, timeout)
+  end
 
-  @spec shutdown(state :: state()) :: :ok
-  def shutdown(_state), do: :ok
+  # --- GenServer ---
+
+  @impl true
+  @spec init(opts :: term()) :: {:ok, map()}
+  def init(_opts) do
+    loop()
+    {:ok, %{}}
+  end
+
+  @impl true
+  @spec handle_info(message :: :loop, state :: map()) :: {:noreply, map()}
+  def handle_info(:loop, state) do
+    do_export()
+    loop()
+    {:noreply, state}
+  end
+
+  @impl true
+  @spec handle_call(:force_flush, from :: GenServer.from(), state :: map()) ::
+          {:reply, :ok, map()}
+  def handle_call(:force_flush, _from, state) do
+    export()
+    {:reply, :ok, state}
+  end
+
+  @impl true
+  @spec terminate(reason :: term(), state :: map()) :: :ok
+  def terminate(_reason, _state) do
+    export()
+    :ok
+  end
 
   # --- Private ---
+
+  # Drain the storage until empty — one batch at a time so each
+  # export stays under `@max_export_batch_size`.
+  @spec export() :: :ok
+  defp export do
+    case do_export() do
+      :ok -> :ok
+      _ -> export()
+    end
+  end
+
+  # Take one batch (≤ `@max_export_batch_size`) and POST it.
+  # Returns `:ok` when storage was empty, or Req's
+  # `{:ok, %Req.Response{}} | {:error, Exception.t()}` when an
+  # export ran.
+  @spec do_export() :: :ok | {:ok, Req.Response.t()} | {:error, Exception.t()}
+  defp do_export do
+    case Otel.Logs.LogRecordStorage.take(@max_export_batch_size) do
+      [] ->
+        :ok
+
+      batch ->
+        Req.new(
+          method: :post,
+          base_url: @default_base_url,
+          url: @default_url,
+          retry: &retry?/2
+        )
+        |> Req.merge(Application.get_env(:otel, :req_options, []))
+        |> Req.merge(body: Otel.OTLP.Encoder.encode_logs(batch))
+        |> Req.Request.put_new_header("content-type", @content_type)
+        |> Req.Request.put_new_header("user-agent", @user_agent)
+        |> Req.request()
+    end
+  end
+
+  @spec loop() :: reference()
+  defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
 
   # OTLP retry predicate — `opentelemetry-proto/docs/specification.md`
   # §"Retryable Response Codes" L564-575: only the four listed
