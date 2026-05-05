@@ -76,12 +76,14 @@ defmodule Otel.Trace.SpanExporter do
   # --- GenServer ---
 
   @impl true
+  @spec init(opts :: term()) :: {:ok, map()}
   def init(_opts) do
     loop()
     {:ok, %{}}
   end
 
   @impl true
+  @spec handle_info(message :: :loop, state :: map()) :: {:noreply, map()}
   def handle_info(:loop, state) do
     do_export()
     loop()
@@ -89,12 +91,15 @@ defmodule Otel.Trace.SpanExporter do
   end
 
   @impl true
+  @spec handle_call(:force_flush, from :: GenServer.from(), state :: map()) ::
+          {:reply, :ok, map()}
   def handle_call(:force_flush, _from, state) do
     export()
     {:reply, :ok, state}
   end
 
   @impl true
+  @spec terminate(reason :: term(), state :: map()) :: :ok
   def terminate(_reason, _state) do
     export()
     :ok
@@ -104,6 +109,7 @@ defmodule Otel.Trace.SpanExporter do
 
   # Drain the storage until empty — one batch at a time so each
   # export stays under `@max_export_batch_size`.
+  @spec export() :: :ok
   defp export do
     case do_export() do
       :ok -> :ok
@@ -113,8 +119,9 @@ defmodule Otel.Trace.SpanExporter do
 
   # Take one batch (≤ `@max_export_batch_size`) and POST it.
   # Returns `:ok` when storage was empty, or Req's
-  # `{:ok, %Req.Response{}} | {:error, Exception.t()}` when
-  # an export ran.
+  # `{:ok, %Req.Response{}} | {:error, Exception.t()}` when an
+  # export ran.
+  @spec do_export() :: :ok | {:ok, Req.Response.t()} | {:error, Exception.t()}
   defp do_export do
     case Otel.Trace.SpanStorage.take_completed(@max_export_batch_size) do
       [] ->
@@ -135,6 +142,7 @@ defmodule Otel.Trace.SpanExporter do
     end
   end
 
+  @spec loop() :: reference()
   defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
 
   # OTLP retry predicate — `opentelemetry-proto/docs/specification.md`
@@ -143,6 +151,13 @@ defmodule Otel.Trace.SpanExporter do
   # be retried". Hence the explicit `false` for any other
   # `%Req.Response{}` — Req's built-in `:transient` preset
   # retries 408 / 500 too and would violate that MUST NOT.
+  #
+  # Network / protocol failures arrive here as Exception structs
+  # (Req.TransportError, Req.HTTPError, etc.) — retry on any.
+  @spec retry?(
+          request :: Req.Request.t(),
+          response_or_exception :: Req.Response.t() | Exception.t()
+        ) :: boolean()
   defp retry?(_request, %Req.Response{status: status})
        when status in [429, 502, 503, 504],
        do: true
@@ -150,6 +165,4 @@ defmodule Otel.Trace.SpanExporter do
   defp retry?(_request, %Req.Response{}), do: false
 
   defp retry?(_request, %{__exception__: true}), do: true
-
-  defp retry?(_request, _), do: false
 end
