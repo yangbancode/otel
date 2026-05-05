@@ -22,15 +22,17 @@ defmodule Otel.Logs.LogRecordExporter do
     response codes (`opentelemetry-proto/docs/specification.md`
     L564-575: 429 / 502 / 503 / 504 SHOULD be retried, all
     other 4xx / 5xx MUST NOT) plus network-level exceptions.
-    `Retry-After` is honored automatically by Req.
-  - `:max_retries` → `4` (5 attempts including the first).
-    The spec mandates exponential backoff with jitter
-    (`opentelemetry-specification/specification/protocol/exporter.md`
-    L182-202) but does *not* prescribe a specific number of
-    attempts. `4` follows the Java OTLP SDK default
-    (de-facto standard).
+    Backoff strategy (exponential + jitter) and `Retry-After`
+    honoring come from Req's default `:retry_delay`, which
+    satisfies the spec MUST in
+    `opentelemetry-specification/specification/protocol/exporter.md`
+    L182-202.
   - `content-type: application/x-protobuf` and `user-agent`
     headers merged into the user's `:headers`
+
+  `:max_retries` is left to Req's default (3 retries = 4
+  attempts) — the OTLP spec mandates the *strategy* but not a
+  specific attempt count.
 
   `init/1` keeps no state; config is read per export so
   test-time reconfiguration takes effect immediately.
@@ -66,7 +68,6 @@ defmodule Otel.Logs.LogRecordExporter do
     |> Keyword.put_new(:url, @default_url)
     |> Keyword.put(:body, body)
     |> Keyword.put_new(:retry, &otlp_retry?/2)
-    |> Keyword.put_new(:max_retries, 4)
     |> with_required_headers()
     |> Req.post()
     |> handle_response()
