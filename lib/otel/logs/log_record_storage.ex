@@ -3,12 +3,14 @@ defmodule Otel.Logs.LogRecordStorage do
   ETS-backed FIFO queue for log records awaiting export.
 
   Each row is `{key, %Otel.Logs.LogRecord{}}` where the key is
-  `{System.monotonic_time(:nanosecond), make_ref()}` — a tuple
-  whose first element is monotonic and whose second element
-  guarantees uniqueness even when two emits share the same
-  nanosecond. Combined with the `:ordered_set` table type, this
-  gives natural FIFO traversal in `take/1` without a separate
-  sequence counter.
+  `:erlang.unique_integer([:positive])` — a positive integer
+  guaranteed to be unique within the BEAM lifetime. The
+  underlying table is `:set` (hash-based), matching
+  `Otel.Trace.SpanStorage`'s shape and giving O(1) insert in
+  the hot emit path. Take order is hash-iteration order (not
+  emission order); this is fine because each log record carries
+  its own `timestamp` / `observed_timestamp` and the collector
+  orders by those.
 
   Logs are atomic events — there is no `:active` / `:completed`
   lifecycle like spans. Records enter via `insert/1` and leave
@@ -48,7 +50,7 @@ defmodule Otel.Logs.LogRecordStorage do
   ## References
 
   - OTel Logs SDK §LogRecordProcessor: `opentelemetry-specification/specification/logs/sdk.md` L468-L545
-  - Erlang `:ets` ordered_set: <https://www.erlang.org/doc/man/ets#new-2>
+  - Erlang `:erlang.unique_integer/1`: <https://www.erlang.org/doc/man/erlang#unique_integer-1>
   """
 
   use GenServer
@@ -79,16 +81,17 @@ defmodule Otel.Logs.LogRecordStorage do
         :ok
 
       _ ->
-        key = {System.monotonic_time(:nanosecond), make_ref()}
+        key = :erlang.unique_integer([:positive])
         :ets.insert(@table, {key, record})
         :ok
     end
   end
 
   @doc """
-  Take up to `n` oldest log records, deleting them from the
-  table. Returns the records in insertion order. Called only by
-  `Otel.Logs.LogRecordExporter` (single reader).
+  Take up to `n` log records, deleting them from the table.
+  Records come back in hash-iteration order (not emission
+  order). Called only by `Otel.Logs.LogRecordExporter` (single
+  reader).
   """
   @spec take(n :: pos_integer()) :: [Otel.Logs.LogRecord.t()]
   def take(n) when n > 0 do
@@ -113,7 +116,7 @@ defmodule Otel.Logs.LogRecordStorage do
     :ets.new(@table, [
       :named_table,
       :public,
-      :ordered_set,
+      :set,
       {:write_concurrency, true},
       {:read_concurrency, true}
     ])
