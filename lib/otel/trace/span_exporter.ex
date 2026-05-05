@@ -134,15 +134,17 @@ defmodule Otel.Trace.SpanExporter do
   end
 
   defp do_export(batch) do
-    Application.get_env(:otel, :req_options, [])
-    |> Keyword.put_new(:base_url, @default_base_url)
-    |> Keyword.put_new(:url, @default_url)
-    |> Keyword.put_new(:retry, &retry?/2)
-    |> Keyword.put(:body, Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build()))
-    |> Req.new()
+    Req.new(
+      method: :post,
+      base_url: @default_base_url,
+      url: @default_url,
+      retry: &retry?/2
+    )
+    |> Req.merge(Application.get_env(:otel, :req_options, []))
+    |> Req.merge(body: Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build()))
     |> Req.Request.put_new_header("content-type", @content_type)
     |> Req.Request.put_new_header("user-agent", @user_agent)
-    |> Req.post()
+    |> Req.request()
   end
 
   defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)

@@ -60,15 +60,17 @@ defmodule Otel.Logs.LogRecordExporter do
   def export([], _state), do: :ok
 
   def export(log_records, _state) do
-    Application.get_env(:otel, :req_options, [])
-    |> Keyword.put_new(:base_url, @default_base_url)
-    |> Keyword.put_new(:url, @default_url)
-    |> Keyword.put_new(:retry, &retry?/2)
-    |> Keyword.put(:body, Otel.OTLP.Encoder.encode_logs(log_records))
-    |> Req.new()
+    Req.new(
+      method: :post,
+      base_url: @default_base_url,
+      url: @default_url,
+      retry: &retry?/2
+    )
+    |> Req.merge(Application.get_env(:otel, :req_options, []))
+    |> Req.merge(body: Otel.OTLP.Encoder.encode_logs(log_records))
     |> Req.Request.put_new_header("content-type", @content_type)
     |> Req.Request.put_new_header("user-agent", @user_agent)
-    |> Req.post()
+    |> Req.request()
   end
 
   @spec force_flush(state :: state()) :: :ok
