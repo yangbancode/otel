@@ -47,6 +47,8 @@ defmodule Otel.Logs.LogRecordExporter do
 
   @default_base_url "http://localhost:4318"
   @default_url "/v1/logs"
+  @content_type "application/x-protobuf"
+  @user_agent "#{Mix.Project.config()[:app]}/#{Mix.Project.config()[:version]}"
 
   @type state :: %{}
 
@@ -66,8 +68,8 @@ defmodule Otel.Logs.LogRecordExporter do
     |> Keyword.put_new(:retry, &retry?/2)
     |> Keyword.put(:body, Otel.OTLP.Encoder.encode_logs(log_records))
     |> Req.new()
-    |> Req.Request.put_new_header("content-type", "application/x-protobuf")
-    |> Req.Request.put_new_header("user-agent", "Otel/#{Application.spec(:otel, :vsn)}")
+    |> Req.Request.put_new_header("content-type", @content_type)
+    |> Req.Request.put_new_header("user-agent", @user_agent)
     |> Req.post()
     |> handle_response()
   end
