@@ -18,9 +18,17 @@ defmodule Otel.Logs.LogRecordExporter do
 
   - `:base_url` → `http://localhost:4318` if absent
   - `:url` → `/v1/logs` if absent
-  - `:retry` → OTLP-spec predicate (429 / 502 / 503 / 504 +
-    network errors; `Retry-After` honored automatically by Req)
-  - `:max_retries` → `4` (5 attempts including the first)
+  - `:retry` → predicate matching the OTLP-spec retryable
+    response codes (`opentelemetry-proto/docs/specification.md`
+    L564-575: 429 / 502 / 503 / 504 SHOULD be retried, all
+    other 4xx / 5xx MUST NOT) plus network-level exceptions.
+    `Retry-After` is honored automatically by Req.
+  - `:max_retries` → `4` (5 attempts including the first).
+    The spec mandates exponential backoff with jitter
+    (`opentelemetry-specification/specification/protocol/exporter.md`
+    L182-202) but does *not* prescribe a specific number of
+    attempts. `4` follows the Java OTLP SDK default
+    (de-facto standard).
   - `content-type: application/x-protobuf` and `user-agent`
     headers merged into the user's `:headers`
 
@@ -36,7 +44,7 @@ defmodule Otel.Logs.LogRecordExporter do
   require Logger
 
   @default_base_url "http://localhost:4318"
-  @logs_path "/v1/logs"
+  @default_url "/v1/logs"
 
   @type state :: %{}
 
@@ -55,7 +63,7 @@ defmodule Otel.Logs.LogRecordExporter do
 
     user_opts
     |> Keyword.put_new(:base_url, @default_base_url)
-    |> Keyword.put_new(:url, @logs_path)
+    |> Keyword.put_new(:url, @default_url)
     |> Keyword.put(:body, body)
     |> Keyword.put_new(:retry, &otlp_retry?/2)
     |> Keyword.put_new(:max_retries, 4)
