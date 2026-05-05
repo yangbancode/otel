@@ -30,7 +30,7 @@ defmodule Otel.ApplicationTest do
       reboot()
 
       assert is_pid(Process.whereis(Otel.Trace.SpanExporter))
-      assert is_pid(Process.whereis(Otel.Metrics.MetricReader.PeriodicExporting))
+      assert is_pid(Process.whereis(Otel.Metrics.MetricExporter))
       assert is_pid(Process.whereis(Otel.Logs.LogRecordExporter))
       assert is_pid(Process.whereis(Otel.Trace.SpanStorage))
       assert is_pid(Process.whereis(Otel.Logs.LogRecordStorage))

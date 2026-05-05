@@ -114,7 +114,7 @@ defmodule Otel.E2E.MetricsSyncTest do
   end
 
   describe "operations" do
-    test "30: PeriodicExporting force_flush surfaces data immediately", %{e2e_id: e2e_id} do
+    test "30: MetricExporter force_flush surfaces data immediately", %{e2e_id: e2e_id} do
       counter =
         Otel.Metrics.Meter.create_counter("e2e_scenario_30_#{e2e_id}")
 

@@ -6,7 +6,7 @@ defmodule Otel.E2E.MetricsAsyncTest do
   Tracking matrix: `docs/e2e.md` §Metrics, scenarios 9–13. Each
   scenario installs an inline callback that emits one
   `%Measurement{}` per tag (or per shared instrument) so the
-  PeriodicExporting reader picks them up on the `flush/0`-driven
+  MetricExporter picks them up on the `flush/0`-driven
   collect.
   """
 

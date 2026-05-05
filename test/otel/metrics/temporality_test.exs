@@ -14,7 +14,7 @@ defmodule Otel.Metrics.TemporalityTest do
 
     @impl true
     def handle_call(:collect, _from, state) do
-      {:reply, {:ok, Otel.Metrics.MetricReader.collect(state.meter_config)}, state}
+      {:reply, {:ok, Otel.Metrics.MetricExporter.collect(state.meter_config)}, state}
     end
   end
 
@@ -87,7 +87,7 @@ defmodule Otel.Metrics.TemporalityTest do
       Otel.Metrics.Meter.create_observable_updown_counter("oudc", cb, nil, [])
 
       by_name =
-        Otel.Metrics.MetricReader.collect(config) |> Map.new(&{&1.name, &1})
+        Otel.Metrics.MetricExporter.collect(config) |> Map.new(&{&1.name, &1})
 
       assert {:cumulative, true} = {by_name["c"].temporality, by_name["c"].is_monotonic}
       assert {:cumulative, false} = {by_name["udc"].temporality, by_name["udc"].is_monotonic}
@@ -105,12 +105,12 @@ defmodule Otel.Metrics.TemporalityTest do
       Otel.Metrics.Meter.record(counter, 5, %{})
       Otel.Metrics.Meter.record(counter, 3, %{})
 
-      [m1] = Otel.Metrics.MetricReader.collect(config)
+      [m1] = Otel.Metrics.MetricExporter.collect(config)
       [dp1] = m1.datapoints
       assert dp1.value == 8
 
       Otel.Metrics.Meter.record(counter, 2, %{})
-      [m2] = Otel.Metrics.MetricReader.collect(config)
+      [m2] = Otel.Metrics.MetricExporter.collect(config)
       [dp2] = m2.datapoints
       assert dp2.value == 10
       assert dp2.start_time == dp1.start_time
@@ -122,10 +122,10 @@ defmodule Otel.Metrics.TemporalityTest do
 
       Otel.Metrics.Meter.record(hist, 50, %{})
       Otel.Metrics.Meter.record(hist, 150, %{})
-      _ = Otel.Metrics.MetricReader.collect(config)
+      _ = Otel.Metrics.MetricExporter.collect(config)
 
       Otel.Metrics.Meter.record(hist, 200, %{})
-      [m] = Otel.Metrics.MetricReader.collect(config)
+      [m] = Otel.Metrics.MetricExporter.collect(config)
       [dp] = m.datapoints
       assert dp.value.count == 3
       assert dp.value.sum == 400

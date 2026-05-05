@@ -212,7 +212,7 @@ defmodule Otel.OTLP.Encoder do
   Encodes a list of collected metrics into an
   ExportMetricsServiceRequest protobuf binary.
   """
-  @spec encode_metrics(metrics :: [Otel.Metrics.MetricReader.metric()]) :: binary()
+  @spec encode_metrics(metrics :: [Otel.Metrics.MetricExporter.metric()]) :: binary()
   def encode_metrics(metrics) do
     resource_metrics = build_resource_metrics(metrics)
 
@@ -222,7 +222,7 @@ defmodule Otel.OTLP.Encoder do
     |> Protobuf.encode()
   end
 
-  @spec build_resource_metrics(metrics :: [Otel.Metrics.MetricReader.metric()]) ::
+  @spec build_resource_metrics(metrics :: [Otel.Metrics.MetricExporter.metric()]) ::
           [Opentelemetry.Proto.Metrics.V1.ResourceMetrics.t()]
   defp build_resource_metrics(metrics) do
     metrics
@@ -236,7 +236,7 @@ defmodule Otel.OTLP.Encoder do
     end)
   end
 
-  @spec group_metrics_by_scope(metrics :: [Otel.Metrics.MetricReader.metric()]) ::
+  @spec group_metrics_by_scope(metrics :: [Otel.Metrics.MetricExporter.metric()]) ::
           [Opentelemetry.Proto.Metrics.V1.ScopeMetrics.t()]
   defp group_metrics_by_scope(metrics) do
     metrics
@@ -254,7 +254,7 @@ defmodule Otel.OTLP.Encoder do
   defp scope_schema_url(nil), do: ""
   defp scope_schema_url(%Otel.InstrumentationScope{} = scope), do: scope.schema_url
 
-  @spec encode_metric(metric :: Otel.Metrics.MetricReader.metric()) ::
+  @spec encode_metric(metric :: Otel.Metrics.MetricExporter.metric()) ::
           Opentelemetry.Proto.Metrics.V1.Metric.t()
   defp encode_metric(metric) do
     %Opentelemetry.Proto.Metrics.V1.Metric{
@@ -265,7 +265,7 @@ defmodule Otel.OTLP.Encoder do
     }
   end
 
-  @spec encode_metric_data(metric :: Otel.Metrics.MetricReader.metric()) ::
+  @spec encode_metric_data(metric :: Otel.Metrics.MetricExporter.metric()) ::
           {:sum, Opentelemetry.Proto.Metrics.V1.Sum.t()}
           | {:gauge, Opentelemetry.Proto.Metrics.V1.Gauge.t()}
           | {:histogram, Opentelemetry.Proto.Metrics.V1.Histogram.t()}

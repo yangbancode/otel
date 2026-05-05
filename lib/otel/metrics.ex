@@ -21,14 +21,14 @@ defmodule Otel.Metrics do
 
   | Function | Role |
   |---|---|
-  | `meter_config/0` | **SDK** — config stamped on `Meter.create_*` and consumed by `MetricReader.collect/1`; also serves as Application-side introspection of the resource/scope |
+  | `meter_config/0` | **SDK** — config stamped on `Meter.create_*` and consumed by `Otel.Metrics.MetricExporter.collect/1`; also serves as Application-side introspection of the resource/scope |
 
   ## References
 
   - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
   """
 
-  # Hardcoded identifiers shared by Meter and MetricReader.
+  # Hardcoded identifiers shared by Meter and MetricExporter.
   # `reader_id` was a `make_ref/0` reference back when the SDK
   # supported multiple readers; minikube has exactly one, so a
   # stable atom suffices.
@@ -36,9 +36,10 @@ defmodule Otel.Metrics do
 
   @doc """
   **SDK** — Returns the meter config used by both `Meter.create_*`
-  (producer side, `reader_configs`) and `MetricReader.collect/1`
-  (consumer side, `reader_id` + `temporality_mapping`). The same
-  map serves both roles so callers don't juggle two shapes.
+  (producer side, `reader_configs`) and
+  `Otel.Metrics.MetricExporter.collect/1` (consumer side,
+  `reader_id` + `temporality_mapping`). The same map serves both
+  roles so callers don't juggle two shapes.
 
   Application code may also call this for introspection (e.g.
   reading `.resource` or `.scope`) — there is no separate

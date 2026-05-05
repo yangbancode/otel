@@ -13,17 +13,17 @@ defmodule Otel.TestSupport do
   2. Starting the supervised storage / exporter children
      (`SpanStorage`, `LogRecordStorage`, the six per-table
      `XxxStorage` GenServers for metrics, `SpanExporter`,
-     `LogRecordExporter`, `PeriodicExporting`) — or
+     `LogRecordExporter`, `MetricExporter`) — or
      substitutes thereof — so the ETS tables exist and
      dispatch from `Span` / `Logs.emit` / `Meter` lands
      somewhere observable.
 
   Trace / Metrics tests can substitute the *exporter* by
   registering a different GenServer under the hardcoded names
-  (`Otel.Trace.SpanExporter`,
-  `Otel.Metrics.MetricReader.PeriodicExporting`). Logs do not
-  support exporter substitution because `Otel.Logs.Logger.emit/2`
-  calls `Otel.Logs.LogRecordStorage.insert/1` directly (a
+  (`Otel.Trace.SpanExporter`, `Otel.Metrics.MetricExporter`).
+  Logs do not support exporter substitution because
+  `Otel.Logs.Logger.emit/2` calls
+  `Otel.Logs.LogRecordStorage.insert/1` directly (a
   module-level function, not a name-based message). Tests
   verify log behaviour by inspecting `LogRecordStorage` itself
   via `take/1` or `:ets.tab2list/1`.
@@ -95,8 +95,8 @@ defmodule Otel.TestSupport do
 
     # 2. Start the supervised storage / processor children. The six
     # per-table `XxxStorage` GenServers own the metrics ETS tables and
-    # must start before `start_metrics_reader` (the reader reads
-    # `meter_config/0` in its init).
+    # must start before `start_metrics_reader` (the exporter reads
+    # `meter_config/0` on each tick / `force_flush`).
     start_orphan!(Otel.Trace.SpanStorage, [])
     start_orphan!(Otel.Logs.LogRecordStorage, [])
     start_orphan!(Otel.Metrics.InstrumentsStorage, [])
@@ -133,7 +133,7 @@ defmodule Otel.TestSupport do
       [
         Otel.Trace.SpanExporter,
         Otel.Logs.LogRecordExporter,
-        Otel.Metrics.MetricReader.PeriodicExporting,
+        Otel.Metrics.MetricExporter,
         Otel.Trace.SpanStorage,
         Otel.Logs.LogRecordStorage,
         Otel.Metrics.InstrumentsStorage,
@@ -210,26 +210,21 @@ defmodule Otel.TestSupport do
   defp start_metrics_reader(overrides) do
     case Keyword.get(overrides, :readers) do
       nil ->
-        start_orphan!(Otel.Metrics.MetricReader.PeriodicExporting, %{})
+        start_orphan!(Otel.Metrics.MetricExporter, [])
 
       [] ->
-        # No reader is running — tests that just inspect
-        # `MetricReader.collect/1` directly do so by passing the
-        # config they want; the hardcoded `reader_id` in
-        # `Otel.Metrics.meter_config/0` matches whatever stream
-        # they registered.
+        # No exporter is running — tests that just inspect
+        # `Otel.Metrics.MetricExporter.collect/1` directly do so
+        # by passing the config they want; the hardcoded
+        # `reader_id` in `Otel.Metrics.meter_config/0` matches
+        # whatever stream they registered.
         :ok
 
       [{module, config}] ->
-        # Reader's init expects meter_config — supply it from
-        # `Otel.Metrics.meter_config/0` (computed inline).
-        config =
-          Map.put_new(config, :meter_config, Otel.Metrics.meter_config())
-
-        start_orphan_named!(module, config, Otel.Metrics.MetricReader.PeriodicExporting)
+        start_orphan_named!(module, config, Otel.Metrics.MetricExporter)
 
       _ ->
-        raise ArgumentError, "minikube only supports a single MetricReader"
+        raise ArgumentError, "minikube only supports a single MetricExporter"
     end
 
     :ok

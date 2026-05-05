@@ -30,7 +30,7 @@ defmodule Otel.Metrics.Aggregation.Base2ExponentialBucketHistogram do
   `aggregate/4` is read-modify-write under the same key.
   Concurrent `aggregate/4` calls on the same attribute cell
   may lose updates; the design assumes write-serialised
-  use through `Otel.Metrics.MetricReader.collect/1` and
+  use through `Otel.Metrics.MetricExporter.collect/1` and
   the single-writer instrument facade. This trade-off
   matches Java OTel SDK's synchronized-block approach
   ported to ETS.
