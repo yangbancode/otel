@@ -124,12 +124,6 @@ mix test --only e2e test/e2e/
 |---|---|---|---|---|
 | `[x]` | 4 | `RELEASE_NAME` / `RELEASE_VSN` env vars | `RELEASE_NAME=my_app RELEASE_VSN=1.0.0 ...` | Tempo: derived `service.name` flows to all signals |
 
-## Global SDK control
-
-| Done | # | Scenario | API | Backend assertion |
-|---|---|---|---|---|
-| `[x]` | 2 | `Application.stop(:otel)` drains pending spans | emit a span, then `Application.stop(:otel)` | Tempo: span lands (terminate/2 flush) |
-
 ## Cross-signal / Resource
 
 | Done | # | Scenario | Backend assertion |
@@ -168,7 +162,6 @@ pass without touching `Application.put_env`).
 | C-3c | `metrics_exemplars_test.exs` | ~3 (rows 27–29) |
 | C-4 | `propagator_test.exs` | 5 |
 | C-5 | `resource_test.exs` | 4 |
-| C-6 | `shutdown_test.exs` | 1 |
 | C-7 | `cross_signal_test.exs` | 4 |
 | C-8 | `concurrency_test.exs` | 4 |
 

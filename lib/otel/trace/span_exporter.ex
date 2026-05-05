@@ -11,7 +11,11 @@ defmodule Otel.Trace.SpanExporter do
   |---|---|
   | `:loop` self-message every `@scheduled_delay_ms` | take one batch (`@max_export_batch_size`) of `:completed` spans, encode, POST |
   | `force_flush/1` | drain *all* completed spans synchronously |
-  | `terminate/2` (Application stop) | drain remaining spans before exit |
+
+  No automatic drain on `Application.stop(:otel)` — the GenServer
+  does not trap exits, so `terminate/2` is not invoked. Callers
+  that need a clean shutdown must call `force_flush/1` before
+  stopping the application.
 
   ## OTLP HTTP transport
 
@@ -96,13 +100,6 @@ defmodule Otel.Trace.SpanExporter do
   def handle_call(:force_flush, _from, state) do
     export()
     {:reply, :ok, state}
-  end
-
-  @impl true
-  @spec terminate(reason :: term(), state :: map()) :: :ok
-  def terminate(_reason, _state) do
-    export()
-    :ok
   end
 
   # --- Private ---
