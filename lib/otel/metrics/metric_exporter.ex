@@ -65,7 +65,9 @@ defmodule Otel.Metrics.MetricExporter do
     |> Keyword.put_new(:url, @default_url)
     |> Keyword.put_new(:retry, &retry?/2)
     |> Keyword.put(:body, Otel.OTLP.Encoder.encode_metrics(metrics))
-    |> with_required_headers()
+    |> Req.new()
+    |> Req.Request.put_new_header("content-type", "application/x-protobuf")
+    |> Req.Request.put_new_header("user-agent", "Otel/#{Application.spec(:otel, :vsn)}")
     |> Req.post()
     |> handle_response()
   end
@@ -77,23 +79,6 @@ defmodule Otel.Metrics.MetricExporter do
   def shutdown(_state), do: :ok
 
   # --- Private ---
-
-  defp with_required_headers(opts) do
-    required = %{
-      "content-type" => "application/x-protobuf",
-      "user-agent" => "Otel/#{Application.spec(:otel, :vsn)}"
-    }
-
-    Keyword.update(opts, :headers, required, fn user_headers ->
-      Map.merge(required, normalize_headers(user_headers))
-    end)
-  end
-
-  defp normalize_headers(headers) when is_map(headers),
-    do: Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
-
-  defp normalize_headers(headers) when is_list(headers),
-    do: Map.new(headers, fn {k, v} -> {to_string(k), to_string(v)} end)
 
   defp handle_response({:ok, %Req.Response{status: status}}) when status in 200..299, do: :ok
 
