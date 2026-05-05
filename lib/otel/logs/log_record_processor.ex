@@ -154,12 +154,13 @@ defmodule Otel.Logs.LogRecordProcessor do
 
   @typedoc """
   `start_link/1` configuration map. `:exporter` is optional and
-  defaults to the OTLP/HTTP `Otel.Logs.LogRecordExporter` with
-  the user's `config :otel, exporter: %{...}` map when absent —
-  tests that need a substitute exporter override it. The four
-  batch knobs (`max_queue_size`, `scheduled_delay_ms`,
-  `export_timeout_ms`, `max_export_batch_size`) are hardcoded
-  module attributes per minikube-style scope.
+  defaults to the OTLP/HTTP `Otel.Logs.LogRecordExporter` built
+  from the user's flat `config :otel, endpoint: ..., headers:
+  ..., ssl: ...` keys when absent — tests that need a
+  substitute exporter override it. The four batch knobs
+  (`max_queue_size`, `scheduled_delay_ms`, `export_timeout_ms`,
+  `max_export_batch_size`) are hardcoded module attributes per
+  minikube-style scope.
   """
   @type start_link_config :: %{
           optional(:exporter) => {module(), term()}
@@ -254,13 +255,13 @@ defmodule Otel.Logs.LogRecordProcessor do
   @spec init(config :: start_link_config()) :: {:ok, :idle, State.t()}
   def init(config) do
     # `Otel.Application` supervises this child with `[]` config —
-    # exporter comes from the user's `config :otel, exporter: %{...}`
-    # key here. Tests that want a custom exporter override via the
-    # args.
+    # the default OTLP/HTTP exporter reads `:req_options` from
+    # `Application.get_env/2` on every export, so its `init/1`
+    # takes no config. Tests that want a substitute exporter
+    # override via the args.
     Process.flag(:trap_exit, true)
 
-    exporter =
-      Map.get(config, :exporter, {Otel.Logs.LogRecordExporter, exporter_app_env()})
+    exporter = Map.get(config, :exporter, {Otel.Logs.LogRecordExporter, %{}})
 
     state = %State{exporter: init_exporter(exporter)}
 
@@ -268,11 +269,7 @@ defmodule Otel.Logs.LogRecordProcessor do
     {:ok, :idle, state}
   end
 
-  @spec exporter_app_env() :: map()
-  defp exporter_app_env, do: Application.get_env(:otel, :exporter, %{})
-
-  # Runs the exporter's own `init/1` so OTLP HTTP can populate
-  # compression / SSL defaults; `:ignore` demotes to `nil`.
+  # Runs the exporter's own `init/1`; `:ignore` demotes to `nil`.
   @spec init_exporter({module(), term()} | nil) :: {module(), term()} | nil
   defp init_exporter(nil), do: nil
 

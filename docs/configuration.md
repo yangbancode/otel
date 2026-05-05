@@ -10,20 +10,30 @@ The SDK reads only Application env. Sources, highest priority first:
 
 ## User-facing keys
 
-One top-level key covers most users. Resource attributes
-(`service.name`, `service.version`) come from Mix release env
-vars at runtime — no config needed.
+Resource attributes (`service.name`, `service.version`) come
+from Mix release env vars at runtime — no config needed.
+
+A single `:req_options` keyword list configures all three
+OTLP/HTTP exporters (trace, metrics, logs). It is forwarded to
+[`Req.new/1`](https://hexdocs.pm/req/Req.html#new/1) directly:
 
 ```elixir
 import Config
 
 config :otel,
-  exporter: %{endpoint: "http://localhost:4318"}
+  req_options: [base_url: "http://localhost:4318"]
 ```
 
-| Key | Type | Default |
-|---|---|---|
-| `:exporter` | `%{endpoint, headers, ssl_options, ...}` | `%{}` (uses exporter defaults) |
+Common keys (any other `Req.new/1` option also works):
+
+| Key | Notes |
+|---|---|
+| `:base_url` | Collector host. The SDK appends `/v1/traces`, `/v1/logs`, `/v1/metrics` per signal. Defaults to `http://localhost:4318` if omitted. |
+| `:headers` | Map of additional headers (e.g. tenant IDs). |
+| `:auth` | `{:basic, "user:pass"}`, `{:bearer, "token"}`, etc. |
+| `:connect_options` | TLS via `transport_opts` — see "TLS" below. |
+| `:receive_timeout` | Per-attempt response timeout in ms. |
+| `:retry`, `:max_retries` | Override the SDK's OTLP retry predicate (see "Retry"). |
 
 ## Resource attributes
 
@@ -50,21 +60,52 @@ See `Otel.Resource` for the full attribute set. Custom resource
 attributes and Schema URL are not supported — power users wanting
 either should use [`opentelemetry-erlang`](https://github.com/open-telemetry/opentelemetry-erlang).
 
-## Exporter
+## Example — Grafana Cloud (OTLP gateway)
 
-The `:exporter` map is forwarded verbatim to all three OTLP/HTTP
-exporters (trace, metrics, logs). Common keys:
+Grafana Cloud accepts traces, metrics, and logs at a single
+OTLP gateway endpoint with HTTP Basic auth (instance ID +
+API token). Use Req's `:auth` shorthand:
 
-| Exporter key | Default | Notes |
-|---|---|---|
-| `:endpoint` | `http://localhost:4318` | `/v1/traces`, `/v1/metrics`, `/v1/logs` are appended per signal |
-| `:headers` | `%{}` | `%{header_name => value}` — use for SaaS auth tokens |
-| `:ssl_options` | system CAs for HTTPS | Erlang `:ssl` client options |
+```elixir
+# config/runtime.exs
+import Config
 
-`:compression` and `:timeout` are also accepted by the exporter
-modules but rarely need adjustment. Retry behavior is hardcoded to
-the Java OTLP defaults (5 attempts, 1s → 5s exponential backoff,
-±20% jitter) and is not user-tunable.
+config :otel,
+  req_options: [
+    base_url: "https://otlp-gateway-prod-us-central-0.grafana.net/otlp",
+    auth:
+      {:basic,
+       "#{System.get_env("GRAFANA_INSTANCE_ID")}:#{System.get_env("GRAFANA_API_TOKEN")}"}
+  ]
+```
+
+Public CA — no extra TLS config needed.
+
+## Example — Self-hosted Grafana Stack
+
+Plain HTTP to a local OpenTelemetry Collector (the collector
+forwards to Tempo / Mimir / Loki and handles TLS termination
+externally):
+
+```elixir
+config :otel,
+  req_options: [base_url: "http://otel-collector:4318"]
+```
+
+Internal CA over HTTPS:
+
+```elixir
+config :otel,
+  req_options: [
+    base_url: "https://tempo.internal.corp:4318",
+    connect_options: [
+      transport_opts: [
+        verify: :verify_peer,
+        cacertfile: "/etc/ssl/certs/internal-ca.pem"
+      ]
+    ]
+  ]
+```
 
 ## Bridging OS environment variables (Phoenix pattern)
 
@@ -77,9 +118,10 @@ Phoenix's `PHX_SERVER`:
 import Config
 
 config :otel,
-  exporter: %{
-    endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
-  }
+  req_options: [
+    base_url:
+      System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") || "http://localhost:4318"
+  ]
 ```
 
 `OTEL_SERVICE_NAME` and `OTEL_RESOURCE_ATTRIBUTES` are not
@@ -136,7 +178,7 @@ Span limits are hardcoded to spec defaults (all `128`,
 
 ## Metrics pillar
 
-Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Metrics.MetricExporter`).
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.Metrics.MetricExporter`).
 
 PeriodicExporting reader interval / timeout are hardcoded to
 spec defaults (`metrics/sdk.md` L1450-L1453:
@@ -149,7 +191,7 @@ SHOULD be `TraceBased`"*).
 
 ## Logs pillar
 
-Exporter is hardcoded to **OTLP/HTTP** (`Otel.OTLP.Logs.LogRecordExporter`).
+Exporter is hardcoded to **OTLP/HTTP** (`Otel.Logs.LogRecordExporter`).
 
 LogRecord batch processor knobs (same shape as the trace
 pillar, with `scheduled_delay_ms` defaulting to `1000`) are
@@ -171,27 +213,29 @@ Other spec-listed propagators (`:b3`, `:b3multi`, `:jaeger`,
 `:xray`, `:ottrace`) are not supported in this SDK; users
 needing them should use `opentelemetry-erlang`.
 
-## OTLP HTTP — SSL / TLS
+## TLS
 
-The OTLP HTTP exporter uses Erlang's `:httpc`. For `https://` endpoints,
-certificate verification is enabled by default using system CA
-certificates (`:public_key.cacerts_get/0`).
+For `https://` endpoints, certificate verification uses the
+OS trust store (`:public_key.cacerts_get/0`) by default — no
+config required for SaaS backends with public CAs.
 
-To override the defaults — custom CA bundle, mutual TLS, etc. — pass
-options through the top-level `:exporter` map:
+To override (custom CA bundle, mutual TLS, etc.) pass through
+Req's `:connect_options`:
 
 ```elixir
 config :otel,
-  exporter: %{
-    endpoint: "https://collector.example.com:4318",
-    ssl_options: [
-      verify: :verify_peer,
-      cacertfile: "/etc/ssl/certs/ca.crt"
+  req_options: [
+    base_url: "https://collector.example.com:4318",
+    connect_options: [
+      transport_opts: [
+        verify: :verify_peer,
+        cacertfile: "/path/to/ca.crt"
+      ]
     ]
-  }
+  ]
 ```
 
-`ssl_options:` accepts any
+`transport_opts` accepts any
 [Erlang `:ssl` client_option](https://www.erlang.org/doc/apps/ssl/ssl.html#client_option).
 Common patterns:
 
@@ -201,6 +245,24 @@ Common patterns:
 | Mutual TLS | add `certfile: "client.crt", keyfile: "client.key"` |
 | Disable verification (dev only) | `verify: :verify_none` |
 
+## Retry
+
+The SDK applies an OTLP-spec retry predicate by default:
+
+- `429`, `502`, `503`, `504` and network errors are retried
+- Other 4xx / 5xx responses are non-retryable
+- Server-supplied `Retry-After` headers are honored automatically
+
+Defaults: `max_retries: 4` (5 attempts including the first).
+Both `:retry` and `:max_retries` can be overridden via
+`:req_options` — for example, to disable retry entirely in
+tests:
+
+```elixir
+config :otel,
+  req_options: [base_url: "http://localhost:4318", retry: false]
+```
+
 ## What's *not* user-configurable
 
 By design (minikube-style), there is no knob for:
@@ -209,7 +271,6 @@ By design (minikube-style), there is no knob for:
 - MetricReader (always PeriodicExporting, 60s interval / 30s timeout)
 - SpanLimits / LogRecordLimits (spec defaults)
 - Exemplar filter (always `:trace_based`)
-- Retry behavior (Java OTLP defaults)
 - Custom resource attributes (only `RELEASE_*`-derived `service.*` and SDK identity attributes are emitted)
 - Resource Schema URL
 

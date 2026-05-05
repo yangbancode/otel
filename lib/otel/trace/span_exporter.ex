@@ -13,31 +13,53 @@ defmodule Otel.Trace.SpanExporter do
   | `force_flush/1` | drain *all* completed spans synchronously |
   | `terminate/2` (Application stop) | drain remaining spans before exit |
 
-  ## OTLP transport
+  ## OTLP HTTP transport
 
-  HTTP POST via `:httpc` to the configured collector endpoint.
-  Endpoint resolved from `Application.get_env(:otel, :exporter)[:endpoint]`
-  on every export — no init-time caching, so test-time reconfiguration
-  takes effect immediately.
+  POSTs OTLP/protobuf via [`Req`](https://hex.pm/packages/req).
+  User config is read from
+  `Application.get_env(:otel, :req_options, [])` on every export
+  and forwarded to `Req.post/1` — anything Req accepts (TLS,
+  auth, timeouts, retry overrides, mock plugs) works.
+
+  The SDK only forces `:body` (the encoded protobuf). Defaults
+  via `Keyword.put_new`:
+
+  - `:base_url` → `http://localhost:4318` if absent
+  - `:url` → `/v1/traces` if absent
+  - `:retry` → predicate matching the OTLP-spec retryable
+    response codes (`opentelemetry-proto/docs/specification.md`
+    L564-575: 429 / 502 / 503 / 504 SHOULD be retried, all
+    other 4xx / 5xx MUST NOT) plus network-level exceptions.
+    Backoff strategy (exponential + jitter) and `Retry-After`
+    honoring come from Req's default `:retry_delay`, which
+    satisfies the spec MUST in
+    `opentelemetry-specification/specification/protocol/exporter.md`
+    L182-202.
+  - `content-type: application/x-protobuf` and `user-agent`
+    headers merged into the user's `:headers`
+
+  `:max_retries` is left to Req's default (3 retries = 4
+  attempts) — the OTLP spec mandates the *strategy* but not a
+  specific attempt count.
 
   ## References
 
   - OTel Trace SDK §Batching processor: `opentelemetry-specification/specification/trace/sdk.md` L1086-L1118
   - OTel Trace SDK §SpanExporter: `opentelemetry-specification/specification/trace/sdk.md` L1119-L1207
+  - OTLP retryable response codes: `opentelemetry-proto/docs/specification.md` L565-L573
   """
 
   use GenServer
-
-  require Logger
 
   # OTel spec `trace/sdk.md` L1109-L1118 defaults.
   @scheduled_delay_ms 5_000
   @max_export_batch_size 512
   @export_timeout_ms 30_000
 
-  @default_endpoint "http://localhost:4318"
-  @traces_path "/v1/traces"
-  @default_timeout 10_000
+  @default_base_url "http://localhost:4318"
+  @default_url "/v1/traces"
+  @content_type "application/x-protobuf"
+  @user_agent "#{Mix.Project.config()[:app]}/#{Mix.Project.config()[:version]}"
 
   # --- Public API ---
 
@@ -46,138 +68,101 @@ defmodule Otel.Trace.SpanExporter do
     GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
-  @spec force_flush(timeout :: timeout()) :: :ok | {:error, term()}
+  @spec force_flush(timeout :: timeout()) :: :ok
   def force_flush(timeout \\ @export_timeout_ms) do
     GenServer.call(__MODULE__, :force_flush, timeout)
-  catch
-    :exit, {:noproc, _} -> {:error, :already_shutdown}
-    :exit, {:timeout, _} -> {:error, :timeout}
   end
 
   # --- GenServer ---
 
   @impl true
+  @spec init(opts :: term()) :: {:ok, map()}
   def init(_opts) do
-    Process.flag(:trap_exit, true)
     loop()
     {:ok, %{}}
   end
 
   @impl true
+  @spec handle_info(message :: :loop, state :: map()) :: {:noreply, map()}
   def handle_info(:loop, state) do
-    drain_one_batch()
+    do_export()
     loop()
     {:noreply, state}
   end
 
   @impl true
+  @spec handle_call(:force_flush, from :: GenServer.from(), state :: map()) ::
+          {:reply, :ok, map()}
   def handle_call(:force_flush, _from, state) do
-    drain_all()
+    export()
     {:reply, :ok, state}
   end
 
-  # Application stop / supervisor shutdown — drain remaining
-  # completed spans before exit. Wrapped in try/catch so exporter
-  # failure doesn't crash the supervisor (lifecycle hook exempt
-  # from happy-path rule).
   @impl true
+  @spec terminate(reason :: term(), state :: map()) :: :ok
   def terminate(_reason, _state) do
-    try do
-      drain_all()
-    catch
-      _kind, _reason -> :ok
-    end
-
+    export()
     :ok
   end
 
   # --- Private ---
 
-  defp drain_one_batch do
-    case Otel.Trace.SpanStorage.take_completed(@max_export_batch_size) do
-      [] -> :ok
-      batch -> do_export(batch)
+  # Drain the storage until empty — one batch at a time so each
+  # export stays under `@max_export_batch_size`.
+  @spec export() :: :ok
+  defp export do
+    case do_export() do
+      :ok -> :ok
+      _ -> export()
     end
   end
 
-  defp drain_all do
+  # Take one batch (≤ `@max_export_batch_size`) and POST it.
+  # Returns `:ok` when storage was empty, or Req's
+  # `{:ok, %Req.Response{}} | {:error, Exception.t()}` when an
+  # export ran.
+  @spec do_export() :: :ok | {:ok, Req.Response.t()} | {:error, Exception.t()}
+  defp do_export do
     case Otel.Trace.SpanStorage.take_completed(@max_export_batch_size) do
       [] ->
         :ok
 
       batch ->
-        do_export(batch)
-        drain_all()
+        Req.new(
+          method: :post,
+          base_url: @default_base_url,
+          url: @default_url,
+          retry: &retry?/2
+        )
+        |> Req.merge(Application.get_env(:otel, :req_options, []))
+        |> Req.merge(body: Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build()))
+        |> Req.Request.put_new_header("content-type", @content_type)
+        |> Req.Request.put_new_header("user-agent", @user_agent)
+        |> Req.request()
     end
   end
 
-  defp do_export(batch) do
-    body = Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build())
-
-    config = Application.get_env(:otel, :exporter, %{})
-    body = maybe_compress(body, Map.get(config, :compression, :none))
-
-    endpoint = resolve_endpoint(config)
-    headers = resolve_headers(config, body)
-    http_options = build_http_options(config, endpoint)
-
-    Otel.OTLP.HTTP.Retry.request(
-      {String.to_charlist(endpoint), headers, ~c"application/x-protobuf", body},
-      http_options,
-      []
-    )
-  end
-
+  @spec loop() :: reference()
   defp loop, do: Process.send_after(self(), :loop, @scheduled_delay_ms)
 
-  # --- HTTP config (per-call lookup, no init caching) ---
+  # OTLP retry predicate — `opentelemetry-proto/docs/specification.md`
+  # §"Retryable Response Codes" L564-575: only the four listed
+  # codes SHOULD be retried; "All other 4xx or 5xx ... MUST NOT
+  # be retried". Hence the explicit `false` for any other
+  # `%Req.Response{}` — Req's built-in `:transient` preset
+  # retries 408 / 500 too and would violate that MUST NOT.
+  #
+  # Network / protocol failures arrive here as Exception structs
+  # (Req.TransportError, Req.HTTPError, etc.) — retry on any.
+  @spec retry?(
+          request :: Req.Request.t(),
+          response_or_exception :: Req.Response.t() | Exception.t()
+        ) :: boolean()
+  defp retry?(_request, %Req.Response{status: status})
+       when status in [429, 502, 503, 504],
+       do: true
 
-  defp resolve_endpoint(config) do
-    base = Map.get(config, :endpoint, @default_endpoint)
-    String.trim_trailing(base, "/") <> @traces_path
-  end
+  defp retry?(_request, %Req.Response{}), do: false
 
-  defp resolve_headers(config, _body) do
-    user_headers =
-      config
-      |> Map.get(:headers, %{})
-      |> Enum.map(fn {k, v} -> {String.to_charlist(k), String.to_charlist(v)} end)
-
-    [{~c"user-agent", String.to_charlist(user_agent())} | user_headers]
-  end
-
-  defp user_agent, do: "Otel/#{Application.spec(:otel, :vsn)}"
-
-  defp build_http_options(config, endpoint) do
-    timeout = Map.get(config, :timeout, @default_timeout)
-    ssl_options = build_ssl_options(endpoint, config)
-    opts = [{:timeout, timeout}]
-    if ssl_options != [], do: [{:ssl, ssl_options} | opts], else: opts
-  end
-
-  defp build_ssl_options(endpoint, config) do
-    case Map.get(config, :ssl_options) do
-      opts when is_list(opts) ->
-        opts
-
-      _ ->
-        if String.starts_with?(endpoint, "https"),
-          do: default_ssl_options(endpoint),
-          else: []
-    end
-  end
-
-  defp default_ssl_options(endpoint) do
-    host = endpoint |> URI.parse() |> Map.get(:host, "localhost")
-
-    [
-      verify: :verify_peer,
-      cacerts: :public_key.cacerts_get(),
-      server_name_indication: String.to_charlist(host),
-      customize_hostname_check: [match_fun: :public_key.pkix_verify_hostname_match_fun(:https)]
-    ]
-  end
-
-  defp maybe_compress(body, :gzip), do: :zlib.gzip(body)
-  defp maybe_compress(body, _), do: body
+  defp retry?(_request, %{__exception__: true}), do: true
 end

@@ -49,8 +49,7 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
         Otel.Metrics.meter_config()
       end)
 
-    exporter =
-      Map.get(config, :exporter, {Otel.Metrics.MetricExporter, exporter_app_env()})
+    exporter = Map.get(config, :exporter, {Otel.Metrics.MetricExporter, %{}})
 
     interval = Map.get(config, :export_interval_ms, @default_export_interval_ms)
     timer_ref = schedule_collect(interval)
@@ -65,11 +64,7 @@ defmodule Otel.Metrics.MetricReader.PeriodicExporting do
     {:ok, state}
   end
 
-  @spec exporter_app_env() :: map()
-  defp exporter_app_env, do: Application.get_env(:otel, :exporter, %{})
-
-  # Runs the exporter's own `init/1` so OTLP HTTP can populate
-  # compression / SSL defaults; `:ignore` demotes to `nil`.
+  # Runs the exporter's own `init/1`; `:ignore` demotes to `nil`.
   @spec init_exporter({module(), term()} | nil) :: {module(), term()} | nil
   defp init_exporter(nil), do: nil
 
