@@ -183,13 +183,27 @@ defmodule Otel.Metrics.Instrument do
           scope: Otel.InstrumentationScope.t()
         }
 
-  defstruct config: %{},
-            name: "",
-            kind: :counter,
-            unit: "",
-            description: "",
-            advisory: [],
-            scope: Otel.InstrumentationScope.new()
+  defstruct [:config, :name, :kind, :unit, :description, :advisory, :scope]
+
+  @doc """
+  **SDK** — Construct an Instrument. The `:kind` field is required;
+  `:scope` defaults to the SDK identity, the rest fall back to
+  proto3 zero values.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      config: %{},
+      name: "",
+      kind: :counter,
+      unit: "",
+      description: "",
+      advisory: [],
+      scope: Otel.InstrumentationScope.new()
+    }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
+  end
 
   @doc """
   **SDK** (SDK helper) — case-insensitive comparison key.

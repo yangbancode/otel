@@ -10,14 +10,10 @@ defmodule Otel.Trace.Link do
   Per spec L815-L821 the API accepts the linked `SpanContext` and
   optional `Attributes` either as individual parameters or as an
   **immutable object encapsulating them** — this struct is that
-  immutable object. Construct with a struct literal:
+  immutable object. Construct via `Otel.Trace.Link.new/1`:
 
-      %Otel.Trace.Link{context: span_ctx}
-      %Otel.Trace.Link{context: span_ctx, attributes: %{"key" => "val"}}
-
-  No dedicated constructor is provided; there is no construction-
-  time normalisation or opaque boundary that would require one
-  (same rationale as `Otel.InstrumentationScope`).
+      Otel.Trace.Link.new(%{context: span_ctx})
+      Otel.Trace.Link.new(%{context: span_ctx, attributes: %{"key" => "val"}})
 
   Per spec L853 Links are immutable; an Elixir struct satisfies
   that naturally. All functions on this module are safe for
@@ -72,7 +68,21 @@ defmodule Otel.Trace.Link do
           dropped_attributes_count: non_neg_integer()
         }
 
-  defstruct context: %Otel.Trace.SpanContext{},
-            attributes: %{},
-            dropped_attributes_count: 0
+  defstruct [:context, :attributes, :dropped_attributes_count]
+
+  @doc """
+  **Application** — Construct a Link. `:context` is required (no
+  spec-aligned default for `SpanContext`); the remaining fields
+  default to empty attributes and zero dropped count.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      context: %Otel.Trace.SpanContext{},
+      attributes: %{},
+      dropped_attributes_count: 0
+    }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
+  end
 end

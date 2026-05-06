@@ -2,17 +2,16 @@ defmodule Otel.Metrics.StreamTest do
   use ExUnit.Case, async: true
 
   defp instrument(overrides \\ %{}) do
-    Map.merge(
-      %Otel.Metrics.Instrument{
-        name: "http.request.duration",
-        kind: :histogram,
-        unit: "ms",
-        description: "Request duration",
-        advisory: [],
-        scope: Otel.InstrumentationScope.new(%{name: "my_lib"})
-      },
-      overrides
-    )
+    base = %{
+      name: "http.request.duration",
+      kind: :histogram,
+      unit: "ms",
+      description: "Request duration",
+      advisory: [],
+      scope: Otel.InstrumentationScope.new(%{name: "my_lib"})
+    }
+
+    Otel.Metrics.Instrument.new(Map.merge(base, overrides))
   end
 
   describe "from_instrument/1" do

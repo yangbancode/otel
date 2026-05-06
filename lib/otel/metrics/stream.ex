@@ -22,7 +22,7 @@ defmodule Otel.Metrics.Stream do
 
   defstruct name: "",
             description: "",
-            instrument: %Otel.Metrics.Instrument{},
+            instrument: nil,
             aggregation: nil,
             aggregation_options: %{},
             exemplar_reservoir: nil,

@@ -2,10 +2,10 @@ defmodule Otel.Logs.LogRecordLimitsTest do
   use ExUnit.Case, async: true
 
   defp record(attrs), do: Otel.Logs.LogRecord.new(%{attributes: attrs})
-  defp limits(opts \\ []), do: struct(%Otel.Logs.LogRecordLimits{}, opts)
+  defp limits(opts \\ []), do: Otel.Logs.LogRecordLimits.new(Map.new(opts))
 
-  test "default limits — attribute_count_limit 128, attribute_value_length_limit :infinity" do
-    assert %Otel.Logs.LogRecordLimits{} == %Otel.Logs.LogRecordLimits{
+  test "new/0 — attribute_count_limit 128, attribute_value_length_limit :infinity" do
+    assert Otel.Logs.LogRecordLimits.new() == %Otel.Logs.LogRecordLimits{
              attribute_count_limit: 128,
              attribute_value_length_limit: :infinity
            }

@@ -102,10 +102,11 @@ defmodule Otel.E2E.TraceTest do
 
       Otel.Trace.Span.end_span(linked_ctx)
 
-      link = %Otel.Trace.Link{
-        context: linked_ctx,
-        attributes: %{"link.kind" => "follows-from"}
-      }
+      link =
+        Otel.Trace.Link.new(%{
+          context: linked_ctx,
+          attributes: %{"link.kind" => "follows-from"}
+        })
 
       Otel.Trace.with_span(
         main_name,
@@ -240,7 +241,7 @@ defmodule Otel.E2E.TraceTest do
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
-          Otel.Trace.Span.add_link(span_ctx, %Otel.Trace.Link{context: target_ctx})
+          Otel.Trace.Span.add_link(span_ctx, Otel.Trace.Link.new(%{context: target_ctx}))
         end
       )
 
@@ -269,7 +270,7 @@ defmodule Otel.E2E.TraceTest do
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
           for ctx <- targets do
-            Otel.Trace.Span.add_link(span_ctx, %Otel.Trace.Link{context: ctx})
+            Otel.Trace.Span.add_link(span_ctx, Otel.Trace.Link.new(%{context: ctx}))
           end
         end
       )

@@ -204,7 +204,7 @@ defmodule Otel.Trace.Span do
       trace_flags: 0,
       instrumentation_scope: Otel.InstrumentationScope.new(),
       resource: Otel.Resource.new(),
-      span_limits: %Otel.Trace.SpanLimits{}
+      span_limits: Otel.Trace.SpanLimits.new()
     }
 
     struct!(__MODULE__, Map.merge(defaults, opts))
@@ -644,11 +644,11 @@ defmodule Otel.Trace.Span do
         limits.attribute_value_length_limit
       )
 
-    %Otel.Trace.Link{
+    Otel.Trace.Link.new(%{
       context: link.context,
       attributes: limited_attributes,
       dropped_attributes_count: dropped
-    }
+    })
   end
 
   @spec apply_set_status(

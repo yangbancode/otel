@@ -101,7 +101,7 @@ defmodule Otel.OTLP.EncoderTest do
 
     test "encodes links with linked context" do
       linked = Otel.Trace.SpanContext.new(100, 200, 1)
-      link_span = %{@span | links: [%Otel.Trace.Link{context: linked, attributes: %{}}]}
+      link_span = %{@span | links: [Otel.Trace.Link.new(%{context: linked})]}
 
       link = hd(first_span([link_span]).links)
       assert link.trace_id == <<100::128>>
@@ -137,10 +137,10 @@ defmodule Otel.OTLP.EncoderTest do
             }
           ],
           links: [
-            %Otel.Trace.Link{
+            Otel.Trace.Link.new(%{
               context: Otel.Trace.SpanContext.new(1, 2, 1),
               dropped_attributes_count: 4
-            }
+            })
           ]
       }
 
