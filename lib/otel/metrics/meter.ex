@@ -104,7 +104,18 @@ defmodule Otel.Metrics.Meter do
           registered.aggregation_opts
         )
 
-        offer_exemplar(registered, agg_key, value, now, %{}, ctx)
+        if Otel.Metrics.Exemplar.Filter.should_sample?(ctx) do
+          registered.aggregation_module.offer_exemplar(
+            Otel.Metrics.MetricsStorage,
+            agg_key,
+            value,
+            now,
+            %{},
+            ctx
+          )
+        end
+
+        :ok
     end
   end
 
@@ -213,61 +224,5 @@ defmodule Otel.Metrics.Meter do
       0,
       Otel.Metrics.MetricsStorage
     )
-  end
-
-  @spec offer_exemplar(
-          instrument :: Otel.Metrics.Instrument.t(),
-          agg_key :: term(),
-          value :: number(),
-          time :: non_neg_integer(),
-          filtered_attrs :: map(),
-          ctx :: Otel.Ctx.t()
-        ) :: :ok
-  defp offer_exemplar(instrument, agg_key, value, time, filtered_attrs, ctx) do
-    reservoir = get_reservoir(instrument, agg_key)
-
-    updated =
-      Otel.Metrics.Exemplar.Reservoir.offer(reservoir, value, time, filtered_attrs, ctx)
-
-    put_reservoir(agg_key, updated)
-  end
-
-  @spec get_reservoir(
-          instrument :: Otel.Metrics.Instrument.t(),
-          agg_key :: term()
-        ) :: {module(), term()}
-  defp get_reservoir(instrument, agg_key) do
-    case :ets.lookup(Otel.Metrics.ExemplarsStorage, agg_key) do
-      [{^agg_key, reservoir}] ->
-        reservoir
-
-      [] ->
-        module = instrument.exemplar_reservoir
-        {module, module.new(reservoir_opts(instrument))}
-    end
-  end
-
-  @spec put_reservoir(agg_key :: term(), reservoir :: {module(), term()}) :: :ok
-  defp put_reservoir(agg_key, reservoir) do
-    :ets.insert(Otel.Metrics.ExemplarsStorage, {agg_key, reservoir})
-    :ok
-  end
-
-  @spec reservoir_opts(instrument :: Otel.Metrics.Instrument.t()) :: map()
-  defp reservoir_opts(instrument) do
-    case instrument.aggregation_module do
-      Otel.Metrics.Aggregation.ExplicitBucketHistogram ->
-        boundaries =
-          Map.get(
-            instrument.aggregation_opts,
-            :boundaries,
-            Otel.Metrics.Aggregation.ExplicitBucketHistogram.default_boundaries()
-          )
-
-        %{boundaries: boundaries}
-
-      _ ->
-        %{size: 1}
-    end
   end
 end

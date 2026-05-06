@@ -16,7 +16,7 @@ defmodule Otel.Metrics.Aggregation.LastValueTest do
       Otel.Metrics.Aggregation.LastValue.aggregate(tab, key(), 20, %{})
       Otel.Metrics.Aggregation.LastValue.aggregate(tab, key(), 3.14, %{})
 
-      [{_key, value, _ts, _start}] = :ets.lookup(tab, key())
+      [{_key, value, _ts, _start, _reservoir}] = :ets.lookup(tab, key())
       assert_in_delta value, 3.14, 0.001
     end
 

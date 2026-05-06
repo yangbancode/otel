@@ -18,7 +18,7 @@ defmodule Otel.Metrics.Aggregation.SumTest do
       Otel.Metrics.Aggregation.Sum.aggregate(tab, key(), 1.5, %{})
       Otel.Metrics.Aggregation.Sum.aggregate(tab, key(), 2.5, %{})
 
-      [{_key, int_val, float_val, _start}] = :ets.lookup(tab, key())
+      [{_key, int_val, float_val, _start, _reservoir}] = :ets.lookup(tab, key())
       assert int_val == 10
       assert_in_delta float_val, 4.0, 0.001
     end
