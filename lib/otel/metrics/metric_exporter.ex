@@ -176,10 +176,13 @@ defmodule Otel.Metrics.MetricExporter do
           [Otel.Metrics.Metric.t()]
   defp collect_instrument(config, instrument) do
     stream_key = {instrument.name, instrument.scope}
-    collect_opts = Map.put(instrument.aggregation_opts, :temporality, :cumulative)
 
     datapoints =
-      instrument.aggregation_module.collect(config.metrics_tab, stream_key, collect_opts)
+      instrument.aggregation_module.collect(
+        config.metrics_tab,
+        stream_key,
+        instrument.aggregation_opts
+      )
 
     case datapoints do
       [] ->
