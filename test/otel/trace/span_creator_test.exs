@@ -11,7 +11,7 @@ defmodule Otel.Trace.SpanCreatorTest do
     Otel.Trace.Span.start_span(
       ctx,
       name,
-      Keyword.get(opts, :limits, %Otel.Trace.SpanLimits{}),
+      Keyword.get(opts, :limits, Otel.Trace.SpanLimits.new()),
       Keyword.delete(opts, :limits)
     )
   end
@@ -117,7 +117,7 @@ defmodule Otel.Trace.SpanCreatorTest do
 
   describe "span limits" do
     test "attribute_count_limit drops excess; reports dropped_attributes_count" do
-      limits = %Otel.Trace.SpanLimits{attribute_count_limit: 2}
+      limits = Otel.Trace.SpanLimits.new(%{attribute_count_limit: 2})
 
       {_, span} =
         start(Otel.Ctx.new(), "span",
@@ -130,10 +130,10 @@ defmodule Otel.Trace.SpanCreatorTest do
     end
 
     test "attribute_value_length_limit truncates strings; :infinity skips; non-strings unchanged" do
-      strict = %Otel.Trace.SpanLimits{attribute_value_length_limit: 5}
-      infinite = %Otel.Trace.SpanLimits{attribute_value_length_limit: :infinity}
-      arr_limit = %Otel.Trace.SpanLimits{attribute_value_length_limit: 3}
-      tight = %Otel.Trace.SpanLimits{attribute_value_length_limit: 1}
+      strict = Otel.Trace.SpanLimits.new(%{attribute_value_length_limit: 5})
+      infinite = Otel.Trace.SpanLimits.new(%{attribute_value_length_limit: :infinity})
+      arr_limit = Otel.Trace.SpanLimits.new(%{attribute_value_length_limit: 3})
+      tight = Otel.Trace.SpanLimits.new(%{attribute_value_length_limit: 1})
 
       {_, sized} =
         start(Otel.Ctx.new(), "n",
@@ -164,7 +164,7 @@ defmodule Otel.Trace.SpanCreatorTest do
     end
 
     test "value-length limit recurses into nested AnyValue maps and tagged :bytes" do
-      limits = %Otel.Trace.SpanLimits{attribute_value_length_limit: 5}
+      limits = Otel.Trace.SpanLimits.new(%{attribute_value_length_limit: 5})
 
       {_, span} =
         start(Otel.Ctx.new(), "n",
@@ -185,14 +185,14 @@ defmodule Otel.Trace.SpanCreatorTest do
 
     test "link_count_limit + attribute_per_link_limit + per-link value-length truncation" do
       links = [
-        %Otel.Trace.Link{context: Otel.Trace.SpanContext.new(1, 1)},
-        %Otel.Trace.Link{context: Otel.Trace.SpanContext.new(2, 2)},
-        %Otel.Trace.Link{context: Otel.Trace.SpanContext.new(3, 3)}
+        Otel.Trace.Link.new(%{context: Otel.Trace.SpanContext.new(1, 1)}),
+        Otel.Trace.Link.new(%{context: Otel.Trace.SpanContext.new(2, 2)}),
+        Otel.Trace.Link.new(%{context: Otel.Trace.SpanContext.new(3, 3)})
       ]
 
       {_, capped} =
         start(Otel.Ctx.new(), "n",
-          limits: %Otel.Trace.SpanLimits{link_count_limit: 1},
+          limits: Otel.Trace.SpanLimits.new(%{link_count_limit: 1}),
           links: links
         )
 
@@ -201,18 +201,19 @@ defmodule Otel.Trace.SpanCreatorTest do
       assert %Otel.Trace.Link{} = hd(capped.links)
 
       links_with_attrs = [
-        %Otel.Trace.Link{
+        Otel.Trace.Link.new(%{
           context: Otel.Trace.SpanContext.new(1, 1),
           attributes: %{"a" => 1, "b" => 2, "c" => 3, "key" => "hello world"}
-        }
+        })
       ]
 
       {_, attr_capped} =
         start(Otel.Ctx.new(), "n",
-          limits: %Otel.Trace.SpanLimits{
-            attribute_per_link_limit: 2,
-            attribute_value_length_limit: 3
-          },
+          limits:
+            Otel.Trace.SpanLimits.new(%{
+              attribute_per_link_limit: 2,
+              attribute_value_length_limit: 3
+            }),
           links: links_with_attrs
         )
 

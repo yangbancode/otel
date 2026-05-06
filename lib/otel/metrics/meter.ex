@@ -137,15 +137,16 @@ defmodule Otel.Metrics.Meter do
     description = Keyword.get(opts, :description, "") || ""
     advisory = Keyword.get(opts, :advisory, [])
 
-    instrument = %Otel.Metrics.Instrument{
-      config: config,
-      name: name,
-      kind: kind,
-      unit: unit,
-      description: description,
-      advisory: advisory,
-      scope: config.scope
-    }
+    instrument =
+      Otel.Metrics.Instrument.new(%{
+        config: config,
+        name: name,
+        kind: kind,
+        unit: unit,
+        description: description,
+        advisory: advisory,
+        scope: config.scope
+      })
 
     key = {config.scope, Otel.Metrics.Instrument.downcased_name(name)}
 

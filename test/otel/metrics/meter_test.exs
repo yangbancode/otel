@@ -180,12 +180,13 @@ defmodule Otel.Metrics.MeterTest do
     test "record on an unregistered instrument is a no-op (returns :ok)" do
       cfg = config()
 
-      ghost = %Otel.Metrics.Instrument{
-        config: cfg,
-        name: "ghost",
-        kind: :counter,
-        scope: cfg.scope
-      }
+      ghost =
+        Otel.Metrics.Instrument.new(%{
+          config: cfg,
+          name: "ghost",
+          kind: :counter,
+          scope: cfg.scope
+        })
 
       assert :ok == Otel.Metrics.Meter.record(ghost, 1, %{})
     end

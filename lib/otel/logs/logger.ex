@@ -64,7 +64,7 @@ defmodule Otel.Logs.Logger do
 
   require Logger
 
-  @log_record_limits %Otel.Logs.LogRecordLimits{}
+  @log_record_limits Otel.Logs.LogRecordLimits.new()
 
   @doc """
   Emit a LogRecord (`logs/api.md` L111-L131) with an explicit

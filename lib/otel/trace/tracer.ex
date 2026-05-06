@@ -31,7 +31,7 @@ defmodule Otel.Trace.Tracer do
   - OTel Trace API §Tracer: `opentelemetry-specification/specification/trace/api.md` L160-L416
   """
 
-  @span_limits %Otel.Trace.SpanLimits{}
+  @span_limits Otel.Trace.SpanLimits.new()
 
   @doc """
   OTel API MUST — Span Creation (`trace/api.md` §Span Creation

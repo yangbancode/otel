@@ -6,18 +6,20 @@ defmodule Otel.Trace.LinkTest do
               0xFF00000000000001
             )
 
-  test "default struct has invalid SpanContext and empty attributes" do
-    assert %Otel.Trace.Link{} ==
-             %Otel.Trace.Link{context: %Otel.Trace.SpanContext{}, attributes: %{}}
+  test "new/0 builds a Link with invalid SpanContext and empty attributes" do
+    link = Otel.Trace.Link.new()
+    assert link.context == %Otel.Trace.SpanContext{}
+    assert link.attributes == %{}
+    assert link.dropped_attributes_count == 0
   end
 
-  test "context-only literal defaults attributes to %{}" do
-    assert %Otel.Trace.Link{context: @span_ctx}.attributes == %{}
+  test "context-only opts default attributes to %{}" do
+    assert Otel.Trace.Link.new(%{context: @span_ctx}).attributes == %{}
   end
 
   test "preserves both fields when set explicitly" do
     attrs = %{"key" => "value", "count" => 42}
-    link = %Otel.Trace.Link{context: @span_ctx, attributes: attrs}
+    link = Otel.Trace.Link.new(%{context: @span_ctx, attributes: attrs})
 
     assert link.context == @span_ctx
     assert link.attributes == attrs

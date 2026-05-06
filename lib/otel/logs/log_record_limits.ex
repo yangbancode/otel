@@ -68,8 +68,21 @@ defmodule Otel.Logs.LogRecordLimits do
           attribute_value_length_limit: non_neg_integer() | :infinity
         }
 
-  defstruct attribute_count_limit: @default_attribute_count_limit,
-            attribute_value_length_limit: @default_attribute_value_length_limit
+  defstruct [:attribute_count_limit, :attribute_value_length_limit]
+
+  @doc """
+  **SDK** — Construct log-record limits. Defaults match
+  `logs/sdk.md` §LogRecord Limits.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      attribute_count_limit: @default_attribute_count_limit,
+      attribute_value_length_limit: @default_attribute_value_length_limit
+    }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
+  end
 
   @doc """
   Applies all attribute limits to a `LogRecord`.
