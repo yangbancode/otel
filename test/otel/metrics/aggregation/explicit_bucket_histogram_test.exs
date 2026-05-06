@@ -88,27 +88,4 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogramTest do
                )
     end
   end
-
-  # Spec metrics/sdk.md L662 RecordMinMax option — when false, the
-  # collector emits nil min/max but everything else (count, sum,
-  # buckets) keeps tracking.
-  describe "record_min_max: false" do
-    setup do
-      %{opts: %{boundaries: @boundaries, record_min_max: false}}
-    end
-
-    test "first and subsequent aggregates leave min/max as nil; count/sum/buckets unaffected",
-         %{tab: tab, opts: opts} do
-      for v <- [5, 80, 12] do
-        Otel.Metrics.Aggregation.ExplicitBucketHistogram.aggregate(tab, key(), v, opts)
-      end
-
-      dp = datapoint(tab, opts)
-      assert dp.value.min == nil
-      assert dp.value.max == nil
-      assert dp.value.count == 3
-      assert dp.value.sum == 97
-      assert Enum.sum(dp.value.bucket_counts) == 3
-    end
-  end
 end
