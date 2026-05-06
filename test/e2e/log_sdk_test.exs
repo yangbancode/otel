@@ -150,7 +150,8 @@ defmodule Otel.E2E.LogSdkTest do
       fields
       |> Keyword.put_new(:severity_number, 9)
       |> Keyword.put(:attributes, attrs)
-      |> then(&struct(Otel.Logs.LogRecord, &1))
+      |> Map.new()
+      |> Otel.Logs.LogRecord.new()
 
     Otel.Logs.emit(record)
     if do_flush?, do: flush()
