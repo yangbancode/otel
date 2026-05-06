@@ -56,46 +56,43 @@ defmodule Otel.Metrics.MetricExporterTest do
     end
   end
 
-  # Spec metrics/sdk.md L1374-L1389 — exemplar_filter (:always_on /
-  # :always_off / :trace_based) gates whether reservoirs collect at
-  # all; reservoirs reset between collect calls. The SDK hardcodes
-  # `:trace_based`; tests exercise the other branches by patching
-  # the filter directly onto `instrument.config` (used by `record`)
-  # and onto the collect-side config map.
+  # Spec metrics/sdk.md L1374-L1389 — exemplar filter is hardcoded
+  # to `:trace_based` (sampled-parent only). Tests inside a
+  # `with_span` (sampled root → trace_flags=1) verify exemplars
+  # land; tests outside `with_span` (no current span → flags=0)
+  # verify nothing lands.
   describe "collect/1 — exemplars" do
-    test ":always_on collects exemplars; :always_off yields []" do
+    test "trace_based filter — sampled span emits exemplars; no-span context yields []" do
       restart_sdk(metrics: [readers: []])
+      counter = Otel.Metrics.Meter.create_counter("sampled", [])
 
-      config = %{meter_config() | exemplar_filter: :always_on}
-      counter = override_filter(Otel.Metrics.Meter.create_counter("sampled", []), :always_on)
-      Otel.Metrics.Meter.record(counter, 42, %{"method" => "GET"})
+      Otel.Trace.with_span("parent", fn _ ->
+        Otel.Metrics.Meter.record(counter, 42, %{"method" => "GET"})
+      end)
 
-      [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect(config)
+      [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect(meter_config())
       assert hd(dp.exemplars).value == 42
 
       restart_sdk(metrics: [readers: []])
-      config2 = %{meter_config() | exemplar_filter: :always_off}
+      not_sampled = Otel.Metrics.Meter.create_counter("not_sampled", [])
+      Otel.Metrics.Meter.record(not_sampled, 1, %{})
 
-      counter2 =
-        override_filter(Otel.Metrics.Meter.create_counter("not_sampled", []), :always_off)
-
-      Otel.Metrics.Meter.record(counter2, 1, %{})
-
-      [%{datapoints: [dp2]}] = Otel.Metrics.MetricExporter.collect(config2)
+      [%{datapoints: [dp2]}] = Otel.Metrics.MetricExporter.collect(meter_config())
       assert dp2.exemplars == []
     end
 
     test "reservoirs reset between collect calls" do
       restart_sdk(metrics: [readers: []])
-      config = %{meter_config() | exemplar_filter: :always_on}
-      counter = override_filter(Otel.Metrics.Meter.create_counter("reset_test", []), :always_on)
+      counter = Otel.Metrics.Meter.create_counter("reset_test", [])
 
-      Otel.Metrics.Meter.record(counter, 1, %{})
-      _ = Otel.Metrics.MetricExporter.collect(config)
+      Otel.Trace.with_span("parent", fn _ ->
+        Otel.Metrics.Meter.record(counter, 1, %{})
+        _ = Otel.Metrics.MetricExporter.collect(meter_config())
 
-      Otel.Metrics.Meter.record(counter, 2, %{})
-      [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect(config)
-      assert hd(dp.exemplars).value == 2
+        Otel.Metrics.Meter.record(counter, 2, %{})
+        [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect(meter_config())
+        assert hd(dp.exemplars).value == 2
+      end)
     end
 
     test "config without :exemplars_tab — collect runs but datapoints carry no :exemplars",
@@ -147,10 +144,6 @@ defmodule Otel.Metrics.MetricExporterTest do
   end
 
   # --- Test helpers ---
-
-  defp override_filter(%Otel.Metrics.Instrument{config: config} = inst, filter) do
-    %{inst | config: %{config | exemplar_filter: filter}}
-  end
 
   defp start_server_and_configure(status_code) do
     {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])

@@ -15,7 +15,8 @@ defmodule Otel.Metrics do
   own the metrics state; they're started by
   `Otel.Application.start/2` and die with the SDK supervisor.
   Every other knob (scope, exemplar filter) is a compile-time
-  literal.
+  literal — exemplar filter is hardcoded to `:trace_based` per
+  the wire-format invariant in `Otel.Metrics.Exemplar.Filter`.
 
   ## Public API
 
@@ -45,8 +46,7 @@ defmodule Otel.Metrics do
       resource: Otel.Resource.new(),
       instruments_tab: Otel.Metrics.InstrumentsStorage,
       metrics_tab: Otel.Metrics.MetricsStorage,
-      exemplars_tab: Otel.Metrics.ExemplarsStorage,
-      exemplar_filter: :trace_based
+      exemplars_tab: Otel.Metrics.ExemplarsStorage
     }
   end
 end

@@ -261,18 +261,10 @@ defmodule Otel.Metrics.Meter do
           ctx :: Otel.Ctx.t()
         ) :: :ok
   defp offer_exemplar(config, instrument, agg_key, value, time, filtered_attrs, ctx) do
-    filter = Map.get(config, :exemplar_filter, :trace_based)
     reservoir = get_reservoir(config.exemplars_tab, instrument, agg_key)
 
     updated =
-      Otel.Metrics.Exemplar.Reservoir.offer(
-        reservoir,
-        filter,
-        value,
-        time,
-        filtered_attrs,
-        ctx
-      )
+      Otel.Metrics.Exemplar.Reservoir.offer(reservoir, value, time, filtered_attrs, ctx)
 
     put_reservoir(config.exemplars_tab, agg_key, updated)
   end
