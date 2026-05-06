@@ -10,14 +10,6 @@ defmodule Otel.Metrics.InstrumentTest do
     end
   end
 
-  test "default_temporality_mapping/0 returns :cumulative for every kind" do
-    mapping = Otel.Metrics.Instrument.default_temporality_mapping()
-
-    for kind <- [:counter, :histogram, :gauge, :updown_counter] do
-      assert Map.fetch!(mapping, kind) == :cumulative
-    end
-  end
-
   describe "monotonic?/1" do
     # Per the moduledoc Divergences note: this predicate feeds OTLP's
     # `Sum.is_monotonic`, so true iff the kind produces a monotonic

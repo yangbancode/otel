@@ -8,19 +8,15 @@ defmodule Otel.Metrics.Exemplar.FilterTest do
     )
   end
 
-  # Spec metrics/sdk.md L1377-L1379 — three filters: :always_on,
-  # :always_off, :trace_based (samples iff current span is sampled).
-
-  describe "should_sample?/2" do
-    test ":always_on / :always_off ignore the context" do
-      assert Otel.Metrics.Exemplar.Filter.should_sample?(:always_on, %{})
-      refute Otel.Metrics.Exemplar.Filter.should_sample?(:always_off, %{})
-    end
-
-    test ":trace_based returns true iff the current span has trace_flags sampled bit set" do
-      assert Otel.Metrics.Exemplar.Filter.should_sample?(:trace_based, ctx_with_flags(1))
-      refute Otel.Metrics.Exemplar.Filter.should_sample?(:trace_based, ctx_with_flags(0))
-      refute Otel.Metrics.Exemplar.Filter.should_sample?(:trace_based, %{})
+  # Spec metrics/sdk.md L1377-L1379 — minikube hardcodes
+  # `:trace_based` (samples iff the current span has the W3C
+  # sampled bit set). Same wire-format invariant as Trace's
+  # `:drop` decision.
+  describe "should_sample?/1" do
+    test "true iff current span has trace_flags sampled bit set" do
+      assert Otel.Metrics.Exemplar.Filter.should_sample?(ctx_with_flags(1))
+      refute Otel.Metrics.Exemplar.Filter.should_sample?(ctx_with_flags(0))
+      refute Otel.Metrics.Exemplar.Filter.should_sample?(%{})
     end
   end
 end

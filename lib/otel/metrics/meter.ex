@@ -81,34 +81,29 @@ defmodule Otel.Metrics.Meter do
 
   # --- Recording ---
 
-  def record(
-        %Otel.Metrics.Instrument{config: config, name: name, scope: scope},
-        value,
-        attributes
-      ) do
-    instrument_key = {scope, Otel.Metrics.Instrument.downcased_name(name)}
+  def record(%Otel.Metrics.Instrument{config: config} = instrument, value, attributes) do
+    instrument_key =
+      {instrument.scope, Otel.Metrics.Instrument.downcased_name(instrument.name)}
 
-    case :ets.lookup(config.streams_tab, instrument_key) do
+    case :ets.lookup(config.instruments_tab, instrument_key) do
       [] ->
         :ok
 
-      stream_entries ->
+      [{^instrument_key, registered}] ->
         ctx = Otel.Ctx.current()
         now = System.system_time(:nanosecond)
 
-        Enum.each(stream_entries, fn {_key, stream} ->
-          agg_key = {stream.name, stream.instrument.scope, attributes}
-          agg_key = maybe_overflow(config.metrics_tab, stream, agg_key)
+        agg_key = {registered.name, registered.scope, attributes}
+        agg_key = maybe_overflow(config.metrics_tab, registered, agg_key)
 
-          stream.aggregation.aggregate(
-            config.metrics_tab,
-            agg_key,
-            value,
-            stream.aggregation_options
-          )
+        registered.aggregation_module.aggregate(
+          config.metrics_tab,
+          agg_key,
+          value,
+          registered.aggregation_opts
+        )
 
-          offer_exemplar(config, stream, agg_key, value, now, %{}, ctx)
-        end)
+        offer_exemplar(config, registered, agg_key, value, now, %{}, ctx)
     end
   end
 
@@ -136,6 +131,7 @@ defmodule Otel.Metrics.Meter do
     unit = Keyword.get(opts, :unit, "") || ""
     description = Keyword.get(opts, :description, "") || ""
     advisory = Keyword.get(opts, :advisory, [])
+    aggregation_module = Otel.Metrics.Aggregation.default_for(kind)
 
     instrument =
       Otel.Metrics.Instrument.new(%{
@@ -145,14 +141,19 @@ defmodule Otel.Metrics.Meter do
         unit: unit,
         description: description,
         advisory: advisory,
-        scope: config.scope
+        scope: config.scope,
+        aggregation_module: aggregation_module,
+        aggregation_opts: aggregation_opts(advisory),
+        # Spec metrics/sdk.md L1129-L1133 — default
+        # CardinalityLimit is 2000 per stream.
+        cardinality_limit: 2000,
+        exemplar_reservoir: default_reservoir(aggregation_module)
       })
 
     key = {config.scope, Otel.Metrics.Instrument.downcased_name(name)}
 
     case :ets.insert_new(config.instruments_tab, {key, instrument}) do
       true ->
-        create_streams(config, instrument)
         instrument
 
       false ->
@@ -161,6 +162,21 @@ defmodule Otel.Metrics.Meter do
         existing
     end
   end
+
+  @spec aggregation_opts(advisory :: Otel.Metrics.Instrument.advisory()) :: map()
+  defp aggregation_opts(advisory) do
+    case Keyword.get(advisory, :explicit_bucket_boundaries) do
+      nil -> %{}
+      boundaries -> %{boundaries: boundaries}
+    end
+  end
+
+  @spec default_reservoir(aggregation_module :: module()) :: module()
+  defp default_reservoir(Otel.Metrics.Aggregation.ExplicitBucketHistogram),
+    do: Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket
+
+  defp default_reservoir(_aggregation),
+    do: Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize
 
   # Spec `metrics/sdk.md` L917-L930 — *"a warning SHOULD be
   # emitted... include information for the user on how to
@@ -195,40 +211,18 @@ defmodule Otel.Metrics.Meter do
     end
   end
 
-  @spec create_streams(config :: map(), instrument :: Otel.Metrics.Instrument.t()) :: :ok
-  defp create_streams(config, instrument) do
-    temporality_mapping =
-      Map.get(
-        config,
-        :temporality_mapping,
-        Otel.Metrics.Instrument.default_temporality_mapping()
-      )
-
-    temporality = Map.get(temporality_mapping, instrument.kind, :cumulative)
-
-    stream =
-      instrument
-      |> Otel.Metrics.Stream.from_instrument()
-      |> Otel.Metrics.Stream.resolve()
-      |> Map.put(:temporality, temporality)
-
-    instrument_key = {config.scope, Otel.Metrics.Instrument.downcased_name(instrument.name)}
-    :ets.insert(config.streams_tab, {instrument_key, stream})
-    :ok
-  end
-
   @overflow_attributes %{"otel.metric.overflow" => true}
 
   @spec maybe_overflow(
           metrics_tab :: :ets.table(),
-          stream :: Otel.Metrics.Stream.t(),
+          instrument :: Otel.Metrics.Instrument.t(),
           agg_key :: term()
         ) :: term()
-  defp maybe_overflow(metrics_tab, stream, {stream_name, scope, _attrs} = agg_key) do
+  defp maybe_overflow(metrics_tab, instrument, {stream_name, scope, _attrs} = agg_key) do
     if :ets.member(metrics_tab, agg_key) do
       agg_key
     else
-      limit = stream.aggregation_cardinality_limit
+      limit = instrument.cardinality_limit
       current = count_stream_keys(metrics_tab, stream_name, scope)
 
       if current >= limit do
@@ -259,47 +253,39 @@ defmodule Otel.Metrics.Meter do
 
   @spec offer_exemplar(
           config :: map(),
-          stream :: Otel.Metrics.Stream.t(),
+          instrument :: Otel.Metrics.Instrument.t(),
           agg_key :: term(),
           value :: number(),
           time :: non_neg_integer(),
           filtered_attrs :: map(),
           ctx :: Otel.Ctx.t()
         ) :: :ok
-  defp offer_exemplar(config, stream, agg_key, value, time, filtered_attrs, ctx) do
-    filter = Map.get(config, :exemplar_filter, :trace_based)
-    reservoir = get_reservoir(config.exemplars_tab, stream, agg_key)
+  defp offer_exemplar(config, instrument, agg_key, value, time, filtered_attrs, ctx) do
+    reservoir = get_reservoir(config.exemplars_tab, instrument, agg_key)
 
     updated =
-      Otel.Metrics.Exemplar.Reservoir.offer(
-        reservoir,
-        filter,
-        value,
-        time,
-        filtered_attrs,
-        ctx
-      )
+      Otel.Metrics.Exemplar.Reservoir.offer(reservoir, value, time, filtered_attrs, ctx)
 
     put_reservoir(config.exemplars_tab, agg_key, updated)
   end
 
   @spec get_reservoir(
           exemplars_tab :: :ets.table(),
-          stream :: Otel.Metrics.Stream.t(),
+          instrument :: Otel.Metrics.Instrument.t(),
           agg_key :: term()
         ) :: {module(), term()} | nil
-  defp get_reservoir(exemplars_tab, stream, agg_key) do
+  defp get_reservoir(exemplars_tab, instrument, agg_key) do
     case :ets.lookup(exemplars_tab, agg_key) do
       [{^agg_key, reservoir}] ->
         reservoir
 
       [] ->
-        case stream.exemplar_reservoir do
+        case instrument.exemplar_reservoir do
           nil ->
             nil
 
           module ->
-            opts = reservoir_opts(stream)
+            opts = reservoir_opts(instrument)
             {module, module.new(opts)}
         end
     end
@@ -314,13 +300,13 @@ defmodule Otel.Metrics.Meter do
     :ok
   end
 
-  @spec reservoir_opts(stream :: Otel.Metrics.Stream.t()) :: map()
-  defp reservoir_opts(stream) do
-    case stream.aggregation do
+  @spec reservoir_opts(instrument :: Otel.Metrics.Instrument.t()) :: map()
+  defp reservoir_opts(instrument) do
+    case instrument.aggregation_module do
       Otel.Metrics.Aggregation.ExplicitBucketHistogram ->
         boundaries =
           Map.get(
-            stream.aggregation_options,
+            instrument.aggregation_opts,
             :boundaries,
             Otel.Metrics.Aggregation.ExplicitBucketHistogram.default_boundaries()
           )

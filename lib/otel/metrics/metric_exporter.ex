@@ -9,13 +9,13 @@ defmodule Otel.Metrics.MetricExporter do
 
   Unlike `Otel.Trace.SpanExporter` and
   `Otel.Logs.LogRecordExporter` (which drain a queue),
-  Metrics exports a snapshot of live state — the four
-  `Otel.Metrics.{InstrumentsStorage, StreamsStorage,
-  MetricsStorage, ExemplarsStorage}` GenServers hold
-  accumulating aggregation / exemplar state. `collect/1`
-  walks the streams ETS table and returns one `metric()`
-  per stream; the next collect tick reads the same state
-  with fresh aggregation values.
+  Metrics exports a snapshot of live state — the
+  `Otel.Metrics.{InstrumentsStorage, MetricsStorage,
+  ExemplarsStorage}` GenServers hold accumulating
+  aggregation / exemplar state. `collect/1` walks the
+  instruments ETS table and returns one `metric()` per
+  registered instrument; the next collect tick reads the
+  same state with fresh aggregation values.
 
   ## Lifecycle
 
@@ -98,20 +98,20 @@ defmodule Otel.Metrics.MetricExporter do
   end
 
   @doc """
-  **SDK** — Walks the streams ETS table and returns one
-  `metric()` per stream.
+  **SDK** — Walks the instruments ETS table and returns one
+  `metric()` per registered instrument.
 
   Pure pull from ETS state — safe to invoke from any process.
-  Tests pass a custom config map (e.g. delta `temporality_mapping`
-  or `:exemplar_filter` override) to exercise paths the
-  hardcoded `Otel.Metrics.meter_config/0` doesn't reach.
+  Tests pass a custom config map (e.g. `:exemplar_filter`
+  override) to exercise paths the hardcoded
+  `Otel.Metrics.meter_config/0` doesn't reach.
   """
   @spec collect(config :: map()) :: [Otel.Metrics.Metric.t()]
   def collect(config) do
-    config.streams_tab
+    config.instruments_tab
     |> :ets.tab2list()
-    |> Enum.map(fn {_key, stream} -> stream end)
-    |> Enum.flat_map(fn stream -> collect_stream(config, stream) end)
+    |> Enum.map(fn {_key, instrument} -> instrument end)
+    |> Enum.flat_map(fn instrument -> collect_instrument(config, instrument) end)
   end
 
   # --- GenServer ---
@@ -172,31 +172,31 @@ defmodule Otel.Metrics.MetricExporter do
     end
   end
 
-  @spec collect_stream(config :: map(), stream :: Otel.Metrics.Stream.t()) ::
+  @spec collect_instrument(config :: map(), instrument :: Otel.Metrics.Instrument.t()) ::
           [Otel.Metrics.Metric.t()]
-  defp collect_stream(config, stream) do
-    stream_key = {stream.name, stream.instrument.scope}
-    collect_opts = build_collect_opts(stream)
+  defp collect_instrument(config, instrument) do
+    stream_key = {instrument.name, instrument.scope}
+    collect_opts = Map.put(instrument.aggregation_opts, :temporality, :cumulative)
 
     datapoints =
-      stream.aggregation.collect(config.metrics_tab, stream_key, collect_opts)
+      instrument.aggregation_module.collect(config.metrics_tab, stream_key, collect_opts)
 
     case datapoints do
       [] ->
         []
 
       points ->
-        points_with_exemplars = attach_exemplars(config, stream, points)
-        {temporality, is_monotonic} = metric_type_info(stream)
+        points_with_exemplars = attach_exemplars(config, instrument, points)
+        {temporality, is_monotonic} = metric_type_info(instrument)
 
         [
           Otel.Metrics.Metric.new(%{
-            name: stream.name,
-            description: stream.description,
-            unit: stream.instrument.unit,
-            scope: stream.instrument.scope,
+            name: instrument.name,
+            description: instrument.description,
+            unit: instrument.unit,
+            scope: instrument.scope,
             resource: config.resource,
-            kind: stream.instrument.kind,
+            kind: instrument.kind,
             temporality: temporality,
             is_monotonic: is_monotonic,
             datapoints: points_with_exemplars
@@ -205,36 +205,31 @@ defmodule Otel.Metrics.MetricExporter do
     end
   end
 
-  @spec build_collect_opts(stream :: Otel.Metrics.Stream.t()) :: map()
-  defp build_collect_opts(stream) do
-    Map.put(stream.aggregation_options, :temporality, stream.temporality)
-  end
-
-  @spec metric_type_info(stream :: Otel.Metrics.Stream.t()) ::
+  @spec metric_type_info(instrument :: Otel.Metrics.Instrument.t()) ::
           {Otel.Metrics.Instrument.temporality() | nil, boolean() | nil}
-  defp metric_type_info(stream) do
-    case stream.instrument.kind do
+  defp metric_type_info(instrument) do
+    case instrument.kind do
       :gauge ->
         {nil, nil}
 
       kind ->
-        {stream.temporality, Otel.Metrics.Instrument.monotonic?(kind)}
+        {:cumulative, Otel.Metrics.Instrument.monotonic?(kind)}
     end
   end
 
   @spec attach_exemplars(
           config :: map(),
-          stream :: Otel.Metrics.Stream.t(),
+          instrument :: Otel.Metrics.Instrument.t(),
           datapoints :: [Otel.Metrics.Aggregation.datapoint()]
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp attach_exemplars(config, stream, datapoints) do
+  defp attach_exemplars(config, instrument, datapoints) do
     exemplars_tab = Map.get(config, :exemplars_tab)
 
     if exemplars_tab == nil do
       datapoints
     else
       Enum.map(datapoints, fn dp ->
-        agg_key = {stream.name, stream.instrument.scope, dp.attributes}
+        agg_key = {instrument.name, instrument.scope, dp.attributes}
         collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp)
       end)
     end

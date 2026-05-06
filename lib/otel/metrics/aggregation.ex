@@ -13,7 +13,7 @@ defmodule Otel.Metrics.Aggregation do
   ## References
 
   - OTel Metrics SDK §Aggregation: `opentelemetry-specification/specification/metrics/sdk.md` L612-L860
-  - Built-in implementations: `Otel.Metrics.Aggregation.{Drop,Sum,LastValue,ExplicitBucketHistogram}`
+  - Built-in implementations: `Otel.Metrics.Aggregation.{Sum,LastValue,ExplicitBucketHistogram}`
   """
 
   use Otel.Common.Types

@@ -18,7 +18,6 @@ defmodule Otel.ApplicationTest do
 
       meter_state = Otel.Metrics.meter_config()
       assert %Otel.Resource{} = meter_state.resource
-      assert meter_state.exemplar_filter == :trace_based
 
       # Pillars no longer expose `resource/0` wrappers — call
       # `Otel.Resource.new/0` directly for SDK introspection.

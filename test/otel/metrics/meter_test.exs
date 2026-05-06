@@ -193,12 +193,12 @@ defmodule Otel.Metrics.MeterTest do
   end
 
   describe "cardinality limits" do
-    test "default aggregation_cardinality_limit is 2000" do
+    test "default cardinality_limit is 2000" do
       cfg = config()
       Otel.Metrics.Meter.create_counter("card_test", [])
 
-      [{_, stream}] = :ets.lookup(cfg.streams_tab, {cfg.scope, "card_test"})
-      assert stream.aggregation_cardinality_limit == 2000
+      [{_, instrument}] = :ets.lookup(cfg.instruments_tab, {cfg.scope, "card_test"})
+      assert instrument.cardinality_limit == 2000
     end
   end
 end
