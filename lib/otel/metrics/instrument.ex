@@ -180,15 +180,38 @@ defmodule Otel.Metrics.Instrument do
           unit: String.t(),
           description: String.t(),
           advisory: advisory(),
-          scope: Otel.InstrumentationScope.t()
+          scope: Otel.InstrumentationScope.t(),
+          aggregation_module: module() | nil,
+          aggregation_opts: map(),
+          cardinality_limit: pos_integer() | nil,
+          exemplar_reservoir: module() | nil
         }
 
-  defstruct [:config, :name, :kind, :unit, :description, :advisory, :scope]
+  defstruct [
+    :config,
+    :name,
+    :kind,
+    :unit,
+    :description,
+    :advisory,
+    :scope,
+    :aggregation_module,
+    :aggregation_opts,
+    :cardinality_limit,
+    :exemplar_reservoir
+  ]
 
   @doc """
   **SDK** — Construct an Instrument. The `:kind` field is required;
   `:scope` defaults to the SDK identity, the rest fall back to
   proto3 zero values.
+
+  Resolution fields (`aggregation_module`, `aggregation_opts`,
+  `cardinality_limit`, `exemplar_reservoir`) are filled by
+  `Otel.Metrics.Meter.register_instrument/4` from `:kind` and
+  `:advisory`; constructing an Instrument directly leaves them
+  `nil` / `%{}` and is only suitable as a "ghost instrument"
+  for the unregistered-record no-op path.
   """
   @spec new(opts :: map()) :: t()
   def new(opts \\ %{}) do
@@ -199,7 +222,11 @@ defmodule Otel.Metrics.Instrument do
       unit: "",
       description: "",
       advisory: [],
-      scope: Otel.InstrumentationScope.new()
+      scope: Otel.InstrumentationScope.new(),
+      aggregation_module: nil,
+      aggregation_opts: %{},
+      cardinality_limit: nil,
+      exemplar_reservoir: nil
     }
 
     struct!(__MODULE__, Map.merge(defaults, opts))
