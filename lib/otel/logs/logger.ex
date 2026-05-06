@@ -64,8 +64,6 @@ defmodule Otel.Logs.Logger do
 
   require Logger
 
-  @log_record_limits Otel.Logs.LogRecordLimits.new()
-
   @doc """
   Emit a LogRecord (`logs/api.md` L111-L131) with an explicit
   context.
@@ -98,7 +96,7 @@ defmodule Otel.Logs.Logger do
     } = Otel.Trace.current_span(ctx)
 
     {limited_record, dropped_attributes_count} =
-      Otel.Logs.LogRecordLimits.apply(log_record, @log_record_limits)
+      Otel.Logs.LogRecordLimits.apply(log_record, Otel.Logs.LogRecordLimits.new())
 
     warn_log_record_limits_applied(
       dropped_attributes_count,

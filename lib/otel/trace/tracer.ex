@@ -5,13 +5,13 @@ defmodule Otel.Trace.Tracer do
   Minikube has no plugin ecosystem and the spec's TracerProvider
   / Tracer entities collapse to a single hardcoded identity:
 
-  - scope is `Otel.InstrumentationScope` defaults
-  - span limits are `Otel.Trace.SpanLimits` defaults
+  - scope from `Otel.InstrumentationScope.new/1` defaults
+  - span limits from `Otel.Trace.SpanLimits.new/1` defaults
 
-  Both are compile-time literals; there is no Tracer struct
-  to thread through. Sampling is hardcoded to
-  `Otel.Trace.Sampler` (parentbased_always_on); ID generation
-  to `Otel.Trace.IdGenerator` (random).
+  Both are runtime-constructed at each `start_span/3` call —
+  there is no Tracer struct to thread through. Sampling is
+  hardcoded to `Otel.Trace.Sampler` (parentbased_always_on);
+  ID generation to `Otel.Trace.IdGenerator` (random).
 
   All functions are safe for concurrent use, satisfying spec
   `trace/api.md` L843-L853 (Status: Stable, #4887) — *"Tracer —
@@ -31,8 +31,6 @@ defmodule Otel.Trace.Tracer do
   - OTel Trace API §Tracer: `opentelemetry-specification/specification/trace/api.md` L160-L416
   """
 
-  @span_limits Otel.Trace.SpanLimits.new()
-
   @doc """
   OTel API MUST — Span Creation (`trace/api.md` §Span Creation
   L378-L414).
@@ -47,7 +45,8 @@ defmodule Otel.Trace.Tracer do
           opts :: Otel.Trace.Span.start_opts()
         ) :: Otel.Trace.SpanContext.t()
   def start_span(ctx, name, opts) do
-    {span_ctx, span} = Otel.Trace.Span.start_span(ctx, name, @span_limits, opts)
+    span_limits = Otel.Trace.SpanLimits.new()
+    {span_ctx, span} = Otel.Trace.Span.start_span(ctx, name, span_limits, opts)
 
     if span do
       # Insert as `:active`. On backpressure SpanStorage silently
