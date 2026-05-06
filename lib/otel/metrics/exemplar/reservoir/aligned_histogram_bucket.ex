@@ -45,12 +45,15 @@ defmodule Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
           ctx :: Otel.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
+    {trace_id, span_id} = Otel.Metrics.Exemplar.trace_info(ctx)
+
     exemplar =
       Otel.Metrics.Exemplar.new(%{
         value: value,
         time: time,
         filtered_attributes: filtered_attributes,
-        ctx: ctx
+        trace_id: trace_id,
+        span_id: span_id
       })
 
     bucket_idx = find_bucket(value, state.boundaries)

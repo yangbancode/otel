@@ -34,12 +34,15 @@ defmodule Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize do
           ctx :: Otel.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
+    {trace_id, span_id} = Otel.Metrics.Exemplar.trace_info(ctx)
+
     exemplar =
       Otel.Metrics.Exemplar.new(%{
         value: value,
         time: time,
         filtered_attributes: filtered_attributes,
-        ctx: ctx
+        trace_id: trace_id,
+        span_id: span_id
       })
 
     count = state.count + 1
