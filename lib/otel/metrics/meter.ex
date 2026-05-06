@@ -104,7 +104,18 @@ defmodule Otel.Metrics.Meter do
           registered.aggregation_opts
         )
 
-        offer_exemplar(registered, agg_key, value, now, %{}, ctx)
+        if Otel.Metrics.Exemplar.Filter.should_sample?(ctx) do
+          registered.aggregation_module.offer_exemplar(
+            Otel.Metrics.MetricsStorage,
+            agg_key,
+            value,
+            now,
+            %{},
+            ctx
+          )
+        end
+
+        :ok
     end
   end
 
@@ -213,40 +224,5 @@ defmodule Otel.Metrics.Meter do
       0,
       Otel.Metrics.MetricsStorage
     )
-  end
-
-  @spec offer_exemplar(
-          instrument :: Otel.Metrics.Instrument.t(),
-          agg_key :: term(),
-          value :: number(),
-          time :: non_neg_integer(),
-          filtered_attrs :: map(),
-          ctx :: Otel.Ctx.t()
-        ) :: :ok
-  defp offer_exemplar(instrument, agg_key, value, time, filtered_attrs, ctx) do
-    if Otel.Metrics.Exemplar.Filter.should_sample?(ctx) do
-      reservoir_module = instrument.aggregation_module.exemplar_reservoir()
-      state = get_reservoir_state(instrument, reservoir_module, agg_key)
-      new_state = reservoir_module.offer(state, value, time, filtered_attrs, ctx)
-      :ets.insert(Otel.Metrics.ExemplarsStorage, {agg_key, new_state})
-    end
-
-    :ok
-  end
-
-  @spec get_reservoir_state(
-          instrument :: Otel.Metrics.Instrument.t(),
-          reservoir_module :: module(),
-          agg_key :: term()
-        ) :: term()
-  defp get_reservoir_state(instrument, reservoir_module, agg_key) do
-    case :ets.lookup(Otel.Metrics.ExemplarsStorage, agg_key) do
-      [{^agg_key, state}] ->
-        state
-
-      [] ->
-        opts = instrument.aggregation_module.exemplar_reservoir_opts(instrument)
-        reservoir_module.new(opts)
-    end
   end
 end
