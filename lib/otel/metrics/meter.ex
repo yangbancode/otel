@@ -16,9 +16,15 @@ defmodule Otel.Metrics.Meter do
 
   | Callback | Role |
   |---|---|
-  | `create_*` (counter, histogram, gauge, updown_counter, observable_*) | **SDK** (OTel API MUST) — `metrics/api.md` §Instruments |
+  | `create_*` (counter, histogram, gauge, updown_counter) | **SDK** (OTel API MUST) — `metrics/api.md` §Instruments |
   | `record/3` | **SDK** (OTel API MUST) — synchronous instrument measurement |
-  | `register_callback/5` | **SDK** (OTel API MUST) — async instrument registration |
+
+  Asynchronous (Observable) instruments are intentionally not
+  implemented — minikube targets the BEAM-native `:telemetry`
+  ecosystem for poll-based measurements (see project memory
+  `project_pivot_beginner_focused.md`). A telemetry-handler
+  bridge (analogous to `Otel.LoggerHandler`) is planned but not
+  part of this module.
 
   ## Design notes
 
@@ -47,40 +53,6 @@ defmodule Otel.Metrics.Meter do
   `:explicit_bucket_boundaries` flow into the histogram
   aggregation when present.
 
-  ### Async cardinality — first-observed across temporalities
-
-  Spec `metrics/sdk.md` §"Asynchronous instrument cardinality
-  limits" L864-L866 SHOULD —
-  *"Aggregators of asynchronous instruments SHOULD prefer the
-  first-observed attributes in the callback when limiting
-  cardinality, regardless of temporality."*
-
-  Sync overflow (`maybe_overflow/3`) inspects `metrics_tab`,
-  which works as first-observed only under cumulative because
-  delta-temporality readers clear the table on each collect.
-
-  Async overflow (`maybe_overflow_async/3`) instead consults
-  the dedicated `observed_attrs_tab` ETS set, which records
-  every `(stream, reader, attrs)` triple ever observed for an
-  async stream. Entries survive delta resets, so the first N
-  attribute sets ever observed are pinned to the original
-  key forever; subsequent sets route to the overflow
-  attribute regardless of whether the metrics table has been
-  cleared.
-
-  The `:ets.member` + `count_stream_keys` + `:ets.insert`
-  sequence in `maybe_overflow_async/3` is non-atomic. Two
-  callbacks racing on different new attribute sets at the
-  boundary `current = limit - 1` could both pass the count
-  check and both insert, briefly exceeding the limit by one.
-  In practice `Otel.Metrics.MetricExporter.collect/1`
-  serialises callbacks per reader, so this race only fires
-  across multiple readers collecting simultaneously — a
-  corner the spec MUST at L840
-  (no overflow when distinct sets ≤ limit) does not strictly
-  bind, since at the boundary the SHOULD is already best-
-  effort.
-
   ## References
 
   - OTel Metrics SDK §Meter: `opentelemetry-specification/specification/metrics/sdk.md` L870-L943
@@ -105,41 +77,6 @@ defmodule Otel.Metrics.Meter do
 
   def create_updown_counter(name, opts \\ []) do
     register_instrument(Otel.Metrics.meter_config(), name, :updown_counter, opts)
-  end
-
-  # --- Asynchronous Instruments ---
-
-  def create_observable_counter(name, opts \\ []) do
-    register_instrument(Otel.Metrics.meter_config(), name, :observable_counter, opts)
-  end
-
-  def create_observable_counter(name, callback, callback_args, opts) do
-    config = Otel.Metrics.meter_config()
-    instrument = register_instrument(config, name, :observable_counter, opts)
-    store_callback(config, instrument, callback, callback_args)
-    instrument
-  end
-
-  def create_observable_gauge(name, opts \\ []) do
-    register_instrument(Otel.Metrics.meter_config(), name, :observable_gauge, opts)
-  end
-
-  def create_observable_gauge(name, callback, callback_args, opts) do
-    config = Otel.Metrics.meter_config()
-    instrument = register_instrument(config, name, :observable_gauge, opts)
-    store_callback(config, instrument, callback, callback_args)
-    instrument
-  end
-
-  def create_observable_updown_counter(name, opts \\ []) do
-    register_instrument(Otel.Metrics.meter_config(), name, :observable_updown_counter, opts)
-  end
-
-  def create_observable_updown_counter(name, callback, callback_args, opts) do
-    config = Otel.Metrics.meter_config()
-    instrument = register_instrument(config, name, :observable_updown_counter, opts)
-    store_callback(config, instrument, callback, callback_args)
-    instrument
   end
 
   # --- Recording ---
@@ -175,31 +112,11 @@ defmodule Otel.Metrics.Meter do
     end
   end
 
-  # --- Callback Registration ---
-
-  def register_callback(instruments, callback, callback_args, _opts) do
-    config = Otel.Metrics.meter_config()
-    ref = make_ref()
-
-    Enum.each(instruments, fn instrument ->
-      :ets.insert(config.callbacks_tab, {
-        {config.scope, Otel.Metrics.Instrument.downcased_name(instrument.name)},
-        ref,
-        :multi,
-        callback,
-        callback_args,
-        instrument
-      })
-    end)
-
-    {ref, config.callbacks_tab}
-  end
-
   # --- Private ---
 
   @doc false
   # SDK-internal (test) — register an instrument under a custom
-  # `meter_config` map. The public `create_*/2,5` paths route
+  # `meter_config` map. The public `create_*/2` paths route
   # through `Otel.Metrics.meter_config/0` (the SDK-default
   # cumulative config); tests that need delta temporality or
   # other override-only paths construct a custom config and
@@ -328,49 +245,6 @@ defmodule Otel.Metrics.Meter do
     end
   end
 
-  # Spec `metrics/sdk.md` §"Asynchronous instrument cardinality
-  # limits" L864-L866 SHOULD: *"Aggregators of asynchronous
-  # instruments SHOULD prefer the first-observed attributes in
-  # the callback when limiting cardinality, regardless of
-  # temporality."*
-  #
-  # We separate async overflow tracking from sync because the
-  # sync path's `metrics_tab`-based "is this attribute set
-  # known?" check coincides with first-observed only under
-  # cumulative temporality. Async + delta clears `metrics_tab`
-  # on each collect, which would let late-arriving sets
-  # replace earlier ones — violating the SHOULD.
-  #
-  # The `observed_attrs_tab` records every (stream, reader,
-  # attrs) triple ever observed for an async stream. Entries
-  # survive delta collect resets, so the first N attribute
-  # sets ever observed remain pinned to the original key
-  # forever; subsequent sets route to the overflow attribute.
-  @spec maybe_overflow_async(
-          observed_attrs_tab :: :ets.table(),
-          stream :: Otel.Metrics.Stream.t(),
-          agg_key :: term()
-        ) :: term()
-  defp maybe_overflow_async(
-         observed_attrs_tab,
-         stream,
-         {stream_name, scope, reader_id, _attrs} = agg_key
-       ) do
-    if :ets.member(observed_attrs_tab, agg_key) do
-      agg_key
-    else
-      limit = stream.aggregation_cardinality_limit
-      current = count_stream_keys(observed_attrs_tab, stream_name, scope, reader_id)
-
-      if current >= limit do
-        {stream_name, scope, reader_id, @overflow_attributes}
-      else
-        :ets.insert(observed_attrs_tab, {agg_key, true})
-        agg_key
-      end
-    end
-  end
-
   @spec count_stream_keys(
           tab :: :ets.table(),
           stream_name :: String.t(),
@@ -388,127 +262,6 @@ defmodule Otel.Metrics.Meter do
       0,
       tab
     )
-  end
-
-  @spec store_callback(
-          config :: map(),
-          instrument :: Otel.Metrics.Instrument.t(),
-          callback :: (term() -> [Otel.Metrics.Measurement.t()]),
-          callback_args :: term()
-        ) :: true
-  defp store_callback(config, instrument, callback, callback_args) do
-    key = {config.scope, Otel.Metrics.Instrument.downcased_name(instrument.name)}
-    ref = make_ref()
-    :ets.insert(config.callbacks_tab, {key, ref, :single, callback, callback_args, instrument})
-  end
-
-  @doc """
-  Removes a previously registered callback.
-
-  Called indirectly via `Otel.Metrics.Meter.unregister_callback/1`,
-  which unwraps the opaque `{module, state}` handle and passes the
-  inner state `{ref, callbacks_tab}` here.
-  """
-  @spec unregister_callback(state :: {reference(), :ets.table()}) :: :ok
-  def unregister_callback({ref, callbacks_tab}) do
-    :ets.match_delete(callbacks_tab, {:_, ref, :_, :_, :_, :_})
-    :ok
-  end
-
-  @doc """
-  Executes all registered callbacks for the given meter
-  config and aggregates the observations into the metrics
-  pipeline.
-
-  Called by `Otel.Metrics.MetricExporter.collect/1` during
-  collection. Two callback shapes are supported,
-  distinguished by the shape marker stored in each ETS entry:
-
-  - `:single` — inline callback registered via
-    `create_observable_*/5` → `store_callback/4`. Callback
-    returns `[Measurement.t()]` per
-    `metrics/api.md` L441-L442.
-  - `:multi` — callback registered via
-    `register_callback/5`. Callback returns
-    `[{Instrument.t(), Measurement.t()}]` per
-    `metrics/api.md` L1302-L1303 + L452-L453 MUST
-    (multi-instrument callbacks MUST distinguish the
-    instrument for each observation).
-
-  Internally both shapes are normalised to the multi-shape
-  (a list of pairs) so `apply_observations/2` has a single
-  code path that looks up streams per-instrument.
-  """
-  @spec run_callbacks(config :: map()) :: :ok
-  def run_callbacks(config) do
-    callbacks = :ets.tab2list(config.callbacks_tab)
-
-    callbacks
-    |> Enum.group_by(fn {_key, ref, _shape, callback, callback_args, _inst} ->
-      {ref, callback, callback_args}
-    end)
-    |> Enum.each(fn {_group_key, entries} ->
-      pairs = invoke_callback_and_normalize(entries)
-      apply_observations(config, pairs)
-    end)
-  end
-
-  @spec invoke_callback_and_normalize(entries :: [tuple()]) ::
-          [{Otel.Metrics.Instrument.t(), Otel.Metrics.Measurement.t()}]
-  defp invoke_callback_and_normalize([first | _] = entries) do
-    {_key, _ref, shape, callback, callback_args, _inst} = first
-    result = callback.(callback_args)
-
-    case shape do
-      :single ->
-        # Inline callback — `result` is `[Measurement.t()]`.
-        # There is exactly one ETS entry in the group (one
-        # instrument per inline callback); wrap each
-        # measurement with that instrument.
-        {_, _, _, _, _, instrument} = first
-        Enum.map(result, fn measurement -> {instrument, measurement} end)
-
-      :multi ->
-        # Multi-instrument callback — `result` is already
-        # `[{Instrument, Measurement}]` per spec
-        # L1302-L1303. Use as-is. `entries` (with all
-        # registered instruments) is not needed here; the
-        # callback provides the instrument tag per
-        # observation.
-        _unused_entries = entries
-        result
-    end
-  end
-
-  @spec apply_observations(
-          config :: map(),
-          pairs :: [{Otel.Metrics.Instrument.t(), Otel.Metrics.Measurement.t()}]
-        ) :: :ok
-  defp apply_observations(config, pairs) do
-    ctx = Otel.Ctx.current()
-    now = System.system_time(:nanosecond)
-
-    Enum.each(pairs, fn {%Otel.Metrics.Instrument{} = instrument,
-                         %Otel.Metrics.Measurement{
-                           value: value,
-                           attributes: attributes
-                         }} ->
-      streams = lookup_streams_for_instrument(config, instrument)
-
-      Enum.each(streams, fn stream ->
-        agg_key = {stream.name, stream.instrument.scope, stream.reader_id, attributes}
-        agg_key = maybe_overflow_async(config.observed_attrs_tab, stream, agg_key)
-
-        stream.aggregation.aggregate(
-          config.metrics_tab,
-          agg_key,
-          value,
-          stream.aggregation_options
-        )
-
-        offer_exemplar(config, stream, agg_key, value, now, %{}, ctx)
-      end)
-    end)
   end
 
   @spec offer_exemplar(
@@ -584,20 +337,5 @@ defmodule Otel.Metrics.Meter do
       _ ->
         %{size: 1}
     end
-  end
-
-  @spec lookup_streams_for_instrument(
-          config :: map(),
-          instrument :: Otel.Metrics.Instrument.t()
-        ) :: [Otel.Metrics.Stream.t()]
-  defp lookup_streams_for_instrument(config, %Otel.Metrics.Instrument{
-         scope: scope,
-         name: name
-       }) do
-    instrument_key = {scope, Otel.Metrics.Instrument.downcased_name(name)}
-
-    config.streams_tab
-    |> :ets.lookup(instrument_key)
-    |> Enum.map(fn {_key, stream} -> stream end)
   end
 end

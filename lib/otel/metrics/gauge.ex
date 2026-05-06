@@ -13,9 +13,10 @@ defmodule Otel.Metrics.Gauge do
   Per spec L835-L837, use `UpDownCounter` when values are
   additive. Per spec L839-L845, use this synchronous Gauge
   when measurements are pushed via change-event
-  subscriptions (`value -> gauge.record(value)`); use the
-  asynchronous `Otel.Metrics.ObservableGauge` when
-  values are pulled via an accessor function.
+  subscriptions (`value -> gauge.record(value)`).
+  Asynchronous (Observable) Gauge is intentionally not
+  implemented — minikube delegates poll-based measurements
+  to the BEAM-native `:telemetry` ecosystem.
 
   Created exclusively through a `Meter` per spec L854
   *"MUST NOT be any API for creating a Gauge other than
@@ -33,10 +34,8 @@ defmodule Otel.Metrics.Gauge do
 
   `opentelemetry-erlang` has **no** synchronous Gauge
   facade — the sync Gauge was added to the spec after the
-  erlang reference was written, and erlang's
-  `opentelemetry_api_experimental` currently ships only
-  `ObservableGauge`. This module fills that gap so our
-  Metrics API surface is complete across all four
+  erlang reference was written. This module fills that gap
+  so our Metrics API surface is complete across all four
   synchronous instruments defined by the spec.
 
   When an erlang-side counterpart eventually appears, the

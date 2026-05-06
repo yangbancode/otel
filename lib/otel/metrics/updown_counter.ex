@@ -13,9 +13,7 @@ defmodule Otel.Metrics.UpDownCounter do
   value is monotonically increasing. UpDownCounter is
   intended for scenarios where absolute values are not
   pre-calculated or fetching the current value requires
-  extra effort (spec L1046-L1050); when a fresh snapshot
-  is cheap, `Otel.Metrics.ObservableUpDownCounter`
-  (with a callback) fits better.
+  extra effort (spec L1046-L1050).
 
   Created exclusively through a `Meter` per spec L1086
   *"MUST NOT be any API for creating an UpDownCounter

@@ -7,11 +7,8 @@ defmodule Otel.Metrics.AggregationTest do
     expected = %{
       counter: Otel.Metrics.Aggregation.Sum,
       updown_counter: Otel.Metrics.Aggregation.Sum,
-      observable_counter: Otel.Metrics.Aggregation.Sum,
-      observable_updown_counter: Otel.Metrics.Aggregation.Sum,
       histogram: Otel.Metrics.Aggregation.ExplicitBucketHistogram,
-      gauge: Otel.Metrics.Aggregation.LastValue,
-      observable_gauge: Otel.Metrics.Aggregation.LastValue
+      gauge: Otel.Metrics.Aggregation.LastValue
     }
 
     for {kind, module} <- expected do

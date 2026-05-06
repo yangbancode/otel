@@ -35,24 +35,17 @@ defmodule Otel.Metrics.MetricExporterTest do
       assert dp.attributes == %{"method" => "GET"}
     end
 
-    test "histogram aggregates count + sum; observable callback feeds gauge value",
-         %{config: config} do
+    test "histogram aggregates count + sum", %{config: config} do
       hist = Otel.Metrics.Meter.create_histogram("latency", unit: "ms")
       Otel.Metrics.Meter.record(hist, 50, %{})
       Otel.Metrics.Meter.record(hist, 150, %{})
 
-      cb = fn _ -> [%Otel.Metrics.Measurement{value: 42, attributes: %{"host" => "a"}}] end
-      Otel.Metrics.Meter.create_observable_gauge("cpu", cb, nil, [])
-
-      metrics = Otel.Metrics.MetricExporter.collect(config)
-      by_name = Map.new(metrics, &{&1.name, &1})
-
-      assert [%{value: %{count: 2, sum: 200}}] = by_name["latency"].datapoints
-      assert [%{value: 42}] = by_name["cpu"].datapoints
+      [metric] = Otel.Metrics.MetricExporter.collect(config)
+      assert metric.name == "latency"
+      assert [%{value: %{count: 2, sum: 200}}] = metric.datapoints
     end
 
-    test "sync + async + multiple instruments collect in one pass",
-         %{config: config} do
+    test "multiple sync instruments collect in one pass", %{config: config} do
       counter = Otel.Metrics.Meter.create_counter("req", [])
       gauge = Otel.Metrics.Meter.create_gauge("temp", [])
       Otel.Metrics.Meter.record(counter, 1, %{})

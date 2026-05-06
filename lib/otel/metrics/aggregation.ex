@@ -67,7 +67,4 @@ defmodule Otel.Metrics.Aggregation do
   def default_for(:updown_counter), do: Otel.Metrics.Aggregation.Sum
   def default_for(:histogram), do: Otel.Metrics.Aggregation.ExplicitBucketHistogram
   def default_for(:gauge), do: Otel.Metrics.Aggregation.LastValue
-  def default_for(:observable_counter), do: Otel.Metrics.Aggregation.Sum
-  def default_for(:observable_gauge), do: Otel.Metrics.Aggregation.LastValue
-  def default_for(:observable_updown_counter), do: Otel.Metrics.Aggregation.Sum
 end

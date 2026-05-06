@@ -13,15 +13,7 @@ defmodule Otel.Metrics.InstrumentTest do
   test "default_temporality_mapping/0 returns :cumulative for every kind" do
     mapping = Otel.Metrics.Instrument.default_temporality_mapping()
 
-    for kind <- [
-          :counter,
-          :histogram,
-          :gauge,
-          :updown_counter,
-          :observable_counter,
-          :observable_gauge,
-          :observable_updown_counter
-        ] do
+    for kind <- [:counter, :histogram, :gauge, :updown_counter] do
       assert Map.fetch!(mapping, kind) == :cumulative
     end
   end
@@ -29,18 +21,15 @@ defmodule Otel.Metrics.InstrumentTest do
   describe "monotonic?/1" do
     # Per the moduledoc Divergences note: this predicate feeds OTLP's
     # `Sum.is_monotonic`, so true iff the kind produces a monotonic
-    # Sum (Counter / ObservableCounter only).
+    # Sum (Counter only — async kinds are not implemented).
     test "true for Sum-monotonic kinds" do
       assert Otel.Metrics.Instrument.monotonic?(:counter)
-      assert Otel.Metrics.Instrument.monotonic?(:observable_counter)
     end
 
-    test "false for every other kind (UpDownCounter, Histogram, Gauge variants)" do
+    test "false for every other kind (UpDownCounter, Histogram, Gauge)" do
       refute Otel.Metrics.Instrument.monotonic?(:updown_counter)
-      refute Otel.Metrics.Instrument.monotonic?(:observable_updown_counter)
       refute Otel.Metrics.Instrument.monotonic?(:histogram)
       refute Otel.Metrics.Instrument.monotonic?(:gauge)
-      refute Otel.Metrics.Instrument.monotonic?(:observable_gauge)
     end
   end
 end

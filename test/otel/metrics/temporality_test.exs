@@ -70,8 +70,6 @@ defmodule Otel.Metrics.TemporalityTest do
     test "every instrument kind reports the right (temporality, is_monotonic) pair" do
       %{config: config} = default_provider()
 
-      cb = fn _ -> [%Otel.Metrics.Measurement{value: 1}] end
-
       Otel.Metrics.Meter.record(Otel.Metrics.Meter.create_counter("c", []), 1, %{})
 
       Otel.Metrics.Meter.record(
@@ -82,9 +80,6 @@ defmodule Otel.Metrics.TemporalityTest do
 
       Otel.Metrics.Meter.record(Otel.Metrics.Meter.create_histogram("h", []), 1, %{})
       Otel.Metrics.Meter.record(Otel.Metrics.Meter.create_gauge("g", []), 1, %{})
-      Otel.Metrics.Meter.create_observable_counter("oc", cb, nil, [])
-      Otel.Metrics.Meter.create_observable_gauge("og", cb, nil, [])
-      Otel.Metrics.Meter.create_observable_updown_counter("oudc", cb, nil, [])
 
       by_name =
         Otel.Metrics.MetricExporter.collect(config) |> Map.new(&{&1.name, &1})
@@ -93,9 +88,6 @@ defmodule Otel.Metrics.TemporalityTest do
       assert {:cumulative, false} = {by_name["udc"].temporality, by_name["udc"].is_monotonic}
       assert {:cumulative, false} = {by_name["h"].temporality, by_name["h"].is_monotonic}
       assert {nil, nil} = {by_name["g"].temporality, by_name["g"].is_monotonic}
-      assert {:cumulative, true} = {by_name["oc"].temporality, by_name["oc"].is_monotonic}
-      assert {nil, nil} = {by_name["og"].temporality, by_name["og"].is_monotonic}
-      assert {:cumulative, false} = {by_name["oudc"].temporality, by_name["oudc"].is_monotonic}
     end
 
     test "cumulative datapoints carry stable start_time across collections; sums accumulate" do

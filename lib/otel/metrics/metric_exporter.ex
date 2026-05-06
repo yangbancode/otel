@@ -9,15 +9,13 @@ defmodule Otel.Metrics.MetricExporter do
 
   Unlike `Otel.Trace.SpanExporter` and
   `Otel.Logs.LogRecordExporter` (which drain a queue),
-  Metrics exports a snapshot of live state — the six
+  Metrics exports a snapshot of live state — the four
   `Otel.Metrics.{InstrumentsStorage, StreamsStorage,
-  MetricsStorage, CallbacksStorage, ExemplarsStorage,
-  ObservedAttrsStorage}` GenServers hold accumulating
-  aggregation / exemplar / observed-attr state. `collect/1`
-  walks the streams ETS table, runs registered observable
-  callbacks, and returns one `metric()` per stream; the next
-  collect tick reads the same state with fresh aggregation
-  values.
+  MetricsStorage, ExemplarsStorage}` GenServers hold
+  accumulating aggregation / exemplar state. `collect/1`
+  walks the streams ETS table and returns one `metric()`
+  per stream; the next collect tick reads the same state
+  with fresh aggregation values.
 
   ## Lifecycle
 
@@ -116,8 +114,8 @@ defmodule Otel.Metrics.MetricExporter do
   end
 
   @doc """
-  **SDK** — Walks the streams ETS table, runs registered
-  observable callbacks, and returns one `metric()` per stream.
+  **SDK** — Walks the streams ETS table and returns one
+  `metric()` per stream.
 
   Pure pull from ETS state — safe to invoke from any process.
   Tests pass a custom config map (e.g. delta `temporality_mapping`
@@ -126,8 +124,6 @@ defmodule Otel.Metrics.MetricExporter do
   """
   @spec collect(config :: map()) :: [metric()]
   def collect(config) do
-    Otel.Metrics.Meter.run_callbacks(config)
-
     reader_id = Map.get(config, :reader_id)
     streams = :ets.tab2list(config.streams_tab)
 

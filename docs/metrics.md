@@ -22,17 +22,15 @@ readers, exemplar filter, etc.
 | **Counter** | value only goes up | `http.server.requests`, `db.queries` |
 | **UpDownCounter** | value goes up and down | `queue.depth`, `connections.active` |
 | **Histogram** | distribution of values | `http.server.duration`, `db.query.duration` |
-| **Gauge** (sync) | current value, sample inline | `cpu.temperature` |
-| **ObservableCounter** | counter measured on demand | `process.runtime.uptime` |
-| **ObservableUpDownCounter** | up-down via callback | `process.runtime.memory` |
-| **ObservableGauge** | current value, callback-driven | `system.memory.usage` |
+| **Gauge** | current value, sample inline | `cpu.temperature` |
 
-Sync instruments report each measurement immediately. Async
-(observable) instruments register a callback that the SDK invokes at
-each collection cycle to *pull* the current value (default 60s
-interval).
+All four instruments are synchronous — each measurement is reported
+immediately. For poll-based measurements (system metrics, BEAM stats,
+queue lengths read on a timer) use the BEAM-native
+[`:telemetry`](https://hex.pm/packages/telemetry) ecosystem; a
+telemetry-handler bridge for OTel is planned.
 
-## Synchronous instruments
+## Instruments
 
 ### Counter
 
@@ -88,60 +86,6 @@ temperature = Otel.Metrics.Gauge.create("cpu.temperature",
 
 Otel.Metrics.Gauge.record(temperature, 67.5, %{"core" => "0"})
 ```
-
-## Asynchronous (observable) instruments
-
-The callback returns a list of `%Measurement{}`, one per attribute set.
-The SDK invokes it at each collection cycle.
-
-### ObservableCounter
-
-```elixir
-Otel.Metrics.ObservableCounter.create(
-  "process.runtime.uptime",
-  fn _args ->
-    {wall_clock_ms, _} = :erlang.statistics(:wall_clock)
-    [%Otel.Metrics.Measurement{value: div(wall_clock_ms, 1000), attributes: %{}}]
-  end,
-  nil,
-  unit: "s"
-)
-```
-
-### ObservableUpDownCounter
-
-```elixir
-Otel.Metrics.ObservableUpDownCounter.create(
-  "process.runtime.memory",
-  fn _args ->
-    info = :erlang.memory()
-
-    [
-      %Otel.Metrics.Measurement{value: info[:total], attributes: %{"type" => "total"}},
-      %Otel.Metrics.Measurement{value: info[:processes], attributes: %{"type" => "processes"}}
-    ]
-  end,
-  nil,
-  unit: "By"
-)
-```
-
-### ObservableGauge
-
-```elixir
-Otel.Metrics.ObservableGauge.create(
-  "queue.depth",
-  fn _args ->
-    [%Otel.Metrics.Measurement{value: MyApp.Queue.size(), attributes: %{}}]
-  end,
-  nil,
-  unit: "1"
-)
-```
-
-The 4th argument (`nil` above) is `callback_args` — passed back into
-the callback. Useful when one callback feeds multiple instruments via
-`Meter.register_callback/5`.
 
 ## Units
 
