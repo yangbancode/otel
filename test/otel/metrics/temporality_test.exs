@@ -22,10 +22,7 @@ defmodule Otel.Metrics.TemporalityTest do
     counter: :delta,
     updown_counter: :delta,
     histogram: :delta,
-    gauge: :cumulative,
-    observable_counter: :delta,
-    observable_gauge: :cumulative,
-    observable_updown_counter: :delta
+    gauge: :cumulative
   }
 
   defp default_provider do

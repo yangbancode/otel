@@ -235,7 +235,7 @@ defmodule Otel.Metrics.MetricExporter do
           {Otel.Metrics.Instrument.temporality() | nil, boolean() | nil}
   defp metric_type_info(stream) do
     case stream.instrument.kind do
-      kind when kind in [:gauge, :observable_gauge] ->
+      :gauge ->
         {nil, nil}
 
       kind ->

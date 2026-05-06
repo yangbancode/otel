@@ -290,7 +290,7 @@ defmodule Otel.OTLP.Encoder do
   end
 
   defp encode_metric_data(%{kind: kind} = metric)
-       when kind in [:counter, :updown_counter, :observable_counter, :observable_updown_counter] do
+       when kind in [:counter, :updown_counter] do
     {:sum,
      %Opentelemetry.Proto.Metrics.V1.Sum{
        data_points: Enum.map(metric.datapoints, &encode_number_data_point/1),
@@ -299,8 +299,7 @@ defmodule Otel.OTLP.Encoder do
      }}
   end
 
-  defp encode_metric_data(%{kind: kind} = metric)
-       when kind in [:gauge, :observable_gauge] do
+  defp encode_metric_data(%{kind: :gauge} = metric) do
     {:gauge,
      %Opentelemetry.Proto.Metrics.V1.Gauge{
        data_points: Enum.map(metric.datapoints, &encode_number_data_point/1)
