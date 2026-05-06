@@ -6,8 +6,7 @@ defmodule Otel.Metrics.MeterTest do
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
 
   defp datapoints(name, agg_module) do
-    scope = Otel.InstrumentationScope.new()
-    agg_module.collect(Otel.Metrics.MetricsStorage, {name, scope}, %{})
+    agg_module.collect(Otel.Metrics.MetricsStorage, name, %{})
   end
 
   setup do
@@ -191,10 +190,9 @@ defmodule Otel.Metrics.MeterTest do
   describe "cardinality limits" do
     test "default cardinality_limit is 2000" do
       Otel.Metrics.Meter.create_counter("card_test", [])
-      scope = Otel.InstrumentationScope.new()
 
       [{_, instrument}] =
-        :ets.lookup(Otel.Metrics.InstrumentsStorage, {scope, "card_test"})
+        :ets.lookup(Otel.Metrics.InstrumentsStorage, "card_test")
 
       assert instrument.cardinality_limit == 2000
     end

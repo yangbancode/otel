@@ -1,8 +1,11 @@
 defmodule Otel.Metrics.InstrumentsStorage do
   @moduledoc """
   ETS owner for the named ETS table — one row per
-  registered Instrument keyed by `{scope, downcased_name}`
-  (spec `metrics/api.md` §Instrument identity L190-L191).
+  registered Instrument keyed by `downcased_name` (spec
+  `metrics/api.md` §Instrument identity L190-L191).
+  `InstrumentationScope` is hardcoded SDK-wide (project
+  memory `project_minikube_hardcode_decisions` § Follow-on
+  #457), so it is omitted from the key.
 
   A GenServer that owns the table so its lifetime matches the
   SDK supervisor and dies with it. The table is `public` with

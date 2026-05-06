@@ -171,12 +171,10 @@ defmodule Otel.Metrics.MetricExporter do
   @spec collect_instrument(instrument :: Otel.Metrics.Instrument.t()) ::
           [Otel.Metrics.Metric.t()]
   defp collect_instrument(instrument) do
-    stream_key = {instrument.name, instrument.scope}
-
     datapoints =
       instrument.aggregation_module.collect(
         Otel.Metrics.MetricsStorage,
-        stream_key,
+        instrument.name,
         instrument.aggregation_opts
       )
 
@@ -222,7 +220,7 @@ defmodule Otel.Metrics.MetricExporter do
         ) :: [Otel.Metrics.Aggregation.datapoint()]
   defp attach_exemplars(instrument, datapoints) do
     Enum.map(datapoints, fn dp ->
-      agg_key = {instrument.name, instrument.scope, dp.attributes}
+      agg_key = {instrument.name, dp.attributes}
       collect_exemplar_for_datapoint(agg_key, dp)
     end)
   end

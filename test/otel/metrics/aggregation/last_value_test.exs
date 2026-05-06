@@ -1,13 +1,11 @@
 defmodule Otel.Metrics.Aggregation.LastValueTest do
   use ExUnit.Case, async: true
 
-  @scope Otel.InstrumentationScope.new(%{name: "test"})
-
   setup do
     %{tab: :ets.new(:last_value_test, [:set, :public])}
   end
 
-  defp key(attrs \\ %{}), do: {"gauge", @scope, attrs}
+  defp key(attrs \\ %{}), do: {"gauge", attrs}
 
   # Spec metrics/sdk.md L1240-L1245 — LastValue keeps the most recent
   # measurement for each attribute set.
@@ -37,14 +35,14 @@ defmodule Otel.Metrics.Aggregation.LastValueTest do
       Otel.Metrics.Aggregation.LastValue.aggregate(tab, key(), 99, %{})
       Otel.Metrics.Aggregation.LastValue.aggregate(tab, key(%{"h" => "a"}), 1, %{})
 
-      dps = Otel.Metrics.Aggregation.LastValue.collect(tab, {"gauge", @scope}, %{})
+      dps = Otel.Metrics.Aggregation.LastValue.collect(tab, "gauge", %{})
       assert length(dps) == 2
       assert Enum.find(dps, &(&1.attributes == %{})).value == 99
       assert Enum.find(dps, &(&1.attributes == %{"h" => "a"})).value == 1
     end
 
     test "empty result for an unknown stream key", %{tab: tab} do
-      assert [] = Otel.Metrics.Aggregation.LastValue.collect(tab, {"other", @scope}, %{})
+      assert [] = Otel.Metrics.Aggregation.LastValue.collect(tab, "other", %{})
     end
   end
 end
