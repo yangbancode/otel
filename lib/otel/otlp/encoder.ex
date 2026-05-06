@@ -346,8 +346,8 @@ defmodule Otel.OTLP.Encoder do
       filtered_attributes: encode_attributes(exemplar.filtered_attributes),
       time_unix_nano: exemplar.time,
       value: encode_number_value(exemplar.value),
-      span_id: encode_optional_id(exemplar.span_id, 8),
-      trace_id: encode_optional_id(exemplar.trace_id, 16)
+      span_id: encode_optional_id(nonzero_or_nil(exemplar.span_id), 8),
+      trace_id: encode_optional_id(nonzero_or_nil(exemplar.trace_id), 16)
     }
   end
 

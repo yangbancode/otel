@@ -45,7 +45,8 @@ defmodule Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
           ctx :: Otel.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
-    {trace_id, span_id} = Otel.Metrics.Exemplar.trace_info(ctx)
+    %Otel.Trace.SpanContext{trace_id: trace_id, span_id: span_id} =
+      Otel.Trace.current_span(ctx)
 
     exemplar =
       Otel.Metrics.Exemplar.new(%{
