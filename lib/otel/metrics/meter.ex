@@ -242,8 +242,9 @@ defmodule Otel.Metrics.Meter do
         reservoir
 
       [] ->
-        module = instrument.exemplar_reservoir
-        {module, module.new(reservoir_opts(instrument))}
+        module = instrument.aggregation_module.exemplar_reservoir()
+        opts = instrument.aggregation_module.exemplar_reservoir_opts(instrument)
+        {module, module.new(opts)}
     end
   end
 
@@ -251,23 +252,5 @@ defmodule Otel.Metrics.Meter do
   defp put_reservoir(agg_key, reservoir) do
     :ets.insert(Otel.Metrics.ExemplarsStorage, {agg_key, reservoir})
     :ok
-  end
-
-  @spec reservoir_opts(instrument :: Otel.Metrics.Instrument.t()) :: map()
-  defp reservoir_opts(instrument) do
-    case instrument.aggregation_module do
-      Otel.Metrics.Aggregation.ExplicitBucketHistogram ->
-        boundaries =
-          Map.get(
-            instrument.aggregation_opts,
-            :boundaries,
-            Otel.Metrics.Aggregation.ExplicitBucketHistogram.default_boundaries()
-          )
-
-        %{boundaries: boundaries}
-
-      _ ->
-        %{size: 1}
-    end
   end
 end

@@ -38,6 +38,15 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
   @spec default_boundaries() :: [number()]
   def default_boundaries, do: @default_boundaries
 
+  @spec exemplar_reservoir() :: module()
+  def exemplar_reservoir, do: Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket
+
+  @spec exemplar_reservoir_opts(instrument :: Otel.Metrics.Instrument.t()) :: map()
+  def exemplar_reservoir_opts(instrument) do
+    boundaries = Map.get(instrument.aggregation_opts, :boundaries, @default_boundaries)
+    %{boundaries: boundaries}
+  end
+
   @spec aggregate(
           metrics_tab :: :ets.table(),
           key :: term(),

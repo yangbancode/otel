@@ -12,6 +12,12 @@ defmodule Otel.Metrics.Aggregation.Sum do
 
   @int_pos 2
 
+  @spec exemplar_reservoir() :: module()
+  def exemplar_reservoir, do: Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize
+
+  @spec exemplar_reservoir_opts(instrument :: Otel.Metrics.Instrument.t()) :: map()
+  def exemplar_reservoir_opts(_instrument), do: %{size: 1}
+
   @spec aggregate(
           metrics_tab :: :ets.table(),
           key :: term(),
