@@ -78,7 +78,7 @@ defmodule Otel.Trace.Link do
   @spec new(opts :: map()) :: t()
   def new(opts \\ %{}) do
     defaults = %{
-      context: %Otel.Trace.SpanContext{},
+      context: Otel.Trace.SpanContext.new(),
       attributes: %{},
       dropped_attributes_count: 0
     }

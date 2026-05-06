@@ -339,10 +339,10 @@ defmodule Otel.Propagator.TextMap.TraceContext do
     {trace_flags, ""} = Integer.parse(flags_hex, 16)
     true = trace_id != 0 and span_id != 0
 
-    %Otel.Trace.SpanContext{
+    Otel.Trace.SpanContext.new(%{
       trace_id: trace_id,
       span_id: span_id,
       trace_flags: trace_flags
-    }
+    })
   end
 end

@@ -97,13 +97,16 @@ defmodule Otel.Trace.Tracer do
 
             Otel.Trace.Span.set_status(
               span_ctx,
-              Otel.Trace.Status.new(:error, Exception.message(normalized))
+              Otel.Trace.Status.new(%{code: :error, description: Exception.message(normalized)})
             )
 
           _ ->
             Otel.Trace.Span.set_status(
               span_ctx,
-              Otel.Trace.Status.new(:error, Exception.format(kind, reason))
+              Otel.Trace.Status.new(%{
+                code: :error,
+                description: Exception.format(kind, reason)
+              })
             )
         end
 

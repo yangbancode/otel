@@ -16,33 +16,34 @@ defmodule Otel.Metrics.Exemplar do
           trace_id: Otel.Trace.TraceId.t() | nil
         }
 
-  defstruct value: 0,
-            time: 0,
-            filtered_attributes: %{},
-            span_id: nil,
-            trace_id: nil
+  defstruct [:value, :time, :filtered_attributes, :span_id, :trace_id]
 
-  @spec new(
-          value :: number(),
-          time :: non_neg_integer(),
-          filtered_attributes :: %{String.t() => primitive_any()},
-          ctx :: Otel.Ctx.t()
-        ) :: t()
-  def new(value, time, filtered_attributes, ctx) do
-    {trace_id, span_id} = extract_trace_info(ctx)
-
-    %__MODULE__{
-      value: value,
-      time: time,
-      filtered_attributes: filtered_attributes,
-      span_id: span_id,
-      trace_id: trace_id
+  @doc """
+  **SDK** — Build an Exemplar from struct fields. Reservoirs that
+  want to attach the current trace context call `trace_info/1`
+  first and pass the resulting `:trace_id` / `:span_id`.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      value: 0,
+      time: 0,
+      filtered_attributes: %{},
+      span_id: nil,
+      trace_id: nil
     }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
   end
 
-  @spec extract_trace_info(ctx :: Otel.Ctx.t()) ::
+  @doc """
+  **SDK** — Extract the active span's `{trace_id, span_id}` from
+  `ctx`, returning `{nil, nil}` when no valid span is present.
+  Reservoirs call this before `new/1` to attach trace context.
+  """
+  @spec trace_info(ctx :: Otel.Ctx.t()) ::
           {Otel.Trace.TraceId.t() | nil, Otel.Trace.SpanId.t() | nil}
-  defp extract_trace_info(ctx) do
+  def trace_info(ctx) do
     %Otel.Trace.SpanContext{trace_id: trace_id, span_id: span_id} =
       Otel.Trace.current_span(ctx)
 

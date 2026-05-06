@@ -11,13 +11,13 @@ defmodule Otel.OTLP.EncoderTest do
             end_time: 2_000_000_000,
             attributes: %{"http.method" => "GET", "http.status_code" => 200},
             events: [
-              %Otel.Trace.Event{
+              Otel.Trace.Event.new(%{
                 name: "event1",
                 timestamp: 1_500_000_000,
                 attributes: %{"key" => "val"}
-              }
+              })
             ],
-            status: %Otel.Trace.Status{code: :ok},
+            status: Otel.Trace.Status.new(%{code: :ok}),
             trace_flags: 1,
             instrumentation_scope:
               Otel.InstrumentationScope.new(%{
@@ -100,7 +100,9 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "encodes links with linked context" do
-      linked = Otel.Trace.SpanContext.new(100, 200, 1)
+      linked =
+        Otel.Trace.SpanContext.new(%{trace_id: 100, span_id: 200, trace_flags: 1})
+
       link_span = %{@span | links: [Otel.Trace.Link.new(%{context: linked})]}
 
       link = hd(first_span([link_span]).links)
@@ -113,13 +115,13 @@ defmodule Otel.OTLP.EncoderTest do
 
       err =
         first_span([
-          %{@span | status: %Otel.Trace.Status{code: :error, description: "boom"}}
+          %{@span | status: Otel.Trace.Status.new(%{code: :error, description: "boom"})}
         ])
 
       assert err.status.code == :STATUS_CODE_ERROR
       assert err.status.message == "boom"
 
-      unset = first_span([%{@span | status: %Otel.Trace.Status{code: :unset}}])
+      unset = first_span([%{@span | status: Otel.Trace.Status.new(%{code: :unset})}])
       assert unset.status == nil
     end
 
@@ -130,15 +132,15 @@ defmodule Otel.OTLP.EncoderTest do
           dropped_events_count: 3,
           dropped_links_count: 5,
           events: [
-            %Otel.Trace.Event{
+            Otel.Trace.Event.new(%{
               name: "ev",
               timestamp: 1_500_000_000,
               dropped_attributes_count: 2
-            }
+            })
           ],
           links: [
             Otel.Trace.Link.new(%{
-              context: Otel.Trace.SpanContext.new(1, 2, 1),
+              context: Otel.Trace.SpanContext.new(%{trace_id: 1, span_id: 2, trace_flags: 1}),
               dropped_attributes_count: 4
             })
           ]

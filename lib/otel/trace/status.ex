@@ -59,22 +59,24 @@ defmodule Otel.Trace.Status do
           description: String.t()
         }
 
-  defstruct code: :unset, description: ""
+  defstruct [:code, :description]
 
   @doc """
   **Application** (Convenience) — Build a Status struct for
   `Otel.Trace.Span.set_status/2`.
 
-  Creates a new `Status`. Per spec L599-L600 *"Description MUST
-  be IGNORED for StatusCode Ok & Unset values"* — only `:error`
-  preserves `description`; `:ok` and `:unset` discard it.
+  Per spec L599-L600 *"Description MUST be IGNORED for StatusCode
+  Ok & Unset values"* — only `:error` preserves `description`;
+  `:ok` and `:unset` discard it.
 
   Per spec L575 an empty `description` is equivalent to a
   not-present one, so the default `""` is a natural
   no-description sentinel.
   """
-  @spec new(code :: code(), description :: String.t()) :: t()
-  def new(code, description \\ "")
-  def new(:error, description), do: %__MODULE__{code: :error, description: description}
-  def new(code, _description) when code in [:ok, :unset], do: %__MODULE__{code: code}
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    merged = Map.merge(%{code: :unset, description: ""}, opts)
+    description = if merged.code == :error, do: merged.description, else: ""
+    struct!(__MODULE__, %{code: merged.code, description: description})
+  end
 end

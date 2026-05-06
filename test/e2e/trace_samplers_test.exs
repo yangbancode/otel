@@ -29,13 +29,14 @@ defmodule Otel.E2E.TraceSamplersTest do
       <<trace_id::128>> = :crypto.strong_rand_bytes(16)
       <<span_id::64>> = :crypto.strong_rand_bytes(8)
 
-      sampled_parent = %Otel.Trace.SpanContext{
-        trace_id: trace_id,
-        span_id: span_id,
-        # 0x01 = sampled
-        trace_flags: 1,
-        is_remote: true
-      }
+      sampled_parent =
+        Otel.Trace.SpanContext.new(%{
+          trace_id: trace_id,
+          span_id: span_id,
+          # 0x01 = sampled
+          trace_flags: 1,
+          is_remote: true
+        })
 
       ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), sampled_parent)
 
@@ -54,13 +55,14 @@ defmodule Otel.E2E.TraceSamplersTest do
       <<trace_id::128>> = :crypto.strong_rand_bytes(16)
       <<span_id::64>> = :crypto.strong_rand_bytes(8)
 
-      not_sampled_parent = %Otel.Trace.SpanContext{
-        trace_id: trace_id,
-        span_id: span_id,
-        # 0x00 = not sampled
-        trace_flags: 0,
-        is_remote: true
-      }
+      not_sampled_parent =
+        Otel.Trace.SpanContext.new(%{
+          trace_id: trace_id,
+          span_id: span_id,
+          # 0x00 = not sampled
+          trace_flags: 0,
+          is_remote: true
+        })
 
       ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), not_sampled_parent)
 

@@ -18,7 +18,7 @@ defmodule Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize do
         }
 
   @spec new(opts :: map()) :: state()
-  def new(opts) do
+  def new(opts \\ %{}) do
     %{
       size: Map.get(opts, :size, @default_size),
       count: 0,
@@ -34,7 +34,17 @@ defmodule Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize do
           ctx :: Otel.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
-    exemplar = Otel.Metrics.Exemplar.new(value, time, filtered_attributes, ctx)
+    {trace_id, span_id} = Otel.Metrics.Exemplar.trace_info(ctx)
+
+    exemplar =
+      Otel.Metrics.Exemplar.new(%{
+        value: value,
+        time: time,
+        filtered_attributes: filtered_attributes,
+        trace_id: trace_id,
+        span_id: span_id
+      })
+
     count = state.count + 1
 
     exemplars =

@@ -1,11 +1,11 @@
 defmodule Otel.TraceTest do
   use ExUnit.Case, async: true
 
-  @valid_span_ctx %Otel.Trace.SpanContext{
-    trace_id: 0xFF000000000000000000000000000001,
-    span_id: 0xFF00000000000001,
-    trace_flags: 1
-  }
+  @valid_span_ctx Otel.Trace.SpanContext.new(%{
+                    trace_id: 0xFF000000000000000000000000000001,
+                    span_id: 0xFF00000000000001,
+                    trace_flags: 1
+                  })
 
   setup do
     Otel.Ctx.attach(Otel.Ctx.new())
@@ -15,16 +15,16 @@ defmodule Otel.TraceTest do
   describe "current_span / set_current_span" do
     test "explicit context: round-trip; default Span when none set; immutable update" do
       ctx = Otel.Ctx.new()
-      assert Otel.Trace.current_span(ctx) == %Otel.Trace.SpanContext{}
+      assert Otel.Trace.current_span(ctx) == Otel.Trace.SpanContext.new()
 
       ctx_with = Otel.Trace.set_current_span(ctx, @valid_span_ctx)
 
-      assert Otel.Trace.current_span(ctx) == %Otel.Trace.SpanContext{}
+      assert Otel.Trace.current_span(ctx) == Otel.Trace.SpanContext.new()
       assert Otel.Trace.current_span(ctx_with) == @valid_span_ctx
     end
 
     test "implicit context: round-trip via process Context" do
-      assert Otel.Trace.current_span() == %Otel.Trace.SpanContext{}
+      assert Otel.Trace.current_span() == Otel.Trace.SpanContext.new()
 
       Otel.Trace.set_current_span(@valid_span_ctx)
       assert Otel.Trace.current_span() == @valid_span_ctx
@@ -49,7 +49,7 @@ defmodule Otel.TraceTest do
       assert Otel.Trace.current_span() == span_a
 
       Otel.Trace.detach(token_a)
-      assert Otel.Trace.current_span() == %Otel.Trace.SpanContext{}
+      assert Otel.Trace.current_span() == Otel.Trace.SpanContext.new()
 
       assert Otel.Ctx.get_value(key) == :preserved
     end
@@ -65,7 +65,7 @@ defmodule Otel.TraceTest do
         end
       end
 
-      assert Otel.Trace.current_span() == %Otel.Trace.SpanContext{}
+      assert Otel.Trace.current_span() == Otel.Trace.SpanContext.new()
     end
   end
 end

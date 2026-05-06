@@ -30,7 +30,7 @@ defmodule Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
         }
 
   @spec new(opts :: map()) :: state()
-  def new(opts) do
+  def new(opts \\ %{}) do
     %{
       boundaries: Map.get(opts, :boundaries, []),
       exemplars: %{}
@@ -45,7 +45,17 @@ defmodule Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
           ctx :: Otel.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
-    exemplar = Otel.Metrics.Exemplar.new(value, time, filtered_attributes, ctx)
+    {trace_id, span_id} = Otel.Metrics.Exemplar.trace_info(ctx)
+
+    exemplar =
+      Otel.Metrics.Exemplar.new(%{
+        value: value,
+        time: time,
+        filtered_attributes: filtered_attributes,
+        trace_id: trace_id,
+        span_id: span_id
+      })
+
     bucket_idx = find_bucket(value, state.boundaries)
     %{state | exemplars: Map.put(state.exemplars, bucket_idx, exemplar)}
   end

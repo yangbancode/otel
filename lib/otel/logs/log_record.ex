@@ -80,9 +80,11 @@ defmodule Otel.Logs.LogRecord do
   Definition" L155-L451 plus the MAY-accepted `exception`
   sidecar from `api.md` L131.
 
-  All fields have spec-aligned defaults (see module doc's
-  Field defaults table), so `%Otel.Logs.LogRecord{}` is a
-  valid empty record representing "all fields missing".
+  Construct via `new/1` to apply spec-aligned defaults (see
+  module doc's Field defaults table). Direct
+  `%Otel.Logs.LogRecord{}` literals leave every field as
+  `nil` and are only suitable for pattern matches, never for
+  emission.
   """
   @type t :: %__MODULE__{
           timestamp: non_neg_integer(),

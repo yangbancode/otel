@@ -4,7 +4,7 @@ defmodule Otel.Metrics.Exemplar.FilterTest do
   defp ctx_with_flags(trace_flags) do
     Otel.Trace.set_current_span(
       Otel.Ctx.new(),
-      %Otel.Trace.SpanContext{trace_id: 1, span_id: 1, trace_flags: trace_flags}
+      Otel.Trace.SpanContext.new(%{trace_id: 1, span_id: 1, trace_flags: trace_flags})
     )
   end
 

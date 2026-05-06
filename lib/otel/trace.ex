@@ -59,7 +59,7 @@ defmodule Otel.Trace do
   """
   @spec current_span(ctx :: Otel.Ctx.t()) :: Otel.Trace.SpanContext.t()
   def current_span(ctx) do
-    Otel.Ctx.get_value(ctx, @span_key) || %Otel.Trace.SpanContext{}
+    Otel.Ctx.get_value(ctx, @span_key) || Otel.Trace.SpanContext.new()
   end
 
   @doc """
@@ -85,7 +85,7 @@ defmodule Otel.Trace do
   """
   @spec current_span() :: Otel.Trace.SpanContext.t()
   def current_span do
-    Otel.Ctx.get_value(@span_key) || %Otel.Trace.SpanContext{}
+    Otel.Ctx.get_value(@span_key) || Otel.Trace.SpanContext.new()
   end
 
   @doc """

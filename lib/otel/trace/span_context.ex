@@ -89,11 +89,7 @@ defmodule Otel.Trace.SpanContext do
           is_remote: boolean()
         }
 
-  defstruct trace_id: 0,
-            span_id: 0,
-            trace_flags: 0,
-            tracestate: Otel.Trace.TraceState.new(),
-            is_remote: false
+  defstruct [:trace_id, :span_id, :trace_flags, :tracestate, :is_remote]
 
   @doc """
   **Application** (OTel API MUST) — "creation" (`trace/api.md`
@@ -103,19 +99,17 @@ defmodule Otel.Trace.SpanContext do
   intended entry point (*"these methods SHOULD be the only way
   to create a SpanContext"*).
   """
-  @spec new(
-          trace_id :: Otel.Trace.TraceId.t(),
-          span_id :: Otel.Trace.SpanId.t(),
-          trace_flags :: trace_flags(),
-          tracestate :: Otel.Trace.TraceState.t()
-        ) :: t()
-  def new(trace_id, span_id, trace_flags \\ 0, tracestate \\ Otel.Trace.TraceState.new()) do
-    %__MODULE__{
-      trace_id: trace_id,
-      span_id: span_id,
-      trace_flags: trace_flags,
-      tracestate: tracestate
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      trace_id: 0,
+      span_id: 0,
+      trace_flags: 0,
+      tracestate: Otel.Trace.TraceState.new(),
+      is_remote: false
     }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
   end
 
   @doc """

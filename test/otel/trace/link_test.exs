@@ -1,14 +1,14 @@
 defmodule Otel.Trace.LinkTest do
   use ExUnit.Case, async: true
 
-  @span_ctx Otel.Trace.SpanContext.new(
-              0xFF000000000000000000000000000001,
-              0xFF00000000000001
-            )
+  @span_ctx Otel.Trace.SpanContext.new(%{
+              trace_id: 0xFF000000000000000000000000000001,
+              span_id: 0xFF00000000000001
+            })
 
   test "new/0 builds a Link with invalid SpanContext and empty attributes" do
     link = Otel.Trace.Link.new()
-    assert link.context == %Otel.Trace.SpanContext{}
+    assert link.context == Otel.Trace.SpanContext.new()
     assert link.attributes == %{}
     assert link.dropped_attributes_count == 0
   end
