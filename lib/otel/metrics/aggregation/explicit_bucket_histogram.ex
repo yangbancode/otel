@@ -17,18 +17,17 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
 
   `Otel.Metrics.Meter.register_instrument/4` resolves
   `:boundaries` from the instrument's advisory
-  `:explicit_bucket_boundaries` (when present); other
-  knobs use the spec defaults below.
+  `:explicit_bucket_boundaries` (when present).
 
   | Key | Default | Description |
   |---|---|---|
   | `:boundaries` | `@default_boundaries` (15 OTel-default buckets) | Bucket boundaries per `metrics/sdk.md` L660-L661 |
-  | `:record_min_max` | `true` | Whether to record `min` / `max` per `metrics/sdk.md` L662 |
 
-  When `:record_min_max` is `false`, the bucket counts, sum,
-  and count are still tracked, but min/max ETS slots remain
-  `:unset` and the collected datapoint emits `nil` for both
-  fields — matching the spec's "RecordMinMax = false" semantics.
+  Spec `metrics/sdk.md` L662 also lists a `RecordMinMax` Stream
+  config knob; minikube has no Views so it is permanently on
+  and not exposed here. The encoder's `min: nil` / `max: nil`
+  path still exists for the brief concurrent-collect window
+  before the first measurement updates the ETS row.
   """
 
   @default_boundaries [0, 5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10_000]
@@ -47,7 +46,6 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
         ) :: :ok
   def aggregate(metrics_tab, key, value, opts) do
     boundaries = Map.get(opts, :boundaries, @default_boundaries)
-    record_min_max = Map.get(opts, :record_min_max, true)
 
     case :ets.lookup(metrics_tab, key) do
       [{^key, counters_ref, _min, _max, _sum, _count, _start}] ->
@@ -55,11 +53,12 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
         :counters.add(counters_ref, bucket_idx, 1)
         :ets.update_counter(metrics_tab, key, [{@count_pos, 1}])
         update_sum(metrics_tab, key, value)
-        maybe_update_min_max(metrics_tab, key, value, record_min_max)
+        update_min(metrics_tab, key, value)
+        update_max(metrics_tab, key, value)
         :ok
 
       [] ->
-        init_and_aggregate(metrics_tab, key, value, boundaries, record_min_max)
+        init_and_aggregate(metrics_tab, key, value, boundaries)
     end
   end
 
@@ -106,10 +105,9 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
           metrics_tab :: :ets.table(),
           key :: term(),
           value :: number(),
-          boundaries :: [number()],
-          record_min_max :: boolean()
+          boundaries :: [number()]
         ) :: :ok
-  defp init_and_aggregate(metrics_tab, key, value, boundaries, record_min_max) do
+  defp init_and_aggregate(metrics_tab, key, value, boundaries) do
     num_buckets = length(boundaries) + 1
     counters_ref = :counters.new(num_buckets, [:write_concurrency])
     bucket_idx = find_bucket(value, boundaries)
@@ -120,32 +118,13 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
       true ->
         :ets.update_counter(metrics_tab, key, [{@count_pos, 1}])
         :ets.update_element(metrics_tab, key, [{@sum_pos, value}])
-        maybe_update_min_max(metrics_tab, key, value, record_min_max)
+        update_min(metrics_tab, key, value)
+        update_max(metrics_tab, key, value)
         :ok
 
       false ->
-        aggregate(metrics_tab, key, value, %{
-          boundaries: boundaries,
-          record_min_max: record_min_max
-        })
+        aggregate(metrics_tab, key, value, %{boundaries: boundaries})
     end
-  end
-
-  # Spec `metrics/sdk.md` L662 RecordMinMax option. When false,
-  # the ETS min/max slots stay `:unset` and `normalize_min/1` /
-  # `normalize_max/1` emit `nil` in collected datapoints.
-  @spec maybe_update_min_max(
-          metrics_tab :: :ets.table(),
-          key :: term(),
-          value :: number(),
-          record_min_max :: boolean()
-        ) :: :ok
-  defp maybe_update_min_max(_metrics_tab, _key, _value, false), do: :ok
-
-  defp maybe_update_min_max(metrics_tab, key, value, true) do
-    update_min(metrics_tab, key, value)
-    update_max(metrics_tab, key, value)
-    :ok
   end
 
   @spec find_bucket(value :: number(), boundaries :: [number()]) :: pos_integer()
