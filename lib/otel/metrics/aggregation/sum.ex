@@ -44,15 +44,15 @@ defmodule Otel.Metrics.Aggregation.Sum do
 
   @spec collect(
           metrics_tab :: :ets.table(),
-          stream_key :: {String.t(), Otel.InstrumentationScope.t()},
+          stream_key :: String.t(),
           opts :: map()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  def collect(metrics_tab, {stream_name, scope}, _opts) do
+  def collect(metrics_tab, stream_name, _opts) do
     now = System.system_time(:nanosecond)
 
     match_spec = [
       {
-        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4"},
+        {{stream_name, :"$1"}, :"$2", :"$3", :"$4"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4"}}]
       }

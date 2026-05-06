@@ -1,20 +1,19 @@
 defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogramTest do
   use ExUnit.Case, async: true
 
-  @scope Otel.InstrumentationScope.new(%{name: "test"})
   @boundaries [10, 50, 100]
 
   setup do
     %{tab: :ets.new(:hist_test, [:set, :public]), opts: %{boundaries: @boundaries}}
   end
 
-  defp key(attrs \\ %{}), do: {"histogram", @scope, attrs}
+  defp key(attrs \\ %{}), do: {"histogram", attrs}
 
   defp datapoint(tab, opts) do
     [dp] =
       Otel.Metrics.Aggregation.ExplicitBucketHistogram.collect(
         tab,
-        {"histogram", @scope},
+        "histogram",
         opts
       )
 
@@ -72,7 +71,7 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogramTest do
       dps =
         Otel.Metrics.Aggregation.ExplicitBucketHistogram.collect(
           tab,
-          {"histogram", @scope},
+          "histogram",
           opts
         )
 
@@ -83,7 +82,7 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogramTest do
       assert [] =
                Otel.Metrics.Aggregation.ExplicitBucketHistogram.collect(
                  tab,
-                 {"other", @scope},
+                 "other",
                  opts
                )
     end

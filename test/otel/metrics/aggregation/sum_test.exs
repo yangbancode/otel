@@ -1,13 +1,11 @@
 defmodule Otel.Metrics.Aggregation.SumTest do
   use ExUnit.Case, async: true
 
-  @scope Otel.InstrumentationScope.new(%{name: "test"})
-
   setup do
     %{tab: :ets.new(:sum_test, [:set, :public])}
   end
 
-  defp key(attrs \\ %{}), do: {"counter", @scope, attrs}
+  defp key(attrs \\ %{}), do: {"counter", attrs}
 
   # Spec metrics/sdk.md L1247-L1259 — Sum accumulates per attribute
   # set, keeping integer and float buckets separate so int + float
@@ -40,7 +38,7 @@ defmodule Otel.Metrics.Aggregation.SumTest do
       Otel.Metrics.Aggregation.Sum.aggregate(tab, key(%{"m" => "GET"}), 2.5, %{})
       Otel.Metrics.Aggregation.Sum.aggregate(tab, key(%{"m" => "POST"}), 5, %{})
 
-      dps = Otel.Metrics.Aggregation.Sum.collect(tab, {"counter", @scope}, %{})
+      dps = Otel.Metrics.Aggregation.Sum.collect(tab, "counter", %{})
       assert length(dps) == 2
 
       get_dp = Enum.find(dps, &(&1.attributes == %{"m" => "GET"}))
@@ -53,7 +51,7 @@ defmodule Otel.Metrics.Aggregation.SumTest do
     end
 
     test "empty result for an unknown stream key", %{tab: tab} do
-      assert [] = Otel.Metrics.Aggregation.Sum.collect(tab, {"other", @scope}, %{})
+      assert [] = Otel.Metrics.Aggregation.Sum.collect(tab, "other", %{})
     end
   end
 end

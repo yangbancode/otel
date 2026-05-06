@@ -31,8 +31,8 @@ defmodule Otel.Metrics.Meter do
 
   ### Duplicate registration
 
-  `register_instrument/4` keys instruments by
-  `{scope, downcased_name}` and uses `:ets.insert_new/2` so the
+  `register_instrument/3` keys instruments by
+  `downcased_name` and uses `:ets.insert_new/2` so the
   first registration wins. Subsequent `create_*` calls for the same
   key return the already-stored struct unchanged. This satisfies the
   case-insensitive identity requirement of
@@ -84,8 +84,7 @@ defmodule Otel.Metrics.Meter do
   # --- Recording ---
 
   def record(%Otel.Metrics.Instrument{} = instrument, value, attributes) do
-    instrument_key =
-      {instrument.scope, Otel.Metrics.Instrument.downcased_name(instrument.name)}
+    instrument_key = Otel.Metrics.Instrument.downcased_name(instrument.name)
 
     case :ets.lookup(Otel.Metrics.InstrumentsStorage, instrument_key) do
       [] ->
@@ -95,7 +94,7 @@ defmodule Otel.Metrics.Meter do
         ctx = Otel.Ctx.current()
         now = System.system_time(:nanosecond)
 
-        agg_key = {registered.name, registered.scope, attributes}
+        agg_key = {registered.name, attributes}
         agg_key = maybe_overflow(registered, agg_key)
 
         registered.aggregation_module.aggregate(
@@ -135,7 +134,7 @@ defmodule Otel.Metrics.Meter do
         advisory: advisory
       })
 
-    key = {instrument.scope, Otel.Metrics.Instrument.downcased_name(name)}
+    key = Otel.Metrics.Instrument.downcased_name(name)
 
     case :ets.insert_new(Otel.Metrics.InstrumentsStorage, {key, instrument}) do
       true ->
@@ -187,30 +186,27 @@ defmodule Otel.Metrics.Meter do
           instrument :: Otel.Metrics.Instrument.t(),
           agg_key :: term()
         ) :: term()
-  defp maybe_overflow(instrument, {stream_name, scope, _attrs} = agg_key) do
+  defp maybe_overflow(instrument, {stream_name, _attrs} = agg_key) do
     if :ets.member(Otel.Metrics.MetricsStorage, agg_key) do
       agg_key
     else
       limit = instrument.cardinality_limit
-      current = count_stream_keys(stream_name, scope)
+      current = count_stream_keys(stream_name)
 
       if current >= limit do
-        {stream_name, scope, @overflow_attributes}
+        {stream_name, @overflow_attributes}
       else
         agg_key
       end
     end
   end
 
-  @spec count_stream_keys(
-          stream_name :: String.t(),
-          scope :: Otel.InstrumentationScope.t()
-        ) :: non_neg_integer()
-  defp count_stream_keys(stream_name, scope) do
+  @spec count_stream_keys(stream_name :: String.t()) :: non_neg_integer()
+  defp count_stream_keys(stream_name) do
     :ets.foldl(
       fn entry, acc ->
         case elem(entry, 0) do
-          {^stream_name, ^scope, _} -> acc + 1
+          {^stream_name, _} -> acc + 1
           _ -> acc
         end
       end,

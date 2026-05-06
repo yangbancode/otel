@@ -64,17 +64,17 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
 
   @spec collect(
           metrics_tab :: :ets.table(),
-          stream_key :: {String.t(), Otel.InstrumentationScope.t()},
+          stream_key :: String.t(),
           opts :: map()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  def collect(metrics_tab, {stream_name, scope}, opts) do
+  def collect(metrics_tab, stream_name, opts) do
     boundaries = Map.get(opts, :boundaries, @default_boundaries)
     now = System.system_time(:nanosecond)
     num_buckets = length(boundaries) + 1
 
     match_spec = [
       {
-        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"},
+        {{stream_name, :"$1"}, :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"}}]
       }

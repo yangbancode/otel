@@ -22,23 +22,30 @@ defmodule Otel.Metrics.Aggregation do
   Per-stream-per-attribute-set aggregation key.
 
   Used as the ETS key in the metrics table to identify a single
-  aggregation cell — combining stream identity (name + scope)
-  and the attribute set the cell aggregates over. Constructed
-  at every `aggregate/4` call site (e.g. `Otel.Metrics.Meter`)
-  and at exemplar reservoir lookups.
+  aggregation cell — combining the stream name and the
+  attribute set the cell aggregates over. Constructed at every
+  `aggregate/4` call site (e.g. `Otel.Metrics.Meter`) and at
+  exemplar reservoir lookups.
+
+  `InstrumentationScope` is not part of the key: minikube
+  hardcodes a single scope (project memory
+  `project_minikube_hardcode_decisions` § Follow-on #457), so
+  threading it through every cell key would be redundant. Apps
+  that share an instrument name across logical components
+  namespace via the name itself (e.g. `phoenix.requests` /
+  `ecto.requests`).
   """
   @type agg_key :: {
           name :: String.t(),
-          scope :: Otel.InstrumentationScope.t(),
           attributes :: %{String.t() => primitive_any()}
         }
 
   @typedoc """
   Stream-level identity used by `collect/3` callbacks — the
-  `(name, scope)` prefix of `agg_key/0`, without the reader
-  or attribute selection.
+  instrument's `name` (the prefix of `agg_key/0` minus
+  attributes).
   """
-  @type stream_key :: {name :: String.t(), scope :: Otel.InstrumentationScope.t()}
+  @type stream_key :: String.t()
 
   @type datapoint :: %{
           attributes: %{String.t() => primitive_any()},

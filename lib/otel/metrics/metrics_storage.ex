@@ -1,8 +1,9 @@
 defmodule Otel.Metrics.MetricsStorage do
   @moduledoc """
   ETS owner for the named ETS table — aggregated
-  datapoints keyed by `{stream_name, scope, attrs}`
-  (spec `metrics/data-model.md` §Metric).
+  datapoints keyed by `{stream_name, attrs}` (spec
+  `metrics/data-model.md` §Metric). `InstrumentationScope`
+  is hardcoded SDK-wide so it is omitted from the key.
 
   Same `SpanStorage`-style GenServer-as-owner pattern as the
   other Metrics storage modules — table is `public` with
