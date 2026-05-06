@@ -4,11 +4,10 @@ defmodule Otel.Metrics.MeterTest do
   import ExUnit.CaptureLog
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
-  defp config, do: Otel.Metrics.meter_config()
 
   defp datapoints(name, agg_module) do
-    cfg = config()
-    agg_module.collect(cfg.metrics_tab, {name, cfg.scope}, %{})
+    scope = Otel.InstrumentationScope.new()
+    agg_module.collect(Otel.Metrics.MetricsStorage, {name, scope}, %{})
   end
 
   setup do
@@ -178,14 +177,11 @@ defmodule Otel.Metrics.MeterTest do
     end
 
     test "record on an unregistered instrument is a no-op (returns :ok)" do
-      cfg = config()
-
       ghost =
         Otel.Metrics.Instrument.new(%{
-          config: cfg,
           name: "ghost",
           kind: :counter,
-          scope: cfg.scope
+          scope: Otel.InstrumentationScope.new()
         })
 
       assert :ok == Otel.Metrics.Meter.record(ghost, 1, %{})
@@ -194,10 +190,12 @@ defmodule Otel.Metrics.MeterTest do
 
   describe "cardinality limits" do
     test "default cardinality_limit is 2000" do
-      cfg = config()
       Otel.Metrics.Meter.create_counter("card_test", [])
+      scope = Otel.InstrumentationScope.new()
 
-      [{_, instrument}] = :ets.lookup(cfg.instruments_tab, {cfg.scope, "card_test"})
+      [{_, instrument}] =
+        :ets.lookup(Otel.Metrics.InstrumentsStorage, {scope, "card_test"})
+
       assert instrument.cardinality_limit == 2000
     end
   end

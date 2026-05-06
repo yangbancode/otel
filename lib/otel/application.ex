@@ -8,7 +8,8 @@ defmodule Otel.Application do
   def start(_type, _args) do
     # Three per-table `XxxStorage` GenServers own the metrics ETS
     # tables; they must start before `MetricExporter` since the
-    # exporter calls `Otel.Metrics.meter_config/0` in its
+    # exporter walks `Otel.Metrics.InstrumentsStorage` /
+    # `MetricsStorage` / `ExemplarsStorage` directly in its
     # `do_export/0`. `Otel.Trace` and `Otel.Logs` hold no
     # boot-time state — `Otel.Resource.new/0` reads
     # `RELEASE_NAME`/`RELEASE_VSN` OS env vars on every call (no

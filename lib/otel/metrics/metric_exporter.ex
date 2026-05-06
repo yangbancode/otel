@@ -12,7 +12,7 @@ defmodule Otel.Metrics.MetricExporter do
   Metrics exports a snapshot of live state — the
   `Otel.Metrics.{InstrumentsStorage, MetricsStorage,
   ExemplarsStorage}` GenServers hold accumulating
-  aggregation / exemplar state. `collect/1` walks the
+  aggregation / exemplar state. `collect/0` walks the
   instruments ETS table and returns one `metric()` per
   registered instrument; the next collect tick reads the
   same state with fresh aggregation values.
@@ -98,20 +98,16 @@ defmodule Otel.Metrics.MetricExporter do
   end
 
   @doc """
-  **SDK** — Walks the instruments ETS table and returns one
-  `metric()` per registered instrument.
+  **SDK** — Walks `Otel.Metrics.InstrumentsStorage` and returns
+  one `metric()` per registered instrument.
 
   Pure pull from ETS state — safe to invoke from any process.
-  Tests pass a custom config map (e.g. `:exemplar_filter`
-  override) to exercise paths the hardcoded
-  `Otel.Metrics.meter_config/0` doesn't reach.
   """
-  @spec collect(config :: map()) :: [Otel.Metrics.Metric.t()]
-  def collect(config) do
-    config.instruments_tab
+  @spec collect() :: [Otel.Metrics.Metric.t()]
+  def collect do
+    Otel.Metrics.InstrumentsStorage
     |> :ets.tab2list()
-    |> Enum.map(fn {_key, instrument} -> instrument end)
-    |> Enum.flat_map(fn instrument -> collect_instrument(config, instrument) end)
+    |> Enum.flat_map(fn {_key, instrument} -> collect_instrument(instrument) end)
   end
 
   # --- GenServer ---
@@ -153,7 +149,7 @@ defmodule Otel.Metrics.MetricExporter do
   # {:error, Exception.t()}` when an export ran.
   @spec do_export() :: :ok | {:ok, Req.Response.t()} | {:error, Exception.t()}
   defp do_export do
-    case collect(Otel.Metrics.meter_config()) do
+    case collect() do
       [] ->
         :ok
 
@@ -172,14 +168,14 @@ defmodule Otel.Metrics.MetricExporter do
     end
   end
 
-  @spec collect_instrument(config :: map(), instrument :: Otel.Metrics.Instrument.t()) ::
+  @spec collect_instrument(instrument :: Otel.Metrics.Instrument.t()) ::
           [Otel.Metrics.Metric.t()]
-  defp collect_instrument(config, instrument) do
+  defp collect_instrument(instrument) do
     stream_key = {instrument.name, instrument.scope}
 
     datapoints =
       instrument.aggregation_module.collect(
-        config.metrics_tab,
+        Otel.Metrics.MetricsStorage,
         stream_key,
         instrument.aggregation_opts
       )
@@ -189,7 +185,7 @@ defmodule Otel.Metrics.MetricExporter do
         []
 
       points ->
-        points_with_exemplars = attach_exemplars(config, instrument, points)
+        points_with_exemplars = attach_exemplars(instrument, points)
         {temporality, is_monotonic} = metric_type_info(instrument)
 
         [
@@ -198,7 +194,7 @@ defmodule Otel.Metrics.MetricExporter do
             description: instrument.description,
             unit: instrument.unit,
             scope: instrument.scope,
-            resource: config.resource,
+            resource: Otel.Resource.new(),
             kind: instrument.kind,
             temporality: temporality,
             is_monotonic: is_monotonic,
@@ -221,33 +217,25 @@ defmodule Otel.Metrics.MetricExporter do
   end
 
   @spec attach_exemplars(
-          config :: map(),
           instrument :: Otel.Metrics.Instrument.t(),
           datapoints :: [Otel.Metrics.Aggregation.datapoint()]
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp attach_exemplars(config, instrument, datapoints) do
-    exemplars_tab = Map.get(config, :exemplars_tab)
-
-    if exemplars_tab == nil do
-      datapoints
-    else
-      Enum.map(datapoints, fn dp ->
-        agg_key = {instrument.name, instrument.scope, dp.attributes}
-        collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp)
-      end)
-    end
+  defp attach_exemplars(instrument, datapoints) do
+    Enum.map(datapoints, fn dp ->
+      agg_key = {instrument.name, instrument.scope, dp.attributes}
+      collect_exemplar_for_datapoint(agg_key, dp)
+    end)
   end
 
   @spec collect_exemplar_for_datapoint(
-          exemplars_tab :: :ets.table(),
           agg_key :: Otel.Metrics.Aggregation.agg_key(),
           dp :: Otel.Metrics.Aggregation.datapoint()
         ) :: map()
-  defp collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp) do
-    case :ets.lookup(exemplars_tab, agg_key) do
+  defp collect_exemplar_for_datapoint(agg_key, dp) do
+    case :ets.lookup(Otel.Metrics.ExemplarsStorage, agg_key) do
       [{^agg_key, reservoir}] ->
         {exemplars, updated} = Otel.Metrics.Exemplar.Reservoir.collect(reservoir)
-        :ets.insert(exemplars_tab, {agg_key, updated})
+        :ets.insert(Otel.Metrics.ExemplarsStorage, {agg_key, updated})
         Map.put(dp, :exemplars, exemplars)
 
       [] ->

@@ -4,25 +4,23 @@ defmodule Otel.Metrics.MetricExporterTest do
   use ExUnit.Case, async: false
 
   defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
-  defp meter_config, do: Otel.Metrics.meter_config()
 
   setup do
     restart_sdk(metrics: [readers: []])
-    %{config: meter_config()}
+    :ok
   end
 
-  describe "collect/1 — instrument kinds" do
-    test "no instruments → []", %{config: config} do
-      assert [] = Otel.Metrics.MetricExporter.collect(config)
+  describe "collect/0 — instrument kinds" do
+    test "no instruments → []" do
+      assert [] = Otel.Metrics.MetricExporter.collect()
     end
 
-    test "counter accumulates per attribute set; metric carries name/unit/kind/scope/resource",
-         %{config: config} do
+    test "counter accumulates per attribute set; metric carries name/unit/kind/scope/resource" do
       counter = Otel.Metrics.Meter.create_counter("requests", unit: "1")
       Otel.Metrics.Meter.record(counter, 5, %{"method" => "GET"})
       Otel.Metrics.Meter.record(counter, 3, %{"method" => "GET"})
 
-      [metric] = Otel.Metrics.MetricExporter.collect(config)
+      [metric] = Otel.Metrics.MetricExporter.collect()
 
       assert metric.name == "requests"
       assert metric.unit == "1"
@@ -35,23 +33,23 @@ defmodule Otel.Metrics.MetricExporterTest do
       assert dp.attributes == %{"method" => "GET"}
     end
 
-    test "histogram aggregates count + sum", %{config: config} do
+    test "histogram aggregates count + sum" do
       hist = Otel.Metrics.Meter.create_histogram("latency", unit: "ms")
       Otel.Metrics.Meter.record(hist, 50, %{})
       Otel.Metrics.Meter.record(hist, 150, %{})
 
-      [metric] = Otel.Metrics.MetricExporter.collect(config)
+      [metric] = Otel.Metrics.MetricExporter.collect()
       assert metric.name == "latency"
       assert [%{value: %{count: 2, sum: 200}}] = metric.datapoints
     end
 
-    test "multiple sync instruments collect in one pass", %{config: config} do
+    test "multiple sync instruments collect in one pass" do
       counter = Otel.Metrics.Meter.create_counter("req", [])
       gauge = Otel.Metrics.Meter.create_gauge("temp", [])
       Otel.Metrics.Meter.record(counter, 1, %{})
       Otel.Metrics.Meter.record(gauge, 22, %{})
 
-      names = Otel.Metrics.MetricExporter.collect(config) |> Enum.map(& &1.name) |> Enum.sort()
+      names = Otel.Metrics.MetricExporter.collect() |> Enum.map(& &1.name) |> Enum.sort()
       assert names == ["req", "temp"]
     end
   end
@@ -61,7 +59,7 @@ defmodule Otel.Metrics.MetricExporterTest do
   # `with_span` (sampled root → trace_flags=1) verify exemplars
   # land; tests outside `with_span` (no current span → flags=0)
   # verify nothing lands.
-  describe "collect/1 — exemplars" do
+  describe "collect/0 — exemplars" do
     test "trace_based filter — sampled span emits exemplars; no-span context yields []" do
       restart_sdk(metrics: [readers: []])
       counter = Otel.Metrics.Meter.create_counter("sampled", [])
@@ -70,14 +68,14 @@ defmodule Otel.Metrics.MetricExporterTest do
         Otel.Metrics.Meter.record(counter, 42, %{"method" => "GET"})
       end)
 
-      [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect(meter_config())
+      [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect()
       assert hd(dp.exemplars).value == 42
 
       restart_sdk(metrics: [readers: []])
       not_sampled = Otel.Metrics.Meter.create_counter("not_sampled", [])
       Otel.Metrics.Meter.record(not_sampled, 1, %{})
 
-      [%{datapoints: [dp2]}] = Otel.Metrics.MetricExporter.collect(meter_config())
+      [%{datapoints: [dp2]}] = Otel.Metrics.MetricExporter.collect()
       assert dp2.exemplars == []
     end
 
@@ -87,24 +85,12 @@ defmodule Otel.Metrics.MetricExporterTest do
 
       Otel.Trace.with_span("parent", fn _ ->
         Otel.Metrics.Meter.record(counter, 1, %{})
-        _ = Otel.Metrics.MetricExporter.collect(meter_config())
+        _ = Otel.Metrics.MetricExporter.collect()
 
         Otel.Metrics.Meter.record(counter, 2, %{})
-        [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect(meter_config())
+        [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect()
         assert hd(dp.exemplars).value == 2
       end)
-    end
-
-    test "config without :exemplars_tab — collect runs but datapoints carry no :exemplars",
-         %{config: config} do
-      counter = Otel.Metrics.Meter.create_counter("no_ex", [])
-      Otel.Metrics.Meter.record(counter, 5, %{})
-
-      [%{datapoints: [dp]}] =
-        Otel.Metrics.MetricExporter.collect(Map.delete(config, :exemplars_tab))
-
-      assert dp.value == 5
-      refute Map.has_key?(dp, :exemplars)
     end
   end
 

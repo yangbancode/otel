@@ -66,28 +66,28 @@ defmodule Otel.Metrics.Meter do
   # --- Synchronous Instruments ---
 
   def create_counter(name, opts \\ []) do
-    register_instrument(Otel.Metrics.meter_config(), name, :counter, opts)
+    register_instrument(name, :counter, opts)
   end
 
   def create_histogram(name, opts \\ []) do
-    register_instrument(Otel.Metrics.meter_config(), name, :histogram, opts)
+    register_instrument(name, :histogram, opts)
   end
 
   def create_gauge(name, opts \\ []) do
-    register_instrument(Otel.Metrics.meter_config(), name, :gauge, opts)
+    register_instrument(name, :gauge, opts)
   end
 
   def create_updown_counter(name, opts \\ []) do
-    register_instrument(Otel.Metrics.meter_config(), name, :updown_counter, opts)
+    register_instrument(name, :updown_counter, opts)
   end
 
   # --- Recording ---
 
-  def record(%Otel.Metrics.Instrument{config: config} = instrument, value, attributes) do
+  def record(%Otel.Metrics.Instrument{} = instrument, value, attributes) do
     instrument_key =
       {instrument.scope, Otel.Metrics.Instrument.downcased_name(instrument.name)}
 
-    case :ets.lookup(config.instruments_tab, instrument_key) do
+    case :ets.lookup(Otel.Metrics.InstrumentsStorage, instrument_key) do
       [] ->
         :ok
 
@@ -96,35 +96,27 @@ defmodule Otel.Metrics.Meter do
         now = System.system_time(:nanosecond)
 
         agg_key = {registered.name, registered.scope, attributes}
-        agg_key = maybe_overflow(config.metrics_tab, registered, agg_key)
+        agg_key = maybe_overflow(registered, agg_key)
 
         registered.aggregation_module.aggregate(
-          config.metrics_tab,
+          Otel.Metrics.MetricsStorage,
           agg_key,
           value,
           registered.aggregation_opts
         )
 
-        offer_exemplar(config, registered, agg_key, value, now, %{}, ctx)
+        offer_exemplar(registered, agg_key, value, now, %{}, ctx)
     end
   end
 
   # --- Private ---
 
-  @doc false
-  # SDK-internal (test) — register an instrument under a custom
-  # `meter_config` map. The public `create_*/2` paths route
-  # through `Otel.Metrics.meter_config/0` (the SDK-default
-  # cumulative config); tests that need delta temporality or
-  # other override-only paths construct a custom config and
-  # call here directly.
   @spec register_instrument(
-          config :: map(),
           name :: String.t(),
           kind :: Otel.Metrics.Instrument.kind(),
           opts :: Otel.Metrics.Instrument.create_opts()
         ) :: Otel.Metrics.Instrument.t()
-  def register_instrument(config, name, kind, opts) do
+  defp register_instrument(name, kind, opts) do
     # `Keyword.get/3` covers absent keys; the `|| ""` covers
     # `Keyword.get(opts, :unit, nil)` style callers that pass
     # an explicit `nil` (test fixtures do this). Both fields
@@ -134,16 +126,16 @@ defmodule Otel.Metrics.Meter do
     description = Keyword.get(opts, :description, "") || ""
     advisory = Keyword.get(opts, :advisory, [])
     aggregation_module = Otel.Metrics.Aggregation.default_for(kind)
+    scope = Otel.InstrumentationScope.new()
 
     instrument =
       Otel.Metrics.Instrument.new(%{
-        config: config,
         name: name,
         kind: kind,
         unit: unit,
         description: description,
         advisory: advisory,
-        scope: config.scope,
+        scope: scope,
         aggregation_module: aggregation_module,
         aggregation_opts: aggregation_opts(advisory),
         # Spec metrics/sdk.md L1129-L1133 — default
@@ -152,14 +144,14 @@ defmodule Otel.Metrics.Meter do
         exemplar_reservoir: default_reservoir(aggregation_module)
       })
 
-    key = {config.scope, Otel.Metrics.Instrument.downcased_name(name)}
+    key = {scope, Otel.Metrics.Instrument.downcased_name(name)}
 
-    case :ets.insert_new(config.instruments_tab, {key, instrument}) do
+    case :ets.insert_new(Otel.Metrics.InstrumentsStorage, {key, instrument}) do
       true ->
         instrument
 
       false ->
-        [{^key, existing}] = :ets.lookup(config.instruments_tab, key)
+        [{^key, existing}] = :ets.lookup(Otel.Metrics.InstrumentsStorage, key)
         warn_duplicate_instrument(existing, instrument)
         existing
     end
@@ -216,16 +208,15 @@ defmodule Otel.Metrics.Meter do
   @overflow_attributes %{"otel.metric.overflow" => true}
 
   @spec maybe_overflow(
-          metrics_tab :: :ets.table(),
           instrument :: Otel.Metrics.Instrument.t(),
           agg_key :: term()
         ) :: term()
-  defp maybe_overflow(metrics_tab, instrument, {stream_name, scope, _attrs} = agg_key) do
-    if :ets.member(metrics_tab, agg_key) do
+  defp maybe_overflow(instrument, {stream_name, scope, _attrs} = agg_key) do
+    if :ets.member(Otel.Metrics.MetricsStorage, agg_key) do
       agg_key
     else
       limit = instrument.cardinality_limit
-      current = count_stream_keys(metrics_tab, stream_name, scope)
+      current = count_stream_keys(stream_name, scope)
 
       if current >= limit do
         {stream_name, scope, @overflow_attributes}
@@ -236,11 +227,10 @@ defmodule Otel.Metrics.Meter do
   end
 
   @spec count_stream_keys(
-          tab :: :ets.table(),
           stream_name :: String.t(),
           scope :: Otel.InstrumentationScope.t()
         ) :: non_neg_integer()
-  defp count_stream_keys(tab, stream_name, scope) do
+  defp count_stream_keys(stream_name, scope) do
     :ets.foldl(
       fn entry, acc ->
         case elem(entry, 0) do
@@ -249,12 +239,11 @@ defmodule Otel.Metrics.Meter do
         end
       end,
       0,
-      tab
+      Otel.Metrics.MetricsStorage
     )
   end
 
   @spec offer_exemplar(
-          config :: map(),
           instrument :: Otel.Metrics.Instrument.t(),
           agg_key :: term(),
           value :: number(),
@@ -262,22 +251,21 @@ defmodule Otel.Metrics.Meter do
           filtered_attrs :: map(),
           ctx :: Otel.Ctx.t()
         ) :: :ok
-  defp offer_exemplar(config, instrument, agg_key, value, time, filtered_attrs, ctx) do
-    reservoir = get_reservoir(config.exemplars_tab, instrument, agg_key)
+  defp offer_exemplar(instrument, agg_key, value, time, filtered_attrs, ctx) do
+    reservoir = get_reservoir(instrument, agg_key)
 
     updated =
       Otel.Metrics.Exemplar.Reservoir.offer(reservoir, value, time, filtered_attrs, ctx)
 
-    put_reservoir(config.exemplars_tab, agg_key, updated)
+    put_reservoir(agg_key, updated)
   end
 
   @spec get_reservoir(
-          exemplars_tab :: :ets.table(),
           instrument :: Otel.Metrics.Instrument.t(),
           agg_key :: term()
         ) :: {module(), term()} | nil
-  defp get_reservoir(exemplars_tab, instrument, agg_key) do
-    case :ets.lookup(exemplars_tab, agg_key) do
+  defp get_reservoir(instrument, agg_key) do
+    case :ets.lookup(Otel.Metrics.ExemplarsStorage, agg_key) do
       [{^agg_key, reservoir}] ->
         reservoir
 
@@ -293,12 +281,11 @@ defmodule Otel.Metrics.Meter do
     end
   end
 
-  @spec put_reservoir(exemplars_tab :: :ets.table(), agg_key :: term(), reservoir :: term()) ::
-          :ok
-  defp put_reservoir(_exemplars_tab, _agg_key, nil), do: :ok
+  @spec put_reservoir(agg_key :: term(), reservoir :: term()) :: :ok
+  defp put_reservoir(_agg_key, nil), do: :ok
 
-  defp put_reservoir(exemplars_tab, agg_key, reservoir) do
-    :ets.insert(exemplars_tab, {agg_key, reservoir})
+  defp put_reservoir(agg_key, reservoir) do
+    :ets.insert(Otel.Metrics.ExemplarsStorage, {agg_key, reservoir})
     :ok
   end
 
