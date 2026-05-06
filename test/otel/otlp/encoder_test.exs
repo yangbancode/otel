@@ -245,7 +245,7 @@ defmodule Otel.OTLP.EncoderTest do
   end
 
   describe "encode_metrics/1" do
-    @counter %{
+    @counter %Otel.Metrics.Metric{
       name: "http.requests",
       description: "Request count",
       unit: "1",
@@ -265,15 +265,13 @@ defmodule Otel.OTLP.EncoderTest do
       ]
     }
 
-    @gauge %{
+    @gauge %Otel.Metrics.Metric{
       name: "cpu.usage",
       description: "CPU usage",
       unit: "%",
       scope: %Otel.InstrumentationScope{name: "test_lib"},
       resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
       kind: :gauge,
-      temporality: nil,
-      is_monotonic: nil,
       datapoints: [
         %{
           attributes: %{"host" => "a"},
@@ -285,7 +283,7 @@ defmodule Otel.OTLP.EncoderTest do
       ]
     }
 
-    @histogram %{
+    @histogram %Otel.Metrics.Metric{
       name: "http.duration",
       description: "Request duration",
       unit: "ms",
@@ -293,7 +291,6 @@ defmodule Otel.OTLP.EncoderTest do
       resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
       kind: :histogram,
       temporality: :cumulative,
-      is_monotonic: nil,
       datapoints: [
         %{
           attributes: %{},
@@ -409,8 +406,13 @@ defmodule Otel.OTLP.EncoderTest do
       assert unspec.aggregation_temporality == :AGGREGATION_TEMPORALITY_UNSPECIFIED
     end
 
+    defp with_datapoint_field(metric, key, value) do
+      [dp] = metric.datapoints
+      %{metric | datapoints: [Map.put(dp, key, value)]}
+    end
+
     test "datapoint float value → as_double" do
-      metric = put_in(@counter, [:datapoints, Access.at(0), :value], 3.14)
+      metric = with_datapoint_field(@counter, :value, 3.14)
       {:sum, sum} = first_metric([metric]).data
       assert {:as_double, 3.14} = hd(sum.data_points).value
     end
@@ -432,7 +434,7 @@ defmodule Otel.OTLP.EncoderTest do
         trace_id: nil
       }
 
-      m1 = put_in(@counter, [:datapoints, Access.at(0), :exemplars], [with_ctx])
+      m1 = with_datapoint_field(@counter, :exemplars, [with_ctx])
       {_, d1} = first_metric([m1]).data
       ex1 = hd(hd(d1.data_points).exemplars)
       assert ex1.time_unix_nano == 1_500_000
@@ -441,7 +443,7 @@ defmodule Otel.OTLP.EncoderTest do
       assert ex1.trace_id == <<0x0AF7651916CD43DD8448EB211C80319C::128>>
       assert Enum.any?(ex1.filtered_attributes, &(&1.key == "extra"))
 
-      m2 = put_in(@counter, [:datapoints, Access.at(0), :exemplars], [no_ctx])
+      m2 = with_datapoint_field(@counter, :exemplars, [no_ctx])
       {_, d2} = first_metric([m2]).data
       ex2 = hd(hd(d2.data_points).exemplars)
       assert {:as_double, 10.5} = ex2.value

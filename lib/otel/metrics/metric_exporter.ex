@@ -85,22 +85,6 @@ defmodule Otel.Metrics.MetricExporter do
   @content_type "application/x-protobuf"
   @user_agent "#{Mix.Project.config()[:app]}/#{Mix.Project.config()[:version]}"
 
-  @typedoc """
-  One metric record produced by `collect/1` — the unit consumed by
-  `Otel.OTLP.Encoder.encode_metrics/1`.
-  """
-  @type metric :: %{
-          name: String.t(),
-          description: String.t(),
-          unit: String.t(),
-          scope: Otel.InstrumentationScope.t(),
-          resource: Otel.Resource.t(),
-          kind: Otel.Metrics.Instrument.kind(),
-          temporality: Otel.Metrics.Instrument.temporality() | nil,
-          is_monotonic: boolean() | nil,
-          datapoints: [Otel.Metrics.Aggregation.datapoint()]
-        }
-
   # --- Public API ---
 
   @spec start_link(opts :: keyword()) :: GenServer.on_start()
@@ -122,7 +106,7 @@ defmodule Otel.Metrics.MetricExporter do
   or `:exemplar_filter` override) to exercise paths the
   hardcoded `Otel.Metrics.meter_config/0` doesn't reach.
   """
-  @spec collect(config :: map()) :: [metric()]
+  @spec collect(config :: map()) :: [Otel.Metrics.Metric.t()]
   def collect(config) do
     config.streams_tab
     |> :ets.tab2list()
@@ -188,7 +172,8 @@ defmodule Otel.Metrics.MetricExporter do
     end
   end
 
-  @spec collect_stream(config :: map(), stream :: Otel.Metrics.Stream.t()) :: [metric()]
+  @spec collect_stream(config :: map(), stream :: Otel.Metrics.Stream.t()) ::
+          [Otel.Metrics.Metric.t()]
   defp collect_stream(config, stream) do
     stream_key = {stream.name, stream.instrument.scope}
     collect_opts = build_collect_opts(stream)
@@ -205,7 +190,7 @@ defmodule Otel.Metrics.MetricExporter do
         {temporality, is_monotonic} = metric_type_info(stream)
 
         [
-          %{
+          %Otel.Metrics.Metric{
             name: stream.name,
             description: stream.description,
             unit: stream.instrument.unit,
