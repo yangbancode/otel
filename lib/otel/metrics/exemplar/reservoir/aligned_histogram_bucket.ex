@@ -30,7 +30,7 @@ defmodule Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
         }
 
   @spec new(opts :: map()) :: state()
-  def new(opts) do
+  def new(opts \\ %{}) do
     %{
       boundaries: Map.get(opts, :boundaries, []),
       exemplars: %{}

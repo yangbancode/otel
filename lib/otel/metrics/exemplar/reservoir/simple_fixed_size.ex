@@ -18,7 +18,7 @@ defmodule Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize do
         }
 
   @spec new(opts :: map()) :: state()
-  def new(opts) do
+  def new(opts \\ %{}) do
     %{
       size: Map.get(opts, :size, @default_size),
       count: 0,
