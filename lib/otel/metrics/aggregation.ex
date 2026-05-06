@@ -22,16 +22,14 @@ defmodule Otel.Metrics.Aggregation do
   Per-stream-per-attribute-set aggregation key.
 
   Used as the ETS key in the metrics table to identify a single
-  aggregation cell — combining stream identity (name + scope),
-  the reader the aggregation belongs to, and the attribute set
-  the cell aggregates over. Constructed at every `aggregate/4`
-  call site (e.g. `Otel.Metrics.Meter`) and at exemplar
-  reservoir lookups.
+  aggregation cell — combining stream identity (name + scope)
+  and the attribute set the cell aggregates over. Constructed
+  at every `aggregate/4` call site (e.g. `Otel.Metrics.Meter`)
+  and at exemplar reservoir lookups.
   """
   @type agg_key :: {
           name :: String.t(),
           scope :: Otel.InstrumentationScope.t(),
-          reader_id :: reference() | nil,
           attributes :: %{String.t() => primitive_any()}
         }
 

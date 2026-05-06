@@ -7,7 +7,7 @@ defmodule Otel.Metrics.Aggregation.Base2ExponentialBucketHistogramTest do
     %{tab: :ets.new(:b2e_test, [:set, :public]), opts: %{}}
   end
 
-  defp key(attrs \\ %{}), do: {"histogram", @scope, nil, attrs}
+  defp key(attrs \\ %{}), do: {"histogram", @scope, attrs}
 
   defp datapoint(tab, opts) do
     [dp] =

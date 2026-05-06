@@ -124,13 +124,9 @@ defmodule Otel.Metrics.MetricExporter do
   """
   @spec collect(config :: map()) :: [metric()]
   def collect(config) do
-    reader_id = Map.get(config, :reader_id)
-    streams = :ets.tab2list(config.streams_tab)
-
-    streams
+    config.streams_tab
+    |> :ets.tab2list()
     |> Enum.map(fn {_key, stream} -> stream end)
-    |> Enum.filter(fn stream -> stream.reader_id == reader_id end)
-    |> Enum.uniq_by(fn stream -> {stream.name, stream.instrument.scope} end)
     |> Enum.flat_map(fn stream -> collect_stream(config, stream) end)
   end
 
@@ -226,9 +222,7 @@ defmodule Otel.Metrics.MetricExporter do
 
   @spec build_collect_opts(stream :: Otel.Metrics.Stream.t()) :: map()
   defp build_collect_opts(stream) do
-    stream.aggregation_options
-    |> Map.put(:reader_id, stream.reader_id)
-    |> Map.put(:temporality, stream.temporality)
+    Map.put(stream.aggregation_options, :temporality, stream.temporality)
   end
 
   @spec metric_type_info(stream :: Otel.Metrics.Stream.t()) ::
@@ -255,7 +249,7 @@ defmodule Otel.Metrics.MetricExporter do
       datapoints
     else
       Enum.map(datapoints, fn dp ->
-        agg_key = {stream.name, stream.instrument.scope, stream.reader_id, dp.attributes}
+        agg_key = {stream.name, stream.instrument.scope, dp.attributes}
         collect_exemplar_for_datapoint(exemplars_tab, agg_key, dp)
       end)
     end

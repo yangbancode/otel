@@ -14,8 +14,8 @@ defmodule Otel.Metrics do
   Four SDK-internal `XxxStorage` GenServers (one per ETS table)
   own the metrics state; they're started by
   `Otel.Application.start/2` and die with the SDK supervisor.
-  Every other knob (scope, exemplar filter, reader id,
-  temporality mapping) is a compile-time literal.
+  Every other knob (scope, exemplar filter, temporality mapping)
+  is a compile-time literal.
 
   ## Public API
 
@@ -28,18 +28,11 @@ defmodule Otel.Metrics do
   - OTel Metrics SDK §MeterProvider: `opentelemetry-specification/specification/metrics/sdk.md` L43-L155
   """
 
-  # Hardcoded identifiers shared by Meter and MetricExporter.
-  # `reader_id` was a `make_ref/0` reference back when the SDK
-  # supported multiple readers; minikube has exactly one, so a
-  # stable atom suffices.
-  @reader_id :default_reader
-
   @doc """
   **SDK** — Returns the meter config used by both `Meter.create_*`
-  (producer side, `reader_configs`) and
-  `Otel.Metrics.MetricExporter.collect/1` (consumer side,
-  `reader_id` + `temporality_mapping`). The same map serves both
-  roles so callers don't juggle two shapes.
+  (producer side, `temporality_mapping`) and
+  `Otel.Metrics.MetricExporter.collect/1` (consumer side). The
+  same map serves both roles so callers don't juggle two shapes.
 
   Application code may also call this for introspection (e.g.
   reading `.resource` or `.scope`) — there is no separate
@@ -47,8 +40,6 @@ defmodule Otel.Metrics do
   """
   @spec meter_config() :: map()
   def meter_config do
-    temporality_mapping = Otel.Metrics.Instrument.default_temporality_mapping()
-
     %{
       scope: %Otel.InstrumentationScope{},
       resource: Otel.Resource.build(),
@@ -57,9 +48,7 @@ defmodule Otel.Metrics do
       metrics_tab: Otel.Metrics.MetricsStorage,
       exemplars_tab: Otel.Metrics.ExemplarsStorage,
       exemplar_filter: :trace_based,
-      reader_id: @reader_id,
-      temporality_mapping: temporality_mapping,
-      reader_configs: [{@reader_id, %{temporality_mapping: temporality_mapping}}]
+      temporality_mapping: Otel.Metrics.Instrument.default_temporality_mapping()
     }
   end
 end

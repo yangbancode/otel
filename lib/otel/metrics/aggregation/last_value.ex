@@ -33,13 +33,12 @@ defmodule Otel.Metrics.Aggregation.LastValue do
           stream_key :: {String.t(), Otel.InstrumentationScope.t()},
           opts :: map()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  def collect(metrics_tab, {stream_name, scope}, opts) do
-    reader_id = Map.get(opts, :reader_id)
+  def collect(metrics_tab, {stream_name, scope}, _opts) do
     now = System.system_time(:nanosecond)
 
     match_spec = [
       {
-        {{stream_name, scope, reader_id, :"$1"}, :"$2", :"$3", :"$4"},
+        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4"}}]
       }
