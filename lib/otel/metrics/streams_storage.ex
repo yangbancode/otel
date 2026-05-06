@@ -1,14 +1,13 @@
 defmodule Otel.Metrics.StreamsStorage do
   @moduledoc """
   ETS owner for the named ETS table — one row per
-  `(instrument_key, reader_id)` Stream
-  (spec `metrics/sdk.md` §Stream).
+  `instrument_key` Stream (spec `metrics/sdk.md` §Stream).
 
-  `:bag` because each instrument may produce multiple streams
-  (one per reader's temporality mapping). Same `SpanStorage`-style
-  GenServer-as-owner pattern as the other Metrics storage
-  modules — table is `public` with concurrency flags so producers
-  bypass the GenServer.
+  `:set` because minikube's hardcoded single MetricExporter
+  produces exactly one stream per instrument. Same
+  `SpanStorage`-style GenServer-as-owner pattern as the other
+  Metrics storage modules — table is `public` with concurrency
+  flags so producers bypass the GenServer.
   """
 
   use GenServer
@@ -23,7 +22,7 @@ defmodule Otel.Metrics.StreamsStorage do
   @impl true
   def init(_opts) do
     :ets.new(@table, [
-      :bag,
+      :set,
       :public,
       :named_table,
       read_concurrency: true,

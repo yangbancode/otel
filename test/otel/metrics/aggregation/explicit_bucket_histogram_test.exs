@@ -8,7 +8,7 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogramTest do
     %{tab: :ets.new(:hist_test, [:set, :public]), opts: %{boundaries: @boundaries}}
   end
 
-  defp key(attrs \\ %{}), do: {"histogram", @scope, nil, attrs}
+  defp key(attrs \\ %{}), do: {"histogram", @scope, attrs}
 
   defp datapoint(tab, opts) do
     [dp] =

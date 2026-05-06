@@ -47,13 +47,12 @@ defmodule Otel.Metrics.Aggregation.Sum do
           opts :: map()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
   def collect(metrics_tab, {stream_name, scope}, opts) do
-    reader_id = Map.get(opts, :reader_id)
     temporality = Map.get(opts, :temporality, :cumulative)
     now = System.system_time(:nanosecond)
 
     match_spec = [
       {
-        {{stream_name, scope, reader_id, :"$1"}, :"$2", :"$3", :"$4"},
+        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4"}}]
       }
@@ -66,7 +65,7 @@ defmodule Otel.Metrics.Aggregation.Sum do
         collect_cumulative(entries, now)
 
       :delta ->
-        collect_delta(metrics_tab, entries, stream_name, scope, reader_id, now)
+        collect_delta(metrics_tab, entries, stream_name, scope, now)
     end
   end
 
@@ -90,13 +89,12 @@ defmodule Otel.Metrics.Aggregation.Sum do
           entries :: [{map(), integer(), float(), non_neg_integer()}],
           stream_name :: String.t(),
           scope :: Otel.InstrumentationScope.t(),
-          reader_id :: reference() | nil,
           now :: non_neg_integer()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp collect_delta(metrics_tab, entries, stream_name, scope, reader_id, now) do
+  defp collect_delta(metrics_tab, entries, stream_name, scope, now) do
     entries
     |> Enum.map(fn {attributes, int_value, float_value, start_time} ->
-      key = {stream_name, scope, reader_id, attributes}
+      key = {stream_name, scope, attributes}
       reset_sum(metrics_tab, key, int_value, float_value, now)
 
       %{

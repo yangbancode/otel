@@ -68,7 +68,6 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
           opts :: map()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
   def collect(metrics_tab, {stream_name, scope}, opts) do
-    reader_id = Map.get(opts, :reader_id)
     temporality = Map.get(opts, :temporality, :cumulative)
     boundaries = Map.get(opts, :boundaries, @default_boundaries)
     now = System.system_time(:nanosecond)
@@ -76,7 +75,7 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
 
     match_spec = [
       {
-        {{stream_name, scope, reader_id, :"$1"}, :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"},
+        {{stream_name, scope, :"$1"}, :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"},
         [],
         [{{:"$1", :"$2", :"$3", :"$4", :"$5", :"$6", :"$7"}}]
       }
@@ -89,16 +88,7 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
         collect_cumulative(entries, boundaries, num_buckets, now)
 
       :delta ->
-        collect_delta(
-          metrics_tab,
-          entries,
-          stream_name,
-          scope,
-          reader_id,
-          boundaries,
-          num_buckets,
-          now
-        )
+        collect_delta(metrics_tab, entries, stream_name, scope, boundaries, num_buckets, now)
     end
   end
 
@@ -133,25 +123,15 @@ defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogram do
           entries :: [tuple()],
           stream_name :: String.t(),
           scope :: Otel.InstrumentationScope.t(),
-          reader_id :: reference() | nil,
           boundaries :: [number()],
           num_buckets :: pos_integer(),
           now :: non_neg_integer()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp collect_delta(
-         metrics_tab,
-         entries,
-         stream_name,
-         scope,
-         reader_id,
-         boundaries,
-         num_buckets,
-         now
-       ) do
+  defp collect_delta(metrics_tab, entries, stream_name, scope, boundaries, num_buckets, now) do
     entries
     |> Enum.map(fn {attributes, counters_ref, min, max, sum, count, start_time} ->
       bucket_counts = read_bucket_counts(counters_ref, num_buckets)
-      key = {stream_name, scope, reader_id, attributes}
+      key = {stream_name, scope, attributes}
       reset_histogram(metrics_tab, key, counters_ref, bucket_counts, count, sum, now)
 
       %{

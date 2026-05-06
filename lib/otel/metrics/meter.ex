@@ -97,7 +97,7 @@ defmodule Otel.Metrics.Meter do
         now = System.system_time(:nanosecond)
 
         Enum.each(stream_entries, fn {_key, stream} ->
-          agg_key = {stream.name, stream.instrument.scope, stream.reader_id, attributes}
+          agg_key = {stream.name, stream.instrument.scope, attributes}
           agg_key = maybe_overflow(config.metrics_tab, stream, agg_key)
 
           stream.aggregation.aggregate(
@@ -196,31 +196,24 @@ defmodule Otel.Metrics.Meter do
 
   @spec create_streams(config :: map(), instrument :: Otel.Metrics.Instrument.t()) :: :ok
   defp create_streams(config, instrument) do
-    base_streams =
-      [
-        instrument
-        |> Otel.Metrics.Stream.from_instrument()
-        |> Otel.Metrics.Stream.resolve()
-      ]
+    temporality_mapping =
+      Map.get(
+        config,
+        :temporality_mapping,
+        Otel.Metrics.Instrument.default_temporality_mapping()
+      )
 
-    reader_configs = Map.get(config, :reader_configs, [{nil, %{}}])
+    temporality = Map.get(temporality_mapping, instrument.kind, :cumulative)
+
+    stream =
+      instrument
+      |> Otel.Metrics.Stream.from_instrument()
+      |> Otel.Metrics.Stream.resolve()
+      |> Map.put(:temporality, temporality)
+
     instrument_key = {config.scope, Otel.Metrics.Instrument.downcased_name(instrument.name)}
-
-    Enum.each(reader_configs, fn {reader_id, reader_opts} ->
-      temporality_mapping =
-        Map.get(
-          reader_opts,
-          :temporality_mapping,
-          Otel.Metrics.Instrument.default_temporality_mapping()
-        )
-
-      temporality = Map.get(temporality_mapping, instrument.kind, :cumulative)
-
-      Enum.each(base_streams, fn stream ->
-        reader_stream = %{stream | temporality: temporality, reader_id: reader_id}
-        :ets.insert(config.streams_tab, {instrument_key, reader_stream})
-      end)
-    end)
+    :ets.insert(config.streams_tab, {instrument_key, stream})
+    :ok
   end
 
   @overflow_attributes %{"otel.metric.overflow" => true}
@@ -230,15 +223,15 @@ defmodule Otel.Metrics.Meter do
           stream :: Otel.Metrics.Stream.t(),
           agg_key :: term()
         ) :: term()
-  defp maybe_overflow(metrics_tab, stream, {stream_name, scope, reader_id, _attrs} = agg_key) do
+  defp maybe_overflow(metrics_tab, stream, {stream_name, scope, _attrs} = agg_key) do
     if :ets.member(metrics_tab, agg_key) do
       agg_key
     else
       limit = stream.aggregation_cardinality_limit
-      current = count_stream_keys(metrics_tab, stream_name, scope, reader_id)
+      current = count_stream_keys(metrics_tab, stream_name, scope)
 
       if current >= limit do
-        {stream_name, scope, reader_id, @overflow_attributes}
+        {stream_name, scope, @overflow_attributes}
       else
         agg_key
       end
@@ -248,14 +241,13 @@ defmodule Otel.Metrics.Meter do
   @spec count_stream_keys(
           tab :: :ets.table(),
           stream_name :: String.t(),
-          scope :: Otel.InstrumentationScope.t(),
-          reader_id :: reference() | nil
+          scope :: Otel.InstrumentationScope.t()
         ) :: non_neg_integer()
-  defp count_stream_keys(tab, stream_name, scope, reader_id) do
+  defp count_stream_keys(tab, stream_name, scope) do
     :ets.foldl(
       fn entry, acc ->
         case elem(entry, 0) do
-          {^stream_name, ^scope, ^reader_id, _} -> acc + 1
+          {^stream_name, ^scope, _} -> acc + 1
           _ -> acc
         end
       end,

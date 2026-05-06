@@ -25,7 +25,7 @@ defmodule Otel.Metrics.Aggregation.Base2ExponentialBucketHistogram do
 
   ## Storage and concurrency
 
-  Each `(stream_key, reader_id, attributes)` cell holds a
+  Each `(stream_key, attributes)` cell holds a
   single ETS row carrying the full per-cell state in a map.
   `aggregate/4` is read-modify-write under the same key.
   Concurrent `aggregate/4` calls on the same attribute cell
@@ -112,13 +112,12 @@ defmodule Otel.Metrics.Aggregation.Base2ExponentialBucketHistogram do
           opts :: map()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
   def collect(metrics_tab, {stream_name, scope}, opts) do
-    reader_id = Map.get(opts, :reader_id)
     temporality = Map.get(opts, :temporality, :cumulative)
     now = System.system_time(:nanosecond)
 
     match_spec = [
       {
-        {{stream_name, scope, reader_id, :"$1"}, :"$2"},
+        {{stream_name, scope, :"$1"}, :"$2"},
         [],
         [{{:"$1", :"$2"}}]
       }
@@ -128,7 +127,7 @@ defmodule Otel.Metrics.Aggregation.Base2ExponentialBucketHistogram do
 
     case temporality do
       :cumulative -> collect_cumulative(entries, now)
-      :delta -> collect_delta(metrics_tab, entries, stream_name, scope, reader_id, now)
+      :delta -> collect_delta(metrics_tab, entries, stream_name, scope, now)
     end
   end
 
@@ -152,13 +151,12 @@ defmodule Otel.Metrics.Aggregation.Base2ExponentialBucketHistogram do
           entries :: [{map(), state()}],
           stream_name :: String.t(),
           scope :: Otel.InstrumentationScope.t(),
-          reader_id :: reference() | nil,
           now :: non_neg_integer()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp collect_delta(metrics_tab, entries, stream_name, scope, reader_id, now) do
+  defp collect_delta(metrics_tab, entries, stream_name, scope, now) do
     entries
     |> Enum.map(fn {attributes, state} ->
-      key = {stream_name, scope, reader_id, attributes}
+      key = {stream_name, scope, attributes}
       reset_to_empty(metrics_tab, key, state, now)
 
       %{

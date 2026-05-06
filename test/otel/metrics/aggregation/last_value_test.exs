@@ -7,7 +7,7 @@ defmodule Otel.Metrics.Aggregation.LastValueTest do
     %{tab: :ets.new(:last_value_test, [:set, :public])}
   end
 
-  defp key(attrs \\ %{}), do: {"gauge", @scope, nil, attrs}
+  defp key(attrs \\ %{}), do: {"gauge", @scope, attrs}
 
   # Spec metrics/sdk.md L1240-L1245 — LastValue keeps the most recent
   # measurement for each attribute set.

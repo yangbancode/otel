@@ -211,9 +211,7 @@ defmodule Otel.TestSupport do
       [] ->
         # No exporter is running — tests that just inspect
         # `Otel.Metrics.MetricExporter.collect/1` directly do so
-        # by passing the config they want; the hardcoded
-        # `reader_id` in `Otel.Metrics.meter_config/0` matches
-        # whatever stream they registered.
+        # by passing the config they want.
         :ok
 
       [{module, config}] ->

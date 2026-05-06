@@ -8,7 +8,7 @@ defmodule Otel.Metrics.MeterTest do
 
   defp datapoints(name, agg_module) do
     cfg = config()
-    agg_module.collect(cfg.metrics_tab, {name, cfg.scope}, %{reader_id: cfg.reader_id})
+    agg_module.collect(cfg.metrics_tab, {name, cfg.scope}, %{})
   end
 
   setup do

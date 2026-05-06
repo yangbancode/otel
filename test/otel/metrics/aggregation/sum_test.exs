@@ -7,7 +7,7 @@ defmodule Otel.Metrics.Aggregation.SumTest do
     %{tab: :ets.new(:sum_test, [:set, :public])}
   end
 
-  defp key(attrs \\ %{}), do: {"counter", @scope, nil, attrs}
+  defp key(attrs \\ %{}), do: {"counter", @scope, attrs}
 
   # Spec metrics/sdk.md L1247-L1259 — Sum accumulates per attribute
   # set, keeping integer and float buckets separate so int + float
