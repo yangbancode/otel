@@ -183,7 +183,6 @@ defmodule Otel.Metrics.MetricExporter do
         []
 
       points ->
-        points_with_exemplars = attach_exemplars(instrument, points)
         {temporality, is_monotonic} = metric_type_info(instrument)
 
         [
@@ -196,7 +195,7 @@ defmodule Otel.Metrics.MetricExporter do
             kind: instrument.kind,
             temporality: temporality,
             is_monotonic: is_monotonic,
-            datapoints: points_with_exemplars
+            datapoints: points
           })
         ]
     end
@@ -211,33 +210,6 @@ defmodule Otel.Metrics.MetricExporter do
 
       kind ->
         {:cumulative, Otel.Metrics.Instrument.monotonic?(kind)}
-    end
-  end
-
-  @spec attach_exemplars(
-          instrument :: Otel.Metrics.Instrument.t(),
-          datapoints :: [Otel.Metrics.Aggregation.datapoint()]
-        ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp attach_exemplars(instrument, datapoints) do
-    Enum.map(datapoints, fn dp ->
-      agg_key = {instrument.name, dp.attributes}
-      collect_exemplar_for_datapoint(agg_key, dp)
-    end)
-  end
-
-  @spec collect_exemplar_for_datapoint(
-          agg_key :: Otel.Metrics.Aggregation.agg_key(),
-          dp :: Otel.Metrics.Aggregation.datapoint()
-        ) :: map()
-  defp collect_exemplar_for_datapoint(agg_key, dp) do
-    case :ets.lookup(Otel.Metrics.ExemplarsStorage, agg_key) do
-      [{^agg_key, reservoir}] ->
-        {exemplars, updated} = Otel.Metrics.Exemplar.Reservoir.collect(reservoir)
-        :ets.insert(Otel.Metrics.ExemplarsStorage, {agg_key, updated})
-        Map.put(dp, :exemplars, exemplars)
-
-      [] ->
-        Map.put(dp, :exemplars, [])
     end
   end
 

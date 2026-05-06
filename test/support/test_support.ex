@@ -11,7 +11,7 @@ defmodule Otel.TestSupport do
      user-facing `:req_options` key, or `System.put_env(...)`
      to set `RELEASE_NAME` / `RELEASE_VSN` for resource attrs.
   2. Starting the supervised storage / exporter children
-     (`SpanStorage`, `LogRecordStorage`, the three per-table
+     (`SpanStorage`, `LogRecordStorage`, the two per-table
      `XxxStorage` GenServers for metrics, `SpanExporter`,
      `LogRecordExporter`, `MetricExporter`) — or
      substitutes thereof — so the ETS tables exist and
@@ -93,7 +93,7 @@ defmodule Otel.TestSupport do
     apply_metrics_overrides(metrics_overrides)
     apply_logs_overrides(logs_overrides)
 
-    # 2. Start the supervised storage / processor children. The three
+    # 2. Start the supervised storage / processor children. The two
     # per-table `XxxStorage` GenServers own the metrics ETS tables and
     # must start before `start_metrics_reader` (the exporter reads
     # `meter_config/0` on each tick / `force_flush`).
@@ -101,7 +101,6 @@ defmodule Otel.TestSupport do
     start_orphan!(Otel.Logs.LogRecordStorage, [])
     start_orphan!(Otel.Metrics.InstrumentsStorage, [])
     start_orphan!(Otel.Metrics.MetricsStorage, [])
-    start_orphan!(Otel.Metrics.ExemplarsStorage, [])
     start_trace_processor(trace_overrides)
     start_metrics_reader(metrics_overrides)
     start_orphan!(Otel.Logs.LogRecordExporter, [])
@@ -134,8 +133,7 @@ defmodule Otel.TestSupport do
         Otel.Trace.SpanStorage,
         Otel.Logs.LogRecordStorage,
         Otel.Metrics.InstrumentsStorage,
-        Otel.Metrics.MetricsStorage,
-        Otel.Metrics.ExemplarsStorage
+        Otel.Metrics.MetricsStorage
       ],
       &stop_named/1
     )
