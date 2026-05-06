@@ -6,20 +6,18 @@ defmodule Otel.Application do
   @impl true
   @spec start(type :: Application.start_type(), args :: term()) :: {:ok, pid()}
   def start(_type, _args) do
-    # Three per-table `XxxStorage` GenServers own the metrics ETS
+    # Two per-table `XxxStorage` GenServers own the metrics ETS
     # tables; they must start before `MetricExporter` since the
     # exporter walks `Otel.Metrics.InstrumentsStorage` /
-    # `MetricsStorage` / `ExemplarsStorage` directly in its
-    # `do_export/0`. `Otel.Trace` and `Otel.Logs` hold no
-    # boot-time state — `Otel.Resource.new/0` reads
-    # `RELEASE_NAME`/`RELEASE_VSN` OS env vars on every call (no
-    # Mix Config knob for resource).
+    # `MetricsStorage` directly in its `do_export/0`.
+    # `Otel.Trace` and `Otel.Logs` hold no boot-time state —
+    # `Otel.Resource.new/0` reads `RELEASE_NAME`/`RELEASE_VSN`
+    # OS env vars on every call (no Mix Config knob for resource).
     children = [
       Otel.Trace.SpanStorage,
       Otel.Logs.LogRecordStorage,
       Otel.Metrics.InstrumentsStorage,
       Otel.Metrics.MetricsStorage,
-      Otel.Metrics.ExemplarsStorage,
       Otel.Trace.SpanExporter,
       Otel.Logs.LogRecordExporter,
       Otel.Metrics.MetricExporter
