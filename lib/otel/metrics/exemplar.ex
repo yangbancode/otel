@@ -16,28 +16,34 @@ defmodule Otel.Metrics.Exemplar do
           trace_id: Otel.Trace.TraceId.t() | nil
         }
 
-  defstruct value: 0,
-            time: 0,
-            filtered_attributes: %{},
-            span_id: nil,
-            trace_id: nil
+  defstruct [:value, :time, :filtered_attributes, :span_id, :trace_id]
 
-  @spec new(
-          value :: number(),
-          time :: non_neg_integer(),
-          filtered_attributes :: %{String.t() => primitive_any()},
-          ctx :: Otel.Ctx.t()
-        ) :: t()
-  def new(value, time, filtered_attributes, ctx) do
-    {trace_id, span_id} = extract_trace_info(ctx)
+  @doc """
+  **SDK** — Build an Exemplar. Pass `:ctx` to auto-fill
+  `:trace_id` / `:span_id` from the current Span; explicit
+  `:trace_id` / `:span_id` in `opts` always win.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    {ctx, opts} = Map.pop(opts, :ctx)
 
-    %__MODULE__{
-      value: value,
-      time: time,
-      filtered_attributes: filtered_attributes,
-      span_id: span_id,
-      trace_id: trace_id
+    ctx_fields =
+      if ctx do
+        {trace_id, span_id} = extract_trace_info(ctx)
+        %{trace_id: trace_id, span_id: span_id}
+      else
+        %{}
+      end
+
+    defaults = %{
+      value: 0,
+      time: 0,
+      filtered_attributes: %{},
+      span_id: nil,
+      trace_id: nil
     }
+
+    struct!(__MODULE__, defaults |> Map.merge(ctx_fields) |> Map.merge(opts))
   end
 
   @spec extract_trace_info(ctx :: Otel.Ctx.t()) ::

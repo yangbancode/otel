@@ -201,7 +201,7 @@ defmodule Otel.E2E.TraceTest do
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
-          event = Otel.Trace.Event.new("evt-1", %{"event.attr" => "x"})
+          event = Otel.Trace.Event.new(%{name: "evt-1", attributes: %{"event.attr" => "x"}})
           Otel.Trace.Span.add_event(span_ctx, event)
         end
       )
@@ -219,7 +219,7 @@ defmodule Otel.E2E.TraceTest do
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
           for n <- 1..3 do
-            Otel.Trace.Span.add_event(span_ctx, Otel.Trace.Event.new("evt-#{n}"))
+            Otel.Trace.Span.add_event(span_ctx, Otel.Trace.Event.new(%{name: "evt-#{n}"}))
           end
         end
       )
@@ -289,7 +289,7 @@ defmodule Otel.E2E.TraceTest do
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
-          Otel.Trace.Span.set_status(span_ctx, Otel.Trace.Status.new(:ok))
+          Otel.Trace.Span.set_status(span_ctx, Otel.Trace.Status.new(%{code: :ok}))
         end
       )
 
@@ -306,7 +306,10 @@ defmodule Otel.E2E.TraceTest do
         name,
         [attributes: %{"e2e.id" => e2e_id}],
         fn span_ctx ->
-          Otel.Trace.Span.set_status(span_ctx, Otel.Trace.Status.new(:error, "boom"))
+          Otel.Trace.Span.set_status(
+            span_ctx,
+            Otel.Trace.Status.new(%{code: :error, description: "boom"})
+          )
         end
       )
 

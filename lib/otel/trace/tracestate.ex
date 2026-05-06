@@ -57,7 +57,7 @@ defmodule Otel.Trace.TraceState do
   """
   @opaque t :: %__MODULE__{members: [{key(), value()}]}
 
-  defstruct members: []
+  defstruct [:members]
 
   # W3C §3.3.1.1: "There can be a maximum of 32 list-members in a list."
   @max_members 32
@@ -248,13 +248,14 @@ defmodule Otel.Trace.TraceState do
   def valid_value?(_), do: false
 
   @doc """
-  **Application** (Convenience) — build an empty TraceState.
-
-  Returns a new (empty) TraceState. Preferred over `%TraceState{}`
-  at external call sites because `t/0` is opaque.
+  **Application** (Convenience) — build a TraceState. Preferred
+  over `%TraceState{}` at external call sites because `t/0` is
+  opaque.
   """
-  @spec new() :: t()
-  def new, do: %__MODULE__{}
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    struct!(__MODULE__, Map.merge(%{members: []}, opts))
+  end
 
   @doc """
   **Application** (Convenience) — empty-state predicate.

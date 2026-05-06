@@ -1,12 +1,12 @@
 defmodule Otel.Trace.SpanTest do
   use ExUnit.Case, async: true
 
-  @valid_ctx Otel.Trace.SpanContext.new(
-               0xFF000000000000000000000000000001,
-               0xFF00000000000001
-             )
+  @valid_ctx Otel.Trace.SpanContext.new(%{
+               trace_id: 0xFF000000000000000000000000000001,
+               span_id: 0xFF00000000000001
+             })
 
-  @invalid_ctx %Otel.Trace.SpanContext{}
+  @invalid_ctx Otel.Trace.SpanContext.new()
 
   describe "get_context/1" do
     test "returns valid SpanContext as-is" do

@@ -38,7 +38,8 @@ defmodule Otel.Propagator.TextMapTest do
   # exercise the composite behaviour through the facade.
   describe "inject/3 + extract/3 — hardcoded TraceContext + Baggage" do
     test "round-trips both traceparent and baggage in one call" do
-      span_ctx = Otel.Trace.SpanContext.new(123, 456, 1)
+      span_ctx =
+        Otel.Trace.SpanContext.new(%{trace_id: 123, span_id: 456, trace_flags: 1})
 
       ctx =
         Otel.Ctx.new()

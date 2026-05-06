@@ -3,14 +3,14 @@ defmodule Otel.Trace.TraceStateTest do
 
   describe "empty state" do
     test "default struct is empty and encodes to \"\"" do
-      assert Otel.Trace.TraceState.empty?(%Otel.Trace.TraceState{})
-      assert Otel.Trace.TraceState.encode(%Otel.Trace.TraceState{}) == ""
+      assert Otel.Trace.TraceState.empty?(Otel.Trace.TraceState.new())
+      assert Otel.Trace.TraceState.encode(Otel.Trace.TraceState.new()) == ""
     end
   end
 
   describe "get/2" do
     test "returns the value for an existing key, \"\" for a missing one" do
-      ts = Otel.Trace.TraceState.add(%Otel.Trace.TraceState{}, "vendor", "value")
+      ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
 
       assert Otel.Trace.TraceState.get(ts, "vendor") == "value"
       assert Otel.Trace.TraceState.get(ts, "missing") == ""
@@ -20,7 +20,7 @@ defmodule Otel.Trace.TraceStateTest do
   describe "add/3" do
     test "prepends new entries (left-most = newest)" do
       ts =
-        %Otel.Trace.TraceState{}
+        Otel.Trace.TraceState.new()
         |> Otel.Trace.TraceState.add("existing", "data")
         |> Otel.Trace.TraceState.add("new", "value")
 
@@ -30,7 +30,7 @@ defmodule Otel.Trace.TraceStateTest do
     # Spec W3C §3.5: "MUST NOT result in the same key being present multiple times".
     test "rejects a duplicate key (preserves the first value)" do
       ts =
-        %Otel.Trace.TraceState{}
+        Otel.Trace.TraceState.new()
         |> Otel.Trace.TraceState.add("vendor", "first")
         |> Otel.Trace.TraceState.add("vendor", "second")
 
@@ -40,7 +40,7 @@ defmodule Otel.Trace.TraceStateTest do
     # Spec W3C §3.3.1.1: max 32 list-members; right-most is dropped.
     test "drops the right-most (oldest) entry when at the 32-member cap" do
       ts =
-        Enum.reduce(1..32, %Otel.Trace.TraceState{}, fn i, acc ->
+        Enum.reduce(1..32, Otel.Trace.TraceState.new(), fn i, acc ->
           Otel.Trace.TraceState.add(acc, "key#{i}", "val#{i}")
         end)
         |> Otel.Trace.TraceState.add("extra", "value")
@@ -55,7 +55,7 @@ defmodule Otel.Trace.TraceStateTest do
   describe "update/3" do
     test "updates an existing entry and moves it to the front" do
       ts =
-        %Otel.Trace.TraceState{}
+        Otel.Trace.TraceState.new()
         |> Otel.Trace.TraceState.add("c", "3")
         |> Otel.Trace.TraceState.add("b", "2")
         |> Otel.Trace.TraceState.add("a", "1")
@@ -66,7 +66,7 @@ defmodule Otel.Trace.TraceStateTest do
 
     test "missing key falls through to add semantics, respecting the 32-cap" do
       base =
-        Enum.reduce(1..32, %Otel.Trace.TraceState{}, fn i, acc ->
+        Enum.reduce(1..32, Otel.Trace.TraceState.new(), fn i, acc ->
           Otel.Trace.TraceState.add(acc, "key#{i}", "val#{i}")
         end)
 
@@ -82,7 +82,7 @@ defmodule Otel.Trace.TraceStateTest do
   describe "delete/2" do
     test "removes the key; no-op for missing key" do
       ts =
-        %Otel.Trace.TraceState{}
+        Otel.Trace.TraceState.new()
         |> Otel.Trace.TraceState.add("b", "2")
         |> Otel.Trace.TraceState.add("a", "1")
 
@@ -176,7 +176,7 @@ defmodule Otel.Trace.TraceStateTest do
   # add/update use valid_key?/valid_value? as gates — invalid input
   # is silently dropped (state unchanged) per the moduledoc.
   test "add/update silently drop entries that fail validation" do
-    base = Otel.Trace.TraceState.add(%Otel.Trace.TraceState{}, "a", "1")
+    base = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "a", "1")
 
     assert Otel.Trace.TraceState.add(base, "BAD", "v") == base
     assert Otel.Trace.TraceState.add(base, "good", "a,b") == base
@@ -185,7 +185,7 @@ defmodule Otel.Trace.TraceStateTest do
   end
 
   test "all mutation operations return new structs (immutability)" do
-    ts1 = Otel.Trace.TraceState.add(%Otel.Trace.TraceState{}, "a", "1")
+    ts1 = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "a", "1")
     ts2 = Otel.Trace.TraceState.add(ts1, "b", "2")
     ts3 = Otel.Trace.TraceState.delete(ts2, "a")
 

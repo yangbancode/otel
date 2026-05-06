@@ -45,7 +45,13 @@ defmodule Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
           ctx :: Otel.Ctx.t()
         ) :: state()
   def offer(state, value, time, filtered_attributes, ctx) do
-    exemplar = Otel.Metrics.Exemplar.new(value, time, filtered_attributes, ctx)
+    exemplar =
+      Otel.Metrics.Exemplar.new(%{
+        value: value,
+        time: time,
+        filtered_attributes: filtered_attributes,
+        ctx: ctx
+      })
     bucket_idx = find_bucket(value, state.boundaries)
     %{state | exemplars: Map.put(state.exemplars, bucket_idx, exemplar)}
   end

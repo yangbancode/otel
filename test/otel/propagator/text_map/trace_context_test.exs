@@ -15,7 +15,14 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
   describe "inject/3" do
     test "writes traceparent (and tracestate when non-empty) for a valid span" do
       ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
-      span_ctx = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
+      span_ctx =
+        Otel.Trace.SpanContext.new(%{
+          trace_id: @valid_trace_id,
+          span_id: @valid_span_id,
+          trace_flags: 1,
+          tracestate: ts
+        })
+
       ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
@@ -27,7 +34,12 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
     end
 
     test "omits tracestate when empty; encodes trace_flags 0 as -00" do
-      span_ctx = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 0)
+      span_ctx =
+        Otel.Trace.SpanContext.new(%{
+          trace_id: @valid_trace_id,
+          span_id: @valid_span_id,
+          trace_flags: 0
+        })
       ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
@@ -148,7 +160,13 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
 
   test "inject + extract round-trip preserves trace_id, span_id, flags, tracestate" do
     ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
-    original = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1, ts)
+    original =
+      Otel.Trace.SpanContext.new(%{
+        trace_id: @valid_trace_id,
+        span_id: @valid_span_id,
+        trace_flags: 1,
+        tracestate: ts
+      })
 
     carrier =
       Otel.Trace.set_current_span(Otel.Ctx.new(), original)
@@ -167,7 +185,12 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
 
   describe "encode_traceparent/1" do
     test "encodes a valid SpanContext into the v00 wire format" do
-      span_ctx = Otel.Trace.SpanContext.new(@valid_trace_id, @valid_span_id, 1)
+      span_ctx =
+        Otel.Trace.SpanContext.new(%{
+          trace_id: @valid_trace_id,
+          span_id: @valid_span_id,
+          trace_flags: 1
+        })
 
       assert Otel.Propagator.TextMap.TraceContext.encode_traceparent(span_ctx) ==
                @canonical_traceparent
@@ -178,13 +201,13 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
     test "masks reserved trace_flags bits to zero" do
       assert "00-00000000000000000000000000000001-0000000000000001-03" ==
                Otel.Propagator.TextMap.TraceContext.encode_traceparent(
-                 Otel.Trace.SpanContext.new(1, 1, 0xFF)
+                 Otel.Trace.SpanContext.new(%{trace_id: 1, span_id: 1, trace_flags: 0xFF})
                )
 
       # Only reserved bits set → wire byte is 00.
       assert "00-00000000000000000000000000000001-0000000000000001-00" ==
                Otel.Propagator.TextMap.TraceContext.encode_traceparent(
-                 Otel.Trace.SpanContext.new(1, 1, 0xF0)
+                 Otel.Trace.SpanContext.new(%{trace_id: 1, span_id: 1, trace_flags: 0xF0})
                )
     end
   end

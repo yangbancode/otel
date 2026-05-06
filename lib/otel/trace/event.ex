@@ -57,13 +57,12 @@ defmodule Otel.Trace.Event do
           dropped_attributes_count: non_neg_integer()
         }
 
-  defstruct name: "", timestamp: 0, attributes: %{}, dropped_attributes_count: 0
+  defstruct [:name, :timestamp, :attributes, :dropped_attributes_count]
 
   @doc """
   Build an Event struct for `Otel.Trace.Span.add_event/2`.
 
-  Creates a new `Event` with optional attributes and timestamp.
-  `timestamp` defaults to `System.system_time(:nanosecond)` —
+  `:timestamp` defaults to `System.system_time(:nanosecond)` —
   per spec L540-L542 the implementation sets the time when the
   API is called if the caller doesn't provide one.
 
@@ -72,16 +71,15 @@ defmodule Otel.Trace.Event do
   `non_neg_integer()` enforcing the unsigned invariant at the
   API boundary.
   """
-  @spec new(
-          name :: String.t(),
-          attributes :: %{String.t() => primitive_any()},
-          timestamp :: non_neg_integer()
-        ) :: t()
-  def new(name, attributes \\ %{}, timestamp \\ System.system_time(:nanosecond)) do
-    %__MODULE__{
-      name: name,
-      timestamp: timestamp,
-      attributes: attributes
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      name: "",
+      timestamp: System.system_time(:nanosecond),
+      attributes: %{},
+      dropped_attributes_count: 0
     }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
   end
 end

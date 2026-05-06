@@ -200,7 +200,7 @@ defmodule Otel.Trace.Span do
       dropped_events_count: 0,
       links: [],
       dropped_links_count: 0,
-      status: %Otel.Trace.Status{},
+      status: Otel.Trace.Status.new(),
       trace_flags: 0,
       instrumentation_scope: Otel.InstrumentationScope.new(),
       resource: Otel.Resource.new(),
@@ -506,7 +506,10 @@ defmodule Otel.Trace.Span do
         attributes
       )
 
-    add_event(span_ctx, Otel.Trace.Event.new("exception", exception_attributes))
+    add_event(
+      span_ctx,
+      Otel.Trace.Event.new(%{name: "exception", attributes: exception_attributes})
+    )
   end
 
   # --- Private helpers ---
@@ -532,12 +535,12 @@ defmodule Otel.Trace.Span do
     span_id = Otel.Trace.IdGenerator.generate_span_id()
 
     {
-      %Otel.Trace.SpanContext{
+      Otel.Trace.SpanContext.new(%{
         trace_id: parent.trace_id,
         span_id: span_id,
         tracestate: parent.tracestate,
         is_remote: false
-      },
+      }),
       parent.span_id,
       parent.is_remote
     }
@@ -549,11 +552,11 @@ defmodule Otel.Trace.Span do
     span_id = Otel.Trace.IdGenerator.generate_span_id()
 
     {
-      %Otel.Trace.SpanContext{
+      Otel.Trace.SpanContext.new(%{
         trace_id: trace_id,
         span_id: span_id,
         is_remote: false
-      },
+      }),
       nil,
       nil
     }
@@ -624,12 +627,12 @@ defmodule Otel.Trace.Span do
         limits.attribute_value_length_limit
       )
 
-    %Otel.Trace.Event{
+    Otel.Trace.Event.new(%{
       name: event.name,
       timestamp: event.timestamp,
       attributes: limited_attributes,
       dropped_attributes_count: dropped
-    }
+    })
   end
 
   @spec to_sdk_link(
@@ -660,11 +663,11 @@ defmodule Otel.Trace.Span do
   defp apply_set_status(%{status: %Otel.Trace.Status{code: :ok}} = span, _status), do: span
 
   defp apply_set_status(span, %Otel.Trace.Status{code: :ok}) do
-    %{span | status: %Otel.Trace.Status{code: :ok, description: ""}}
+    %{span | status: Otel.Trace.Status.new(%{code: :ok})}
   end
 
   defp apply_set_status(span, %Otel.Trace.Status{code: :error, description: description}) do
-    %{span | status: %Otel.Trace.Status{code: :error, description: description}}
+    %{span | status: Otel.Trace.Status.new(%{code: :error, description: description})}
   end
 
   @spec apply_attribute_limits(

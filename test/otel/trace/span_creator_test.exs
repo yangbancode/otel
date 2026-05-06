@@ -19,7 +19,13 @@ defmodule Otel.Trace.SpanCreatorTest do
   describe "start_span — root vs child + parent validation" do
     test "no parent → root span; valid parent → child inherits trace_id and tracestate" do
       ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
-      parent = Otel.Trace.SpanContext.new(123, 456, 1, ts)
+      parent =
+        Otel.Trace.SpanContext.new(%{
+          trace_id: 123,
+          span_id: 456,
+          trace_flags: 1,
+          tracestate: ts
+        })
       ctx_with_parent = Otel.Trace.set_current_span(Otel.Ctx.new(), parent)
 
       {root_ctx, root} = start(Otel.Ctx.new(), "root_span")
@@ -50,7 +56,7 @@ defmodule Otel.Trace.SpanCreatorTest do
       parent_ctx =
         Otel.Trace.set_current_span(
           Otel.Ctx.new(),
-          Otel.Trace.SpanContext.new(123, 456, 1)
+          Otel.Trace.SpanContext.new(%{trace_id: 123, span_id: 456, trace_flags: 1})
         )
 
       {ctx, span} = start(parent_ctx, "forced_root", is_root: true)
@@ -80,7 +86,8 @@ defmodule Otel.Trace.SpanCreatorTest do
     end
 
     test "child of not-sampled parent → drop (flags=0, no span, span_id still generated)" do
-      not_sampled_parent = Otel.Trace.SpanContext.new(123, 456, 0)
+      not_sampled_parent =
+        Otel.Trace.SpanContext.new(%{trace_id: 123, span_id: 456, trace_flags: 0})
 
       ctx =
         Otel.Trace.set_current_span(Otel.Ctx.new(), not_sampled_parent)
@@ -185,9 +192,15 @@ defmodule Otel.Trace.SpanCreatorTest do
 
     test "link_count_limit + attribute_per_link_limit + per-link value-length truncation" do
       links = [
-        Otel.Trace.Link.new(%{context: Otel.Trace.SpanContext.new(1, 1)}),
-        Otel.Trace.Link.new(%{context: Otel.Trace.SpanContext.new(2, 2)}),
-        Otel.Trace.Link.new(%{context: Otel.Trace.SpanContext.new(3, 3)})
+        Otel.Trace.Link.new(%{
+          context: Otel.Trace.SpanContext.new(%{trace_id: 1, span_id: 1})
+        }),
+        Otel.Trace.Link.new(%{
+          context: Otel.Trace.SpanContext.new(%{trace_id: 2, span_id: 2})
+        }),
+        Otel.Trace.Link.new(%{
+          context: Otel.Trace.SpanContext.new(%{trace_id: 3, span_id: 3})
+        })
       ]
 
       {_, capped} =
@@ -202,7 +215,7 @@ defmodule Otel.Trace.SpanCreatorTest do
 
       links_with_attrs = [
         Otel.Trace.Link.new(%{
-          context: Otel.Trace.SpanContext.new(1, 1),
+          context: Otel.Trace.SpanContext.new(%{trace_id: 1, span_id: 1}),
           attributes: %{"a" => 1, "b" => 2, "c" => 3, "key" => "hello world"}
         })
       ]

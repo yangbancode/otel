@@ -1,10 +1,15 @@
 defmodule Otel.Metrics.ExemplarTest do
   use ExUnit.Case, async: true
 
-  describe "new/4 — extracts trace context when present, omits when absent" do
+  describe "new/1 — extracts trace context when present, omits when absent" do
     test "without an active span, exemplar carries no trace_id / span_id" do
       exemplar =
-        Otel.Metrics.Exemplar.new(42, 1000, %{"key" => "val"}, Otel.Ctx.new())
+        Otel.Metrics.Exemplar.new(%{
+          value: 42,
+          time: 1000,
+          filtered_attributes: %{"key" => "val"},
+          ctx: Otel.Ctx.new()
+        })
 
       assert exemplar.value == 42
       assert exemplar.time == 1000
@@ -17,10 +22,10 @@ defmodule Otel.Metrics.ExemplarTest do
       ctx =
         Otel.Trace.set_current_span(
           Otel.Ctx.new(),
-          %Otel.Trace.SpanContext{trace_id: 123, span_id: 456, trace_flags: 1}
+          Otel.Trace.SpanContext.new(%{trace_id: 123, span_id: 456, trace_flags: 1})
         )
 
-      exemplar = Otel.Metrics.Exemplar.new(10, 2000, %{}, ctx)
+      exemplar = Otel.Metrics.Exemplar.new(%{value: 10, time: 2000, ctx: ctx})
       assert exemplar.trace_id == 123
       assert exemplar.span_id == 456
     end
@@ -29,10 +34,10 @@ defmodule Otel.Metrics.ExemplarTest do
       ctx =
         Otel.Trace.set_current_span(
           Otel.Ctx.new(),
-          %Otel.Trace.SpanContext{trace_id: 0, span_id: 0}
+          Otel.Trace.SpanContext.new(%{trace_id: 0, span_id: 0})
         )
 
-      exemplar = Otel.Metrics.Exemplar.new(10, 2000, %{}, ctx)
+      exemplar = Otel.Metrics.Exemplar.new(%{value: 10, time: 2000, ctx: ctx})
       assert exemplar.trace_id == nil
       assert exemplar.span_id == nil
     end
