@@ -39,11 +39,13 @@ defmodule Otel.E2E.CrossSignalTest do
         "scenario-1-#{e2e_id}",
         [attributes: %{"e2e.id" => e2e_id}],
         fn _ ->
-          Otel.Logs.emit(%Otel.Logs.LogRecord{
-            body: "scenario-1-log-#{e2e_id}",
-            severity_number: 9,
-            attributes: %{"e2e.id" => e2e_id}
-          })
+          Otel.Logs.emit(
+            Otel.Logs.LogRecord.new(%{
+              body: "scenario-1-log-#{e2e_id}",
+              severity_number: 9,
+              attributes: %{"e2e.id" => e2e_id}
+            })
+          )
         end
       )
 
@@ -96,11 +98,13 @@ defmodule Otel.E2E.CrossSignalTest do
         fn _ -> :ok end
       )
 
-      Otel.Logs.emit(%Otel.Logs.LogRecord{
-        body: "scenario-3-log-#{e2e_id}",
-        severity_number: 9,
-        attributes: %{"e2e.id" => e2e_id}
-      })
+      Otel.Logs.emit(
+        Otel.Logs.LogRecord.new(%{
+          body: "scenario-3-log-#{e2e_id}",
+          severity_number: 9,
+          attributes: %{"e2e.id" => e2e_id}
+        })
+      )
 
       counter = Otel.Metrics.Meter.create_counter(metric)
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})
@@ -145,11 +149,13 @@ defmodule Otel.E2E.CrossSignalTest do
         fn _ -> :ok end
       )
 
-      Otel.Logs.emit(%Otel.Logs.LogRecord{
-        body: "scenario-4-log-#{e2e_id}",
-        severity_number: 9,
-        attributes: %{"e2e.id" => e2e_id}
-      })
+      Otel.Logs.emit(
+        Otel.Logs.LogRecord.new(%{
+          body: "scenario-4-log-#{e2e_id}",
+          severity_number: 9,
+          attributes: %{"e2e.id" => e2e_id}
+        })
+      )
 
       counter = Otel.Metrics.Meter.create_counter(metric)
       Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})

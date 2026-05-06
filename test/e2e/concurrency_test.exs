@@ -88,11 +88,13 @@ defmodule Otel.E2E.ConcurrencyTest do
           )
         end),
         Task.async(fn ->
-          Otel.Logs.emit(%Otel.Logs.LogRecord{
-            severity_number: 9,
-            body: "scenario-conc-3-#{e2e_id}",
-            attributes: %{"e2e.id" => e2e_id}
-          })
+          Otel.Logs.emit(
+            Otel.Logs.LogRecord.new(%{
+              severity_number: 9,
+              body: "scenario-conc-3-#{e2e_id}",
+              attributes: %{"e2e.id" => e2e_id}
+            })
+          )
         end),
         Task.async(fn ->
           Otel.Metrics.Counter.add(counter, 1, %{"e2e.id" => e2e_id})

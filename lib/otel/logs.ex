@@ -61,7 +61,7 @@ defmodule Otel.Logs do
   implicit (process-local) context (`logs/api.md` L111-L131).
   """
   @spec emit(log_record :: Otel.Logs.LogRecord.t()) :: :ok
-  def emit(log_record \\ %Otel.Logs.LogRecord{}) do
+  def emit(log_record \\ Otel.Logs.LogRecord.new()) do
     Otel.Logs.Logger.emit(Otel.Ctx.current(), log_record)
   end
 

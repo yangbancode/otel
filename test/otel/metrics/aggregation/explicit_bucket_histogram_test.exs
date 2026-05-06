@@ -1,7 +1,7 @@
 defmodule Otel.Metrics.Aggregation.ExplicitBucketHistogramTest do
   use ExUnit.Case, async: true
 
-  @scope %Otel.InstrumentationScope{name: "test"}
+  @scope Otel.InstrumentationScope.new(%{name: "test"})
   @boundaries [10, 50, 100]
 
   setup do

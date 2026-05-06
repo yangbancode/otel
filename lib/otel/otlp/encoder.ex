@@ -2,15 +2,14 @@ defmodule Otel.OTLP.Encoder do
   @moduledoc false
 
   @doc """
-  Encodes a list of SDK spans and a Resource into an
-  ExportTraceServiceRequest protobuf binary.
+  Encodes a list of SDK spans into an ExportTraceServiceRequest
+  protobuf binary. Resource is read from each span's `resource`
+  field and used to group records into ResourceSpans envelopes
+  — matching the encode_logs/1 and encode_metrics/1 patterns.
   """
-  @spec encode_traces(
-          spans :: [Otel.Trace.Span.t()],
-          resource :: Otel.Resource.t()
-        ) :: binary()
-  def encode_traces(spans, resource) do
-    resource_spans = build_resource_spans(spans, resource)
+  @spec encode_traces(spans :: [Otel.Trace.Span.t()]) :: binary()
+  def encode_traces(spans) do
+    resource_spans = build_resource_spans(spans)
 
     %Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest{
       resource_spans: resource_spans
@@ -18,20 +17,18 @@ defmodule Otel.OTLP.Encoder do
     |> Protobuf.encode()
   end
 
-  @spec build_resource_spans(
-          spans :: [Otel.Trace.Span.t()],
-          resource :: Otel.Resource.t()
-        ) :: [Opentelemetry.Proto.Trace.V1.ResourceSpans.t()]
-  defp build_resource_spans(spans, resource) do
-    scope_spans = group_by_scope(spans)
-
-    [
+  @spec build_resource_spans(spans :: [Otel.Trace.Span.t()]) ::
+          [Opentelemetry.Proto.Trace.V1.ResourceSpans.t()]
+  defp build_resource_spans(spans) do
+    spans
+    |> Enum.group_by(& &1.resource)
+    |> Enum.map(fn {resource, resource_group} ->
       %Opentelemetry.Proto.Trace.V1.ResourceSpans{
         resource: encode_resource(resource),
-        scope_spans: scope_spans,
+        scope_spans: group_by_scope(resource_group),
         schema_url: resource.schema_url
       }
-    ]
+    end)
   end
 
   @spec group_by_scope(spans :: [Otel.Trace.Span.t()]) ::
@@ -42,7 +39,8 @@ defmodule Otel.OTLP.Encoder do
     |> Enum.map(fn {scope, scope_spans} ->
       %Opentelemetry.Proto.Trace.V1.ScopeSpans{
         scope: encode_scope(scope),
-        spans: Enum.map(scope_spans, &encode_span/1)
+        spans: Enum.map(scope_spans, &encode_span/1),
+        schema_url: scope.schema_url
       }
     end)
   end
@@ -59,10 +57,8 @@ defmodule Otel.OTLP.Encoder do
 
   # --- Scope ---
 
-  @spec encode_scope(scope :: Otel.InstrumentationScope.t() | nil) ::
-          Opentelemetry.Proto.Common.V1.InstrumentationScope.t() | nil
-  defp encode_scope(nil), do: nil
-
+  @spec encode_scope(scope :: Otel.InstrumentationScope.t()) ::
+          Opentelemetry.Proto.Common.V1.InstrumentationScope.t()
   defp encode_scope(%Otel.InstrumentationScope{} = scope) do
     %Opentelemetry.Proto.Common.V1.InstrumentationScope{
       name: scope.name,
@@ -212,7 +208,7 @@ defmodule Otel.OTLP.Encoder do
   Encodes a list of collected metrics into an
   ExportMetricsServiceRequest protobuf binary.
   """
-  @spec encode_metrics(metrics :: [Otel.Metrics.MetricExporter.metric()]) :: binary()
+  @spec encode_metrics(metrics :: [Otel.Metrics.Metric.t()]) :: binary()
   def encode_metrics(metrics) do
     resource_metrics = build_resource_metrics(metrics)
 
@@ -222,7 +218,7 @@ defmodule Otel.OTLP.Encoder do
     |> Protobuf.encode()
   end
 
-  @spec build_resource_metrics(metrics :: [Otel.Metrics.MetricExporter.metric()]) ::
+  @spec build_resource_metrics(metrics :: [Otel.Metrics.Metric.t()]) ::
           [Opentelemetry.Proto.Metrics.V1.ResourceMetrics.t()]
   defp build_resource_metrics(metrics) do
     metrics
@@ -236,7 +232,7 @@ defmodule Otel.OTLP.Encoder do
     end)
   end
 
-  @spec group_metrics_by_scope(metrics :: [Otel.Metrics.MetricExporter.metric()]) ::
+  @spec group_metrics_by_scope(metrics :: [Otel.Metrics.Metric.t()]) ::
           [Opentelemetry.Proto.Metrics.V1.ScopeMetrics.t()]
   defp group_metrics_by_scope(metrics) do
     metrics
@@ -245,16 +241,12 @@ defmodule Otel.OTLP.Encoder do
       %Opentelemetry.Proto.Metrics.V1.ScopeMetrics{
         scope: encode_scope(scope),
         metrics: Enum.map(scope_group, &encode_metric/1),
-        schema_url: scope_schema_url(scope)
+        schema_url: scope.schema_url
       }
     end)
   end
 
-  @spec scope_schema_url(scope :: Otel.InstrumentationScope.t() | nil) :: String.t()
-  defp scope_schema_url(nil), do: ""
-  defp scope_schema_url(%Otel.InstrumentationScope{} = scope), do: scope.schema_url
-
-  @spec encode_metric(metric :: Otel.Metrics.MetricExporter.metric()) ::
+  @spec encode_metric(metric :: Otel.Metrics.Metric.t()) ::
           Opentelemetry.Proto.Metrics.V1.Metric.t()
   defp encode_metric(metric) do
     %Opentelemetry.Proto.Metrics.V1.Metric{
@@ -265,7 +257,7 @@ defmodule Otel.OTLP.Encoder do
     }
   end
 
-  @spec encode_metric_data(metric :: Otel.Metrics.MetricExporter.metric()) ::
+  @spec encode_metric_data(metric :: Otel.Metrics.Metric.t()) ::
           {:sum, Opentelemetry.Proto.Metrics.V1.Sum.t()}
           | {:gauge, Opentelemetry.Proto.Metrics.V1.Gauge.t()}
           | {:histogram, Opentelemetry.Proto.Metrics.V1.Histogram.t()}
@@ -402,7 +394,7 @@ defmodule Otel.OTLP.Encoder do
       %Opentelemetry.Proto.Logs.V1.ScopeLogs{
         scope: encode_scope(scope),
         log_records: Enum.map(scope_group, &encode_log_record/1),
-        schema_url: scope_schema_url(scope)
+        schema_url: scope.schema_url
       }
     end)
   end

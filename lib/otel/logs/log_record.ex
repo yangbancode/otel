@@ -21,9 +21,11 @@ defmodule Otel.Logs.LogRecord do
   |---|---|
   | `t:t/0` | **Application** (data model) — LogRecord struct type |
 
-  `new/0` / `new/1` are not provided; use `%Otel.Logs.LogRecord{...}`
-  at the callsite. The struct's default values make all fields
-  truly optional without helper ceremony.
+  Construct via `Otel.Logs.LogRecord.new/1` — the canonical
+  constructor that fills proto3-aligned defaults plus
+  runtime-derived `scope` / `resource`. The `defstruct`
+  declares only field names; defaults live exclusively in
+  `new/1` so all initialization flows through one place.
 
   ## Field defaults — proto3-aligned
 
@@ -94,23 +96,52 @@ defmodule Otel.Logs.LogRecord do
           span_id: Otel.Trace.SpanId.t(),
           trace_flags: Otel.Trace.SpanContext.trace_flags(),
           exception: Exception.t() | nil,
-          scope: Otel.InstrumentationScope.t() | nil,
-          resource: Otel.Resource.t() | nil,
+          scope: Otel.InstrumentationScope.t(),
+          resource: Otel.Resource.t(),
           dropped_attributes_count: non_neg_integer()
         }
 
-  defstruct timestamp: 0,
-            observed_timestamp: 0,
-            severity_number: 0,
-            severity_text: "",
-            body: nil,
-            attributes: %{},
-            event_name: "",
-            trace_id: 0,
-            span_id: 0,
-            trace_flags: 0,
-            exception: nil,
-            scope: nil,
-            resource: nil,
-            dropped_attributes_count: 0
+  defstruct [
+    :timestamp,
+    :observed_timestamp,
+    :severity_number,
+    :severity_text,
+    :body,
+    :attributes,
+    :event_name,
+    :trace_id,
+    :span_id,
+    :trace_flags,
+    :exception,
+    :scope,
+    :resource,
+    :dropped_attributes_count
+  ]
+
+  @doc """
+  **Application** — Construct a LogRecord. Proto3 zero-value
+  defaults plus runtime-derived `scope` / `resource` are
+  applied; caller may override any field via `opts`.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      timestamp: 0,
+      observed_timestamp: 0,
+      severity_number: 0,
+      severity_text: "",
+      body: nil,
+      attributes: %{},
+      event_name: "",
+      trace_id: 0,
+      span_id: 0,
+      trace_flags: 0,
+      exception: nil,
+      scope: Otel.InstrumentationScope.new(),
+      resource: Otel.Resource.new(),
+      dropped_attributes_count: 0
+    }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
+  end
 end

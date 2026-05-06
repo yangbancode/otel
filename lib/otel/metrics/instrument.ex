@@ -189,7 +189,7 @@ defmodule Otel.Metrics.Instrument do
             unit: "",
             description: "",
             advisory: [],
-            scope: %Otel.InstrumentationScope{}
+            scope: Otel.InstrumentationScope.new()
 
   @doc """
   **SDK** (SDK helper) — case-insensitive comparison key.

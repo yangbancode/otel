@@ -41,8 +41,8 @@ defmodule Otel.Metrics do
   @spec meter_config() :: map()
   def meter_config do
     %{
-      scope: %Otel.InstrumentationScope{},
-      resource: Otel.Resource.build(),
+      scope: Otel.InstrumentationScope.new(),
+      resource: Otel.Resource.new(),
       instruments_tab: Otel.Metrics.InstrumentsStorage,
       streams_tab: Otel.Metrics.StreamsStorage,
       metrics_tab: Otel.Metrics.MetricsStorage,

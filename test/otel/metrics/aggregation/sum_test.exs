@@ -1,7 +1,7 @@
 defmodule Otel.Metrics.Aggregation.SumTest do
   use ExUnit.Case, async: true
 
-  @scope %Otel.InstrumentationScope{name: "test"}
+  @scope Otel.InstrumentationScope.new(%{name: "test"})
 
   setup do
     %{tab: :ets.new(:sum_test, [:set, :public])}

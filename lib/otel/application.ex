@@ -10,7 +10,7 @@ defmodule Otel.Application do
     # tables; they must start before `MetricExporter` since the
     # exporter calls `Otel.Metrics.meter_config/0` in its
     # `do_export/0`. `Otel.Trace` and `Otel.Logs` hold no
-    # boot-time state — `Otel.Resource.build/0` reads
+    # boot-time state — `Otel.Resource.new/0` reads
     # `RELEASE_NAME`/`RELEASE_VSN` OS env vars on every call (no
     # Mix Config knob for resource).
     children = [

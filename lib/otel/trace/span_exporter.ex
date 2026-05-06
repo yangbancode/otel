@@ -135,7 +135,7 @@ defmodule Otel.Trace.SpanExporter do
           retry: &retry?/2
         )
         |> Req.merge(Application.get_env(:otel, :req_options, []))
-        |> Req.merge(body: Otel.OTLP.Encoder.encode_traces(batch, Otel.Resource.build()))
+        |> Req.merge(body: Otel.OTLP.Encoder.encode_traces(batch))
         |> Req.Request.put_new_header("content-type", @content_type)
         |> Req.Request.put_new_header("user-agent", @user_agent)
         |> Req.request()

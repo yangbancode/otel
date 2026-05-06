@@ -17,15 +17,15 @@ defmodule Otel.InstrumentationScope do
   records / metrics share the same instrumentation scope:
   the SDK itself.
 
-  `defstruct` defaults are hardcoded at compile time from
-  `mix.exs`:
+  Defaults are read from `mix.exs` via `Mix.Project.config/0`
+  at compile time and stored in module attributes
+  (`@name`, `@version`). `new/1` is the canonical
+  constructor — the `defstruct` declares only the field
+  names so all initialization flows through `new/1`.
 
-  - `name`    — `"otel"` (from `:app` in `mix.exs`)
-  - `version` — current SDK version (from `:version` in `mix.exs`)
+  ## Usage
 
-  Constructed via the struct literal directly:
-
-      %Otel.InstrumentationScope{}
+      Otel.InstrumentationScope.new()
       # => %Otel.InstrumentationScope{
       #      name: "otel",
       #      version: "0.2.0",
@@ -33,9 +33,7 @@ defmodule Otel.InstrumentationScope do
       #      attributes: %{}
       #    }
 
-  Tests can override individual fields:
-
-      %Otel.InstrumentationScope{schema_url: "https://example.com"}
+      Otel.InstrumentationScope.new(%{schema_url: "https://example.com"})
 
   ## References
 
@@ -73,8 +71,21 @@ defmodule Otel.InstrumentationScope do
           attributes: %{String.t() => primitive_any()}
         }
 
-  defstruct name: @name,
-            version: @version,
-            schema_url: "",
-            attributes: %{}
+  defstruct [:name, :version, :schema_url, :attributes]
+
+  @doc """
+  **SDK** — Construct an instrumentation scope. Caller may
+  override any field via `opts`.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      name: @name,
+      version: @version,
+      schema_url: "",
+      attributes: %{}
+    }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
+  end
 end

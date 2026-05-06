@@ -145,31 +145,70 @@ defmodule Otel.Trace.Span do
           dropped_links_count: non_neg_integer(),
           status: Otel.Trace.Status.t(),
           trace_flags: Otel.Trace.SpanContext.trace_flags(),
-          instrumentation_scope: Otel.InstrumentationScope.t() | nil,
+          instrumentation_scope: Otel.InstrumentationScope.t(),
+          resource: Otel.Resource.t(),
           span_limits: Otel.Trace.SpanLimits.t()
         }
 
   defstruct [
     :trace_id,
     :span_id,
+    :tracestate,
     :parent_span_id,
     :parent_span_is_remote,
     :name,
+    :kind,
+    :start_time,
     :end_time,
+    :attributes,
+    :dropped_attributes_count,
+    :events,
+    :dropped_events_count,
+    :links,
+    :dropped_links_count,
+    :status,
+    :trace_flags,
     :instrumentation_scope,
-    tracestate: Otel.Trace.TraceState.new(),
-    kind: :internal,
-    start_time: 0,
-    attributes: %{},
-    dropped_attributes_count: 0,
-    events: [],
-    dropped_events_count: 0,
-    links: [],
-    dropped_links_count: 0,
-    status: %Otel.Trace.Status{},
-    trace_flags: 0,
-    span_limits: %Otel.Trace.SpanLimits{}
+    :resource,
+    :span_limits
   ]
+
+  @doc """
+  **SDK** — Construct a Span. Caller provides identifying
+  fields (`trace_id`, `span_id`, `name`) via `opts`; the
+  remaining fields default to spec-aligned zero values.
+
+  Used by `Otel.Trace.Span.start_span/4` to build the SDK
+  Span after sampling and by tests / fixtures that need
+  partially-filled spans.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      trace_id: 0,
+      span_id: 0,
+      tracestate: Otel.Trace.TraceState.new(),
+      parent_span_id: nil,
+      parent_span_is_remote: nil,
+      name: "",
+      kind: :internal,
+      start_time: 0,
+      end_time: nil,
+      attributes: %{},
+      dropped_attributes_count: 0,
+      events: [],
+      dropped_events_count: 0,
+      links: [],
+      dropped_links_count: 0,
+      status: %Otel.Trace.Status{},
+      trace_flags: 0,
+      instrumentation_scope: Otel.InstrumentationScope.new(),
+      resource: Otel.Resource.new(),
+      span_limits: %Otel.Trace.SpanLimits{}
+    }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
+  end
 
   # --- Creation ---
 
@@ -220,23 +259,23 @@ defmodule Otel.Trace.Span do
 
       dropped_links_count = max(length(links) - span_limits.link_count_limit, 0)
 
-      span = %__MODULE__{
-        trace_id: trace_id,
-        span_id: span_id,
-        tracestate: tracestate,
-        parent_span_id: parent_span_id,
-        parent_span_is_remote: parent_is_remote,
-        name: name,
-        kind: kind,
-        start_time: start_time,
-        attributes: merged_attributes,
-        dropped_attributes_count: dropped_attributes_count,
-        events: [],
-        dropped_events_count: 0,
-        links: sdk_links,
-        dropped_links_count: dropped_links_count,
-        trace_flags: trace_flags
-      }
+      span =
+        new(%{
+          trace_id: trace_id,
+          span_id: span_id,
+          tracestate: tracestate,
+          parent_span_id: parent_span_id,
+          parent_span_is_remote: parent_is_remote,
+          name: name,
+          kind: kind,
+          start_time: start_time,
+          attributes: merged_attributes,
+          dropped_attributes_count: dropped_attributes_count,
+          links: sdk_links,
+          dropped_links_count: dropped_links_count,
+          trace_flags: trace_flags,
+          span_limits: span_limits
+        })
 
       {span_ctx, span}
     else

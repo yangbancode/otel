@@ -22,21 +22,21 @@ defmodule Otel.Logs.LoggerTest do
       ctx = Otel.Ctx.current()
 
       before = System.system_time(:nanosecond)
-      Otel.Logs.emit(ctx, %Otel.Logs.LogRecord{body: "auto"})
+      Otel.Logs.emit(ctx, Otel.Logs.LogRecord.new(%{body: "auto"}))
       auto = emitted()
       assert auto.observed_timestamp >= before
 
-      Otel.Logs.emit(ctx, %Otel.Logs.LogRecord{
-        body: "manual",
-        observed_timestamp: 42
-      })
+      Otel.Logs.emit(
+        ctx,
+        Otel.Logs.LogRecord.new(%{body: "manual", observed_timestamp: 42})
+      )
 
       manual = emitted()
       assert manual.observed_timestamp == 42
     end
 
     test "decorates with scope, resource, trace context, and proto3 defaults" do
-      Otel.Logs.emit(Otel.Ctx.current(), %Otel.Logs.LogRecord{})
+      Otel.Logs.emit(Otel.Ctx.current(), Otel.Logs.LogRecord.new())
       record = emitted()
 
       assert record.scope.name == "otel"
@@ -54,14 +54,17 @@ defmodule Otel.Logs.LoggerTest do
     end
 
     test "passes user-provided fields through verbatim" do
-      Otel.Logs.emit(Otel.Ctx.current(), %Otel.Logs.LogRecord{
-        timestamp: 1_000_000,
-        severity_number: 9,
-        severity_text: "INFO",
-        body: "structured log",
-        attributes: %{"method" => "GET", "status" => 200},
-        event_name: "http.request"
-      })
+      Otel.Logs.emit(
+        Otel.Ctx.current(),
+        Otel.Logs.LogRecord.new(%{
+          timestamp: 1_000_000,
+          severity_number: 9,
+          severity_text: "INFO",
+          body: "structured log",
+          attributes: %{"method" => "GET", "status" => 200},
+          event_name: "http.request"
+        })
+      )
 
       record = emitted()
       assert record.timestamp == 1_000_000
@@ -74,7 +77,7 @@ defmodule Otel.Logs.LoggerTest do
   end
 
   test "emit/1 dispatches with the implicit context" do
-    Otel.Logs.emit(%Otel.Logs.LogRecord{body: "via API"})
+    Otel.Logs.emit(Otel.Logs.LogRecord.new(%{body: "via API"}))
     assert %{body: "via API"} = emitted()
   end
 
@@ -83,16 +86,19 @@ defmodule Otel.Logs.LoggerTest do
       ctx = Otel.Ctx.current()
       ex = %RuntimeError{message: "auto"}
 
-      Otel.Logs.emit(ctx, %Otel.Logs.LogRecord{body: "e", exception: ex})
+      Otel.Logs.emit(ctx, Otel.Logs.LogRecord.new(%{body: "e", exception: ex}))
       auto = emitted()
       assert auto.attributes["exception.type"] == "Elixir.RuntimeError"
       assert auto.attributes["exception.message"] == "auto"
 
-      Otel.Logs.emit(ctx, %Otel.Logs.LogRecord{
-        body: "e",
-        exception: ex,
-        attributes: %{"exception.message" => "user override"}
-      })
+      Otel.Logs.emit(
+        ctx,
+        Otel.Logs.LogRecord.new(%{
+          body: "e",
+          exception: ex,
+          attributes: %{"exception.message" => "user override"}
+        })
+      )
 
       override = emitted()
       assert override.attributes["exception.message"] == "user override"
@@ -100,7 +106,7 @@ defmodule Otel.Logs.LoggerTest do
     end
 
     test "no exception → no exception attributes injected" do
-      Otel.Logs.emit(Otel.Ctx.current(), %Otel.Logs.LogRecord{body: "normal"})
+      Otel.Logs.emit(Otel.Ctx.current(), Otel.Logs.LogRecord.new(%{body: "normal"}))
 
       record = emitted()
       refute Map.has_key?(record.attributes, "exception.type")
@@ -113,7 +119,7 @@ defmodule Otel.Logs.LoggerTest do
 
       log =
         capture_log(fn ->
-          Otel.Logs.emit(Otel.Ctx.current(), %Otel.Logs.LogRecord{attributes: attrs})
+          Otel.Logs.emit(Otel.Ctx.current(), Otel.Logs.LogRecord.new(%{attributes: attrs}))
         end)
 
       record = emitted()

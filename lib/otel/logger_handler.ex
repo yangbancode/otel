@@ -350,14 +350,14 @@ defmodule Otel.LoggerHandler do
   @spec build_log_record(log_event :: :logger.log_event()) ::
           Otel.Logs.LogRecord.t()
   defp build_log_record(%{level: level, msg: msg, meta: meta}) do
-    %Otel.Logs.LogRecord{
+    Otel.Logs.LogRecord.new(%{
       timestamp: to_timestamp(meta),
       severity_number: to_severity_number(level),
       severity_text: to_severity_text(level),
       body: to_body(msg, meta),
       attributes: to_attributes(meta),
       exception: to_exception(meta)
-    }
+    })
   end
 
   # `:time` is guaranteed on `meta` by `:logger`'s
