@@ -420,8 +420,8 @@ defmodule Otel.OTLP.EncoderTest do
         value: 10.5,
         time: 1_500_000,
         filtered_attributes: %{},
-        span_id: nil,
-        trace_id: nil
+        span_id: 0,
+        trace_id: 0
       }
 
       m1 = with_datapoint_field(@counter, :exemplars, [with_ctx])
