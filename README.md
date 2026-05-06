@@ -61,7 +61,7 @@ end
 
 - [Trace](docs/trace.md) — span lifecycle, attributes, events, status, exceptions.
 - [Log](docs/log.md) — `:logger` bridge and SDK API.
-- [Metrics](docs/metrics.md) — synchronous and observable instruments.
+- [Metrics](docs/metrics.md) — synchronous instruments.
 
 ## E2E
 

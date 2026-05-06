@@ -152,10 +152,9 @@ defmodule Otel.Metrics.Instrument do
 
   - `config` — meter config snapshot captured at creation
     time (ETS table handles, scope, exemplar filter, reader
-    configs). The recording / callback paths read from this
-    rather than from a separate Meter handle, so a custom
-    config (test override) flows transparently into
-    `record/3` and `run_callbacks/1`.
+    configs). The recording path reads from this rather than
+    from a separate Meter handle, so a custom config (test
+    override) flows transparently into `record/3`.
   - `name` — spec §Instrument name syntax (L201-L218).
     Identifying.
   - `kind` — spec §Synchronous and Asynchronous
