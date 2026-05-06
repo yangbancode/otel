@@ -19,6 +19,7 @@ defmodule Otel.Trace.SpanCreatorTest do
   describe "start_span — root vs child + parent validation" do
     test "no parent → root span; valid parent → child inherits trace_id and tracestate" do
       ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
+
       parent =
         Otel.Trace.SpanContext.new(%{
           trace_id: 123,
@@ -26,6 +27,7 @@ defmodule Otel.Trace.SpanCreatorTest do
           trace_flags: 1,
           tracestate: ts
         })
+
       ctx_with_parent = Otel.Trace.set_current_span(Otel.Ctx.new(), parent)
 
       {root_ctx, root} = start(Otel.Ctx.new(), "root_span")

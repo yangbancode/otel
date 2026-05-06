@@ -15,6 +15,7 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
   describe "inject/3" do
     test "writes traceparent (and tracestate when non-empty) for a valid span" do
       ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
+
       span_ctx =
         Otel.Trace.SpanContext.new(%{
           trace_id: @valid_trace_id,
@@ -40,6 +41,7 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
           span_id: @valid_span_id,
           trace_flags: 0
         })
+
       ctx = Otel.Trace.set_current_span(Otel.Ctx.new(), span_ctx)
 
       carrier = Otel.Propagator.TextMap.TraceContext.inject(ctx, [], @setter)
@@ -160,6 +162,7 @@ defmodule Otel.Propagator.TextMap.TraceContextTest do
 
   test "inject + extract round-trip preserves trace_id, span_id, flags, tracestate" do
     ts = Otel.Trace.TraceState.add(Otel.Trace.TraceState.new(), "vendor", "value")
+
     original =
       Otel.Trace.SpanContext.new(%{
         trace_id: @valid_trace_id,

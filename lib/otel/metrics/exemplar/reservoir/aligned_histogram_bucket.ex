@@ -52,6 +52,7 @@ defmodule Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket do
         filtered_attributes: filtered_attributes,
         ctx: ctx
       })
+
     bucket_idx = find_bucket(value, state.boundaries)
     %{state | exemplars: Map.put(state.exemplars, bucket_idx, exemplar)}
   end

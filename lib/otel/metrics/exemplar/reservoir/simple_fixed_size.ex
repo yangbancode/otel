@@ -41,6 +41,7 @@ defmodule Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize do
         filtered_attributes: filtered_attributes,
         ctx: ctx
       })
+
     count = state.count + 1
 
     exemplars =
