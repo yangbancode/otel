@@ -14,10 +14,6 @@ defmodule Otel.Metrics.Exemplar.ReservoirTest do
   end
 
   describe "offer/5 — dispatch through the trace_based filter" do
-    test "nil reservoir is a no-op" do
-      assert Otel.Metrics.Exemplar.Reservoir.offer(nil, 1, 0, %{}, sampled_ctx()) == nil
-    end
-
     test "sampled context forwards to the reservoir; not-sampled context skips" do
       assert {Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize, %{count: 1}} =
                Otel.Metrics.Exemplar.Reservoir.offer(
@@ -40,10 +36,6 @@ defmodule Otel.Metrics.Exemplar.ReservoirTest do
   end
 
   describe "collect/1" do
-    test "nil reservoir → {[], nil}" do
-      assert {[], nil} = Otel.Metrics.Exemplar.Reservoir.collect(nil)
-    end
-
     test "returns the offered exemplars and resets the reservoir state" do
       state =
         Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize.new(%{size: 1})

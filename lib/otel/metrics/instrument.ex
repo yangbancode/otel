@@ -130,6 +130,34 @@ defmodule Otel.Metrics.Instrument do
         ]
 
   @typedoc """
+  Aggregation module backing the instrument. Set to one of
+  the project's three sync aggregation implementations,
+  derived from `:kind` at construction time.
+  """
+  @type aggregation_module ::
+          Otel.Metrics.Aggregation.Sum
+          | Otel.Metrics.Aggregation.LastValue
+          | Otel.Metrics.Aggregation.ExplicitBucketHistogram
+
+  @typedoc """
+  Exemplar reservoir module attached to the instrument. Set
+  to one of the project's two reservoir implementations
+  per `metrics/sdk.md` §Default reservoirs (L1232-L1252):
+  histograms get the bucket-aligned reservoir, others get
+  the uniformly-weighted fixed-size reservoir.
+  """
+  @type exemplar_reservoir ::
+          Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize
+          | Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket
+
+  @typedoc """
+  Options forwarded to `aggregation_module.aggregate/4` and
+  `aggregation_module.collect/3`. Only `:boundaries` (for
+  histogram) is recognised; Sum / LastValue read nothing.
+  """
+  @type aggregation_opts :: %{optional(:boundaries) => [number()]}
+
+  @typedoc """
   An Instrument struct (spec `metrics/api.md` §Instrument,
   L178-L198).
 
@@ -160,10 +188,10 @@ defmodule Otel.Metrics.Instrument do
           description: String.t(),
           advisory: advisory(),
           scope: Otel.InstrumentationScope.t(),
-          aggregation_module: module() | nil,
-          aggregation_opts: map(),
-          cardinality_limit: pos_integer() | nil,
-          exemplar_reservoir: module() | nil
+          aggregation_module: aggregation_module(),
+          aggregation_opts: aggregation_opts(),
+          cardinality_limit: pos_integer(),
+          exemplar_reservoir: exemplar_reservoir()
         }
 
   defstruct [
@@ -180,34 +208,51 @@ defmodule Otel.Metrics.Instrument do
   ]
 
   @doc """
-  **SDK** — Construct an Instrument. The `:kind` field is required;
-  `:scope` defaults to the SDK identity, the rest fall back to
-  proto3 zero values.
-
-  Resolution fields (`aggregation_module`, `aggregation_opts`,
-  `cardinality_limit`, `exemplar_reservoir`) are filled by
-  `Otel.Metrics.Meter.register_instrument/3` from `:kind` and
-  `:advisory`; constructing an Instrument directly leaves them
-  `nil` / `%{}` and is only suitable as a "ghost instrument"
-  for the unregistered-record no-op path.
+  **SDK** — Construct an Instrument. Caller provides at least
+  `:name` and (optionally) `:kind` / `:unit` / `:description` /
+  `:advisory`; the resolution fields (`aggregation_module`,
+  `aggregation_opts`, `cardinality_limit`, `exemplar_reservoir`)
+  derive from `:kind` and `:advisory`. `:scope` defaults to the
+  SDK identity.
   """
   @spec new(opts :: map()) :: t()
   def new(opts \\ %{}) do
+    kind = Map.get(opts, :kind, :counter)
+    advisory = Map.get(opts, :advisory, [])
+    aggregation_module = Otel.Metrics.Aggregation.default_for(kind)
+
     defaults = %{
       name: "",
-      kind: :counter,
+      kind: kind,
       unit: "",
       description: "",
-      advisory: [],
+      advisory: advisory,
       scope: Otel.InstrumentationScope.new(),
-      aggregation_module: nil,
-      aggregation_opts: %{},
-      cardinality_limit: nil,
-      exemplar_reservoir: nil
+      aggregation_module: aggregation_module,
+      aggregation_opts: aggregation_opts(advisory),
+      # Spec metrics/sdk.md L1129-L1133 — default
+      # CardinalityLimit is 2000 per stream.
+      cardinality_limit: 2000,
+      exemplar_reservoir: default_reservoir(aggregation_module)
     }
 
     struct!(__MODULE__, Map.merge(defaults, opts))
   end
+
+  @spec aggregation_opts(advisory :: advisory()) :: aggregation_opts()
+  defp aggregation_opts(advisory) do
+    case Keyword.get(advisory, :explicit_bucket_boundaries) do
+      nil -> %{}
+      boundaries -> %{boundaries: boundaries}
+    end
+  end
+
+  @spec default_reservoir(aggregation_module :: aggregation_module()) :: exemplar_reservoir()
+  defp default_reservoir(Otel.Metrics.Aggregation.ExplicitBucketHistogram),
+    do: Otel.Metrics.Exemplar.Reservoir.AlignedHistogramBucket
+
+  defp default_reservoir(_aggregation),
+    do: Otel.Metrics.Exemplar.Reservoir.SimpleFixedSize
 
   @doc """
   **SDK** (SDK helper) — case-insensitive comparison key.
