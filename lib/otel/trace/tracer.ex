@@ -57,7 +57,11 @@ defmodule Otel.Trace.Tracer do
       # `set_attribute` etc. become no-ops via `update/1`
       # matching no row.
       span
-      |> Map.merge(%{instrumentation_scope: @scope, span_limits: @span_limits})
+      |> Map.merge(%{
+        instrumentation_scope: @scope,
+        resource: Otel.Resource.build(),
+        span_limits: @span_limits
+      })
       |> Otel.Trace.SpanStorage.insert()
     end
 

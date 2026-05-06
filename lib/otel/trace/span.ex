@@ -145,7 +145,8 @@ defmodule Otel.Trace.Span do
           dropped_links_count: non_neg_integer(),
           status: Otel.Trace.Status.t(),
           trace_flags: Otel.Trace.SpanContext.trace_flags(),
-          instrumentation_scope: Otel.InstrumentationScope.t() | nil,
+          instrumentation_scope: Otel.InstrumentationScope.t(),
+          resource: Otel.Resource.t(),
           span_limits: Otel.Trace.SpanLimits.t()
         }
 
@@ -156,7 +157,6 @@ defmodule Otel.Trace.Span do
     :parent_span_is_remote,
     :name,
     :end_time,
-    :instrumentation_scope,
     tracestate: Otel.Trace.TraceState.new(),
     kind: :internal,
     start_time: 0,
@@ -168,6 +168,8 @@ defmodule Otel.Trace.Span do
     dropped_links_count: 0,
     status: %Otel.Trace.Status{},
     trace_flags: 0,
+    instrumentation_scope: %Otel.InstrumentationScope{},
+    resource: %Otel.Resource{},
     span_limits: %Otel.Trace.SpanLimits{}
   ]
 

@@ -94,8 +94,8 @@ defmodule Otel.Logs.LogRecord do
           span_id: Otel.Trace.SpanId.t(),
           trace_flags: Otel.Trace.SpanContext.trace_flags(),
           exception: Exception.t() | nil,
-          scope: Otel.InstrumentationScope.t() | nil,
-          resource: Otel.Resource.t() | nil,
+          scope: Otel.InstrumentationScope.t(),
+          resource: Otel.Resource.t(),
           dropped_attributes_count: non_neg_integer()
         }
 
@@ -110,7 +110,7 @@ defmodule Otel.Logs.LogRecord do
             span_id: 0,
             trace_flags: 0,
             exception: nil,
-            scope: nil,
-            resource: nil,
+            scope: %Otel.InstrumentationScope{},
+            resource: %Otel.Resource{},
             dropped_attributes_count: 0
 end

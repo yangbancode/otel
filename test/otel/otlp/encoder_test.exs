@@ -1,14 +1,7 @@
 defmodule Otel.OTLP.EncoderTest do
   use ExUnit.Case, async: true
 
-  @resource %Otel.Resource{
-    attributes: %{
-      "service.name" => "test-service",
-      "telemetry.sdk.language" => "elixir"
-    }
-  }
-
-  describe "encode_traces/2" do
+  describe "encode_traces/1" do
     @span %Otel.Trace.Span{
       trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
       span_id: 0xB7AD6B7169203331,
@@ -32,11 +25,17 @@ defmodule Otel.OTLP.EncoderTest do
       instrumentation_scope: %Otel.InstrumentationScope{
         name: "test_lib",
         version: "1.0.0"
+      },
+      resource: %Otel.Resource{
+        attributes: %{
+          "service.name" => "test-service",
+          "telemetry.sdk.language" => "elixir"
+        }
       }
     }
 
     defp roundtrip_traces(spans) do
-      binary = Otel.OTLP.Encoder.encode_traces(spans, @resource)
+      binary = Otel.OTLP.Encoder.encode_traces(spans)
       Opentelemetry.Proto.Collector.Trace.V1.ExportTraceServiceRequest.decode(binary)
     end
 
@@ -44,7 +43,7 @@ defmodule Otel.OTLP.EncoderTest do
       do: hd(hd(hd(roundtrip_traces(spans).resource_spans).scope_spans).spans)
 
     test "produces a valid protobuf binary" do
-      binary = Otel.OTLP.Encoder.encode_traces([@span], @resource)
+      binary = Otel.OTLP.Encoder.encode_traces([@span])
       assert is_binary(binary) and byte_size(binary) > 0
       assert length(roundtrip_traces([@span]).resource_spans) == 1
     end
@@ -92,11 +91,6 @@ defmodule Otel.OTLP.EncoderTest do
       attr_map = Map.new(attr_scope.attributes, fn kv -> {kv.key, kv.value.value} end)
       assert {:string_value, "v2"} = attr_map["library.tag"]
       assert {:int_value, 42} = attr_map["build"]
-    end
-
-    test "nil scope encodes as nil scope" do
-      decoded = roundtrip_traces([%{@span | instrumentation_scope: nil}])
-      assert hd(hd(decoded.resource_spans).scope_spans).scope == nil
     end
 
     test "encodes events with timestamps" do
@@ -188,10 +182,7 @@ defmodule Otel.OTLP.EncoderTest do
     test "rejects non-primitive_any values (atoms, tuples, refs)" do
       for invalid <- [:bare_atom, {1, 2}, make_ref()] do
         assert_raise FunctionClauseError, fn ->
-          Otel.OTLP.Encoder.encode_traces(
-            [%{@span | attributes: %{"bad" => invalid}}],
-            @resource
-          )
+          Otel.OTLP.Encoder.encode_traces([%{@span | attributes: %{"bad" => invalid}}])
         end
       end
     end
@@ -206,10 +197,7 @@ defmodule Otel.OTLP.EncoderTest do
       assert {:bytes_value, ^raw} = bytes_attr.value.value
 
       assert_raise Protobuf.EncodeError, ~r/invalid UTF-8/, fn ->
-        Otel.OTLP.Encoder.encode_traces(
-          [%{@span | attributes: %{"raw" => <<0xFF, 0xFE>>}}],
-          @resource
-        )
+        Otel.OTLP.Encoder.encode_traces([%{@span | attributes: %{"raw" => <<0xFF, 0xFE>>}}])
       end
 
       bad = <<0xFF, 0xFE>>
@@ -451,7 +439,7 @@ defmodule Otel.OTLP.EncoderTest do
       assert ex2.trace_id == <<>>
     end
 
-    test "scope schema_url propagated; nil scope → empty schema_url; resource attributes encoded" do
+    test "scope schema_url propagated; resource attributes encoded" do
       scope = %Otel.InstrumentationScope{
         name: "lib",
         schema_url: "https://opentelemetry.io/schemas/1.21.0"
@@ -461,9 +449,6 @@ defmodule Otel.OTLP.EncoderTest do
 
       assert hd(hd(with_schema.resource_metrics).scope_metrics).schema_url ==
                "https://opentelemetry.io/schemas/1.21.0"
-
-      nil_scope = roundtrip_metrics([%{@counter | scope: nil}])
-      assert hd(hd(nil_scope.resource_metrics).scope_metrics).schema_url == ""
 
       attrs = hd(roundtrip_metrics([@counter]).resource_metrics).resource.attributes
       assert Enum.any?(attrs, &(&1.key == "service.name"))

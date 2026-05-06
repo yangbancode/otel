@@ -25,8 +25,8 @@ defmodule Otel.Metrics.Metric do
   | `name` | `""` | proto `string`; `metrics.proto` Metric.name |
   | `description` | `""` | proto `string`; `metrics.proto` Metric.description |
   | `unit` | `""` | proto `string`; `metrics.proto` Metric.unit |
-  | `scope` | `nil` | always populated by `collect/1` from the stream's instrument |
-  | `resource` | `nil` | always populated by `collect/1` from `meter_config.resource` |
+  | `scope` | `%Otel.InstrumentationScope{}` | always overwritten by `collect/1` with the stream's instrument scope |
+  | `resource` | `%Otel.Resource{}` | always overwritten by `collect/1` with `meter_config.resource` |
   | `kind` | `nil` | always populated; no spec-aligned default exists |
   | `temporality` | `nil` | nil for Gauge / LastValue per `data-model.md` §Temporality (gauges have no aggregation temporality) |
   | `is_monotonic` | `nil` | nil for non-Sum aggregations; `true` only for `Counter`, `false` for `UpDownCounter` |
@@ -42,8 +42,8 @@ defmodule Otel.Metrics.Metric do
           name: String.t(),
           description: String.t(),
           unit: String.t(),
-          scope: Otel.InstrumentationScope.t() | nil,
-          resource: Otel.Resource.t() | nil,
+          scope: Otel.InstrumentationScope.t(),
+          resource: Otel.Resource.t(),
           kind: Otel.Metrics.Instrument.kind() | nil,
           temporality: Otel.Metrics.Instrument.temporality() | nil,
           is_monotonic: boolean() | nil,
@@ -53,8 +53,8 @@ defmodule Otel.Metrics.Metric do
   defstruct name: "",
             description: "",
             unit: "",
-            scope: nil,
-            resource: nil,
+            scope: %Otel.InstrumentationScope{},
+            resource: %Otel.Resource{},
             kind: nil,
             temporality: nil,
             is_monotonic: nil,
