@@ -33,14 +33,12 @@ defmodule Otel.Metrics.Exemplar.Reservoir do
   @callback collect(state :: term()) :: {[Otel.Metrics.Exemplar.t()], state :: term()}
 
   @spec offer(
-          reservoir :: {module(), term()} | nil,
+          reservoir :: {module(), term()},
           value :: number(),
           time :: non_neg_integer(),
           filtered_attributes :: %{String.t() => primitive_any()},
           ctx :: Otel.Ctx.t()
-        ) :: {module(), term()} | nil
-  def offer(nil, _value, _time, _attrs, _ctx), do: nil
-
+        ) :: {module(), term()}
   def offer({module, state}, value, time, filtered_attributes, ctx) do
     if Otel.Metrics.Exemplar.Filter.should_sample?(ctx) do
       {module, module.offer(state, value, time, filtered_attributes, ctx)}
@@ -49,10 +47,8 @@ defmodule Otel.Metrics.Exemplar.Reservoir do
     end
   end
 
-  @spec collect(reservoir :: {module(), term()} | nil) ::
-          {[Otel.Metrics.Exemplar.t()], {module(), term()} | nil}
-  def collect(nil), do: {[], nil}
-
+  @spec collect(reservoir :: {module(), term()}) ::
+          {[Otel.Metrics.Exemplar.t()], {module(), term()}}
   def collect({module, state}) do
     {exemplars, new_state} = module.collect(state)
     {exemplars, {module, new_state}}
