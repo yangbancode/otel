@@ -19,12 +19,7 @@ defmodule Otel.Metrics.Instrument do
   ## Unified API + SDK struct
 
   A single struct shared by both API and SDK layers rather
-  than an API-handle + SDK-record split. The `config` field
-  captures the meter config (ETS table handles, scope,
-  exemplar filter, reader configs) at creation time so the
-  instrument is a self-sufficient handle; `record/3` and
-  the callback path read from `instrument.config` without
-  an auxiliary lookup. Resolution fields
+  than an API-handle + SDK-record split. Resolution fields
   (`aggregation_module`, `aggregation_opts`,
   `cardinality_limit`, `exemplar_reservoir`) are filled at
   registration time from `:kind` and `:advisory` so the
@@ -34,13 +29,13 @@ defmodule Otel.Metrics.Instrument do
   defines one `#instrument{}` record shared across its API
   and SDK.
 
-  The SDK stores the same struct in its `instruments_tab`
-  ETS table. Stateless helpers that pure-pattern-match on
-  `kind` or `name` (`downcased_name/1`, `monotonic?/1`)
-  colocate here because they are pure data transformations
-  with no runtime SDK coupling — matching the erlang
-  reference, which places the same helpers on its
-  API-layer `otel_instrument`.
+  The SDK stores the same struct in
+  `Otel.Metrics.InstrumentsStorage`. Stateless helpers that
+  pure-pattern-match on `kind` or `name`
+  (`downcased_name/1`, `monotonic?/1`) colocate here because
+  they are pure data transformations with no runtime SDK
+  coupling — matching the erlang reference, which places the
+  same helpers on its API-layer `otel_instrument`.
 
   ## Divergences from opentelemetry-erlang
 
@@ -140,11 +135,6 @@ defmodule Otel.Metrics.Instrument do
 
   Fields:
 
-  - `config` — meter config snapshot captured at creation
-    time (ETS table handles, scope, exemplar filter, reader
-    configs). The recording path reads from this rather than
-    from a separate Meter handle, so a custom config (test
-    override) flows transparently into `record/3`.
   - `name` — spec §Instrument name syntax (L201-L218).
     Identifying.
   - `kind` — spec §Synchronous and Asynchronous
@@ -164,7 +154,6 @@ defmodule Otel.Metrics.Instrument do
   identifying fields are exactly those four.
   """
   @type t :: %__MODULE__{
-          config: map(),
           name: String.t(),
           kind: kind(),
           unit: String.t(),
@@ -178,7 +167,6 @@ defmodule Otel.Metrics.Instrument do
         }
 
   defstruct [
-    :config,
     :name,
     :kind,
     :unit,
@@ -198,7 +186,7 @@ defmodule Otel.Metrics.Instrument do
 
   Resolution fields (`aggregation_module`, `aggregation_opts`,
   `cardinality_limit`, `exemplar_reservoir`) are filled by
-  `Otel.Metrics.Meter.register_instrument/4` from `:kind` and
+  `Otel.Metrics.Meter.register_instrument/3` from `:kind` and
   `:advisory`; constructing an Instrument directly leaves them
   `nil` / `%{}` and is only suitable as a "ghost instrument"
   for the unregistered-record no-op path.
@@ -206,7 +194,6 @@ defmodule Otel.Metrics.Instrument do
   @spec new(opts :: map()) :: t()
   def new(opts \\ %{}) do
     defaults = %{
-      config: %{},
       name: "",
       kind: :counter,
       unit: "",

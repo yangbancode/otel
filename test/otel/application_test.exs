@@ -13,11 +13,8 @@ defmodule Otel.ApplicationTest do
   end
 
   describe "Provider boot" do
-    test "Otel.Resource.new/0 is the single resource source; meter_config carries it" do
+    test "Otel.Resource.new/0 is the single resource source" do
       reboot()
-
-      meter_state = Otel.Metrics.meter_config()
-      assert %Otel.Resource{} = meter_state.resource
 
       # Pillars no longer expose `resource/0` wrappers — call
       # `Otel.Resource.new/0` directly for SDK introspection.
