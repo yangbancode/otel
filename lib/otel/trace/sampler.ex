@@ -78,8 +78,7 @@ defmodule Otel.Trace.Sampler do
         ) :: sampling_result()
   def should_sample(ctx, _trace_id, _links, _name, _kind, _attributes) do
     parent = Otel.Trace.current_span(ctx)
-    tracestate = Map.get(parent, :tracestate, Otel.Trace.TraceState.new())
-    {decide(parent), %{}, tracestate}
+    {decide(parent), %{}, parent.tracestate}
   end
 
   @spec decide(parent :: Otel.Trace.SpanContext.t()) :: sampling_decision()
