@@ -14,9 +14,7 @@ defmodule Otel.Metrics.Instrument do
   pipeline association rather than identity.
 
   The instrument is the handle users pass to recording
-  functions (`Counter.add/3`, `Histogram.record/3`, etc.)
-  and the element type of the list given to
-  `Meter.register_callback/5`.
+  functions (`Counter.add/3`, `Histogram.record/3`, etc.).
 
   ## Unified API + SDK struct
 
@@ -87,16 +85,17 @@ defmodule Otel.Metrics.Instrument do
 
   @typedoc """
   Instrument kind. Enumerated per `metrics/api.md`
-  §Synchronous and Asynchronous instruments (L279-L300).
+  §Synchronous instruments (L279-L300). Asynchronous
+  (Observable) instrument kinds are intentionally absent
+  — minikube delegates poll-based measurements to the
+  BEAM-native `:telemetry` ecosystem (planned via a
+  telemetry-handler bridge).
   """
   @type kind ::
           :counter
           | :histogram
           | :gauge
           | :updown_counter
-          | :observable_counter
-          | :observable_gauge
-          | :observable_updown_counter
 
   @typedoc """
   Aggregation temporality per `metrics/data-model.md`
@@ -135,25 +134,15 @@ defmodule Otel.Metrics.Instrument do
 
   @typedoc """
   Options accepted by `Meter.create_counter/3`,
-  `create_histogram/3`, `create_gauge/3`,
-  `create_updown_counter/3`, and the three observable
-  `create_*/3` variants. Keys follow
-  `metrics/api.md` §Synchronous Instrument API L302-L348
-  (and the equivalent §Asynchronous Instrument API
-  L350-L472).
+  `create_histogram/3`, `create_gauge/3`, and
+  `create_updown_counter/3`. Keys follow `metrics/api.md`
+  §Synchronous Instrument API L302-L348.
   """
   @type create_opts :: [
           {:unit, String.t()}
           | {:description, String.t()}
           | {:advisory, advisory()}
         ]
-
-  @typedoc """
-  Options accepted by `Meter.register_callback/5`. The
-  spec does not define required keys; kept as an open
-  keyword list for future SDK-specific extensions.
-  """
-  @type register_callback_opts :: keyword()
 
   @typedoc """
   An Instrument struct (spec `metrics/api.md` §Instrument,
@@ -242,10 +231,7 @@ defmodule Otel.Metrics.Instrument do
       counter: :cumulative,
       updown_counter: :cumulative,
       histogram: :cumulative,
-      gauge: :cumulative,
-      observable_counter: :cumulative,
-      observable_gauge: :cumulative,
-      observable_updown_counter: :cumulative
+      gauge: :cumulative
     }
   end
 
@@ -255,10 +241,9 @@ defmodule Otel.Metrics.Instrument do
 
   Maps to OTLP's `Sum.is_monotonic` field
   (`opentelemetry-proto` `metrics.proto`). Only Counter
-  and Observable Counter aggregate as a monotonic Sum;
-  other kinds either do not aggregate as Sum at all
-  (Histogram, Gauge) or allow decrements (UpDownCounter,
-  Observable UpDownCounter).
+  aggregates as a monotonic Sum; other kinds either do not
+  aggregate as Sum at all (Histogram, Gauge) or allow
+  decrements (UpDownCounter).
 
   See `## Divergences from opentelemetry-erlang` in the
   module docs for why this is narrower than erlang's
@@ -266,6 +251,5 @@ defmodule Otel.Metrics.Instrument do
   """
   @spec monotonic?(kind :: kind()) :: boolean()
   def monotonic?(:counter), do: true
-  def monotonic?(:observable_counter), do: true
   def monotonic?(_kind), do: false
 end

@@ -42,9 +42,8 @@ These are the known axes; the actual decision is made in Finalization.
   `error-handling.md` L15 "MUST provide safe defaults for missing or
   invalid arguments".
 - **User-provided callbacks** (Sampler.should_sample, Exporter.export,
-  Observable instrument callbacks, custom Propagators). Spec:
-  `error-handling.md` L24 "API methods that accept external callbacks
-  MUST handle all errors".
+  custom Propagators). Spec: `error-handling.md` L24 "API methods that
+  accept external callbacks MUST handle all errors".
 - **Internal SDK machinery** (batch processor, reader, span storage).
   Spec: `error-handling.md` L19 "MUST NOT throw unhandled exceptions for
   errors in their own operations".

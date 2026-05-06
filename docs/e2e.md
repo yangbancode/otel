@@ -93,11 +93,6 @@ mix test --only e2e test/e2e/
 | `[x]` | 4 | Histogram | `record × N` | Mimir: bucket counts, sum, count, **min/max** |
 | `[x]` | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
 | `[x]` | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
-| `[x]` | 9 | ObservableCounter | callback returns `[%Measurement{}]` | Mimir: counter from callback |
-| `[x]` | 10 | ObservableUpDownCounter | callback (multi-attr) | Mimir: multi-series |
-| `[x]` | 11 | ObservableGauge | callback | Mimir: gauge from callback |
-| `[x]` | 12 | `register_callback/5` (multi-instrument) | shared callback for several instruments | Mimir: each instrument fed |
-| `[x]` | 13 | `unregister_callback/1` | unregister; collect again | Mimir: no further values |
 | `[x]` | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
 | `[~]` | 17 | Delta temporality | reader configured `:delta` | Unit-tested only — Mimir's OTLP receiver in LGTM 0.26.0 drops delta-temporality counters (delta-to-cumulative is opt-in, off by default), so an e2e test would have no signal beyond what `test/otel/sdk/metrics/temporality_test.exs` and `test/otel/otlp/encoder_test.exs` already cover. The setup_all-driven SDK restart that the e2e test would need also leaks delta config into other modules' tests |
 | `[x]` | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
@@ -158,7 +153,6 @@ pass without touching `Application.put_env`).
 | C-2a | `log_sdk_test.exs` | 12 (limits scenarios 11–12 removed — minikube hardcodes log_record_limits) |
 | C-2b | `log_handler_test.exs` | 21 |
 | C-3a | `metrics_sync_test.exs` | ~10 (rows 1–5, 8, 16, 18, 21, 30, 31) |
-| C-3b | `metrics_async_test.exs` | ~5 (rows 9–13) |
 | C-3c | `metrics_exemplars_test.exs` | ~3 (rows 27–29) |
 | C-4 | `propagator_test.exs` | 5 |
 | C-5 | `resource_test.exs` | 4 |
@@ -166,8 +160,8 @@ pass without touching `Application.put_env`).
 | C-8 | `concurrency_test.exs` | 4 |
 
 **Total: ~100 scenarios.** Tick `[x]` in the Done column as each
-scenario lands. Phase C-3 splits into three focused PRs because the
-Metrics surface is broad (sync vs observable vs exemplar); the
+scenario lands. Phase C-3 splits into two focused PRs because the
+Metrics surface is broad (sync vs exemplar); the
 others stay one file each.
 
 Out of e2e scope (covered by unit tests in `test/otel/...`):

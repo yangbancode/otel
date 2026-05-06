@@ -461,17 +461,12 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "instrument kind variants map to Sum/Gauge with correct monotonicity" do
-      for {kind, mono?} <- [
-            {:counter, true},
-            {:updown_counter, false},
-            {:observable_counter, true},
-            {:observable_updown_counter, false}
-          ] do
+      for {kind, mono?} <- [{:counter, true}, {:updown_counter, false}] do
         {:sum, sum} = first_metric([%{@counter | kind: kind, is_monotonic: mono?}]).data
         assert sum.is_monotonic == mono?
       end
 
-      assert {:gauge, _} = first_metric([%{@gauge | kind: :observable_gauge}]).data
+      assert {:gauge, _} = first_metric([%{@gauge | kind: :gauge}]).data
     end
 
     test "temporality :delta and unknown → unspecified" do

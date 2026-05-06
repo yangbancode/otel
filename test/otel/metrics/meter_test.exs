@@ -29,28 +29,6 @@ defmodule Otel.Metrics.MeterTest do
 
       assert %{name: "udc", kind: :updown_counter} =
                Otel.Metrics.Meter.create_updown_counter("udc", [])
-
-      assert %{name: "oc", kind: :observable_counter} =
-               Otel.Metrics.Meter.create_observable_counter("oc", [])
-
-      assert %{name: "og", kind: :observable_gauge} =
-               Otel.Metrics.Meter.create_observable_gauge("og", [])
-
-      assert %{name: "oudc", kind: :observable_updown_counter} =
-               Otel.Metrics.Meter.create_observable_updown_counter("oudc", [])
-    end
-
-    test "observable kinds also accept the with-callback /5 form" do
-      cb = fn _args -> [%Otel.Metrics.Measurement{value: 1}] end
-
-      for {fun, kind} <- [
-            {:create_observable_counter, :observable_counter},
-            {:create_observable_gauge, :observable_gauge},
-            {:create_observable_updown_counter, :observable_updown_counter}
-          ] do
-        result = apply(Otel.Metrics.Meter, fun, ["n_#{kind}", cb, nil, []])
-        assert result.kind == kind
-      end
     end
   end
 
@@ -210,63 +188,6 @@ defmodule Otel.Metrics.MeterTest do
       }
 
       assert :ok == Otel.Metrics.Meter.record(ghost, 1, %{})
-    end
-  end
-
-  describe "callback registration + run_callbacks" do
-    test "inline callback (create_*/5) and register_callback/5 both feed the right instrument" do
-      cfg = config()
-
-      cb = fn _args ->
-        [%Otel.Metrics.Measurement{value: 42, attributes: %{"host" => "a"}}]
-      end
-
-      Otel.Metrics.Meter.create_observable_gauge("cpu", cb, nil, [])
-      assert :ets.tab2list(cfg.callbacks_tab) != []
-
-      Otel.Metrics.Meter.run_callbacks(cfg)
-
-      [%{value: 42, attributes: %{"host" => "a"}}] =
-        datapoints("cpu", Otel.Metrics.Aggregation.LastValue)
-    end
-
-    test "register_callback/5 returns a tagged handle; unregister_callback removes it" do
-      inst = Otel.Metrics.Meter.create_observable_counter("regd", [])
-      cb = fn _args -> [%Otel.Metrics.Measurement{value: 1}] end
-
-      reg = Otel.Metrics.Meter.register_callback([inst], cb, nil, [])
-      assert {ref, _} = reg
-      assert is_reference(ref)
-
-      cfg = config()
-      before_count = length(:ets.tab2list(cfg.callbacks_tab))
-
-      assert :ok = Otel.Metrics.Meter.unregister_callback(reg)
-      assert length(:ets.tab2list(cfg.callbacks_tab)) < before_count
-    end
-
-    # Spec L1302-L1303 — multi-instrument callbacks return
-    # [{instrument, measurement}] pairs; each measurement is routed
-    # to its paired instrument only.
-    test "multi-instrument callback routes paired measurements per instrument" do
-      usage = Otel.Metrics.Meter.create_observable_counter("usage", [])
-      pressure = Otel.Metrics.Meter.create_observable_gauge("pressure", [])
-
-      cb = fn _args ->
-        [
-          {usage, %Otel.Metrics.Measurement{value: 42, attributes: %{"id" => "a"}}},
-          {pressure, %Otel.Metrics.Measurement{value: 1013, attributes: %{"id" => "a"}}}
-        ]
-      end
-
-      Otel.Metrics.Meter.register_callback([usage, pressure], cb, nil, [])
-      Otel.Metrics.Meter.run_callbacks(config())
-
-      [u_dp] = datapoints("usage", Otel.Metrics.Aggregation.Sum)
-      [p_dp] = datapoints("pressure", Otel.Metrics.Aggregation.LastValue)
-
-      assert u_dp.value == 42
-      assert p_dp.value == 1013
     end
   end
 

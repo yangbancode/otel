@@ -11,7 +11,7 @@ defmodule Otel.Metrics do
   (`Otel.Metrics.Counter`, `Otel.Metrics.Histogram`, etc.)
   directly with just the instrument name + opts.
 
-  Six SDK-internal `XxxStorage` GenServers (one per ETS table)
+  Four SDK-internal `XxxStorage` GenServers (one per ETS table)
   own the metrics state; they're started by
   `Otel.Application.start/2` and die with the SDK supervisor.
   Every other knob (scope, exemplar filter, reader id,
@@ -55,9 +55,7 @@ defmodule Otel.Metrics do
       instruments_tab: Otel.Metrics.InstrumentsStorage,
       streams_tab: Otel.Metrics.StreamsStorage,
       metrics_tab: Otel.Metrics.MetricsStorage,
-      callbacks_tab: Otel.Metrics.CallbacksStorage,
       exemplars_tab: Otel.Metrics.ExemplarsStorage,
-      observed_attrs_tab: Otel.Metrics.ObservedAttrsStorage,
       exemplar_filter: :trace_based,
       reader_id: @reader_id,
       temporality_mapping: temporality_mapping,
