@@ -1,7 +1,7 @@
 defmodule Otel.Logs.LogRecordLimitsTest do
   use ExUnit.Case, async: true
 
-  defp record(attrs), do: %Otel.Logs.LogRecord{attributes: attrs}
+  defp record(attrs), do: Otel.Logs.LogRecord.new(%{attributes: attrs})
   defp limits(opts \\ []), do: struct(%Otel.Logs.LogRecordLimits{}, opts)
 
   test "default limits — attribute_count_limit 128, attribute_value_length_limit :infinity" do
@@ -18,14 +18,15 @@ defmodule Otel.Logs.LogRecordLimitsTest do
     end
 
     test "preserves non-attribute fields when count limit triggers" do
-      log_record = %Otel.Logs.LogRecord{
-        timestamp: 12_345,
-        severity_number: 9,
-        severity_text: "info",
-        body: "hello",
-        attributes: %{a: 1, b: 2, c: 3},
-        event_name: "ev"
-      }
+      log_record =
+        Otel.Logs.LogRecord.new(%{
+          timestamp: 12_345,
+          severity_number: 9,
+          severity_text: "info",
+          body: "hello",
+          attributes: %{a: 1, b: 2, c: 3},
+          event_name: "ev"
+        })
 
       {result, dropped} =
         Otel.Logs.LogRecordLimits.apply(log_record, limits(attribute_count_limit: 1))
@@ -137,12 +138,13 @@ defmodule Otel.Logs.LogRecordLimitsTest do
     # Spec logs/data-model.md L270-273 — AnyValue maps + heterogeneous
     # arrays recurse, truncating every nested string.
     test "truncates strings inside nested AnyValue maps and heterogeneous arrays" do
-      log_record = %Otel.Logs.LogRecord{
-        attributes: %{
-          "envelope" => %{"name" => "abcdefghij", "nested" => %{"deep" => "wxyzabcdef"}},
-          "items" => ["abcdefghij", 42, %{"k" => "abcdefghij"}, ["nestedString"]]
-        }
-      }
+      log_record =
+        Otel.Logs.LogRecord.new(%{
+          attributes: %{
+            "envelope" => %{"name" => "abcdefghij", "nested" => %{"deep" => "wxyzabcdef"}},
+            "items" => ["abcdefghij", 42, %{"k" => "abcdefghij"}, ["nestedString"]]
+          }
+        })
 
       {r, _} =
         Otel.Logs.LogRecordLimits.apply(log_record, limits(attribute_value_length_limit: 5))

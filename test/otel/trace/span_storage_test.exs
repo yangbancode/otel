@@ -7,13 +7,13 @@ defmodule Otel.Trace.SpanStorageTest do
     :ok
   end
 
-  @span %Otel.Trace.Span{
-    trace_id: 0xFF000000000000000000000000000001,
-    span_id: 0xFF00000000000001,
-    name: "test_span",
-    kind: :internal,
-    start_time: System.system_time(:nanosecond)
-  }
+  @span Otel.Trace.Span.new(%{
+          trace_id: 0xFF000000000000000000000000000001,
+          span_id: 0xFF00000000000001,
+          name: "test_span",
+          kind: :internal,
+          start_time: System.system_time(:nanosecond)
+        })
 
   describe "insert/1 + get/1 + update/1" do
     test "insert → get returns the span; get on missing key → nil" do

@@ -1,5 +1,5 @@
 defmodule Otel.ResourceTest do
-  # async: false — `build/0` reads `RELEASE_NAME`/`RELEASE_VSN`
+  # async: false — `new/0` reads `RELEASE_NAME`/`RELEASE_VSN`
   # OS env vars; tests mutate them.
   use ExUnit.Case, async: false
 
@@ -21,9 +21,9 @@ defmodule Otel.ResourceTest do
     :ok
   end
 
-  describe "build/0 — no release env" do
+  describe "new/0 — no release env" do
     test "service.name falls back to \"unknown_service\"; service.version is nil" do
-      attrs = Otel.Resource.build().attributes
+      attrs = Otel.Resource.new().attributes
 
       assert attrs["service.name"] == "unknown_service"
       # Key present, value nil — OTLP encoder maps to %AnyValue{}
@@ -33,7 +33,7 @@ defmodule Otel.ResourceTest do
     end
 
     test "always emits SDK identity + deployment.environment" do
-      attrs = Otel.Resource.build().attributes
+      attrs = Otel.Resource.new().attributes
 
       assert attrs["telemetry.sdk.name"] == "otel"
       assert attrs["telemetry.sdk.language"] == "elixir"
@@ -42,11 +42,11 @@ defmodule Otel.ResourceTest do
     end
   end
 
-  describe "build/0 — RELEASE_NAME set" do
+  describe "new/0 — RELEASE_NAME set" do
     test "service.name from RELEASE_NAME; service.version stays nil" do
       System.put_env("RELEASE_NAME", "my_app")
 
-      attrs = Otel.Resource.build().attributes
+      attrs = Otel.Resource.new().attributes
 
       assert attrs["service.name"] == "my_app"
       assert is_nil(attrs["service.version"])
@@ -56,7 +56,7 @@ defmodule Otel.ResourceTest do
       System.put_env("RELEASE_NAME", "my_app")
       System.put_env("RELEASE_VSN", "1.2.3")
 
-      attrs = Otel.Resource.build().attributes
+      attrs = Otel.Resource.new().attributes
 
       assert attrs["service.name"] == "my_app"
       assert attrs["service.version"] == "1.2.3"
@@ -65,16 +65,16 @@ defmodule Otel.ResourceTest do
     test "empty RELEASE_NAME stays as empty string (System.get_env default only on nil)" do
       System.put_env("RELEASE_NAME", "")
 
-      attrs = Otel.Resource.build().attributes
+      attrs = Otel.Resource.new().attributes
 
       assert attrs["service.name"] == ""
     end
   end
 
-  describe "build/0 — attribute key set" do
+  describe "new/0 — attribute key set" do
     test "always emits 6 keys" do
       keys =
-        Otel.Resource.build().attributes
+        Otel.Resource.new().attributes
         |> Map.keys()
         |> Enum.sort()
 

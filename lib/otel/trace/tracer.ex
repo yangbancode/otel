@@ -31,7 +31,6 @@ defmodule Otel.Trace.Tracer do
   - OTel Trace API §Tracer: `opentelemetry-specification/specification/trace/api.md` L160-L416
   """
 
-  @scope %Otel.InstrumentationScope{}
   @span_limits %Otel.Trace.SpanLimits{}
 
   @doc """
@@ -55,14 +54,10 @@ defmodule Otel.Trace.Tracer do
       # drops the span (spec normal behaviour, not a failure);
       # the SpanContext is already returned and subsequent
       # `set_attribute` etc. become no-ops via `update/1`
-      # matching no row.
-      span
-      |> Map.merge(%{
-        instrumentation_scope: @scope,
-        resource: Otel.Resource.build(),
-        span_limits: @span_limits
-      })
-      |> Otel.Trace.SpanStorage.insert()
+      # matching no row. `Span.new/1` already filled
+      # `instrumentation_scope` and `resource` from their
+      # canonical sources, so no merge is needed here.
+      Otel.Trace.SpanStorage.insert(span)
     end
 
     span_ctx

@@ -18,6 +18,10 @@ defmodule Otel.Metrics.Metric do
   and reading the latest aggregation snapshots. The struct
   exists only between `collect/1` and `encode_metrics/1`.
 
+  Construct via `Otel.Metrics.Metric.new/1` — the canonical
+  constructor that fills proto3-aligned defaults plus
+  runtime-derived `scope` / `resource`.
+
   ## Field defaults — proto3-aligned
 
   | Field | Default | Basis |
@@ -25,8 +29,8 @@ defmodule Otel.Metrics.Metric do
   | `name` | `""` | proto `string`; `metrics.proto` Metric.name |
   | `description` | `""` | proto `string`; `metrics.proto` Metric.description |
   | `unit` | `""` | proto `string`; `metrics.proto` Metric.unit |
-  | `scope` | `%Otel.InstrumentationScope{}` | always overwritten by `collect/1` with the stream's instrument scope |
-  | `resource` | `%Otel.Resource{}` | always overwritten by `collect/1` with `meter_config.resource` |
+  | `scope` | `Otel.InstrumentationScope.new()` | always overwritten by `collect/1` with the stream's instrument scope |
+  | `resource` | `Otel.Resource.new()` | always overwritten by `collect/1` with `meter_config.resource` |
   | `kind` | `nil` | always populated; no spec-aligned default exists |
   | `temporality` | `nil` | nil for Gauge / LastValue per `data-model.md` §Temporality (gauges have no aggregation temporality) |
   | `is_monotonic` | `nil` | nil for non-Sum aggregations; `true` only for `Counter`, `false` for `UpDownCounter` |
@@ -50,13 +54,38 @@ defmodule Otel.Metrics.Metric do
           datapoints: [Otel.Metrics.Aggregation.datapoint()]
         }
 
-  defstruct name: "",
-            description: "",
-            unit: "",
-            scope: %Otel.InstrumentationScope{},
-            resource: %Otel.Resource{},
-            kind: nil,
-            temporality: nil,
-            is_monotonic: nil,
-            datapoints: []
+  defstruct [
+    :name,
+    :description,
+    :unit,
+    :scope,
+    :resource,
+    :kind,
+    :temporality,
+    :is_monotonic,
+    :datapoints
+  ]
+
+  @doc """
+  **SDK** — Construct a Metric. Caller provides at least
+  `name`, `kind`, and `datapoints` via `opts`; remaining
+  fields default to proto3 zero values plus runtime-derived
+  `scope` / `resource`.
+  """
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
+      name: "",
+      description: "",
+      unit: "",
+      scope: Otel.InstrumentationScope.new(),
+      resource: Otel.Resource.new(),
+      kind: nil,
+      temporality: nil,
+      is_monotonic: nil,
+      datapoints: []
+    }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
+  end
 end

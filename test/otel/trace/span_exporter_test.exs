@@ -4,16 +4,14 @@ defmodule Otel.Trace.SpanExporterTest do
   # table.
   use ExUnit.Case, async: false
 
-  @span %Otel.Trace.Span{
-    trace_id: 1,
-    span_id: 0xFF00000000000099,
-    name: "test",
-    kind: :internal,
-    start_time: 1_000_000,
-    end_time: 2_000_000,
-    tracestate: Otel.Trace.TraceState.new(),
-    instrumentation_scope: %Otel.InstrumentationScope{}
-  }
+  @span Otel.Trace.Span.new(%{
+          trace_id: 1,
+          span_id: 0xFF00000000000099,
+          name: "test",
+          kind: :internal,
+          start_time: 1_000_000,
+          end_time: 2_000_000
+        })
 
   setup do
     Application.stop(:otel)

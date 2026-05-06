@@ -13,7 +13,7 @@ defmodule Otel.ApplicationTest do
   end
 
   describe "Provider boot" do
-    test "Otel.Resource.build/0 is the single resource source; meter_config carries it" do
+    test "Otel.Resource.new/0 is the single resource source; meter_config carries it" do
       reboot()
 
       meter_state = Otel.Metrics.meter_config()
@@ -21,8 +21,8 @@ defmodule Otel.ApplicationTest do
       assert meter_state.exemplar_filter == :trace_based
 
       # Pillars no longer expose `resource/0` wrappers — call
-      # `Otel.Resource.build/0` directly for SDK introspection.
-      assert %Otel.Resource{} = Otel.Resource.build()
+      # `Otel.Resource.new/0` directly for SDK introspection.
+      assert %Otel.Resource{} = Otel.Resource.new()
     end
 
     test "supervised processor children are alive" do

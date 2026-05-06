@@ -190,7 +190,7 @@ defmodule Otel.Metrics.MetricExporter do
         {temporality, is_monotonic} = metric_type_info(stream)
 
         [
-          %Otel.Metrics.Metric{
+          Otel.Metrics.Metric.new(%{
             name: stream.name,
             description: stream.description,
             unit: stream.instrument.unit,
@@ -200,7 +200,7 @@ defmodule Otel.Metrics.MetricExporter do
             temporality: temporality,
             is_monotonic: is_monotonic,
             datapoints: points_with_exemplars
-          }
+          })
         ]
     end
   end

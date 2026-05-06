@@ -9,7 +9,7 @@ defmodule Otel.Metrics.StreamTest do
         unit: "ms",
         description: "Request duration",
         advisory: [],
-        scope: %Otel.InstrumentationScope{name: "my_lib"}
+        scope: Otel.InstrumentationScope.new(%{name: "my_lib"})
       },
       overrides
     )

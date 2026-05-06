@@ -4,23 +4,16 @@ defmodule Otel.Logs.LogRecordExporterTest do
   # ETS table.
   use ExUnit.Case, async: false
 
-  @resource %Otel.Resource{attributes: %{"service.name" => "test"}}
-
-  @log_record %Otel.Logs.LogRecord{
-    body: "test log message",
-    severity_number: 9,
-    severity_text: "INFO",
-    timestamp: 1_000_000,
-    observed_timestamp: 2_000_000,
-    attributes: %{"key" => "value"},
-    event_name: "",
-    scope: %Otel.InstrumentationScope{name: "test_lib"},
-    resource: @resource,
-    trace_id: 0,
-    span_id: 0,
-    trace_flags: 0,
-    dropped_attributes_count: 0
-  }
+  @log_record Otel.Logs.LogRecord.new(%{
+                body: "test log message",
+                severity_number: 9,
+                severity_text: "INFO",
+                timestamp: 1_000_000,
+                observed_timestamp: 2_000_000,
+                attributes: %{"key" => "value"},
+                scope: Otel.InstrumentationScope.new(%{name: "test_lib"}),
+                resource: Otel.Resource.new(%{attributes: %{"service.name" => "test"}})
+              })
 
   setup do
     Application.stop(:otel)

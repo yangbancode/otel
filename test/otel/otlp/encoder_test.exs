@@ -2,37 +2,36 @@ defmodule Otel.OTLP.EncoderTest do
   use ExUnit.Case, async: true
 
   describe "encode_traces/1" do
-    @span %Otel.Trace.Span{
-      trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
-      span_id: 0xB7AD6B7169203331,
-      parent_span_id: nil,
-      tracestate: Otel.Trace.TraceState.new(),
-      name: "test_span",
-      kind: :server,
-      start_time: 1_000_000_000,
-      end_time: 2_000_000_000,
-      attributes: %{"http.method" => "GET", "http.status_code" => 200},
-      events: [
-        %Otel.Trace.Event{
-          name: "event1",
-          timestamp: 1_500_000_000,
-          attributes: %{"key" => "val"}
-        }
-      ],
-      links: [],
-      status: %Otel.Trace.Status{code: :ok},
-      trace_flags: 1,
-      instrumentation_scope: %Otel.InstrumentationScope{
-        name: "test_lib",
-        version: "1.0.0"
-      },
-      resource: %Otel.Resource{
-        attributes: %{
-          "service.name" => "test-service",
-          "telemetry.sdk.language" => "elixir"
-        }
-      }
-    }
+    @span Otel.Trace.Span.new(%{
+            trace_id: 0x0AF7651916CD43DD8448EB211C80319C,
+            span_id: 0xB7AD6B7169203331,
+            name: "test_span",
+            kind: :server,
+            start_time: 1_000_000_000,
+            end_time: 2_000_000_000,
+            attributes: %{"http.method" => "GET", "http.status_code" => 200},
+            events: [
+              %Otel.Trace.Event{
+                name: "event1",
+                timestamp: 1_500_000_000,
+                attributes: %{"key" => "val"}
+              }
+            ],
+            status: %Otel.Trace.Status{code: :ok},
+            trace_flags: 1,
+            instrumentation_scope:
+              Otel.InstrumentationScope.new(%{
+                name: "test_lib",
+                version: "1.0.0"
+              }),
+            resource:
+              Otel.Resource.new(%{
+                attributes: %{
+                  "service.name" => "test-service",
+                  "telemetry.sdk.language" => "elixir"
+                }
+              })
+          })
 
     defp roundtrip_traces(spans) do
       binary = Otel.OTLP.Encoder.encode_traces(spans)
@@ -80,11 +79,12 @@ defmodule Otel.OTLP.EncoderTest do
 
       with_attrs = %{
         @span
-        | instrumentation_scope: %Otel.InstrumentationScope{
-            name: "scoped_lib",
-            version: "2.0.0",
-            attributes: %{"library.tag" => "v2", "build" => 42}
-          }
+        | instrumentation_scope:
+            Otel.InstrumentationScope.new(%{
+              name: "scoped_lib",
+              version: "2.0.0",
+              attributes: %{"library.tag" => "v2", "build" => 42}
+            })
       }
 
       attr_scope = hd(hd(roundtrip_traces([with_attrs]).resource_spans).scope_spans).scope
@@ -219,8 +219,8 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "groups spans by instrumentation scope" do
-      scope_a = %Otel.InstrumentationScope{name: "lib_a"}
-      scope_b = %Otel.InstrumentationScope{name: "lib_b"}
+      scope_a = Otel.InstrumentationScope.new(%{name: "lib_a"})
+      scope_b = Otel.InstrumentationScope.new(%{name: "lib_b"})
 
       decoded =
         roundtrip_traces([
@@ -233,69 +233,69 @@ defmodule Otel.OTLP.EncoderTest do
   end
 
   describe "encode_metrics/1" do
-    @counter %Otel.Metrics.Metric{
-      name: "http.requests",
-      description: "Request count",
-      unit: "1",
-      scope: %Otel.InstrumentationScope{name: "test_lib", version: "1.0.0"},
-      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
-      kind: :counter,
-      temporality: :cumulative,
-      is_monotonic: true,
-      datapoints: [
-        %{
-          attributes: %{"method" => "GET"},
-          value: 42,
-          start_time: 1_000_000,
-          time: 2_000_000,
-          exemplars: []
-        }
-      ]
-    }
+    @counter Otel.Metrics.Metric.new(%{
+               name: "http.requests",
+               description: "Request count",
+               unit: "1",
+               scope: Otel.InstrumentationScope.new(%{name: "test_lib", version: "1.0.0"}),
+               resource: Otel.Resource.new(%{attributes: %{"service.name" => "test"}}),
+               kind: :counter,
+               temporality: :cumulative,
+               is_monotonic: true,
+               datapoints: [
+                 %{
+                   attributes: %{"method" => "GET"},
+                   value: 42,
+                   start_time: 1_000_000,
+                   time: 2_000_000,
+                   exemplars: []
+                 }
+               ]
+             })
 
-    @gauge %Otel.Metrics.Metric{
-      name: "cpu.usage",
-      description: "CPU usage",
-      unit: "%",
-      scope: %Otel.InstrumentationScope{name: "test_lib"},
-      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
-      kind: :gauge,
-      datapoints: [
-        %{
-          attributes: %{"host" => "a"},
-          value: 75.5,
-          start_time: 1_000_000,
-          time: 2_000_000,
-          exemplars: []
-        }
-      ]
-    }
+    @gauge Otel.Metrics.Metric.new(%{
+             name: "cpu.usage",
+             description: "CPU usage",
+             unit: "%",
+             scope: Otel.InstrumentationScope.new(%{name: "test_lib"}),
+             resource: Otel.Resource.new(%{attributes: %{"service.name" => "test"}}),
+             kind: :gauge,
+             datapoints: [
+               %{
+                 attributes: %{"host" => "a"},
+                 value: 75.5,
+                 start_time: 1_000_000,
+                 time: 2_000_000,
+                 exemplars: []
+               }
+             ]
+           })
 
-    @histogram %Otel.Metrics.Metric{
-      name: "http.duration",
-      description: "Request duration",
-      unit: "ms",
-      scope: %Otel.InstrumentationScope{name: "test_lib"},
-      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
-      kind: :histogram,
-      temporality: :cumulative,
-      datapoints: [
-        %{
-          attributes: %{},
-          value: %{
-            bucket_counts: [1, 2, 0, 1],
-            boundaries: [10, 50, 100],
-            sum: 150.5,
-            count: 4,
-            min: 5,
-            max: 120
-          },
-          start_time: 1_000_000,
-          time: 2_000_000,
-          exemplars: []
-        }
-      ]
-    }
+    @histogram Otel.Metrics.Metric.new(%{
+                 name: "http.duration",
+                 description: "Request duration",
+                 unit: "ms",
+                 scope: Otel.InstrumentationScope.new(%{name: "test_lib"}),
+                 resource: Otel.Resource.new(%{attributes: %{"service.name" => "test"}}),
+                 kind: :histogram,
+                 temporality: :cumulative,
+                 datapoints: [
+                   %{
+                     attributes: %{},
+                     value: %{
+                       bucket_counts: [1, 2, 0, 1],
+                       boundaries: [10, 50, 100],
+                       sum: 150.5,
+                       count: 4,
+                       min: 5,
+                       max: 120
+                     },
+                     start_time: 1_000_000,
+                     time: 2_000_000,
+                     exemplars: []
+                   }
+                 ]
+               })
 
     defp roundtrip_metrics(metrics) do
       binary = Otel.OTLP.Encoder.encode_metrics(metrics)
@@ -440,10 +440,11 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "scope schema_url propagated; resource attributes encoded" do
-      scope = %Otel.InstrumentationScope{
-        name: "lib",
-        schema_url: "https://opentelemetry.io/schemas/1.21.0"
-      }
+      scope =
+        Otel.InstrumentationScope.new(%{
+          name: "lib",
+          schema_url: "https://opentelemetry.io/schemas/1.21.0"
+        })
 
       with_schema = roundtrip_metrics([%{@counter | scope: scope}])
 
@@ -455,8 +456,8 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "groups metrics by instrumentation scope" do
-      scope_a = %Otel.InstrumentationScope{name: "lib_a"}
-      scope_b = %Otel.InstrumentationScope{name: "lib_b"}
+      scope_a = Otel.InstrumentationScope.new(%{name: "lib_a"})
+      scope_b = Otel.InstrumentationScope.new(%{name: "lib_b"})
 
       decoded =
         roundtrip_metrics([
@@ -469,21 +470,16 @@ defmodule Otel.OTLP.EncoderTest do
   end
 
   describe "encode_logs/1" do
-    @log_record %Otel.Logs.LogRecord{
-      body: "test message",
-      severity_number: 9,
-      severity_text: "INFO",
-      timestamp: 1_000_000,
-      observed_timestamp: 2_000_000,
-      attributes: %{"method" => "GET"},
-      event_name: "",
-      scope: %Otel.InstrumentationScope{name: "test_lib", version: "1.0.0"},
-      resource: %Otel.Resource{attributes: %{"service.name" => "test"}},
-      trace_id: 0,
-      span_id: 0,
-      trace_flags: 0,
-      dropped_attributes_count: 0
-    }
+    @log_record Otel.Logs.LogRecord.new(%{
+                  body: "test message",
+                  severity_number: 9,
+                  severity_text: "INFO",
+                  timestamp: 1_000_000,
+                  observed_timestamp: 2_000_000,
+                  attributes: %{"method" => "GET"},
+                  scope: Otel.InstrumentationScope.new(%{name: "test_lib", version: "1.0.0"}),
+                  resource: Otel.Resource.new(%{attributes: %{"service.name" => "test"}})
+                })
 
     defp roundtrip_logs(records) do
       binary = Otel.OTLP.Encoder.encode_logs(records)
@@ -569,8 +565,8 @@ defmodule Otel.OTLP.EncoderTest do
     end
 
     test "groups records by instrumentation scope" do
-      scope_a = %Otel.InstrumentationScope{name: "lib_a"}
-      scope_b = %Otel.InstrumentationScope{name: "lib_b"}
+      scope_a = Otel.InstrumentationScope.new(%{name: "lib_a"})
+      scope_b = Otel.InstrumentationScope.new(%{name: "lib_b"})
 
       decoded =
         roundtrip_logs([

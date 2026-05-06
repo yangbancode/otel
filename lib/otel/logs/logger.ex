@@ -8,7 +8,7 @@ defmodule Otel.Logs.Logger do
 
   - scope is `Otel.InstrumentationScope` defaults
   - log record limits are `Otel.Logs.LogRecordLimits` defaults
-  - resource is `Otel.Resource.build/0` (read on each emit)
+  - resource is `Otel.Resource.new/0` (read on each emit)
 
   Scope and limits are compile-time literals; there is no Logger
   struct to thread through.
@@ -64,7 +64,6 @@ defmodule Otel.Logs.Logger do
 
   require Logger
 
-  @scope %Otel.InstrumentationScope{}
   @log_record_limits %Otel.Logs.LogRecordLimits{}
 
   @doc """
@@ -112,7 +111,7 @@ defmodule Otel.Logs.Logger do
         ts -> ts
       end
 
-    %Otel.Logs.LogRecord{
+    Otel.Logs.LogRecord.new(%{
       timestamp: log_record.timestamp,
       observed_timestamp: observed_timestamp,
       severity_number: log_record.severity_number,
@@ -123,10 +122,8 @@ defmodule Otel.Logs.Logger do
       dropped_attributes_count: dropped_attributes_count,
       trace_id: trace_id,
       span_id: span_id,
-      trace_flags: trace_flags,
-      scope: @scope,
-      resource: Otel.Resource.build()
-    }
+      trace_flags: trace_flags
+    })
   end
 
   # When both a count drop and a value truncation occur in

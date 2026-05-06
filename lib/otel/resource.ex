@@ -95,7 +95,7 @@ defmodule Otel.Resource do
           schema_url: String.t()
         }
 
-  defstruct attributes: %{}, schema_url: ""
+  defstruct [:attributes, :schema_url]
 
   # SDK identity captured from the SDK's own `mix.exs` at
   # build time — these values describe `:otel`, not the
@@ -111,16 +111,16 @@ defmodule Otel.Resource do
   @deployment_environment System.get_env("MIX_ENV", "dev")
 
   @doc """
-  **Application** (introspection) — Returns the SDK's resource.
+  **Application** (introspection) — Construct the SDK resource.
 
   See module doc for the attribute set. `service.name` and
   `service.version` are read from `RELEASE_NAME` / `RELEASE_VSN`
   env vars on every call (no caching), so updates take effect
-  immediately.
+  immediately. Caller may override any field via `opts`.
   """
-  @spec build() :: t()
-  def build do
-    %__MODULE__{
+  @spec new(opts :: map()) :: t()
+  def new(opts \\ %{}) do
+    defaults = %{
       attributes: %{
         "telemetry.sdk.name" => @sdk_name,
         "telemetry.sdk.language" => @sdk_language,
@@ -128,7 +128,10 @@ defmodule Otel.Resource do
         "deployment.environment" => @deployment_environment,
         "service.name" => System.get_env("RELEASE_NAME", @default_service_name),
         "service.version" => System.get_env("RELEASE_VSN")
-      }
+      },
+      schema_url: ""
     }
+
+    struct!(__MODULE__, Map.merge(defaults, opts))
   end
 end

@@ -7,14 +7,14 @@ defmodule Otel.Logs.LogRecordStorageTest do
     :ok
   end
 
-  @record %Otel.Logs.LogRecord{
-    body: "hello",
-    severity_number: 9,
-    severity_text: "INFO",
-    timestamp: 1_000_000,
-    observed_timestamp: 2_000_000,
-    attributes: %{"key" => "value"}
-  }
+  @record Otel.Logs.LogRecord.new(%{
+            body: "hello",
+            severity_number: 9,
+            severity_text: "INFO",
+            timestamp: 1_000_000,
+            observed_timestamp: 2_000_000,
+            attributes: %{"key" => "value"}
+          })
 
   describe "insert/1 + take/1" do
     test "insert → take returns the record once; subsequent take is empty" do
