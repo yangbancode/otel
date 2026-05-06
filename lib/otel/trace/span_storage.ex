@@ -226,22 +226,21 @@ defmodule Otel.Trace.SpanStorage do
       {:read_concurrency, true}
     ])
 
-    schedule_sweep()
+    loop()
     {:ok, @table}
   end
 
   @impl true
-  def handle_info(:sweep, state) do
+  def handle_info(:loop, state) do
     cutoff = System.system_time(:millisecond) - @span_ttl_ms
 
     spec = [{{:_, :_, :active, :"$1"}, [{:<, :"$1", cutoff}], [true]}]
 
     :ets.select_delete(@table, spec)
-    schedule_sweep()
+    loop()
     {:noreply, state}
   end
 
-  defp schedule_sweep do
-    Process.send_after(self(), :sweep, @sweep_interval_ms)
-  end
+  @spec loop() :: reference()
+  defp loop, do: Process.send_after(self(), :loop, @sweep_interval_ms)
 end

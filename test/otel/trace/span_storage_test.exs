@@ -93,7 +93,7 @@ defmodule Otel.Trace.SpanStorageTest do
         {@span.span_id, @span, :active, @stale_inserted_at}
       )
 
-      send(Otel.Trace.SpanStorage, :sweep)
+      send(Otel.Trace.SpanStorage, :loop)
       :sys.get_state(Otel.Trace.SpanStorage)
 
       assert Otel.Trace.SpanStorage.get(@span.span_id) == nil
@@ -102,7 +102,7 @@ defmodule Otel.Trace.SpanStorageTest do
     test "keeps :active spans within the TTL" do
       Otel.Trace.SpanStorage.insert(@span)
 
-      send(Otel.Trace.SpanStorage, :sweep)
+      send(Otel.Trace.SpanStorage, :loop)
       :sys.get_state(Otel.Trace.SpanStorage)
 
       assert %Otel.Trace.Span{} = Otel.Trace.SpanStorage.get(@span.span_id)
@@ -116,7 +116,7 @@ defmodule Otel.Trace.SpanStorageTest do
         {ended.span_id, ended, :completed, @stale_inserted_at}
       )
 
-      send(Otel.Trace.SpanStorage, :sweep)
+      send(Otel.Trace.SpanStorage, :loop)
       :sys.get_state(Otel.Trace.SpanStorage)
 
       assert [%Otel.Trace.Span{}] = Otel.Trace.SpanStorage.take_completed(10)
