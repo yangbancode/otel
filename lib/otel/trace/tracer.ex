@@ -45,8 +45,8 @@ defmodule Otel.Trace.Tracer do
           opts :: Otel.Trace.Span.start_opts()
         ) :: Otel.Trace.SpanContext.t()
   def start_span(ctx, name, opts) do
-    span_limits = Otel.Trace.SpanLimits.new()
-    {span_ctx, span} = Otel.Trace.Span.start_span(ctx, name, span_limits, opts)
+    {span_ctx, span} =
+      Otel.Trace.Span.start_span(ctx, name, Otel.Trace.SpanLimits.new(), opts)
 
     if span do
       # Insert as `:active`. On backpressure SpanStorage silently
