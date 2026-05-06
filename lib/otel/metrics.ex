@@ -14,8 +14,8 @@ defmodule Otel.Metrics do
   Three SDK-internal `XxxStorage` GenServers (one per ETS table)
   own the metrics state; they're started by
   `Otel.Application.start/2` and die with the SDK supervisor.
-  Every other knob (scope, exemplar filter, temporality mapping)
-  is a compile-time literal.
+  Every other knob (scope, exemplar filter) is a compile-time
+  literal.
 
   ## Public API
 
@@ -30,9 +30,9 @@ defmodule Otel.Metrics do
 
   @doc """
   **SDK** — Returns the meter config used by both `Meter.create_*`
-  (producer side, `temporality_mapping`) and
-  `Otel.Metrics.MetricExporter.collect/1` (consumer side). The
-  same map serves both roles so callers don't juggle two shapes.
+  (producer side) and `Otel.Metrics.MetricExporter.collect/1`
+  (consumer side). The same map serves both roles so callers
+  don't juggle two shapes.
 
   Application code may also call this for introspection (e.g.
   reading `.resource` or `.scope`) — there is no separate
@@ -46,8 +46,7 @@ defmodule Otel.Metrics do
       instruments_tab: Otel.Metrics.InstrumentsStorage,
       metrics_tab: Otel.Metrics.MetricsStorage,
       exemplars_tab: Otel.Metrics.ExemplarsStorage,
-      exemplar_filter: :trace_based,
-      temporality_mapping: Otel.Metrics.Instrument.default_temporality_mapping()
+      exemplar_filter: :trace_based
     }
   end
 end

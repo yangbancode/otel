@@ -5,8 +5,9 @@ defmodule Otel.Metrics.Aggregation.Sum do
   Stores integer and float components separately for atomic updates.
   ETS entry format: `{key, int_value, float_value, start_time}`.
 
-  Supports Cumulative and Delta temporality. For Delta, values are
-  atomically read and subtracted during collection.
+  Cumulative-only — `collect/3` returns the running total since
+  stream start. Delta temporality is not supported (minikube
+  hardcodes cumulative; spec `metrics/sdk.md` L1290-L1297 default).
   """
 
   @int_pos 2
@@ -46,8 +47,7 @@ defmodule Otel.Metrics.Aggregation.Sum do
           stream_key :: {String.t(), Otel.InstrumentationScope.t()},
           opts :: map()
         ) :: [Otel.Metrics.Aggregation.datapoint()]
-  def collect(metrics_tab, {stream_name, scope}, opts) do
-    temporality = Map.get(opts, :temporality, :cumulative)
+  def collect(metrics_tab, {stream_name, scope}, _opts) do
     now = System.system_time(:nanosecond)
 
     match_spec = [
@@ -58,45 +58,9 @@ defmodule Otel.Metrics.Aggregation.Sum do
       }
     ]
 
-    entries = :ets.select(metrics_tab, match_spec)
-
-    case temporality do
-      :cumulative ->
-        collect_cumulative(entries, now)
-
-      :delta ->
-        collect_delta(metrics_tab, entries, stream_name, scope, now)
-    end
-  end
-
-  @spec collect_cumulative(
-          entries :: [{map(), integer(), float(), non_neg_integer()}],
-          now :: non_neg_integer()
-        ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp collect_cumulative(entries, now) do
-    Enum.map(entries, fn {attributes, int_value, float_value, start_time} ->
-      %{
-        attributes: attributes,
-        value: int_value + float_value,
-        start_time: start_time,
-        time: now
-      }
-    end)
-  end
-
-  @spec collect_delta(
-          metrics_tab :: :ets.table(),
-          entries :: [{map(), integer(), float(), non_neg_integer()}],
-          stream_name :: String.t(),
-          scope :: Otel.InstrumentationScope.t(),
-          now :: non_neg_integer()
-        ) :: [Otel.Metrics.Aggregation.datapoint()]
-  defp collect_delta(metrics_tab, entries, stream_name, scope, now) do
-    entries
+    metrics_tab
+    |> :ets.select(match_spec)
     |> Enum.map(fn {attributes, int_value, float_value, start_time} ->
-      key = {stream_name, scope, attributes}
-      reset_sum(metrics_tab, key, int_value, float_value, now)
-
       %{
         attributes: attributes,
         value: int_value + float_value,
@@ -104,29 +68,5 @@ defmodule Otel.Metrics.Aggregation.Sum do
         time: now
       }
     end)
-    |> Enum.reject(fn dp -> dp.value == 0 end)
-  end
-
-  @spec reset_sum(
-          metrics_tab :: :ets.table(),
-          key :: term(),
-          int_value :: integer(),
-          float_value :: float(),
-          now :: non_neg_integer()
-        ) :: :ok
-  defp reset_sum(metrics_tab, key, int_value, float_value, now) do
-    :ets.update_counter(metrics_tab, key, [{@int_pos, -int_value}])
-    cas_subtract_float(metrics_tab, key, float_value)
-    :ets.update_element(metrics_tab, key, [{4, now}])
-    :ok
-  end
-
-  @spec cas_subtract_float(metrics_tab :: :ets.table(), key :: term(), value :: float()) :: :ok
-  defp cas_subtract_float(_metrics_tab, _key, value) when value == 0.0, do: :ok
-
-  defp cas_subtract_float(metrics_tab, key, value) do
-    [{^key, _int_val, old_float, _start}] = :ets.lookup(metrics_tab, key)
-    :ets.update_element(metrics_tab, key, [{3, old_float - value}])
-    :ok
   end
 end
