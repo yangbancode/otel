@@ -132,7 +132,6 @@ defmodule Otel.Trace.Span do
           span_id: Otel.Trace.SpanId.t(),
           tracestate: Otel.Trace.TraceState.t(),
           parent_span_id: Otel.Trace.SpanId.t() | nil,
-          parent_span_is_remote: boolean() | nil,
           name: String.t(),
           kind: Otel.Trace.SpanKind.t(),
           start_time: non_neg_integer(),
@@ -155,7 +154,6 @@ defmodule Otel.Trace.Span do
     :span_id,
     :tracestate,
     :parent_span_id,
-    :parent_span_is_remote,
     :name,
     :kind,
     :start_time,
@@ -189,7 +187,6 @@ defmodule Otel.Trace.Span do
       span_id: 0,
       tracestate: Otel.Trace.TraceState.new(),
       parent_span_id: nil,
-      parent_span_is_remote: nil,
       name: "",
       kind: :internal,
       start_time: 0,
@@ -229,7 +226,7 @@ defmodule Otel.Trace.Span do
     links = Keyword.get(opts, :links, [])
     start_time = Keyword.get(opts, :start_time, System.system_time(:nanosecond))
 
-    {span_ctx, parent_span_id, parent_is_remote} = new_span_ctx(ctx, opts)
+    {span_ctx, parent_span_id} = new_span_ctx(ctx, opts)
 
     trace_id = span_ctx.trace_id
     span_id = span_ctx.span_id
@@ -265,7 +262,6 @@ defmodule Otel.Trace.Span do
           span_id: span_id,
           tracestate: tracestate,
           parent_span_id: parent_span_id,
-          parent_span_is_remote: parent_is_remote,
           name: name,
           kind: kind,
           start_time: start_time,
@@ -517,7 +513,7 @@ defmodule Otel.Trace.Span do
   @spec new_span_ctx(
           ctx :: Otel.Ctx.t(),
           opts :: Otel.Trace.Span.start_opts()
-        ) :: {Otel.Trace.SpanContext.t(), Otel.Trace.SpanId.t() | nil, boolean() | nil}
+        ) :: {Otel.Trace.SpanContext.t(), Otel.Trace.SpanId.t() | nil}
   defp new_span_ctx(ctx, opts) do
     parent = Otel.Trace.current_span(ctx)
     is_root = Keyword.get(opts, :is_root, false)
@@ -530,7 +526,7 @@ defmodule Otel.Trace.Span do
   end
 
   @spec child_span_ctx(parent :: Otel.Trace.SpanContext.t()) ::
-          {Otel.Trace.SpanContext.t(), Otel.Trace.SpanId.t(), boolean()}
+          {Otel.Trace.SpanContext.t(), Otel.Trace.SpanId.t()}
   defp child_span_ctx(parent) do
     span_id = Otel.Trace.IdGenerator.generate_span_id()
 
@@ -541,12 +537,11 @@ defmodule Otel.Trace.Span do
         tracestate: parent.tracestate,
         is_remote: false
       }),
-      parent.span_id,
-      parent.is_remote
+      parent.span_id
     }
   end
 
-  @spec root_span_ctx() :: {Otel.Trace.SpanContext.t(), nil, nil}
+  @spec root_span_ctx() :: {Otel.Trace.SpanContext.t(), nil}
   defp root_span_ctx do
     trace_id = Otel.Trace.IdGenerator.generate_trace_id()
     span_id = Otel.Trace.IdGenerator.generate_span_id()
@@ -557,7 +552,6 @@ defmodule Otel.Trace.Span do
         span_id: span_id,
         is_remote: false
       }),
-      nil,
       nil
     }
   end
