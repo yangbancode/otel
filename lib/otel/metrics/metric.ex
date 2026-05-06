@@ -14,9 +14,10 @@ defmodule Otel.Metrics.Metric do
   the Metric struct is **transient**: producers (`Counter.add`,
   `Histogram.record`, etc.) mutate per-attribute aggregation
   cells in `MetricsStorage`, and `MetricExporter.collect/1`
-  builds Metric records on the fly by walking `StreamsStorage`
-  and reading the latest aggregation snapshots. The struct
-  exists only between `collect/1` and `encode_metrics/1`.
+  builds Metric records on the fly by walking
+  `InstrumentsStorage` and reading the latest aggregation
+  snapshots from `MetricsStorage`. The struct exists only
+  between `collect/1` and `encode_metrics/1`.
 
   Construct via `Otel.Metrics.Metric.new/1` — the canonical
   constructor that fills proto3-aligned defaults plus

@@ -1,25 +1,25 @@
 defmodule Otel.E2E.MetricsExemplarsTest do
   @moduledoc """
   E2E coverage for the hardcoded `:trace_based` exemplar
-  filter + the reservoir defaults derived from aggregation
-  kind by `Stream.resolve/1` (histogram →
+  filter + the reservoir defaults derived from instrument
+  kind at registration time (histogram →
   `AlignedHistogramBucket`, otherwise `SimpleFixedSize`).
 
   Tracking matrix: `docs/e2e.md` §Metrics, scenarios 27–29.
   Scenarios 25 (always_on) and 26 (always_off) were removed
   when minikube hardcoded `exemplar_filter` to `:trace_based`
-  — the per-filter behaviour is unit-tested in
-  `test/otel/metrics/metric_reader_test.exs`.
+  — the filter behaviour is unit-tested in
+  `test/otel/metrics/exemplar/filter_test.exs`.
 
   ## Land-only signal
 
   LGTM 0.26.0's `/api/v1/query_exemplars` exposure is
   configuration-dependent (Mimir's exemplar storage must be
   enabled and the OTLP receiver must forward exemplars). The
-  e2e signal is "the metric still lands under each filter /
-  reservoir choice"; deeper detail (exemplar count, trace_id
-  presence) is verified by the unit tests under
-  `test/otel/sdk/metrics/exemplar/`.
+  e2e signal is "the metric still lands under the trace_based
+  filter and each reservoir choice"; deeper detail (exemplar
+  count, trace_id presence) is verified by the unit tests
+  under `test/otel/metrics/exemplar/`.
   """
 
   use Otel.E2E.Case, async: false

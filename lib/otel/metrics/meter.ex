@@ -4,8 +4,9 @@ defmodule Otel.Metrics.Meter do
   behaviour (`metrics/sdk.md` §Meter L870-L943).
 
   Handles instrument creation with case-insensitive duplicate detection.
-  Instruments are stored in the shared ETS table created by
-  `Otel.Metrics.init/0` at boot.
+  Instruments are stored in the `Otel.Metrics.InstrumentsStorage`
+  ETS table; the GenServer that owns it is started by
+  `Otel.Application.start/2`.
 
   All functions are safe for concurrent use, satisfying spec
   `metrics/sdk.md` L1351-L1352 — *"Instrument — synchronous and
@@ -47,11 +48,12 @@ defmodule Otel.Metrics.Meter do
 
   ### Aggregation / bucket boundaries
 
-  Each instrument produces exactly one stream resolved by
-  `Stream.from_instrument/1` → `Stream.resolve/1` against spec
-  defaults. `metrics/sdk.md` L1003-L1005 advisory
+  Each instrument carries a hardcoded `aggregation_module`
+  derived from `:kind` at registration (Counter →
+  `Sum`, Histogram → `ExplicitBucketHistogram`, etc.).
+  `metrics/sdk.md` L1003-L1005 advisory
   `:explicit_bucket_boundaries` flow into the histogram
-  aggregation when present.
+  aggregation's `aggregation_opts` when present.
 
   ## References
 
