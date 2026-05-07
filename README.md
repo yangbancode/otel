@@ -15,16 +15,14 @@ Pure Elixir, [OpenTelemetry](https://opentelemetry.io/)-compatible
   - Traces
   - Metrics
   - Logs
-  - Baggage
 - **Propagators**
   - W3C TraceContext
   - W3C Baggage
 - **Exporters**
-  - OTLP HTTP
-- **Configuration**
-  - `Application` env only — bridge `OTEL_*` from `runtime.exs` (Phoenix pattern)
+  - OTLP/HTTP (Protobuf)
 - **Integrations**
   - `:logger` bridge
+  - `:telemetry` bridge
 
 ## Requirements
 
@@ -38,7 +36,7 @@ Pure Elixir, [OpenTelemetry](https://opentelemetry.io/)-compatible
 | OpenTelemetry Specification | `v1.55.0` (Stable signals only) |
 | OpenTelemetry Protocol (OTLP) | `v1.10.0` |
 | W3C Trace Context | Level 2 (REC) |
-| W3C Baggage | wire format per OTel's Stable Baggage Propagator |
+| W3C Baggage | OTel Stable Baggage Propagator wire format |
 
 ## Installation
 
@@ -47,7 +45,7 @@ Add `:otel` to `deps` in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:otel, "~> 0.2.0"}
+    {:otel, "~> 0.3.0"}
   ]
 end
 ```
