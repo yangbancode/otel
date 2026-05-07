@@ -75,14 +75,16 @@ defmodule Otel.E2E.ConcurrencyTest do
   end
 
   describe "multi-signal" do
-    test "3: trace + log + metric emitted concurrently — each backend receives",
+    test "3: trace + log + metric emitted concurrently — each backend receives the right payload",
          %{e2e_id: e2e_id} do
       counter = Otel.Metrics.Meter.create_counter("e2e_scenario_conc_3_#{e2e_id}")
+      span_name = "scenario-conc-3-#{e2e_id}"
+      log_body = "scenario-conc-3-#{e2e_id}"
 
       [
         Task.async(fn ->
           Otel.Trace.with_span(
-            "scenario-conc-3-#{e2e_id}",
+            span_name,
             [attributes: %{"e2e.id" => e2e_id}],
             fn _ -> :ok end
           )
@@ -91,7 +93,8 @@ defmodule Otel.E2E.ConcurrencyTest do
           Otel.Logs.emit(
             Otel.Logs.LogRecord.new(%{
               severity_number: 9,
-              body: "scenario-conc-3-#{e2e_id}",
+              severity_text: "info",
+              body: log_body,
               attributes: %{"e2e.id" => e2e_id}
             })
           )
@@ -104,11 +107,21 @@ defmodule Otel.E2E.ConcurrencyTest do
 
       flush()
 
-      assert [_ | _] = trace_spans(e2e_id)
-      assert {:ok, [_ | _]} = poll(Loki.query(e2e_id))
+      # Trace: span with the exact name landed.
+      assert [trace_span] = trace_spans(e2e_id)
+      assert trace_span["name"] == span_name
 
-      assert {:ok, [_ | _]} =
+      # Log: rendered line equals the body, severity label matches.
+      assert {:ok, log_results} = poll(Loki.query(log_body))
+      assert log_body in Loki.lines(log_results)
+      assert Loki.labels(log_results)["severity_text"] == "info"
+
+      # Metric: counter value is 1 — the concurrent dispatch
+      # didn't lose the increment.
+      assert {:ok, [metric_result | _]} =
                poll(Mimir.query(e2e_id, "e2e_scenario_conc_3_#{e2e_id}_total"))
+
+      assert Mimir.value(metric_result) == 1.0
     end
   end
 
