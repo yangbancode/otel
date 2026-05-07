@@ -112,6 +112,75 @@ end
 
 `@span` auto-wraps the function body in `:telemetry.span/3` and injects `code.function.name` / `code.file.path` / `code.line.number`; pass `capture_io: true` to also record arguments and the return value.
 
+## How-to
+
+End-to-end example wiring traces, logs, and metrics for a `MyApp.Calculator` module.
+
+```elixir
+# config/config.exs
+import Config
+
+config :otel, otp_app: :my_app
+
+config :kernel,
+  logger: [
+    {:handler, :otel, Otel.LoggerHandler, %{}}
+  ]
+```
+
+```elixir
+# lib/my_app/application.ex
+defmodule MyApp.Application do
+  use Application
+
+  import Telemetry.Metrics
+
+  @impl true
+  def start(_type, _args) do
+    children = [
+      {Otel.TelemetryTracer,
+       events: [
+         [:my_app, :calculator, :add],
+         [:my_app, :calculator, :sub]
+       ]},
+      {Otel.TelemetryReporter,
+       metrics: [
+         counter("my_app.calculator.add.count",
+           event_name: [:my_app, :calculator, :add, :stop],
+           measurement: :duration
+         ),
+         distribution("my_app.calculator.add.duration",
+           event_name: [:my_app, :calculator, :add, :stop],
+           measurement: :duration,
+           unit: {:native, :millisecond}
+         )
+       ]}
+    ]
+
+    Supervisor.start_link(children, strategy: :one_for_one, name: MyApp.Supervisor)
+  end
+end
+```
+
+```elixir
+# lib/my_app/calculator.ex
+defmodule MyApp.Calculator do
+  use Otel.TelemetrySpanDecorator
+  require Logger
+
+  @span event: [:my_app, :calculator, :add], capture_io: true
+  def add(a, b) do
+    Logger.info("calculator.add", a: a, b: b)
+    a + b
+  end
+
+  @span [:my_app, :calculator, :sub]
+  def sub(a, b), do: a - b
+end
+```
+
+Calling `MyApp.Calculator.add(2, 3)` produces a `my_app.calculator.add` span (Tempo), an `info` log line carrying the trace_id (Loki), and counter / duration metric points (Mimir) — all sharing the same `service.name`.
+
 ## License
 
 Released under the [MIT License](LICENSE).
