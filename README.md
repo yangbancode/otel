@@ -93,10 +93,6 @@ children = [
 ]
 ```
 
-## How-to
-
-- [Trace](docs/trace.md) — span lifecycle, attributes, events, status, exceptions.
-
 ## License
 
 Released under the [MIT License](LICENSE).

@@ -37,12 +37,10 @@ defmodule Otel.MixProject do
       main: "readme",
       extras: [
         "README.md",
-        "docs/trace.md",
         "LICENSE",
         "NOTICE"
       ],
       groups_for_extras: [
-        "How-to": ["docs/trace.md"],
         Legal: ["LICENSE", "NOTICE"]
       ]
     ]
@@ -80,7 +78,7 @@ defmodule Otel.MixProject do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => @repo_url},
-      files: ~w(docs lib mix.exs README.md LICENSE NOTICE .formatter.exs)
+      files: ~w(lib mix.exs README.md LICENSE NOTICE .formatter.exs)
     ]
   end
 end
