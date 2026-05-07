@@ -170,7 +170,11 @@ defmodule Otel.E2E.CrossSignalTest do
       assert text_contains_id?(Jason.encode!(loki_results), scope_name),
              "Loki scope name missing"
 
-      assert {:ok, [_ | _]} = poll(Mimir.query(e2e_id, "#{metric}_total"))
+      # Scope name doesn't reach Mimir (per moduledoc caveat),
+      # but the metric value still must — a value mismatch would
+      # mean cross-signal correlation broke at the metric layer.
+      assert {:ok, [mimir_result | _]} = poll(Mimir.query(e2e_id, "#{metric}_total"))
+      assert Mimir.value(mimir_result) == 1.0
     end
   end
 
