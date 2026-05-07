@@ -138,19 +138,97 @@ defmodule MyApp.Application do
     children = [
       {Otel.TelemetryTracer,
        events: [
-         [:my_app, :calculator, :add],
-         [:my_app, :calculator, :sub]
+         [:my_app, :calculator, :add]
        ]},
       {Otel.TelemetryReporter,
        metrics: [
+         # Counter — invocation count per :stop event
          counter("my_app.calculator.add.count",
            event_name: [:my_app, :calculator, :add, :stop],
            measurement: :duration
          ),
-         distribution("my_app.calculator.add.duration",
+
+         # Sum (UpDownCounter, accepts negative deltas)
+         sum("my_app.calculator.result.total",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value
+         ),
+
+         # Sum + monotonic → Counter
+         sum("my_app.calculator.bytes_in",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :bytes,
+           reporter_options: [monotonic: true]
+         ),
+
+         # LastValue → Gauge
+         last_value("my_app.calculator.last_result",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value
+         ),
+
+         # Summary → Histogram (default buckets) + native→ms unit conversion
+         summary("my_app.calculator.add.duration",
            event_name: [:my_app, :calculator, :add, :stop],
            measurement: :duration,
            unit: {:native, :millisecond}
+         ),
+
+         # Distribution → Histogram with custom bucket bounds
+         distribution("my_app.calculator.add.duration_buckets",
+           event_name: [:my_app, :calculator, :add, :stop],
+           measurement: :duration,
+           unit: {:native, :millisecond},
+           reporter_options: [buckets: [10, 50, 100, 500]]
+         ),
+
+         # Multi-dimensional tags — series split per :op / :status
+         counter("my_app.calculator.ops",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value,
+           tags: [:op, :status]
+         ),
+
+         # :tag_values transforms metadata before tagging
+         counter("my_app.calculator.ops_labelled",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value,
+           tags: [:op_label],
+           tag_values: fn meta -> %{op_label: to_string(meta.op)} end
+         ),
+
+         # :keep predicate filters events in
+         counter("my_app.calculator.ok_count",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value,
+           keep: fn meta -> meta.status == :ok end
+         ),
+
+         # :drop predicate filters events out
+         counter("my_app.calculator.non_test_count",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value,
+           drop: fn meta -> meta[:env] == :test end
+         ),
+
+         # Function `:measurement` (1-arity) — derived from measurements map
+         last_value("my_app.calculator.value_doubled",
+           event_name: [:my_app, :calculator, :result],
+           measurement: fn meas -> meas.value * 2 end
+         ),
+
+         # Byte unit conversion {:byte, :kilobyte} (decimal SI)
+         last_value("my_app.calculator.bytes_kb",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :bytes,
+           unit: {:byte, :kilobyte}
+         ),
+
+         # Atom-only unit (no conversion, suffix only)
+         last_value("my_app.calculator.bytes_raw",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :bytes,
+           unit: :byte
          )
        ]}
     ]
@@ -168,12 +246,19 @@ defmodule MyApp.Calculator do
 
   @span event: [:my_app, :calculator, :add], capture_io: true
   def add(a, b) do
-    Logger.info("calculator.add", a: a, b: b)
-    a + b
-  end
+    result = a + b
+    Logger.info("calculator.add", a: a, b: b, result: result)
 
-  @span [:my_app, :calculator, :sub]
-  def sub(a, b), do: a - b
+    # Manual `:telemetry.execute/3` for non-duration measurements
+    # consumed by the metrics defined in `application.ex`.
+    :telemetry.execute(
+      [:my_app, :calculator, :result],
+      %{value: result, bytes: byte_size("#{result}")},
+      %{op: :add, status: :ok, env: :prod}
+    )
+
+    result
+  end
 end
 ```
 
