@@ -89,20 +89,35 @@ defmodule Otel.TelemetryReporter do
   """
 
   use GenServer
-  require Logger
+  use Otel.Common.Types
 
-  @spec start_link(opts :: keyword()) :: GenServer.on_start()
+  @typedoc """
+  Options accepted by `start_link/1`. Both keys are optional —
+  omitting `:metrics` yields a no-op reporter (no handlers
+  attached).
+  """
+  @type opts :: [
+          metrics: [Telemetry.Metrics.t()],
+          name: GenServer.name()
+        ]
+
+  @typedoc """
+  Per-event handler config: the metrics defs grouped under one
+  event name, plus a shared `metric_id → instrument` lookup map.
+  """
+  @type handler_config :: {[Telemetry.Metrics.t()], %{term() => Otel.Metrics.Instrument.t()}}
+
+  @typedoc "GenServer state — the list of telemetry event names we own handlers for."
+  @type state :: %{events: [[atom()]]}
+
+  @spec start_link(opts :: opts()) :: GenServer.on_start()
   def start_link(opts) do
-    server_opts = Keyword.take(opts, [:name])
-
-    metrics =
-      opts[:metrics] ||
-        raise ArgumentError, "the :metrics option is required by #{inspect(__MODULE__)}"
-
-    GenServer.start_link(__MODULE__, metrics, server_opts)
+    metrics = Keyword.get(opts, :metrics, [])
+    GenServer.start_link(__MODULE__, metrics, Keyword.take(opts, [:name]))
   end
 
   @impl true
+  @spec init(metrics :: [Telemetry.Metrics.t()]) :: {:ok, state()}
   def init(metrics) do
     Process.flag(:trap_exit, true)
 
@@ -120,23 +135,22 @@ defmodule Otel.TelemetryReporter do
   end
 
   @impl true
+  @spec terminate(reason :: term(), state :: state()) :: :ok
   def terminate(_reason, %{events: events}) do
     for event <- events, do: :telemetry.detach({__MODULE__, event, self()})
     :ok
   end
 
   @doc false
+  @spec handle_event(
+          event_name :: [atom()],
+          measurements :: map(),
+          metadata :: map(),
+          config :: handler_config()
+        ) :: :ok
   def handle_event(_event_name, measurements, metadata, {metrics, instruments}) do
     for metric <- metrics do
-      try do
-        dispatch_metric(metric, instruments[metric_id(metric)], measurements, metadata)
-      rescue
-        e ->
-          Logger.error([
-            "Otel.TelemetryReporter could not dispatch #{inspect(metric)}\n",
-            Exception.format(:error, e, __STACKTRACE__)
-          ])
-      end
+      dispatch_metric(metric, instruments[metric_id(metric)], measurements, metadata)
     end
 
     :ok
@@ -196,6 +210,13 @@ defmodule Otel.TelemetryReporter do
     end
   end
 
+  @spec do_dispatch(
+          metric :: Telemetry.Metrics.t(),
+          instrument :: Otel.Metrics.Instrument.t(),
+          measurements :: map(),
+          metadata :: map(),
+          attrs :: %{String.t() => term()}
+        ) :: :ok
   defp do_dispatch(%Telemetry.Metrics.Counter{}, instrument, _measurements, _metadata, attrs) do
     Otel.Metrics.Counter.add(instrument, 1, attrs)
   end
@@ -264,10 +285,11 @@ defmodule Otel.TelemetryReporter do
   @spec keep?(metric :: Telemetry.Metrics.t(), metadata :: map(), measurements :: map()) ::
           boolean()
   defp keep?(metric, metadata, measurements) do
-    # `Telemetry.Metrics` resolves `:keep` to either a 1- / 2-arity
-    # predicate or `nil` (no `:keep` and no `:drop` set); the typespec
-    # only documents the function form, so guard on shape and treat
-    # everything else as "always keep".
+    # `Telemetry.Metrics`'s `keep :: predicate_fun()` typespec says
+    # always a function, but the runtime leaves the field as `nil`
+    # when neither `:keep` nor `:drop` was given. Treat anything
+    # that isn't one of the expected function shapes as
+    # "always keep" (default).
     case metric.keep do
       keep when is_function(keep, 2) -> keep.(metadata, measurements)
       keep when is_function(keep, 1) -> keep.(metadata)
@@ -276,18 +298,49 @@ defmodule Otel.TelemetryReporter do
   end
 
   @spec build_attrs(metric :: Telemetry.Metrics.t(), metadata :: map()) ::
-          %{String.t() => term()}
+          %{String.t() => primitive_any()}
   defp build_attrs(%{tags: tags, tag_values: tag_values}, metadata) when is_list(tags) do
     transformed = tag_values.(metadata)
 
     Map.new(tags, fn key ->
-      {Atom.to_string(key), coerce_attr_value(Map.get(transformed, key))}
+      {Atom.to_string(key), to_primitive_any(Map.get(transformed, key))}
     end)
   end
 
-  defp coerce_attr_value(nil), do: nil
-  defp coerce_attr_value(value) when is_atom(value), do: Atom.to_string(value)
-  defp coerce_attr_value(value), do: value
+  # Recursive coercion to `primitive_any()`. Maps recurse with
+  # `to_string(k)` on keys so `map<string, AnyValue>` holds at
+  # every depth; lists recurse element-wise; everything else
+  # delegates to `to_primitive/1` for the leaf coercion.
+  @spec to_primitive_any(value :: term()) :: primitive_any()
+  defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
+  end
+
+  defp to_primitive_any(value) when is_list(value) do
+    Enum.map(value, &to_primitive_any/1)
+  end
+
+  defp to_primitive_any(value), do: to_primitive(value)
+
+  # Leaf coercion to `primitive()` — atoms (other than booleans
+  # / nil), structs, tuples (other than `:bytes`), refs, pids,
+  # etc. coerce to `String.t()` via `String.Chars` impl when
+  # present, `inspect/1` otherwise. Same policy as
+  # `Otel.LoggerHandler.to_primitive/1`.
+  @spec to_primitive(value :: term()) :: primitive()
+  defp to_primitive(nil), do: nil
+  defp to_primitive(value) when is_boolean(value), do: value
+  defp to_primitive(value) when is_binary(value), do: value
+  defp to_primitive(value) when is_integer(value), do: value
+  defp to_primitive(value) when is_float(value), do: value
+  defp to_primitive({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_primitive(value) do
+    case String.Chars.impl_for(value) do
+      nil -> inspect(value)
+      _impl -> to_string(value)
+    end
+  end
 
   # Measurement extraction. `Telemetry.Metrics` has already
   # wrapped `metric.measurement` with any `{from, to}` unit

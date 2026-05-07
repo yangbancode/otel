@@ -91,6 +91,34 @@ defmodule Otel.TelemetryTracer do
   """
 
   use GenServer
+  use Otel.Common.Types
+
+  @typedoc """
+  A `:telemetry.span/3` event prefix — the first arg to
+  `:telemetry.span/3`. The bridge subscribes to
+  `prefix ++ [:start | :stop | :exception]` for each entry.
+  """
+  @type event_prefix :: [atom()]
+
+  @typedoc """
+  Options accepted by `start_link/1`. Both keys are optional —
+  omitting `:events` yields a no-op tracer (no handlers
+  attached).
+  """
+  @type opts :: [
+          events: [event_prefix()],
+          name: GenServer.name()
+        ]
+
+  @typedoc """
+  Per-handler config passed via `:telemetry.attach/4`'s
+  `config` argument and received as the 4th arg of
+  `handle_event/4`.
+  """
+  @type handler_config :: %{prefix: event_prefix(), suffix: :start | :stop | :exception}
+
+  @typedoc "GenServer state — the list of telemetry handler IDs we own."
+  @type state :: %{handlers: [:telemetry.handler_id()]}
 
   @reserved_keys [
     :telemetry_span_context,
@@ -103,18 +131,14 @@ defmodule Otel.TelemetryTracer do
     :span_kind
   ]
 
-  @spec start_link(opts :: keyword()) :: GenServer.on_start()
+  @spec start_link(opts :: opts()) :: GenServer.on_start()
   def start_link(opts) do
-    server_opts = Keyword.take(opts, [:name])
-
-    events =
-      opts[:events] ||
-        raise ArgumentError, "the :events option is required by #{inspect(__MODULE__)}"
-
-    GenServer.start_link(__MODULE__, events, server_opts)
+    events = Keyword.get(opts, :events, [])
+    GenServer.start_link(__MODULE__, events, Keyword.take(opts, [:name]))
   end
 
   @impl true
+  @spec init(events :: [event_prefix()]) :: {:ok, state()}
   def init(events) do
     Process.flag(:trap_exit, true)
 
@@ -138,12 +162,19 @@ defmodule Otel.TelemetryTracer do
   end
 
   @impl true
+  @spec terminate(reason :: term(), state :: state()) :: :ok
   def terminate(_reason, %{handlers: handlers}) do
     for id <- handlers, do: :telemetry.detach(id)
     :ok
   end
 
   @doc false
+  @spec handle_event(
+          event_name :: [atom()],
+          measurements :: map(),
+          metadata :: map(),
+          config :: handler_config()
+        ) :: :ok
   def handle_event(_event_name, _measurements, metadata, %{prefix: prefix, suffix: :start}) do
     span_ctx =
       Otel.Trace.start_span(span_name(prefix),
@@ -197,12 +228,51 @@ defmodule Otel.TelemetryTracer do
     {__MODULE__, metadata.telemetry_span_context}
   end
 
-  # Drop telemetry-internal keys + stringify atom keys.
-  @spec filter_attrs(metadata :: map()) :: %{String.t() => term()}
+  # Drop telemetry-internal keys + stringify atom keys + coerce
+  # values to `primitive_any()` so the OTLP encoder (which
+  # crashes on atoms / tuples / pids per its happy-path policy)
+  # can serialise them. Mirrors `Otel.LoggerHandler`'s coercion
+  # path.
+  @spec filter_attrs(metadata :: map()) :: %{String.t() => primitive_any()}
   defp filter_attrs(metadata) do
     metadata
     |> Map.drop(@reserved_keys)
-    |> Map.new(fn {k, v} -> {to_string(k), v} end)
+    |> Map.new(fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
+  end
+
+  # Recursive coercion to `primitive_any()`. Maps recurse with
+  # `to_string(k)` on keys so `map<string, AnyValue>` holds at
+  # every depth; lists recurse element-wise; everything else
+  # delegates to `to_primitive/1` for the leaf coercion.
+  @spec to_primitive_any(value :: term()) :: primitive_any()
+  defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
+  end
+
+  defp to_primitive_any(value) when is_list(value) do
+    Enum.map(value, &to_primitive_any/1)
+  end
+
+  defp to_primitive_any(value), do: to_primitive(value)
+
+  # Leaf coercion to `primitive()` — atoms (other than booleans
+  # / nil), structs, tuples (other than `:bytes`), refs, pids,
+  # etc. coerce to `String.t()` via `String.Chars` impl when
+  # present, `inspect/1` otherwise. Same policy as
+  # `Otel.LoggerHandler.to_primitive/1`.
+  @spec to_primitive(value :: term()) :: primitive()
+  defp to_primitive(nil), do: nil
+  defp to_primitive(value) when is_boolean(value), do: value
+  defp to_primitive(value) when is_binary(value), do: value
+  defp to_primitive(value) when is_integer(value), do: value
+  defp to_primitive(value) when is_float(value), do: value
+  defp to_primitive({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_primitive(value) do
+    case String.Chars.impl_for(value) do
+      nil -> inspect(value)
+      _impl -> to_string(value)
+    end
   end
 
   # `:telemetry.span/3`'s `:exception` event metadata shape
@@ -228,15 +298,6 @@ defmodule Otel.TelemetryTracer do
     Otel.Trace.Span.set_status(
       span_ctx,
       Otel.Trace.Status.new(%{code: :error, description: "#{kind}: #{inspect(reason)}"})
-    )
-
-    :ok
-  end
-
-  defp record_exception(span_ctx, _metadata) do
-    Otel.Trace.Span.set_status(
-      span_ctx,
-      Otel.Trace.Status.new(%{code: :error, description: "unknown exception"})
     )
 
     :ok
