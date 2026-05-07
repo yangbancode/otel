@@ -104,7 +104,7 @@ defmodule MyApp do
 
   @span [:my_app, :hello]
   # @span event: [:my_app, :hello], capture_io: true
-  def hello(name), do: "hello #{name}"
+  def hello, do: :world
 end
 ```
 
