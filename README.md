@@ -156,6 +156,14 @@ defmodule MyApp.Application do
            event_name: [:my_app, :calculator, :add, :stop],
            measurement: :duration,
            unit: {:native, :millisecond}
+         ),
+         sum("my_app.calculator.result.total",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value
+         ),
+         last_value("my_app.calculator.result.last",
+           event_name: [:my_app, :calculator, :result],
+           measurement: :value
          )
        ]}
     ]
@@ -173,8 +181,10 @@ defmodule MyApp.Calculator do
 
   @span event: [:my_app, :calculator, :add], capture_io: true
   def add(a, b) do
+    result = a + b
     Logger.info("calculator.add", a: a, b: b)
-    a + b
+    :telemetry.execute([:my_app, :calculator, :result], %{value: result})
+    result
   end
 end
 ```
