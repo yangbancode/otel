@@ -136,7 +136,7 @@ mix test --only e2e test/e2e/
 
 | Done | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| `[x]` | 4 | `RELEASE_NAME` / `RELEASE_VSN` env vars | `RELEASE_NAME=my_app RELEASE_VSN=1.0.0 ...` | Tempo: derived `service.name` flows to all signals |
+| `[x]` | 4 | `config :otel, :app` → service.name + version | `config :otel, app: :my_app` | Tempo: `service.name="my_app"`, `service.version=Application.spec(:my_app, :vsn)` |
 
 ## Cross-signal / Resource
 
