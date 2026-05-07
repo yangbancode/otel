@@ -50,4 +50,29 @@ defmodule Otel.E2E.Mimir do
     }
     |> URI.to_string()
   end
+
+  @doc """
+  Extracts the numeric value from a single PromQL `result`
+  entry. PromQL serialises numbers as strings (both ints and
+  floats); this returns a float so callers can compare without
+  branching on type.
+
+  ## Example
+
+      {:ok, [result | _]} = poll(Mimir.query(e2e_id, "metric"))
+      assert Mimir.value(result) == 42.0
+  """
+  @spec value(result :: map()) :: float()
+  def value(%{"value" => [_timestamp, str]}) when is_binary(str) do
+    {n, ""} = Float.parse(str)
+    n
+  end
+
+  @doc """
+  Returns the label value for `key` on a single PromQL result
+  entry. Useful when asserting that a tagged series carries
+  the expected label values.
+  """
+  @spec label(result :: map(), key :: String.t()) :: String.t() | nil
+  def label(%{"metric" => labels}, key), do: Map.get(labels, key)
 end

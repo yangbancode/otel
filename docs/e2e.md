@@ -103,6 +103,25 @@ mix test --only e2e test/e2e/
 | `[x]` | 30 | MetricExporter `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
 | `[x]` | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
 
+## Metrics — Telemetry reporter (`Otel.TelemetryReporter`)
+
+| Done | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| `[x]` | 1 | `counter/2` → `Counter` | `:telemetry.execute` × N | Mimir: `_count_total` value matches event count |
+| `[x]` | 2 | `sum/2` → `UpDownCounter` (default, accepts negatives) | `delta` measurement, +/- | Mimir: numeric sum matches (5 + -2 = 3) |
+| `[x]` | 3 | `last_value/2` → `Gauge` | replace `value` measurement | Mimir: gauge value == last write |
+| `[x]` | 4 | `summary/2` → `Histogram` | `duration` measurement × N | Mimir: `_count` and `_sum` match |
+| `[x]` | 5 | `distribution/2` with `reporter_options: [buckets: …]` | custom bounds | Mimir: bucket counts match per `le` boundary |
+| `[x]` | 6 | Multi-dimensional `tags` | role / region | Mimir: one series per tag combination, each value verified |
+| `[x]` | 7 | Unit conversion `{:native, :millisecond}` | execute with `:native` time | Mimir: `_millisecond` suffix + value == 750 (post-conversion) |
+| `[x]` | 8 | `:keep` predicate filters events | meta-driven filter | Mimir: kept events count + dropped events absent (negative assertion) |
+| `[x]` | 9 | `sum/2` with `reporter_options: [monotonic: true]` → `Counter` | non-negative `bytes` measurement | Mimir: `_total` suffix + summed value (Counter wire shape) |
+| `[x]` | 10 | `:drop` predicate filters events (inverse of `:keep`) | drop `:test` env | Mimir: kept events count + dropped events absent (negative assertion) |
+| `[x]` | 11 | `:tag_values` transforms metadata before tagging | `meta.user.role` → flat tag | Mimir: `role` label value matches transformed metadata |
+| `[x]` | 12 | Function `:measurement` (1-arity) computes from measurements map | `fn meas -> meas[:in] + meas[:out] end` | Mimir: derived value `350.0` lands |
+| `[x]` | 13 | Byte unit conversion `{:byte, :kilobyte}` | bytes measurement | Mimir: `_kilobyte` suffix + decimal-converted value (4096 / 1000 = 4.096) |
+| `[x]` | 14 | Atom-only unit (no conversion) | `unit: :byte` | Mimir: `_byte` suffix + raw value `12345.0` lands |
+
 ## Propagator (cross-process trace continuation)
 
 | Done | # | Scenario | API | Backend assertion |
