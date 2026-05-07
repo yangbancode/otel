@@ -31,3 +31,6 @@
 [submodule "references/semantic-conventions"]
 	path = references/semantic-conventions
 	url = https://github.com/open-telemetry/semantic-conventions.git
+[submodule "references/decorator"]
+	path = references/decorator
+	url = https://github.com/arjan/decorator.git
