@@ -55,6 +55,7 @@ end
 ### SDK
 
 ```elixir
+# config/config.exs
 config :otel, otp_app: :my_app, req_options: []
 ```
 
@@ -81,6 +82,7 @@ Or at runtime:
 `:telemetry` bridge (in your supervision tree):
 
 ```elixir
+# lib/my_app/application.ex
 children = [
   {Otel.TelemetryReporter, metrics: [...]}
 ]
