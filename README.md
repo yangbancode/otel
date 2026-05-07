@@ -95,6 +95,23 @@ children = [
 
 `Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation.
 
+#### Optional: `Otel.TelemetrySpanDecorator`
+
+```elixir
+# lib/my_app/calculator.ex
+defmodule MyApp.Calculator do
+  use Otel.TelemetrySpanDecorator
+
+  @span [:my_app, :calculator, :add]
+  def add(a, b), do: a + b
+
+  @span event: [:my_app, :calculator, :sub], capture_io: true
+  def sub(a, b), do: a - b
+end
+```
+
+`@span` auto-wraps the function body in `:telemetry.span/3` and injects `code.function.name` / `code.file.path` / `code.line.number`; pass `capture_io: true` to also record arguments and the return value.
+
 ## License
 
 Released under the [MIT License](LICENSE).

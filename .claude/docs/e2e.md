@@ -64,6 +64,15 @@ regression detection across the SDK / collector boundary.
 | ✅ | 5 | `:telemetry.span` inside `with_span/4` carries the outer span as parent | `Otel.Trace.with_span("outer", ..., fn _ -> :telemetry.span(...) end)` | Tempo: inner `parentSpanId` = outer `spanId`, shared `traceId` |
 | ✅ | 6 | Multiple event prefixes registered to one tracer instance | `{Otel.TelemetryTracer, events: [a_prefix, b_prefix]}` + emit on both | Tempo: both spans land; sibling top-level spans get distinct `traceId` |
 
+## Trace — `@span` decorator (`Otel.TelemetrySpanDecorator`)
+
+| Status | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| ✅ | 1 | Default mode — `code.*` semantic-convention attrs auto-injected | `@span [:event] def f(...), do: ...` | Tempo: span name `"event.dotted"` + `code.function.name`, `code.file.path`, `code.line.number` present + no `__args__` / `__result__` + `STATUS_CODE_OK` |
+| ✅ | 2 | `capture_io: true` — args + return value land as `__args__` / `__result__` | `@span event: [:event], capture_io: true def f(a, b, c), do: ...` | Tempo: nested kvlistValue `__args__` (source-text arg names → values) + `__result__` (return value) + `code.*` still present + `STATUS_CODE_OK` |
+| ✅ | 3 | Exception path — `STATUS_CODE_ERROR` + recorded `exception` event | `@span [:event] def f(...), do: raise(...)` | Tempo: `STATUS_CODE_ERROR` + `events[].name == "exception"` carrying `exception.type` / `exception.message` |
+| ✅ | 4 | Nested decorated functions form parent-child span chain | outer `@span [:e1] def outer/1` calls inner `@span [:e2] def inner/1` | Tempo: same `traceId`, inner `parentSpanId` = outer `spanId`, outer is root |
+
 ## Log — SDK API (`Otel.API.Logs.Logger.emit/2`)
 
 | Status | # | Scenario | API | Backend assertion |
