@@ -93,6 +93,10 @@ children = [
 ]
 ```
 
+`Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation.
+
+#### Optional: `Otel.TelemetrySpanDecorator`
+
 ```elixir
 # lib/my_app/worker.ex
 defmodule MyApp.Worker do
@@ -106,7 +110,7 @@ defmodule MyApp.Worker do
 end
 ```
 
-`Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation. `Otel.TelemetrySpanDecorator`'s `@span` annotation auto-wraps the function body in `:telemetry.span/3` and injects `code.function.name` / `code.file.path` / `code.line.number` attributes; pass `capture_io: true` to also record arguments and the return value.
+`@span` auto-wraps the function body in `:telemetry.span/3` and injects `code.function.name` / `code.file.path` / `code.line.number`; pass `capture_io: true` to also record arguments and the return value.
 
 ## License
 
