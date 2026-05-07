@@ -8,26 +8,26 @@ defmodule Otel.TelemetrySpanDecorator do
 
   ## Usage
 
-      defmodule MyApp.Worker do
+      defmodule MyApp.Calculator do
         use Otel.TelemetrySpanDecorator
 
-        @span [:my_app, :worker, :process]
-        def process(job, opts) do
-          handle(job, opts)
+        @span [:my_app, :calculator, :add]
+        def add(a, b) do
+          a + b
         end
       end
 
   Compiles to roughly:
 
-      def process(job, opts) do
+      def add(a, b) do
         :telemetry.span(
-          [:my_app, :worker, :process],
+          [:my_app, :calculator, :add],
           %{
-            :"code.function.name" => "MyApp.Worker.process",
-            :"code.file.path" => "/abs/.../worker.ex",
-            :"code.line.number" => 42
+            :"code.function.name" => "MyApp.Calculator.add",
+            :"code.file.path" => "/abs/.../calculator.ex",
+            :"code.line.number" => 4
           },
-          fn -> {handle(job, opts), %{}} end
+          fn -> {a + b, %{}} end
         )
       end
 
@@ -50,8 +50,8 @@ defmodule Otel.TelemetrySpanDecorator do
 
   Use the keyword form to opt in:
 
-      @span event: [:my_app, :worker, :process], capture_io: true
-      def process(job, opts), do: ...
+      @span event: [:my_app, :calculator, :sub], capture_io: true
+      def sub(a, b), do: a - b
 
   When enabled:
 
@@ -97,9 +97,9 @@ defmodule Otel.TelemetrySpanDecorator do
   inside the wrapped function, so exactly one span is emitted
   per call regardless of which clause matched.
 
-      @span [:my_app, :foo]
-      def foo(0), do: :zero
-      def foo(_), do: :nonzero
+      @span [:my_app, :calculator, :sign]
+      def sign(0), do: :zero
+      def sign(_), do: :nonzero
 
   ## Span shape
 

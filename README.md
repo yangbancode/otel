@@ -98,15 +98,15 @@ children = [
 #### Optional: `Otel.TelemetrySpanDecorator`
 
 ```elixir
-# lib/my_app/worker.ex
-defmodule MyApp.Worker do
+# lib/my_app/calculator.ex
+defmodule MyApp.Calculator do
   use Otel.TelemetrySpanDecorator
 
-  @span [:my_app, :worker, :process]
-  def process(job, opts), do: ...
+  @span [:my_app, :calculator, :add]
+  def add(a, b), do: a + b
 
-  @span event: [:my_app, :worker, :handle], capture_io: true
-  def handle(payload), do: ...
+  @span event: [:my_app, :calculator, :sub], capture_io: true
+  def sub(a, b), do: a - b
 end
 ```
 
