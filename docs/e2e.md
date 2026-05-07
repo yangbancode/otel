@@ -11,6 +11,17 @@ docker compose up -d
 mix test --only e2e test/e2e/
 ```
 
+## Smoke
+
+Sanity net — minimal scenario per pillar, fast wire-format
+regression detection across the SDK / collector boundary.
+
+| Status | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| ✅ | 1 | Trace lands in Tempo with the configured name | `with_span/4` | Tempo: span name match |
+| ✅ | 2 | Log lands in Loki with the rendered body | `Otel.Logs.emit/2` | Loki: body in lines |
+| ✅ | 3 | Counter lands in Mimir with the right value | 2× `Counter.add(1)` | Mimir: cumulative value = 2.0 |
+
 ## Trace
 
 | Status | # | Scenario | API | Backend assertion |
@@ -52,7 +63,7 @@ mix test --only e2e test/e2e/
 | ✅ | 4 | Bytes body | `body: {:bytes, ...}` | Loki: structured-metadata query on `e2e.id` attribute (line filter would fail because the body is base64-encoded) |
 | ✅ | 5 | All 8 severity levels | `severity_number: 5/9/10/13/17/18/19/21` | Loki: `severity_text` matches each |
 | ✅ | 6 | `severity_number: 0` sentinel | default unspecified severity | Loki: `severity_number_unspecified` |
-| ✅ | 7 | `event_name` field | `event_name: "..."` | Loki: event_name attribute |
+| ⚠️ | 7 | `event_name` field | `event_name: "..."` | LGTM Loki doesn't promote `event_name` to a queryable position; wire-format covered by `encoder_test.exs` |
 | ✅ | 8 | `timestamp` vs `observed_timestamp` | omit timestamp → SDK fills observed | Loki: both fields present, distinct |
 | ✅ | 9 | Custom attributes | `attributes: %{...}` | Loki: labels / fields |
 | ✅ | 10 | **Trace context auto-propagation** | inside `with_span` | Loki: `trace_id` / `span_id` match |

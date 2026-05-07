@@ -20,16 +20,14 @@ defmodule Otel.E2E.LogSdkTest do
   via `|=` and read the categorized labels off the matched
   entry's `stream` map (via `Loki.labels/1` / `Loki.attribute/2`).
 
-  Tracking matrix: `docs/e2e.md` §Log — SDK API, scenarios 1–10,
-  13, 14. Limits-driven scenarios (11, 12) live in
-  `log_sdk_limits_test.exs` because they need an SDK restart with
-  small limits.
+  Tracking matrix: `docs/e2e.md` §Log — SDK API, scenarios
+  1–10, 14.
 
-  Scenario 7 (`event_name` field) is omitted: this otel-lgtm
-  bundle's Loki exporter does not promote LogRecord
-  `event_name` to a stream label or any other queryable
-  position. The wire-format propagation is verified at the
-  encoder unit-test level (`encoder_test.exs`).
+  Scenario 7 (`event_name` field) lands in the matrix as ⚠️:
+  this otel-lgtm bundle's Loki exporter does not promote
+  LogRecord `event_name` to a stream label or any other
+  queryable position. The wire-format propagation is verified
+  at the encoder unit-test level (`encoder_test.exs`).
   """
 
   use Otel.E2E.Case, async: false
