@@ -25,10 +25,12 @@ defmodule Otel.TelemetryTracerTest do
   end
 
   describe "start_link/1" do
-    test "raises without :events" do
-      assert_raise ArgumentError, ~r/:events option is required/, fn ->
-        Otel.TelemetryTracer.start_link([])
-      end
+    test "without :events → no-op tracer (alive, no handlers attached)" do
+      pid = start_supervised!(Otel.TelemetryTracer)
+      assert Process.alive?(pid)
+      # No event prefixes configured → no telemetry handlers owned.
+      handlers = :telemetry.list_handlers([])
+      refute Enum.any?(handlers, &match?({Otel.TelemetryTracer, _, ^pid}, &1.id))
     end
 
     test "attaches handlers on init, detaches on terminate" do

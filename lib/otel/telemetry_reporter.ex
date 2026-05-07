@@ -89,20 +89,34 @@ defmodule Otel.TelemetryReporter do
   """
 
   use GenServer
-  require Logger
 
-  @spec start_link(opts :: keyword()) :: GenServer.on_start()
+  @typedoc """
+  Options accepted by `start_link/1`. Both keys are optional —
+  omitting `:metrics` yields a no-op reporter (no handlers
+  attached).
+  """
+  @type opts :: [
+          metrics: [Telemetry.Metrics.t()],
+          name: GenServer.name()
+        ]
+
+  @typedoc """
+  Per-event handler config: the metrics defs grouped under one
+  event name, plus a shared `metric_id → instrument` lookup map.
+  """
+  @type handler_config :: {[Telemetry.Metrics.t()], %{term() => Otel.Metrics.Instrument.t()}}
+
+  @typedoc "GenServer state — the list of telemetry event names we own handlers for."
+  @type state :: %{events: [[atom()]]}
+
+  @spec start_link(opts :: opts()) :: GenServer.on_start()
   def start_link(opts) do
-    server_opts = Keyword.take(opts, [:name])
-
-    metrics =
-      opts[:metrics] ||
-        raise ArgumentError, "the :metrics option is required by #{inspect(__MODULE__)}"
-
-    GenServer.start_link(__MODULE__, metrics, server_opts)
+    metrics = Keyword.get(opts, :metrics, [])
+    GenServer.start_link(__MODULE__, metrics, Keyword.take(opts, [:name]))
   end
 
   @impl true
+  @spec init(metrics :: [Telemetry.Metrics.t()]) :: {:ok, state()}
   def init(metrics) do
     Process.flag(:trap_exit, true)
 
@@ -120,23 +134,22 @@ defmodule Otel.TelemetryReporter do
   end
 
   @impl true
+  @spec terminate(reason :: term(), state :: state()) :: :ok
   def terminate(_reason, %{events: events}) do
     for event <- events, do: :telemetry.detach({__MODULE__, event, self()})
     :ok
   end
 
   @doc false
+  @spec handle_event(
+          event_name :: [atom()],
+          measurements :: map(),
+          metadata :: map(),
+          config :: handler_config()
+        ) :: :ok
   def handle_event(_event_name, measurements, metadata, {metrics, instruments}) do
     for metric <- metrics do
-      try do
-        dispatch_metric(metric, instruments[metric_id(metric)], measurements, metadata)
-      rescue
-        e ->
-          Logger.error([
-            "Otel.TelemetryReporter could not dispatch #{inspect(metric)}\n",
-            Exception.format(:error, e, __STACKTRACE__)
-          ])
-      end
+      dispatch_metric(metric, instruments[metric_id(metric)], measurements, metadata)
     end
 
     :ok
@@ -264,10 +277,11 @@ defmodule Otel.TelemetryReporter do
   @spec keep?(metric :: Telemetry.Metrics.t(), metadata :: map(), measurements :: map()) ::
           boolean()
   defp keep?(metric, metadata, measurements) do
-    # `Telemetry.Metrics` resolves `:keep` to either a 1- / 2-arity
-    # predicate or `nil` (no `:keep` and no `:drop` set); the typespec
-    # only documents the function form, so guard on shape and treat
-    # everything else as "always keep".
+    # `Telemetry.Metrics`'s `keep :: predicate_fun()` typespec says
+    # always a function, but the runtime leaves the field as `nil`
+    # when neither `:keep` nor `:drop` was given. Treat anything
+    # that isn't one of the expected function shapes as
+    # "always keep" (default).
     case metric.keep do
       keep when is_function(keep, 2) -> keep.(metadata, measurements)
       keep when is_function(keep, 1) -> keep.(metadata)
