@@ -94,6 +94,22 @@ defmodule Otel.TelemetrySpanDecoratorTest do
     def value, do: 42
   end
 
+  defmodule RaisingCapturedFn do
+    use Otel.TelemetrySpanDecorator
+
+    @span event: [:otel_dec_test, :raises_io], capture_io: true
+    def explode_with(x), do: raise("boom #{x}")
+  end
+
+  defmodule KeywordOnly do
+    use Otel.TelemetrySpanDecorator
+
+    # Keyword form without `capture_io` — exercises the parser's
+    # default option path (capture_io defaults to false).
+    @span event: [:otel_dec_test, :keyword_only]
+    def hello(name), do: "hello #{name}"
+  end
+
   # ---- helpers ----
 
   defp attach_capture(events) do
@@ -141,6 +157,12 @@ defmodule Otel.TelemetrySpanDecoratorTest do
 
       assert_receive {:telemetry, [:otel_dec_test, :captured, :start], _, start_meta}
       assert start_meta[:"code.function.name"] == "Otel.TelemetrySpanDecoratorTest.Captured.hello"
+      # The `code.*` triumvirate is a contractual injection regardless
+      # of mode — assert all three present so a future `capture_io`
+      # regression doesn't silently drop file/line.
+      assert is_binary(start_meta[:"code.file.path"])
+      assert String.ends_with?(start_meta[:"code.file.path"], "telemetry_span_decorator_test.exs")
+      assert is_integer(start_meta[:"code.line.number"])
       assert start_meta.__args__ == %{name: "ada"}
 
       assert_receive {:telemetry, [:otel_dec_test, :captured, :stop], _, stop_meta}
@@ -264,6 +286,48 @@ defmodule Otel.TelemetrySpanDecoratorTest do
 
       assert_receive {:telemetry, [:otel_dec_test, :zero_arity, :stop], _, stop_meta}
       assert stop_meta.__result__ == 42
+    end
+  end
+
+  describe "exception path with capture_io" do
+    test "__args__ at start + exception, no __result__, no :stop event" do
+      attach_capture([[:otel_dec_test, :raises_io]])
+
+      assert_raise RuntimeError, "boom 42", fn -> RaisingCapturedFn.explode_with(42) end
+
+      # Start fires with __args__ before the body runs.
+      assert_receive {:telemetry, [:otel_dec_test, :raises_io, :start], _, start_meta}
+      assert start_meta.__args__ == %{x: 42}
+
+      # `:telemetry.span/3` merges start_metadata into exception_metadata,
+      # so __args__ travels with the exception event for downstream
+      # correlation.
+      assert_receive {:telemetry, [:otel_dec_test, :raises_io, :exception], _, ex_meta}
+      assert ex_meta.kind == :error
+      assert ex_meta.reason == %RuntimeError{message: "boom 42"}
+      assert ex_meta.__args__ == %{x: 42}
+
+      # Stop never fires when the body raises — `__result__` was never
+      # bound (super/N raised before assignment).
+      refute_receive {:telemetry, [:otel_dec_test, :raises_io, :stop], _, _}, 100
+    end
+  end
+
+  describe "keyword form without capture_io" do
+    test "behaves like default mode — code.* injected, no __args__/__result__" do
+      attach_capture([[:otel_dec_test, :keyword_only]])
+
+      assert KeywordOnly.hello("world") == "hello world"
+
+      assert_receive {:telemetry, [:otel_dec_test, :keyword_only, :start], _, start_meta}
+
+      assert start_meta[:"code.function.name"] ==
+               "Otel.TelemetrySpanDecoratorTest.KeywordOnly.hello"
+
+      refute Map.has_key?(start_meta, :__args__)
+
+      assert_receive {:telemetry, [:otel_dec_test, :keyword_only, :stop], _, stop_meta}
+      refute Map.has_key?(stop_meta, :__result__)
     end
   end
 end
