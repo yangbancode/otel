@@ -94,12 +94,12 @@ mix test --only e2e test/e2e/
 | ✅ | 5 | Histogram custom buckets | `advisory: [explicit_bucket_boundaries: ...]` | Mimir: `explicit_bounds` |
 | ✅ | 8 | Gauge (sync) | `record/3` | Mimir: gauge value |
 | ✅ | 16 | Cumulative temporality (default) | record over time | Mimir: monotonic accumulation |
-| `[~]` | 17 | Delta temporality | reader configured `:delta` | Unit-tested only — Mimir's OTLP receiver in LGTM 0.26.0 drops delta-temporality counters (delta-to-cumulative is opt-in, off by default), so an e2e test would have no signal beyond what `test/otel/sdk/metrics/temporality_test.exs` and `test/otel/otlp/encoder_test.exs` already cover. The setup_all-driven SDK restart that the e2e test would need also leaks delta config into other modules' tests |
+| ⚠️ | 17 | Delta temporality | reader configured `:delta` | Unit-tested only — Mimir's OTLP receiver in LGTM 0.26.0 drops delta-temporality counters (delta-to-cumulative is opt-in, off by default), so an e2e test would have no signal beyond what `test/otel/sdk/metrics/temporality_test.exs` and `test/otel/otlp/encoder_test.exs` already cover. The setup_all-driven SDK restart that the e2e test would need also leaks delta config into other modules' tests |
 | ✅ | 18 | Multi-dimensional attrs | same instrument, varying attrs | Mimir: multiple series |
 | ✅ | 21 | Float vs int values mixed | record `1` then `1.5` on same series | Mimir: numerically correct |
-| `[~]` | 27 | Exemplar filter `:trace_based` (hardcoded) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
-| `[~]` | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: histogram lands |
-| `[~]` | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: counter lands |
+| ⚠️ | 27 | Exemplar filter `:trace_based` (hardcoded) | sampled span only | Mimir: lands inside `with_span` (exemplar correlation in unit tests) |
+| ⚠️ | 28 | Exemplar reservoir — `AlignedHistogramBucket` | histogram instrument | Mimir: histogram lands |
+| ⚠️ | 29 | Exemplar reservoir — `SimpleFixedSize` | non-histogram instrument | Mimir: counter lands |
 | ✅ | 30 | MetricExporter `force_flush` | call `force_flush` after record | Mimir: data visible immediately |
 | ✅ | 31 | Case-insensitive duplicate registration | `create_counter("HTTP")` then `("http")` | Warns + returns first instrument |
 
@@ -145,7 +145,7 @@ mix test --only e2e test/e2e/
 | ✅ | 1 | **Span-internal log carries trace_id** | `Tempo.trace_id == Loki.trace_id` |
 | ✅ | 2 | **Metric exemplar carries trace_id** | `Mimir.exemplar.trace_id == Tempo.trace_id` |
 | ✅ | 3 | Resource consistency (3 pillars) | All backends share `service.name` |
-| `[~]` | 4 | `InstrumentationScope` (Trace + Log) | hardcoded `scope.name = "otel"` carried through Tempo + Loki; Mimir doesn't promote OTLP scope to PromQL labels in LGTM 0.26.0 (lands-only) |
+| ⚠️ | 4 | `InstrumentationScope` (Trace + Log) | hardcoded `scope.name = "otel"` carried through Tempo + Loki; Mimir doesn't promote OTLP scope to PromQL labels in LGTM 0.26.0 (lands-only) |
 
 ## Concurrency
 
