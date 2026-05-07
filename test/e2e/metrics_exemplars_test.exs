@@ -10,7 +10,7 @@ defmodule Otel.E2E.MetricsExemplarsTest do
   exemplar filter or a reservoir that swallows measurements
   would have passed the old land-only checks but fails these.
 
-  Tracking matrix: `docs/e2e.md` §Metrics, scenarios 27–29.
+  Tracking matrix: `.claude/docs/e2e.md` §Metrics, scenarios 27–29.
   Scenarios 25 (always_on) and 26 (always_off) were removed
   when minikube hardcoded `exemplar_filter` to `:trace_based`
   — the filter behaviour is unit-tested in

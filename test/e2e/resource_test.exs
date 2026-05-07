@@ -12,7 +12,7 @@ defmodule Otel.E2E.ResourceTest do
   `mix.exs` `version:`, which is exactly the contract we want
   to verify (single source of truth).
 
-  Tracking matrix: `docs/e2e.md` §Resource, scenario 4.
+  Tracking matrix: `.claude/docs/e2e.md` §Resource, scenario 4.
   """
 
   use Otel.E2E.Case, async: false

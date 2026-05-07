@@ -52,19 +52,39 @@ end
 
 ## Configuration
 
+### SDK
+
 ```elixir
+# config/config.exs
 config :otel, otp_app: :my_app, req_options: []
+```
+
+### Logs
+
+`:logger` bridge:
+
+```elixir
+# config/config.exs
+config :kernel,
+  logger: [
+    {:handler, :otel, Otel.LoggerHandler, %{}}
+  ]
+```
+
+### Metrics
+
+`:telemetry` bridge (in your supervision tree):
+
+```elixir
+# lib/my_app/application.ex
+children = [
+  {Otel.TelemetryReporter, metrics: [...]}
+]
 ```
 
 ## How-to
 
 - [Trace](docs/trace.md) — span lifecycle, attributes, events, status, exceptions.
-- [Log](docs/log.md) — `:logger` bridge and SDK API.
-- [Metrics](docs/metrics.md) — synchronous instruments.
-
-## E2E
-
-- [E2E Test Scenarios](docs/e2e.md) — tracking matrix for end-to-end coverage against Grafana LGTM.
 
 ## License
 

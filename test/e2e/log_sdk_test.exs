@@ -20,7 +20,7 @@ defmodule Otel.E2E.LogSdkTest do
   via `|=` and read the categorized labels off the matched
   entry's `stream` map (via `Loki.labels/1` / `Loki.attribute/2`).
 
-  Tracking matrix: `docs/e2e.md` §Log — SDK API, scenarios
+  Tracking matrix: `.claude/docs/e2e.md` §Log — SDK API, scenarios
   1–10, 14.
 
   Scenario 7 (`event_name` field) lands in the matrix as ⚠️:

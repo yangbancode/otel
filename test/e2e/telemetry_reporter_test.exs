@@ -10,7 +10,7 @@ defmodule Otel.E2E.TelemetryReporterTest do
   Mimir **and** carries the expected numeric value /
   label / bucket distribution.
 
-  Tracking matrix: `docs/e2e.md` §Metrics — Telemetry reporter.
+  Tracking matrix: `.claude/docs/e2e.md` §Metrics — Telemetry reporter.
 
   ## What is *not* exercised here
 

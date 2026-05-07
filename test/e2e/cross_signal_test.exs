@@ -6,7 +6,7 @@ defmodule Otel.E2E.CrossSignalTest do
   (trace_id, scope, resource attributes) — not just that they
   landed.
 
-  Tracking matrix: `docs/e2e.md` §Cross-signal / Resource,
+  Tracking matrix: `.claude/docs/e2e.md` §Cross-signal / Resource,
   scenarios 1–4.
 
   ## Detection strategy

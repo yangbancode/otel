@@ -11,7 +11,7 @@ defmodule Otel.E2E.MetricsSyncTest do
   `result["value"][1]` via `Mimir.value/1` and compares against
   the arithmetic expectation.
 
-  Tracking matrix: `docs/e2e.md` §Metrics — sync instrument
+  Tracking matrix: `.claude/docs/e2e.md` §Metrics — sync instrument
   scenarios that work under the SDK's default configuration:
   rows 1–4, 8, 16, 21, 30, 31.
 

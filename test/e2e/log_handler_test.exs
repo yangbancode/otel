@@ -26,7 +26,7 @@ defmodule Otel.E2E.LogHandlerTest do
   `|=`), reads `stream` labels via `Loki.labels/1`, and asserts
   on the specific keys + values the scenario exercises.
 
-  Tracking matrix: `docs/e2e.md` §Log — `:logger` Handler bridge,
+  Tracking matrix: `.claude/docs/e2e.md` §Log — `:logger` Handler bridge,
   scenarios 1–20.
   """
 

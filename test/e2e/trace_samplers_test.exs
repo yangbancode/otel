@@ -8,7 +8,7 @@ defmodule Otel.E2E.TraceSamplersTest do
   are: root → sampled, sampled remote parent → child sampled,
   not-sampled remote parent → child dropped.
 
-  Tracking matrix: `docs/e2e.md` §Trace, scenarios 30-32.
+  Tracking matrix: `.claude/docs/e2e.md` §Trace, scenarios 30-32.
   """
 
   use Otel.E2E.Case, async: false
