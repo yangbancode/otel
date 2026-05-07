@@ -80,7 +80,7 @@ defmodule Otel.MixProject do
   end
 
   defp description do
-    "Pure Elixir implementation of OpenTelemetry"
+    "Pure Elixir, OpenTelemetry-compatible"
   end
 
   defp package do
