@@ -179,8 +179,6 @@ defmodule MyApp.Calculator do
 end
 ```
 
-`Otel.TelemetryReporter` supports the full `Telemetry.Metrics` surface — `sum/2`, `last_value/2`, multi-dimensional `:tags`, `:tag_values`, `:keep` / `:drop` predicates, `unit:` conversion, function `:measurement` — see its [moduledoc](https://hexdocs.pm/otel/Otel.TelemetryReporter.html) for the type mapping table and option reference.
-
 ## License
 
 Released under the [MIT License](LICENSE).
