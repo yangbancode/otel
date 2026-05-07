@@ -98,15 +98,13 @@ children = [
 #### Optional: `Otel.TelemetrySpanDecorator`
 
 ```elixir
-# lib/my_app/calculator.ex
-defmodule MyApp.Calculator do
+# lib/my_app.ex
+defmodule MyApp do
   use Otel.TelemetrySpanDecorator
 
-  @span [:my_app, :calculator, :add]
-  def add(a, b), do: a + b
-
-  @span event: [:my_app, :calculator, :sub], capture_io: true
-  def sub(a, b), do: a - b
+  @span [:my_app, :hello]
+  # @span event: [:my_app, :hello], capture_io: true
+  def hello(name), do: "hello #{name}"
 end
 ```
 
@@ -178,8 +176,6 @@ defmodule MyApp.Calculator do
   def sub(a, b), do: a - b
 end
 ```
-
-Calling `MyApp.Calculator.add(2, 3)` produces a `my_app.calculator.add` span (Tempo), an `info` log line carrying the trace_id (Loki), and counter / duration metric points (Mimir) — all sharing the same `service.name`.
 
 ## License
 
