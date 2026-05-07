@@ -50,7 +50,7 @@ defmodule Otel.MixProject do
 
   def application do
     [
-      extra_applications: [:logger, :inets, :ssl, :public_key],
+      extra_applications: [:logger],
       mod: {Otel.Application, []}
     ]
   end
