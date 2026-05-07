@@ -80,7 +80,7 @@ defmodule Otel.MixProject do
     [
       licenses: ["MIT"],
       links: %{"GitHub" => @repo_url},
-      files: ~w(docs lib priv mix.exs README.md LICENSE NOTICE .formatter.exs)
+      files: ~w(docs lib mix.exs README.md LICENSE NOTICE .formatter.exs)
     ]
   end
 end
