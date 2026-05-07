@@ -92,8 +92,12 @@ defmodule Otel.E2E.LogHandlerTest do
       flush()
 
       # Map reports render via :logger's default formatter; the
-      # rendered line carries both the tag and id values.
-      assert {:ok, results} = poll(Loki.query("scenario-4"))
+      # rendered line carries both the tag and id values. Poll
+      # for the run-unique `e2e_id` (not the generic "scenario-4"
+      # substring) so the loop waits for *this* run's line —
+      # otherwise stale lines from earlier runs satisfy `poll`'s
+      # non-empty check before the current line propagates.
+      assert {:ok, results} = poll(Loki.query(e2e_id))
       line = matching_line(results, "scenario-4", e2e_id)
       assert line =~ "scenario-4"
       assert line =~ e2e_id
@@ -104,7 +108,7 @@ defmodule Otel.E2E.LogHandlerTest do
       :logger.log(:info, [tag: "scenario-5", id: e2e_id], %{"e2e.id": e2e_id})
       flush()
 
-      assert {:ok, results} = poll(Loki.query("scenario-5"))
+      assert {:ok, results} = poll(Loki.query(e2e_id))
       line = matching_line(results, "scenario-5", e2e_id)
       assert line =~ "scenario-5"
       assert line =~ e2e_id
