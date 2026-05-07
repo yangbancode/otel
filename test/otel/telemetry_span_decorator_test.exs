@@ -87,6 +87,13 @@ defmodule Otel.TelemetrySpanDecoratorTest do
     def explode!, do: raise("boom")
   end
 
+  defmodule ZeroArityCapture do
+    use Otel.TelemetrySpanDecorator
+
+    @span event: [:otel_dec_test, :zero_arity], capture_io: true
+    def value, do: 42
+  end
+
   # ---- helpers ----
 
   defp attach_capture(events) do
@@ -241,6 +248,22 @@ defmodule Otel.TelemetrySpanDecoratorTest do
       assert_receive {:telemetry, [:otel_dec_test, :raises, :exception], _, meta}
       assert meta.kind == :error
       assert meta.reason == %RuntimeError{message: "boom"}
+    end
+  end
+
+  describe "zero-arity with capture_io" do
+    test "empty __args__ at start, return value at stop" do
+      attach_capture([[:otel_dec_test, :zero_arity]])
+
+      assert ZeroArityCapture.value() == 42
+
+      assert_receive {:telemetry, [:otel_dec_test, :zero_arity, :start], _, start_meta}
+      # No args → empty map, but `__args__` key still present so downstream
+      # code can rely on its shape regardless of arity.
+      assert start_meta.__args__ == %{}
+
+      assert_receive {:telemetry, [:otel_dec_test, :zero_arity, :stop], _, stop_meta}
+      assert stop_meta.__result__ == 42
     end
   end
 end
