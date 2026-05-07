@@ -47,6 +47,19 @@ defmodule Otel.Logs.LogRecordExporterTest do
     end
   end
 
+  describe "graceful shutdown invariant" do
+    test "init traps exits so terminate/2 fires on supervisor :shutdown" do
+      # Per OTP gen_server contract: `terminate/2` is only called
+      # on supervisor `:shutdown` when the GenServer is trapping
+      # exits. The exporter's `terminate/2` does the final
+      # `export()` flush, so this flag is load-bearing — without
+      # it `Application.stop(:otel)` silently drops whatever is
+      # buffered.
+      pid = Process.whereis(Otel.Logs.LogRecordExporter)
+      assert {:trap_exit, true} = Process.info(pid, :trap_exit)
+    end
+  end
+
   # --- Test helpers ---
 
   defp start_server_and_configure(status_code) do
