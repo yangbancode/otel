@@ -91,6 +91,7 @@ defmodule Otel.TelemetryTracer do
   """
 
   use GenServer
+  use Otel.Common.Types
 
   @typedoc """
   A `:telemetry.span/3` event prefix — the first arg to
@@ -227,12 +228,51 @@ defmodule Otel.TelemetryTracer do
     {__MODULE__, metadata.telemetry_span_context}
   end
 
-  # Drop telemetry-internal keys + stringify atom keys.
-  @spec filter_attrs(metadata :: map()) :: %{String.t() => term()}
+  # Drop telemetry-internal keys + stringify atom keys + coerce
+  # values to `primitive_any()` so the OTLP encoder (which
+  # crashes on atoms / tuples / pids per its happy-path policy)
+  # can serialise them. Mirrors `Otel.LoggerHandler`'s coercion
+  # path.
+  @spec filter_attrs(metadata :: map()) :: %{String.t() => primitive_any()}
   defp filter_attrs(metadata) do
     metadata
     |> Map.drop(@reserved_keys)
-    |> Map.new(fn {k, v} -> {to_string(k), v} end)
+    |> Map.new(fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
+  end
+
+  # Recursive coercion to `primitive_any()`. Maps recurse with
+  # `to_string(k)` on keys so `map<string, AnyValue>` holds at
+  # every depth; lists recurse element-wise; everything else
+  # delegates to `to_primitive/1` for the leaf coercion.
+  @spec to_primitive_any(value :: term()) :: primitive_any()
+  defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
+  end
+
+  defp to_primitive_any(value) when is_list(value) do
+    Enum.map(value, &to_primitive_any/1)
+  end
+
+  defp to_primitive_any(value), do: to_primitive(value)
+
+  # Leaf coercion to `primitive()` — atoms (other than booleans
+  # / nil), structs, tuples (other than `:bytes`), refs, pids,
+  # etc. coerce to `String.t()` via `String.Chars` impl when
+  # present, `inspect/1` otherwise. Same policy as
+  # `Otel.LoggerHandler.to_primitive/1`.
+  @spec to_primitive(value :: term()) :: primitive()
+  defp to_primitive(nil), do: nil
+  defp to_primitive(value) when is_boolean(value), do: value
+  defp to_primitive(value) when is_binary(value), do: value
+  defp to_primitive(value) when is_integer(value), do: value
+  defp to_primitive(value) when is_float(value), do: value
+  defp to_primitive({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_primitive(value) do
+    case String.Chars.impl_for(value) do
+      nil -> inspect(value)
+      _impl -> to_string(value)
+    end
   end
 
   # `:telemetry.span/3`'s `:exception` event metadata shape

@@ -89,6 +89,7 @@ defmodule Otel.TelemetryReporter do
   """
 
   use GenServer
+  use Otel.Common.Types
 
   @typedoc """
   Options accepted by `start_link/1`. Both keys are optional —
@@ -297,19 +298,49 @@ defmodule Otel.TelemetryReporter do
   end
 
   @spec build_attrs(metric :: Telemetry.Metrics.t(), metadata :: map()) ::
-          %{String.t() => term()}
+          %{String.t() => primitive_any()}
   defp build_attrs(%{tags: tags, tag_values: tag_values}, metadata) when is_list(tags) do
     transformed = tag_values.(metadata)
 
     Map.new(tags, fn key ->
-      {Atom.to_string(key), coerce_attr_value(Map.get(transformed, key))}
+      {Atom.to_string(key), to_primitive_any(Map.get(transformed, key))}
     end)
   end
 
-  @spec coerce_attr_value(value :: term()) :: term()
-  defp coerce_attr_value(nil), do: nil
-  defp coerce_attr_value(value) when is_atom(value), do: Atom.to_string(value)
-  defp coerce_attr_value(value), do: value
+  # Recursive coercion to `primitive_any()`. Maps recurse with
+  # `to_string(k)` on keys so `map<string, AnyValue>` holds at
+  # every depth; lists recurse element-wise; everything else
+  # delegates to `to_primitive/1` for the leaf coercion.
+  @spec to_primitive_any(value :: term()) :: primitive_any()
+  defp to_primitive_any(value) when is_map(value) and not is_struct(value) do
+    Map.new(value, fn {k, v} -> {to_string(k), to_primitive_any(v)} end)
+  end
+
+  defp to_primitive_any(value) when is_list(value) do
+    Enum.map(value, &to_primitive_any/1)
+  end
+
+  defp to_primitive_any(value), do: to_primitive(value)
+
+  # Leaf coercion to `primitive()` — atoms (other than booleans
+  # / nil), structs, tuples (other than `:bytes`), refs, pids,
+  # etc. coerce to `String.t()` via `String.Chars` impl when
+  # present, `inspect/1` otherwise. Same policy as
+  # `Otel.LoggerHandler.to_primitive/1`.
+  @spec to_primitive(value :: term()) :: primitive()
+  defp to_primitive(nil), do: nil
+  defp to_primitive(value) when is_boolean(value), do: value
+  defp to_primitive(value) when is_binary(value), do: value
+  defp to_primitive(value) when is_integer(value), do: value
+  defp to_primitive(value) when is_float(value), do: value
+  defp to_primitive({:bytes, bin} = value) when is_binary(bin), do: value
+
+  defp to_primitive(value) do
+    case String.Chars.impl_for(value) do
+      nil -> inspect(value)
+      _impl -> to_string(value)
+    end
+  end
 
   # Measurement extraction. `Telemetry.Metrics` has already
   # wrapped `metric.measurement` with any `{from, to}` unit
