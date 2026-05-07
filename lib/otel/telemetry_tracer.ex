@@ -1,0 +1,244 @@
+defmodule Otel.TelemetryTracer do
+  @moduledoc """
+  Bridges BEAM `:telemetry.span/3` events into the OTel Trace
+  pipeline. Trace pillar's analog of `Otel.LoggerHandler` (Logs)
+  and `Otel.TelemetryReporter` (Metrics).
+
+  Add to your supervision tree with the event prefixes that
+  should be promoted to OTel spans:
+
+      defmodule MyApp.Application do
+        use Application
+
+        @impl true
+        def start(_type, _args) do
+          children = [
+            {Otel.TelemetryTracer, events: [
+              [:my_app, :checkout],
+              [:phoenix, :endpoint],
+              [:my_app, :repo, :query]
+            ]}
+          ]
+
+          Supervisor.start_link(children, strategy: :one_for_one, name: MyApp.Supervisor)
+        end
+      end
+
+  Each entry in `events:` is the **prefix** (matches the first
+  argument of `:telemetry.span/3`); the bridge subscribes to the
+  three lifecycle events derived from it
+  (`prefix ++ [:start | :stop | :exception]`).
+
+  ## What lands in Tempo
+
+  | OTel field | Source |
+  |---|---|
+  | `name` | event prefix joined by `.` — e.g. `[:my_app, :checkout]` → `"my_app.checkout"` |
+  | `parent_span_id` | implicit from the calling process's current OTel context (works for nested `:telemetry.span/3` and mixed `with_span/4`) |
+  | `attributes` | `start_metadata` ∪ `stop_metadata`, minus `:telemetry`-internal keys (see "Reserved metadata keys" below). All keys coerced to `String.t()` |
+  | `status` | `:ok` on `:stop`; `:error` on `:exception` (description = `Exception.message/1` for exceptions, `inspect(reason)` for `:exit`/`:throw`) |
+  | `exception.*` | `record_exception/4` on the `:exception` event, using `metadata.reason` + `metadata.stacktrace` |
+
+  Span `kind` defaults to `INTERNAL`. Pass
+  `metadata.span_kind: :server | :client | :producer | :consumer`
+  on the `:start` event to override.
+
+  ## Context propagation
+
+  The `:start` handler runs synchronously in the calling process
+  before the user function executes; `:stop` / `:exception`
+  handlers run after. Between them, the OTel current-span ctx is
+  the new span (stored in process dictionary keyed by the
+  `:telemetry.span/3`-issued ref). This means:
+
+  - Nested `:telemetry.span/3` calls automatically form a
+    parent-child chain.
+  - `:telemetry.span/3` ↔ `Otel.Trace.with_span/4` mixed in the
+    same process also form a chain (both APIs share the
+    process-dictionary ctx channel).
+  - Cross-process work (`Task.async`, `GenServer.cast`, etc.)
+    still requires explicit `Otel.Ctx.attach/1` of the captured
+    parent ctx — same constraint as `with_span/4`.
+
+  ## Reserved metadata keys
+
+  `:telemetry.span/3` inserts a few internal keys into the
+  metadata map (notably `:telemetry_span_context`, the
+  start/stop matching ref). The bridge filters these so they
+  don't leak as span attributes. Keys filtered:
+  `:telemetry_span_context`, `:duration`, `:monotonic_time`,
+  `:system_time`, `:kind`, `:reason`, `:stacktrace`, `:span_kind`.
+
+  All remaining metadata keys are stringified (`to_string/1`)
+  and merged onto the span as attributes.
+
+  ## Lifecycle
+
+  The bridge is a `GenServer` with `trap_exit: true`. Each
+  configured event prefix attaches three handlers via
+  `:telemetry.attach/4` keyed by `{__MODULE__, event_name,
+  self()}`. `terminate/2` detaches all of them so a clean
+  shutdown leaves no stale handlers.
+
+  Multiple instances under different supervisors can co-exist
+  — each instance owns handlers keyed by its own pid.
+
+  ## References
+
+  - `:telemetry.span/3`: <https://hexdocs.pm/telemetry/telemetry.html#span/3>
+  - OTel Trace API §Span Creation: `opentelemetry-specification/specification/trace/api.md` L378-L414
+  - OTel Trace API §record_exception: `trace/api.md` L654-L705
+  """
+
+  use GenServer
+
+  @reserved_keys [
+    :telemetry_span_context,
+    :duration,
+    :monotonic_time,
+    :system_time,
+    :kind,
+    :reason,
+    :stacktrace,
+    :span_kind
+  ]
+
+  @spec start_link(opts :: keyword()) :: GenServer.on_start()
+  def start_link(opts) do
+    server_opts = Keyword.take(opts, [:name])
+
+    events =
+      opts[:events] ||
+        raise ArgumentError, "the :events option is required by #{inspect(__MODULE__)}"
+
+    GenServer.start_link(__MODULE__, events, server_opts)
+  end
+
+  @impl true
+  def init(events) do
+    Process.flag(:trap_exit, true)
+
+    handlers =
+      for prefix <- events,
+          suffix <- [:start, :stop, :exception] do
+        event_name = prefix ++ [suffix]
+        id = {__MODULE__, event_name, self()}
+
+        :telemetry.attach(
+          id,
+          event_name,
+          &__MODULE__.handle_event/4,
+          %{prefix: prefix, suffix: suffix}
+        )
+
+        id
+      end
+
+    {:ok, %{handlers: handlers}}
+  end
+
+  @impl true
+  def terminate(_reason, %{handlers: handlers}) do
+    for id <- handlers, do: :telemetry.detach(id)
+    :ok
+  end
+
+  @doc false
+  def handle_event(_event_name, _measurements, metadata, %{prefix: prefix, suffix: :start}) do
+    span_ctx =
+      Otel.Trace.start_span(span_name(prefix),
+        kind: metadata[:span_kind] || :internal,
+        attributes: filter_attrs(metadata)
+      )
+
+    prior = Otel.Trace.make_current(span_ctx)
+    Process.put(slot_key(metadata), {span_ctx, prior})
+    :ok
+  end
+
+  def handle_event(_event_name, _measurements, metadata, %{suffix: :stop}) do
+    case Process.delete(slot_key(metadata)) do
+      {span_ctx, prior} ->
+        Otel.Trace.Span.set_attributes(span_ctx, filter_attrs(metadata))
+        Otel.Trace.Span.set_status(span_ctx, Otel.Trace.Status.new(%{code: :ok}))
+        Otel.Trace.Span.end_span(span_ctx)
+        Otel.Trace.detach(prior)
+        :ok
+
+      nil ->
+        :ok
+    end
+  end
+
+  def handle_event(_event_name, _measurements, metadata, %{suffix: :exception}) do
+    case Process.delete(slot_key(metadata)) do
+      {span_ctx, prior} ->
+        record_exception(span_ctx, metadata)
+        Otel.Trace.Span.end_span(span_ctx)
+        Otel.Trace.detach(prior)
+        :ok
+
+      nil ->
+        :ok
+    end
+  end
+
+  # Span name = prefix atoms joined by ".". `[:my_app, :add]` → "my_app.add".
+  @spec span_name(prefix :: [atom()]) :: String.t()
+  defp span_name(prefix) do
+    prefix |> Enum.map_join(".", &Atom.to_string/1)
+  end
+
+  # Process-dictionary slot. Keyed by the ref that
+  # `:telemetry.span/3` puts in metadata, so concurrent /
+  # nested span pairs in the same process don't collide.
+  @spec slot_key(metadata :: map()) :: {module(), reference()}
+  defp slot_key(metadata) do
+    {__MODULE__, metadata.telemetry_span_context}
+  end
+
+  # Drop telemetry-internal keys + stringify atom keys.
+  @spec filter_attrs(metadata :: map()) :: %{String.t() => term()}
+  defp filter_attrs(metadata) do
+    metadata
+    |> Map.drop(@reserved_keys)
+    |> Map.new(fn {k, v} -> {to_string(k), v} end)
+  end
+
+  # `:telemetry.span/3`'s `:exception` event metadata shape
+  # (per `:telemetry`'s docstring on `span/3`):
+  # `%{kind: :error | :exit | :throw, reason: term(), stacktrace: list()}`
+  # plus the original start/stop metadata.
+  @spec record_exception(span_ctx :: Otel.Trace.SpanContext.t(), metadata :: map()) :: :ok
+  defp record_exception(
+         span_ctx,
+         %{kind: :error, reason: %{__exception__: true} = exception} = metadata
+       ) do
+    Otel.Trace.Span.record_exception(span_ctx, exception, metadata[:stacktrace] || [])
+
+    Otel.Trace.Span.set_status(
+      span_ctx,
+      Otel.Trace.Status.new(%{code: :error, description: Exception.message(exception)})
+    )
+
+    :ok
+  end
+
+  defp record_exception(span_ctx, %{kind: kind, reason: reason}) do
+    Otel.Trace.Span.set_status(
+      span_ctx,
+      Otel.Trace.Status.new(%{code: :error, description: "#{kind}: #{inspect(reason)}"})
+    )
+
+    :ok
+  end
+
+  defp record_exception(span_ctx, _metadata) do
+    Otel.Trace.Span.set_status(
+      span_ctx,
+      Otel.Trace.Status.new(%{code: :error, description: "unknown exception"})
+    )
+
+    :ok
+  end
+end

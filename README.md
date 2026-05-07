@@ -82,6 +82,17 @@ children = [
 ]
 ```
 
+### Trace
+
+`:telemetry.span/3` bridge (in your supervision tree):
+
+```elixir
+# lib/my_app/application.ex
+children = [
+  {Otel.TelemetryTracer, events: [...]}
+]
+```
+
 ## How-to
 
 - [Trace](docs/trace.md) — span lifecycle, attributes, events, status, exceptions.

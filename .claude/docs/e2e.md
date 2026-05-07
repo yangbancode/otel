@@ -53,6 +53,15 @@ regression detection across the SDK / collector boundary.
 | ✅ | 31 | Sampler — child of sampled remote parent | inject sampled `traceparent`, then emit | Tempo: span present |
 | ✅ | 32 | Sampler — child of not-sampled remote parent | inject not-sampled `traceparent`, then emit | Tempo: span absent |
 
+## Trace — Telemetry tracer (`Otel.TelemetryTracer`)
+
+| Status | # | Scenario | API | Backend assertion |
+|---|---|---|---|---|
+| ✅ | 1 | Single span — name from prefix, start+stop attrs merged | `:telemetry.span(prefix, %{a: 2, b: 3}, fn -> {5, %{result: 5}} end)` | Tempo: span name `"prefix.dotted"` + attrs `a/b/result` + `STATUS_CODE_OK` |
+| ✅ | 2 | Nested span carries `parent_span_id` + same `trace_id` | nested `:telemetry.span` in same process | Tempo: inner `parentSpanId` = outer `spanId`, shared `traceId` |
+| ✅ | 3 | Exception → ERROR status + recorded exception event | `raise` inside the span function | Tempo: `STATUS_CODE_ERROR`, `status.message`, `events[].name == "exception"` |
+| ✅ | 4 | `metadata.span_kind` overrides default `:internal` | `:telemetry.span(prefix, %{span_kind: :client}, ...)` | Tempo: `kind = "SPAN_KIND_CLIENT"`, `span_kind` not leaked as attribute |
+
 ## Log — SDK API (`Otel.API.Logs.Logger.emit/2`)
 
 | Status | # | Scenario | API | Backend assertion |
