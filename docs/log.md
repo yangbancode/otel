@@ -22,9 +22,9 @@ require Logger
 Logger.info("checkout completed", user_id: 42)
 ```
 
-The SDK ships logs to `http://localhost:4318/v1/logs` by default.
-See [Configuration](configuration.md) to change endpoint, processor,
-or limits.
+The SDK ships logs to `http://localhost:4318/v1/logs` by default;
+override the endpoint via `:req_options` (see
+[README](../README.md#configuration)).
 
 ## `:logger` bridge
 
@@ -143,5 +143,4 @@ is inside a `with_span/4` block — same rule as the `:logger` bridge.
 ## Limits
 
 Hardcoded to spec defaults: 128 attributes per LogRecord, no
-string-length truncation. Not user-configurable — see
-[Configuration](configuration.md) §"What's *not* user-configurable".
+string-length truncation. Not user-configurable.

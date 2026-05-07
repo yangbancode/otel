@@ -111,8 +111,8 @@ defmodule Otel.E2E.CrossSignalTest do
       flush()
 
       # SDK default Resource sets service.name="unknown_service"
-      # when `RELEASE_NAME` is unset. Each backend MUST surface
-      # that same value so a single Grafana
+      # when `config :otel, :otp_app` is unset. Each backend MUST
+      # surface that same value so a single Grafana
       # `service.name="unknown_service"` query unifies all three
       # signals.
       service_name = "unknown_service"

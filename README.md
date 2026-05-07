@@ -52,8 +52,9 @@ end
 
 ## Configuration
 
-- [Otel SDK](docs/configuration.md) — pillars, exporters, processors, propagators.
-- [`:logger` bridge](docs/logger-handler.md) — Elixir log events → OTel Logs.
+```elixir
+config :otel, otp_app: :my_app, req_options: []
+```
 
 ## How-to
 

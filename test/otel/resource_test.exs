@@ -1,27 +1,24 @@
 defmodule Otel.ResourceTest do
-  # async: false — `new/0` reads `RELEASE_NAME`/`RELEASE_VSN`
-  # OS env vars; tests mutate them.
+  # async: false — `new/0` reads `Application.get_env(:otel, :otp_app)`
+  # and `Application.spec/2`; tests mutate the former and rely on
+  # the latter's global state.
   use ExUnit.Case, async: false
 
   setup do
-    saved = %{
-      "RELEASE_NAME" => System.get_env("RELEASE_NAME"),
-      "RELEASE_VSN" => System.get_env("RELEASE_VSN")
-    }
-
-    Enum.each(saved, fn {k, _} -> System.delete_env(k) end)
+    prev_app = Application.get_env(:otel, :otp_app)
+    Application.delete_env(:otel, :otp_app)
 
     on_exit(fn ->
-      Enum.each(saved, fn
-        {k, nil} -> System.delete_env(k)
-        {k, v} -> System.put_env(k, v)
-      end)
+      case prev_app do
+        nil -> Application.delete_env(:otel, :otp_app)
+        v -> Application.put_env(:otel, :otp_app, v)
+      end
     end)
 
     :ok
   end
 
-  describe "new/0 — no release env" do
+  describe "new/0 — no :otp_app config" do
     test "service.name falls back to \"unknown_service\"; service.version is nil" do
       attrs = Otel.Resource.new().attributes
 
@@ -42,32 +39,35 @@ defmodule Otel.ResourceTest do
     end
   end
 
-  describe "new/0 — RELEASE_NAME set" do
-    test "service.name from RELEASE_NAME; service.version stays nil" do
-      System.put_env("RELEASE_NAME", "my_app")
+  describe "new/0 — :otp_app config set to a loaded application" do
+    test "service.name from :otp_app atom; service.version from Application.spec/2" do
+      # `:otel` is loaded throughout the test suite — its vsn is
+      # whatever `mix.exs` declares, which is exactly the contract
+      # we want to verify (single source of truth).
+      Application.put_env(:otel, :otp_app, :otel)
 
       attrs = Otel.Resource.new().attributes
 
-      assert attrs["service.name"] == "my_app"
+      assert attrs["service.name"] == "otel"
+
+      expected_vsn = :otel |> Application.spec(:vsn) |> List.to_string()
+      assert attrs["service.version"] == expected_vsn
+      assert attrs["service.version"] =~ ~r/^\d+\.\d+\.\d+/
+    end
+  end
+
+  describe "new/0 — :otp_app config set to an unloaded application" do
+    test "service.name from atom; service.version is nil (Application.spec returns nil)" do
+      # An atom that doesn't correspond to a loaded OTP application
+      # — `Application.spec/2` returns `nil`, so service.version
+      # falls back to the same nil-AnyValue treatment as the
+      # no-:otp_app case.
+      Application.put_env(:otel, :otp_app, :no_such_application)
+
+      attrs = Otel.Resource.new().attributes
+
+      assert attrs["service.name"] == "no_such_application"
       assert is_nil(attrs["service.version"])
-    end
-
-    test "RELEASE_NAME and RELEASE_VSN both populate service.* attributes" do
-      System.put_env("RELEASE_NAME", "my_app")
-      System.put_env("RELEASE_VSN", "1.2.3")
-
-      attrs = Otel.Resource.new().attributes
-
-      assert attrs["service.name"] == "my_app"
-      assert attrs["service.version"] == "1.2.3"
-    end
-
-    test "empty RELEASE_NAME stays as empty string (System.get_env default only on nil)" do
-      System.put_env("RELEASE_NAME", "")
-
-      attrs = Otel.Resource.new().attributes
-
-      assert attrs["service.name"] == ""
     end
   end
 
