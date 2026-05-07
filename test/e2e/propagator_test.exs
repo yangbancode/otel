@@ -10,7 +10,7 @@ defmodule Otel.E2E.PropagatorTest do
   trace shows the child wired to the carrier's IDs / flags /
   tracestate / baggage.
 
-  Tracking matrix: `docs/e2e.md` §Propagator, scenarios 1–5.
+  Tracking matrix: `.claude/docs/e2e.md` §Propagator, scenarios 1–5.
   """
 
   use Otel.E2E.Case, async: false

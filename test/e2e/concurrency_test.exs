@@ -6,7 +6,7 @@ defmodule Otel.E2E.ConcurrencyTest do
   covers *how* the SDK behaves when many emitters or many
   records flow through at once.
 
-  Tracking matrix: `docs/e2e.md` §Concurrency, scenarios 1-4.
+  Tracking matrix: `.claude/docs/e2e.md` §Concurrency, scenarios 1-4.
   """
 
   use Otel.E2E.Case, async: false

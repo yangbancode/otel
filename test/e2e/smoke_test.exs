@@ -5,7 +5,7 @@ defmodule Otel.E2E.SmokeTest do
   assertion (not just landing). If any of these fail, the
   whole e2e suite is suspect.
 
-  Tracking matrix: `docs/e2e.md` §Smoke, scenarios 1–3.
+  Tracking matrix: `.claude/docs/e2e.md` §Smoke, scenarios 1–3.
   """
   use Otel.E2E.Case, async: false
 

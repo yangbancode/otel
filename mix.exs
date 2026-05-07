@@ -38,13 +38,11 @@ defmodule Otel.MixProject do
       extras: [
         "README.md",
         "docs/trace.md",
-        "docs/e2e.md",
         "LICENSE",
         "NOTICE"
       ],
       groups_for_extras: [
         "How-to": ["docs/trace.md"],
-        Testing: ["docs/e2e.md"],
         Legal: ["LICENSE", "NOTICE"]
       ]
     ]

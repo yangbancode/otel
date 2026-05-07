@@ -7,7 +7,7 @@ defmodule Otel.E2E.TraceTest do
   fetches the full OTLP-shaped JSON, and asserts on the relevant
   detail.
 
-  Tracking matrix: `docs/e2e.md` §Trace.
+  Tracking matrix: `.claude/docs/e2e.md` §Trace.
   """
 
   use Otel.E2E.Case, async: false
