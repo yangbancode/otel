@@ -209,6 +209,13 @@ defmodule Otel.TelemetryReporter do
     end
   end
 
+  @spec do_dispatch(
+          metric :: Telemetry.Metrics.t(),
+          instrument :: Otel.Metrics.Instrument.t(),
+          measurements :: map(),
+          metadata :: map(),
+          attrs :: %{String.t() => term()}
+        ) :: :ok
   defp do_dispatch(%Telemetry.Metrics.Counter{}, instrument, _measurements, _metadata, attrs) do
     Otel.Metrics.Counter.add(instrument, 1, attrs)
   end
@@ -299,6 +306,7 @@ defmodule Otel.TelemetryReporter do
     end)
   end
 
+  @spec coerce_attr_value(value :: term()) :: term()
   defp coerce_attr_value(nil), do: nil
   defp coerce_attr_value(value) when is_atom(value), do: Atom.to_string(value)
   defp coerce_attr_value(value), do: value
