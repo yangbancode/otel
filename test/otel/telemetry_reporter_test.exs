@@ -173,7 +173,7 @@ defmodule Otel.TelemetryReporterTest do
   end
 
   describe ":keep / :drop predicates" do
-    test ":keep returning false skips the event" do
+    test ":keep (1-arity, metadata-only) returning false skips the event" do
       start_reporter!([
         counter("env.filter.count", keep: fn meta -> meta[:env] == :prod end)
       ])
@@ -183,6 +183,65 @@ defmodule Otel.TelemetryReporterTest do
 
       [dp] = datapoints("env.filter.count")
       assert dp.value == 1
+    end
+
+    test ":keep (2-arity, metadata + measurements) inspects both" do
+      keep_fn = fn _meta, meas -> meas[:value] >= 100 end
+
+      start_reporter!([
+        counter("threshold.filter.count", measurement: :value, keep: keep_fn)
+      ])
+
+      :telemetry.execute([:threshold, :filter], %{value: 50}, %{})
+      :telemetry.execute([:threshold, :filter], %{value: 150}, %{})
+      :telemetry.execute([:threshold, :filter], %{value: 200}, %{})
+
+      [dp] = datapoints("threshold.filter.count")
+      assert dp.value == 2
+    end
+
+    test ":drop returning true skips the event (inverse of :keep)" do
+      start_reporter!([
+        counter("drop.filter.count", drop: fn meta -> meta[:env] == :test end)
+      ])
+
+      :telemetry.execute([:drop, :filter], %{count: 1}, %{env: :test})
+      :telemetry.execute([:drop, :filter], %{count: 1}, %{env: :prod})
+      :telemetry.execute([:drop, :filter], %{count: 1}, %{env: :prod})
+
+      [dp] = datapoints("drop.filter.count")
+      assert dp.value == 2
+    end
+  end
+
+  describe "function-based measurement" do
+    test "1-arity function over measurements map" do
+      mfn = fn meas -> meas[:bytes_in] + meas[:bytes_out] end
+
+      start_reporter!([
+        last_value("net.total.bytes", event_name: [:net, :total], measurement: mfn)
+      ])
+
+      :telemetry.execute([:net, :total], %{bytes_in: 100, bytes_out: 250}, %{})
+
+      [dp] = datapoints("net.total.bytes")
+      assert dp.value == 350
+    end
+
+    test "2-arity function over measurements + metadata" do
+      mfn = fn meas, meta -> meas[:duration] * meta[:multiplier] end
+
+      start_reporter!([
+        last_value("scaled.event.duration",
+          event_name: [:scaled, :event],
+          measurement: mfn
+        )
+      ])
+
+      :telemetry.execute([:scaled, :event], %{duration: 10}, %{multiplier: 5})
+
+      [dp] = datapoints("scaled.event.duration")
+      assert dp.value == 50
     end
   end
 
