@@ -138,8 +138,7 @@ defmodule MyApp.Application do
     children = [
       {Otel.TelemetryTracer,
        events: [
-         [:my_app, :calculator, :add],
-         [:my_app, :calculator, :sub]
+         [:my_app, :calculator, :add]
        ]},
       {Otel.TelemetryReporter,
        metrics: [
@@ -155,21 +154,6 @@ defmodule MyApp.Application do
          ),
          summary("my_app.calculator.add.duration_summary",
            event_name: [:my_app, :calculator, :add, :stop],
-           measurement: :duration,
-           unit: {:native, :millisecond}
-         ),
-         counter("my_app.calculator.sub.count",
-           event_name: [:my_app, :calculator, :sub, :stop],
-           measurement: :duration
-         ),
-         distribution("my_app.calculator.sub.duration",
-           event_name: [:my_app, :calculator, :sub, :stop],
-           measurement: :duration,
-           unit: {:native, :millisecond},
-           reporter_options: [buckets: [10, 50, 100, 500]]
-         ),
-         summary("my_app.calculator.sub.duration_summary",
-           event_name: [:my_app, :calculator, :sub, :stop],
            measurement: :duration,
            unit: {:native, :millisecond}
          )
@@ -191,12 +175,6 @@ defmodule MyApp.Calculator do
   def add(a, b) do
     Logger.info("calculator.add", a: a, b: b)
     a + b
-  end
-
-  @span event: [:my_app, :calculator, :sub], capture_io: true
-  def sub(a, b) do
-    Logger.info("calculator.sub", a: a, b: b)
-    a - b
   end
 end
 ```
