@@ -45,7 +45,7 @@ Add `:otel` to `deps` in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:otel, "~> 0.4.0"}
+    {:otel, "~> 0.4.1"}
   ]
 end
 ```
