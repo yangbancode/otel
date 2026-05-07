@@ -17,13 +17,6 @@ licensed under the Apache License, Version 2.0
     Schemas under `lib/otel/otlp/proto/` were generated locally with
     `protoc`.
 
-  * Semantic conventions are implemented from the YAML registry in
-    https://github.com/open-telemetry/semantic-conventions.
-    Modules under `lib/otel/semantic_conventions/` were generated locally with
-    Weaver (https://github.com/open-telemetry/weaver), and some
-    docstrings carry verbatim attribute briefs from the upstream
-    registry.
-
   * Behaviour is verified against the OpenTelemetry Specification
     (https://github.com/open-telemetry/opentelemetry-specification).
     The Erlang reference implementation
