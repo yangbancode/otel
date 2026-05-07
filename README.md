@@ -53,7 +53,9 @@ end
 ## Configuration
 
 ```elixir
-config :otel, req_options: [base_url: "http://localhost:4318"]
+config :otel,
+  # (optional)
+  req_options: [...]
 ```
 
 `req_options` is forwarded to [`Req.new/1`](https://hexdocs.pm/req/Req.html#new/1) — see [Req's docs](https://hexdocs.pm/req) for the full option list.
