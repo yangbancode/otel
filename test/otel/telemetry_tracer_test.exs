@@ -196,4 +196,81 @@ defmodule Otel.TelemetryTracerTest do
       refute find_span(completed_spans(), "my_app.weird")
     end
   end
+
+  describe "primitive_any coercion" do
+    test "atom value → String.t() (Atom.to_string)" do
+      start_tracer!([[:my_app, :coerce_atom]])
+
+      :telemetry.span([:my_app, :coerce_atom], %{role: :admin}, fn ->
+        {:ok, %{}}
+      end)
+
+      span = find_span(completed_spans(), "my_app.coerce_atom")
+      assert span.attributes["role"] == "admin"
+    end
+
+    test "nested map value → recursive coercion (atom keys → strings, atom values → strings)" do
+      start_tracer!([[:my_app, :coerce_map]])
+
+      :telemetry.span(
+        [:my_app, :coerce_map],
+        %{user: %{id: 42, role: :admin}},
+        fn -> {:ok, %{}} end
+      )
+
+      span = find_span(completed_spans(), "my_app.coerce_map")
+      assert span.attributes["user"] == %{"id" => 42, "role" => "admin"}
+    end
+
+    test "nested list value → element-wise coercion" do
+      start_tracer!([[:my_app, :coerce_list]])
+
+      :telemetry.span(
+        [:my_app, :coerce_list],
+        %{tags: [:foo, :bar, "baz"]},
+        fn -> {:ok, %{}} end
+      )
+
+      span = find_span(completed_spans(), "my_app.coerce_list")
+      assert span.attributes["tags"] == ["foo", "bar", "baz"]
+    end
+
+    test "non-primitive (struct/pid/ref) → coerced to string via inspect/1" do
+      start_tracer!([[:my_app, :coerce_misc]])
+      ref = make_ref()
+
+      :telemetry.span(
+        [:my_app, :coerce_misc],
+        %{pid: self(), ref: ref},
+        fn -> {:ok, %{}} end
+      )
+
+      span = find_span(completed_spans(), "my_app.coerce_misc")
+      # `String.Chars` impl exists for pids (`#PID<...>`) but
+      # not refs — `inspect/1` fallback handles the latter.
+      assert is_binary(span.attributes["pid"])
+      assert span.attributes["pid"] =~ ~r/^#PID</
+      assert span.attributes["ref"] == inspect(ref)
+    end
+  end
+
+  describe "metadata merge semantics" do
+    test "stop_metadata overrides start_metadata for the same key" do
+      start_tracer!([[:my_app, :merge]])
+
+      :telemetry.span(
+        [:my_app, :merge],
+        %{phase: :starting, fixed: "always"},
+        fn -> {:ok, %{phase: :done}} end
+      )
+
+      span = find_span(completed_spans(), "my_app.merge")
+      # `phase` started as :starting (atom-coerced to "starting")
+      # then `set_attributes` from stop_metadata upserts it to
+      # "done" — last-write-wins per `Otel.Trace.Span.set_attributes/2`.
+      assert span.attributes["phase"] == "done"
+      # Keys present only in start_metadata survive.
+      assert span.attributes["fixed"] == "always"
+    end
+  end
 end

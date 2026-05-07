@@ -273,6 +273,59 @@ defmodule Otel.TelemetryReporterTest do
     end
   end
 
+  describe "primitive_any coercion (build_attrs)" do
+    test "nested map tag value → recursive coercion" do
+      start_reporter!([counter("nested.map.count", tags: [:user])])
+
+      :telemetry.execute([:nested, :map], %{count: 1}, %{user: %{id: 42, role: :admin}})
+
+      [dp] = datapoints("nested.map.count")
+      assert dp.attributes == %{"user" => %{"id" => 42, "role" => "admin"}}
+    end
+
+    test "nested list tag value → element-wise coercion" do
+      start_reporter!([counter("nested.list.count", tags: [:roles])])
+
+      :telemetry.execute([:nested, :list], %{count: 1}, %{roles: [:admin, :user, "guest"]})
+
+      [dp] = datapoints("nested.list.count")
+      assert dp.attributes == %{"roles" => ["admin", "user", "guest"]}
+    end
+
+    test "non-primitive (pid/ref) tag value → coerced to string via inspect/1" do
+      start_reporter!([counter("nested.misc.count", tags: [:owner, :ref])])
+      ref = make_ref()
+
+      :telemetry.execute([:nested, :misc], %{count: 1}, %{owner: self(), ref: ref})
+
+      [dp] = datapoints("nested.misc.count")
+      # `String.Chars` impl exists for pids → `to_string/1` →
+      # `#PID<...>` form; refs fall through to `inspect/1`.
+      assert is_binary(dp.attributes["owner"])
+      assert dp.attributes["owner"] =~ ~r/^#PID</
+      assert dp.attributes["ref"] == inspect(ref)
+    end
+  end
+
+  describe "multi-metric per event" do
+    test "two metrics under the same event_name dispatch independently" do
+      # Same event drives both a Counter (count) and a Sum (delta).
+      start_reporter!([
+        counter("multi.event.count", event_name: [:multi, :event]),
+        sum("multi.event.bytes", event_name: [:multi, :event], measurement: :bytes)
+      ])
+
+      :telemetry.execute([:multi, :event], %{bytes: 100}, %{})
+      :telemetry.execute([:multi, :event], %{bytes: 250}, %{})
+
+      [counter_dp] = datapoints("multi.event.count")
+      [sum_dp] = datapoints("multi.event.bytes")
+
+      assert counter_dp.value == 2
+      assert sum_dp.value == 350
+    end
+  end
+
   defp datapoints_or_empty(name) do
     Otel.Metrics.MetricExporter.collect()
     |> Enum.find(&(&1.name == name))

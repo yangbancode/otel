@@ -94,6 +94,53 @@ defmodule Otel.E2E.TelemetryTracerTest do
       # `span_kind` is a directive, not a user attribute.
       assert attribute(span, "span_kind") == nil
     end
+
+    test "5: :telemetry.span inside with_span/4 carries with_span as parent",
+         %{e2e_id: e2e_id} do
+      inner_prefix = [:"telem_tracer_5_#{e2e_id}", :inner]
+      start_tracer!([inner_prefix])
+
+      Otel.Trace.with_span(
+        "telem_tracer_5_outer_#{e2e_id}",
+        [attributes: %{"e2e.id" => e2e_id}],
+        fn _ ->
+          :telemetry.span(inner_prefix, %{"e2e.id": e2e_id}, fn -> {:ok, %{}} end)
+        end
+      )
+
+      flush()
+
+      spans = trace_spans(e2e_id)
+      outer = Enum.find(spans, &(&1["name"] == "telem_tracer_5_outer_#{e2e_id}"))
+      inner = Enum.find(spans, &(&1["name"] =~ ~r/\.inner$/))
+
+      assert outer
+      assert inner
+      assert inner["traceId"] == outer["traceId"]
+      assert inner["parentSpanId"] == outer["spanId"]
+    end
+
+    test "6: multiple event prefixes registered to one tracer",
+         %{e2e_id: e2e_id} do
+      a_prefix = [:"telem_tracer_6_#{e2e_id}", :a]
+      b_prefix = [:"telem_tracer_6_#{e2e_id}", :b]
+      start_tracer!([a_prefix, b_prefix])
+
+      :telemetry.span(a_prefix, %{"e2e.id": e2e_id}, fn -> {:ok, %{}} end)
+      :telemetry.span(b_prefix, %{"e2e.id": e2e_id}, fn -> {:ok, %{}} end)
+
+      flush()
+
+      spans = trace_spans(e2e_id)
+      a_span = Enum.find(spans, &(&1["name"] =~ ~r/\.a$/))
+      b_span = Enum.find(spans, &(&1["name"] =~ ~r/\.b$/))
+
+      assert a_span
+      assert b_span
+      # Independent traces — no implicit parent between sibling
+      # `:telemetry.span` calls in the same process at the top level.
+      assert a_span["traceId"] != b_span["traceId"]
+    end
   end
 
   # ---- helpers ----
