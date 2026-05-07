@@ -66,7 +66,7 @@ defmodule Otel.MixProject do
       {:telemetry, "~> 1.0"},
       # Runtime — `Telemetry.Metrics` specs consumed by
       # `Otel.TelemetryReporter`.
-      {:telemetry_metrics, "~> 1.1"},
+      {:telemetry_metrics, "~> 1.0"},
       # Dev / test only
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
