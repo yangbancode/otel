@@ -178,6 +178,22 @@ defmodule Otel.TelemetryTracerTest do
       assert span.status.description =~ "exit"
       assert span.status.description =~ "crashed"
     end
+
+    test ":throw class produces ERROR status with reason in description" do
+      start_tracer!([[:my_app, :thrown]])
+
+      catch_throw(
+        :telemetry.span([:my_app, :thrown], %{}, fn ->
+          throw(:stopped)
+        end)
+      )
+
+      span = find_span(completed_spans(), "my_app.thrown")
+      assert span
+      assert span.status.code == :error
+      assert span.status.description =~ "throw"
+      assert span.status.description =~ "stopped"
+    end
   end
 
   describe "process boundary" do

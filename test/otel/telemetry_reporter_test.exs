@@ -26,6 +26,17 @@ defmodule Otel.TelemetryReporterTest do
     pid
   end
 
+  describe "start_link/1" do
+    test "without :metrics → no-op reporter (alive, no handlers attached)" do
+      pid = start_supervised!(Otel.TelemetryReporter)
+      assert Process.alive?(pid)
+      # No metric definitions configured → no telemetry handlers
+      # owned by this reporter.
+      handlers = :telemetry.list_handlers([])
+      refute Enum.any?(handlers, &match?({Otel.TelemetryReporter, _, ^pid}, &1.id))
+    end
+  end
+
   describe "Counter" do
     test "counts events regardless of measurement value" do
       start_reporter!([counter("http.req.stop.duration", tags: [:method])])
