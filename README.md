@@ -100,10 +100,13 @@ defmodule MyApp.Worker do
 
   @span [:my_app, :worker, :process]
   def process(job, opts), do: ...
+
+  @span event: [:my_app, :worker, :handle], capture_io: true
+  def handle(payload), do: ...
 end
 ```
 
-`Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation. `Otel.TelemetrySpanDecorator`'s `@span` annotation auto-wraps the function body in `:telemetry.span/3` and captures named args as span attributes.
+`Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation. `Otel.TelemetrySpanDecorator`'s `@span` annotation auto-wraps the function body in `:telemetry.span/3` and injects `code.function.name` / `code.file.path` / `code.line.number` attributes; pass `capture_io: true` to also record arguments and the return value.
 
 ## License
 

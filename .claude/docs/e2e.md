@@ -68,7 +68,8 @@ regression detection across the SDK / collector boundary.
 
 | Status | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| ✅ | 1 | Decorated function — span name + auto-captured args + return value | `@span [:event] def f(a, b, c), do: ...` | Tempo: span name `"event.dotted"` + arg-named attributes (top-level) + `__result__` attribute + `STATUS_CODE_OK` |
+| ✅ | 1 | Default mode — `code.*` semantic-convention attrs auto-injected | `@span [:event] def f(...), do: ...` | Tempo: span name `"event.dotted"` + `code.function.name`, `code.file.path`, `code.line.number` present + no `__args__` / `__result__` + `STATUS_CODE_OK` |
+| ✅ | 2 | `capture_io: true` — args + return value land as `__args__` / `__result__` | `@span event: [:event], capture_io: true def f(a, b, c), do: ...` | Tempo: nested kvlistValue `__args__` (source-text arg names → values) + `__result__` (return value) + `code.*` still present + `STATUS_CODE_OK` |
 
 ## Log — SDK API (`Otel.API.Logs.Logger.emit/2`)
 

@@ -10,17 +10,27 @@ defmodule Otel.TelemetrySpanDecoratorTest do
   # the top of the file so module compilation happens once,
   # before any test runs.
 
-  defmodule SingleClause do
+  defmodule Default do
     use Otel.TelemetrySpanDecorator
 
-    @span [:otel_dec_test, :single]
+    # Plain list form — no `capture_io`, only `code.*` injected.
+    @span [:otel_dec_test, :default]
+    def hello(name), do: "hello #{name}"
+  end
+
+  defmodule Captured do
+    use Otel.TelemetrySpanDecorator
+
+    # Keyword form with `capture_io: true` — `__args__` and
+    # `__result__` included.
+    @span event: [:otel_dec_test, :captured], capture_io: true
     def hello(name), do: "hello #{name}"
   end
 
   defmodule MultiClause do
     use Otel.TelemetrySpanDecorator
 
-    @span [:otel_dec_test, :multi]
+    @span event: [:otel_dec_test, :multi], capture_io: true
     def kind(0), do: :zero
     def kind(n) when n > 0, do: :positive
     def kind(_), do: :negative
@@ -29,21 +39,21 @@ defmodule Otel.TelemetrySpanDecoratorTest do
   defmodule DefaultArg do
     use Otel.TelemetrySpanDecorator
 
-    @span [:otel_dec_test, :default]
+    @span event: [:otel_dec_test, :default_arg], capture_io: true
     def greet(name, greeting \\ "hello"), do: "#{greeting} #{name}"
   end
 
   defmodule PatternArg do
     use Otel.TelemetrySpanDecorator
 
-    @span [:otel_dec_test, :pattern]
+    @span event: [:otel_dec_test, :pattern], capture_io: true
     def first_name(%{name: name}), do: name
   end
 
   defmodule UnderscoreArg do
     use Otel.TelemetrySpanDecorator
 
-    @span [:otel_dec_test, :underscore]
+    @span event: [:otel_dec_test, :underscore], capture_io: true
     def add(a, _ignored, b), do: a + b
   end
 
@@ -60,7 +70,7 @@ defmodule Otel.TelemetrySpanDecoratorTest do
 
     def public_call(x), do: private_helper(x)
 
-    @span [:otel_dec_test, :private]
+    @span event: [:otel_dec_test, :private], capture_io: true
     defp private_helper(x), do: x * 2
   end
 
@@ -98,16 +108,36 @@ defmodule Otel.TelemetrySpanDecoratorTest do
     :ok
   end
 
-  describe "single-clause def" do
-    test "wraps body in :telemetry.span/3; args flat at top level" do
-      attach_capture([[:otel_dec_test, :single]])
+  describe "default mode (no capture_io)" do
+    test "injects code.* attrs only; no __args__ / __result__" do
+      attach_capture([[:otel_dec_test, :default]])
 
-      assert SingleClause.hello("world") == "hello world"
+      assert Default.hello("world") == "hello world"
 
-      assert_receive {:telemetry, [:otel_dec_test, :single, :start], _measure, start_meta}
-      assert start_meta.name == "world"
+      assert_receive {:telemetry, [:otel_dec_test, :default, :start], _, start_meta}
+      assert start_meta[:"code.function.name"] == "Otel.TelemetrySpanDecoratorTest.Default.hello"
+      assert is_binary(start_meta[:"code.file.path"])
+      assert String.ends_with?(start_meta[:"code.file.path"], "telemetry_span_decorator_test.exs")
+      assert is_integer(start_meta[:"code.line.number"])
+      refute Map.has_key?(start_meta, :__args__)
 
-      assert_receive {:telemetry, [:otel_dec_test, :single, :stop], %{duration: _}, _}
+      assert_receive {:telemetry, [:otel_dec_test, :default, :stop], %{duration: _}, stop_meta}
+      refute Map.has_key?(stop_meta, :__result__)
+    end
+  end
+
+  describe "capture_io: true" do
+    test "captures __args__ at start and __result__ at stop, plus code.*" do
+      attach_capture([[:otel_dec_test, :captured]])
+
+      assert Captured.hello("ada") == "hello ada"
+
+      assert_receive {:telemetry, [:otel_dec_test, :captured, :start], _, start_meta}
+      assert start_meta[:"code.function.name"] == "Otel.TelemetrySpanDecoratorTest.Captured.hello"
+      assert start_meta.__args__ == %{name: "ada"}
+
+      assert_receive {:telemetry, [:otel_dec_test, :captured, :stop], _, stop_meta}
+      assert stop_meta.__result__ == "hello ada"
     end
   end
 
@@ -119,70 +149,50 @@ defmodule Otel.TelemetrySpanDecoratorTest do
       assert MultiClause.kind(5) == :positive
       assert MultiClause.kind(-1) == :negative
 
-      # Three calls → three start events, three stop events.
-      for _ <- 1..3 do
-        assert_receive {:telemetry, [:otel_dec_test, :multi, :start], _, _}
-        assert_receive {:telemetry, [:otel_dec_test, :multi, :stop], _, _}
+      for {arg_value, return_value} <- [{0, :zero}, {5, :positive}, {-1, :negative}] do
+        assert_receive {:telemetry, [:otel_dec_test, :multi, :start], _, start_meta}
+        # Pattern-matching clauses → arg name falls back to
+        # `:arg_0` (no source-text name available).
+        assert start_meta.__args__ == %{arg_0: arg_value}
+
+        assert_receive {:telemetry, [:otel_dec_test, :multi, :stop], _, stop_meta}
+        assert stop_meta.__result__ == return_value
       end
     end
   end
 
-  describe "default args" do
+  describe "default args (with capture_io)" do
     test "captures both required and defaulted arg at top level" do
-      attach_capture([[:otel_dec_test, :default]])
+      attach_capture([[:otel_dec_test, :default_arg]])
 
       assert DefaultArg.greet("world") == "hello world"
 
-      assert_receive {:telemetry, [:otel_dec_test, :default, :start], _, meta}
-      assert meta.name == "world"
-      assert meta.greeting == "hello"
+      assert_receive {:telemetry, [:otel_dec_test, :default_arg, :start], _, start_meta}
+      assert start_meta.__args__ == %{name: "world", greeting: "hello"}
     end
   end
 
-  describe "pattern-match args" do
+  describe "pattern-match args (with capture_io)" do
     test "falls back to positional `arg_<idx>` name" do
       attach_capture([[:otel_dec_test, :pattern]])
 
       assert PatternArg.first_name(%{name: "alice"}) == "alice"
 
-      assert_receive {:telemetry, [:otel_dec_test, :pattern, :start], _, meta}
-      # Pattern arg → no source name, captured as arg_0
-      assert meta.arg_0 == %{name: "alice"}
+      assert_receive {:telemetry, [:otel_dec_test, :pattern, :start], _, start_meta}
+      assert start_meta.__args__ == %{arg_0: %{name: "alice"}}
     end
   end
 
-  describe "underscore args" do
+  describe "underscore args (with capture_io)" do
     test "underscore-prefixed args ARE captured (no drop)" do
       attach_capture([[:otel_dec_test, :underscore]])
 
       assert UnderscoreArg.add(1, :ignored, 2) == 3
 
-      assert_receive {:telemetry, [:otel_dec_test, :underscore, :start], _, meta}
-      assert meta.a == 1
-      assert meta.b == 2
-      # Leading `_` preserved in the metadata key — privacy
+      assert_receive {:telemetry, [:otel_dec_test, :underscore, :start], _, start_meta}
+      # Leading `_` preserved in metadata key — privacy
       # filtering is the caller's responsibility, not ours.
-      assert meta._ignored == :ignored
-    end
-  end
-
-  describe "return value capture" do
-    test "stop event carries :__result__; start carries args (separate)" do
-      attach_capture([[:otel_dec_test, :single]])
-
-      assert SingleClause.hello("ada") == "hello ada"
-
-      # `:telemetry.span/3` keeps start and stop metadata
-      # separate when the span function returns a 2-tuple —
-      # start has args at top level, stop has only
-      # `:__result__`. `Otel.TelemetryTracer` calls
-      # `set_attributes` on both events, so the OTel span
-      # ends up with the union (see the e2e test).
-      assert_receive {:telemetry, [:otel_dec_test, :single, :start], _, start_meta}
-      assert start_meta.name == "ada"
-
-      assert_receive {:telemetry, [:otel_dec_test, :single, :stop], _, stop_meta}
-      assert stop_meta.__result__ == "hello ada"
+      assert start_meta.__args__ == %{a: 1, _ignored: :ignored, b: 2}
     end
   end
 
@@ -207,8 +217,8 @@ defmodule Otel.TelemetrySpanDecoratorTest do
 
       assert PrivateFn.public_call(3) == 6
 
-      assert_receive {:telemetry, [:otel_dec_test, :private, :start], _, meta}
-      assert meta.x == 3
+      assert_receive {:telemetry, [:otel_dec_test, :private, :start], _, start_meta}
+      assert start_meta.__args__ == %{x: 3}
     end
   end
 
