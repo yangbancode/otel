@@ -70,6 +70,20 @@ defmodule Otel.Trace.SpanExporterTest do
       pid = Process.whereis(Otel.Trace.SpanExporter)
       assert {:trap_exit, true} = Process.info(pid, :trap_exit)
     end
+
+    test "Application.stop(:otel) drains pending spans via terminate/2" do
+      # End-to-end behaviour: pending spans in storage at shutdown
+      # time are POSTed to the collector. Without trap_exit this
+      # request never goes out and the assertion times out.
+      start_server_and_configure(200)
+
+      Otel.Trace.SpanStorage.insert(@span)
+      Otel.Trace.SpanStorage.complete(%{@span | end_time: 2_000_000})
+
+      Application.stop(:otel)
+
+      assert_receive :request_received, 5_000
+    end
   end
 
   # --- Test helpers ---

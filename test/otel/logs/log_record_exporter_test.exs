@@ -58,6 +58,19 @@ defmodule Otel.Logs.LogRecordExporterTest do
       pid = Process.whereis(Otel.Logs.LogRecordExporter)
       assert {:trap_exit, true} = Process.info(pid, :trap_exit)
     end
+
+    test "Application.stop(:otel) drains pending records via terminate/2" do
+      # End-to-end behaviour: queued LogRecords at shutdown time
+      # are POSTed to the collector. Without trap_exit this
+      # request never goes out and the assertion times out.
+      start_server_and_configure(200)
+
+      Otel.Logs.LogRecordStorage.insert(@log_record)
+
+      Application.stop(:otel)
+
+      assert_receive :request_received, 5_000
+    end
   end
 
   # --- Test helpers ---
