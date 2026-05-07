@@ -52,8 +52,11 @@ end
 
 ## Configuration
 
-- [Otel SDK](docs/configuration.md) — pillars, exporters, processors, propagators.
-- [`:logger` bridge](docs/logger-handler.md) — Elixir log events → OTel Logs.
+```elixir
+config :otel, req_options: [base_url: "http://localhost:4318"]
+```
+
+`req_options` is forwarded to [`Req.new/1`](https://hexdocs.pm/req/Req.html#new/1) — see [Req's docs](https://hexdocs.pm/req) for the full option list.
 
 ## How-to
 

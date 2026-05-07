@@ -47,4 +47,4 @@ config :otel,
   req_options: [base_url: "http://localhost:4318"]
 ```
 
-See [Configuration](configuration.md) for the full surface.
+See [README](../README.md#configuration) for `:req_options` details.

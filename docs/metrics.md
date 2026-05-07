@@ -12,8 +12,9 @@ counter = Otel.Metrics.Counter.create("http.requests")
 Otel.Metrics.Counter.add(counter, 1, %{"http.method" => "GET"})
 ```
 
-See [Configuration](configuration.md) for endpoint, export interval,
-readers, exemplar filter, etc.
+The SDK ships metrics to `http://localhost:4318/v1/metrics` by default;
+override the endpoint via `:req_options` (see
+[README](../README.md#configuration)).
 
 ## Pick an instrument
 
@@ -123,9 +124,8 @@ View-based filter to drop attributes after the fact.
 
 Default `:cumulative` — counters report running totals. Most
 Prometheus-derived backends (Mimir, Cortex) expect cumulative; delta
-requires backends that support delta-to-cumulative conversion. Override
-via the advanced reader override; see
-[Configuration](configuration.md) §"Advanced overrides".
+requires backends that support delta-to-cumulative conversion. The
+SDK's reader is hardcoded — temporality is not user-configurable.
 
 ## Exemplars
 
@@ -136,8 +136,7 @@ Histograms and counters can attach trace exemplars (a sampled
 ## Defaults
 
 Export interval / timeout / exemplar filter are all hardcoded to
-spec defaults. See [Configuration](configuration.md) §"Metrics pillar"
-for the full list.
+spec defaults.
 
 ## Telemetry bridge
 

@@ -13,8 +13,9 @@ Otel.Trace.with_span("checkout", fn _span_ctx ->
 end)
 ```
 
-The SDK ships traces to `http://localhost:4318/v1/traces` by default.
-See [Configuration](configuration.md) to change endpoint or limits.
+The SDK ships traces to `http://localhost:4318/v1/traces` by default;
+override the endpoint via `:req_options` (see
+[README](../README.md#configuration)).
 
 Minikube hardcodes the instrumentation scope to the SDK identity
 (`name: "otel"`, `version: <SDK vsn>`) — there is no Tracer
@@ -212,5 +213,4 @@ For tail sampling (latency / error / rate), configure your collector's
 ## Limits
 
 Hardcoded to spec defaults: 128 attributes / events / links per span,
-no string-length truncation. Not user-configurable — see
-[Configuration](configuration.md) §"What's *not* user-configurable".
+no string-length truncation. Not user-configurable.
