@@ -71,12 +71,6 @@ config :kernel,
   ]
 ```
 
-Or at runtime:
-
-```elixir
-:logger.add_handler(:otel, Otel.LoggerHandler, %{})
-```
-
 ### Metrics
 
 `:telemetry` bridge (in your supervision tree):
