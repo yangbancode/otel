@@ -1,4 +1,4 @@
-defmodule Otel.Decorator do
+defmodule Otel.TelemetrySpanDecorator do
   @moduledoc """
   `@span` annotation that auto-wraps a function in
   `:telemetry.span/3`. Companion to `Otel.TelemetryTracer` —
@@ -9,7 +9,7 @@ defmodule Otel.Decorator do
   ## Usage
 
       defmodule MyApp.Worker do
-        use Otel.Decorator
+        use Otel.TelemetrySpanDecorator
 
         @span [:my_app, :worker, :process]
         def process(job, opts) do
@@ -90,8 +90,8 @@ defmodule Otel.Decorator do
       Module.register_attribute(__MODULE__, :span, accumulate: false)
       Module.register_attribute(__MODULE__, :__otel_decorated__, accumulate: true)
 
-      @on_definition Otel.Decorator
-      @before_compile Otel.Decorator
+      @on_definition Otel.TelemetrySpanDecorator
+      @before_compile Otel.TelemetrySpanDecorator
     end
   end
 

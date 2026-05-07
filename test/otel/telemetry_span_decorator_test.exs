@@ -1,4 +1,4 @@
-defmodule Otel.DecoratorTest do
+defmodule Otel.TelemetrySpanDecoratorTest do
   # async: false — attaches `:telemetry` handlers, which are
   # global per-pid. Compile-fixture modules are also defined
   # at the top of this file (single global namespace).
@@ -11,14 +11,14 @@ defmodule Otel.DecoratorTest do
   # before any test runs.
 
   defmodule SingleClause do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_test, :single]
     def hello(name), do: "hello #{name}"
   end
 
   defmodule MultiClause do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_test, :multi]
     def kind(0), do: :zero
@@ -27,28 +27,28 @@ defmodule Otel.DecoratorTest do
   end
 
   defmodule DefaultArg do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_test, :default]
     def greet(name, greeting \\ "hello"), do: "#{greeting} #{name}"
   end
 
   defmodule PatternArg do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_test, :pattern]
     def first_name(%{name: name}), do: name
   end
 
   defmodule UnderscoreArg do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_test, :underscore]
     def add(a, _ignored, b), do: a + b
   end
 
   defmodule WithGuard do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_test, :guard]
     def positive?(n) when is_integer(n) and n > 0, do: true
@@ -56,7 +56,7 @@ defmodule Otel.DecoratorTest do
   end
 
   defmodule PrivateFn do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     def public_call(x), do: private_helper(x)
 
@@ -65,13 +65,13 @@ defmodule Otel.DecoratorTest do
   end
 
   defmodule NoSpan do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     def plain(x), do: x + 1
   end
 
   defmodule RaisingFn do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_test, :raises]
     def explode!, do: raise("boom")

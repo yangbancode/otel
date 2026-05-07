@@ -1,7 +1,7 @@
 defmodule Otel.E2E.DecoratorTest do
   @moduledoc """
   E2E coverage for the `@span` decorator
-  (`Otel.Decorator`) against Tempo.
+  (`Otel.TelemetrySpanDecorator`) against Tempo.
 
   Verifies the full `@span [event]` → `:telemetry.span/3` →
   `Otel.TelemetryTracer` → OTLP → Tempo path: a function
@@ -15,7 +15,7 @@ defmodule Otel.E2E.DecoratorTest do
   use Otel.E2E.Case, async: false
 
   defmodule Fixture do
-    use Otel.Decorator
+    use Otel.TelemetrySpanDecorator
 
     @span [:otel_dec_e2e, :process]
     def process(amount, currency, e2e_id) do

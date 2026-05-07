@@ -64,7 +64,7 @@ regression detection across the SDK / collector boundary.
 | ✅ | 5 | `:telemetry.span` inside `with_span/4` carries the outer span as parent | `Otel.Trace.with_span("outer", ..., fn _ -> :telemetry.span(...) end)` | Tempo: inner `parentSpanId` = outer `spanId`, shared `traceId` |
 | ✅ | 6 | Multiple event prefixes registered to one tracer instance | `{Otel.TelemetryTracer, events: [a_prefix, b_prefix]}` + emit on both | Tempo: both spans land; sibling top-level spans get distinct `traceId` |
 
-## Trace — `@span` decorator (`Otel.Decorator`)
+## Trace — `@span` decorator (`Otel.TelemetrySpanDecorator`)
 
 | Status | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
