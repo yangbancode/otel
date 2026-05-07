@@ -59,9 +59,9 @@ end
 config :otel, otp_app: :my_app, req_options: []
 ```
 
-### Logs
+`:req_options` is forwarded to `Req.new/1` — see [`:req`](https://hexdocs.pm/req) for the full option list.
 
-`:logger` bridge:
+### Logs
 
 ```elixir
 # config/config.exs
@@ -71,27 +71,29 @@ config :kernel,
   ]
 ```
 
-### Metrics
+`Otel.LoggerHandler` bridges `Logger` — see [`:logger`](https://www.erlang.org/doc/apps/kernel/logger.html) for log levels and metadata.
 
-`:telemetry` bridge (in your supervision tree):
+### Metrics
 
 ```elixir
 # lib/my_app/application.ex
 children = [
-  {Otel.TelemetryReporter, metrics: [...]}
+  {Otel.TelemetryReporter, metrics: []}
 ]
 ```
+
+`Otel.TelemetryReporter` bridges `Telemetry.Metrics` — see [`:telemetry_metrics`](https://hexdocs.pm/telemetry_metrics) for metric definitions.
 
 ### Trace
 
-`:telemetry.span/3` bridge (in your supervision tree):
-
 ```elixir
 # lib/my_app/application.ex
 children = [
-  {Otel.TelemetryTracer, events: [...]}
+  {Otel.TelemetryTracer, events: []}
 ]
 ```
+
+`Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation.
 
 ## License
 
