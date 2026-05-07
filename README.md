@@ -53,18 +53,8 @@ end
 ## Configuration
 
 ```elixir
-config :otel,
-  otp_app: :my_app,
-  req_options: []
+config :otel, otp_app: :my_app, req_options: []
 ```
-
-Both keys are optional.
-
-`:otp_app` is your OTP application atom — `service.name` derives from it,
-`service.version` from [`Application.spec(:my_app, :vsn)`](https://hexdocs.pm/elixir/Application.html#spec/2)
-(your `mix.exs`). Without `:otp_app`, `service.name` falls back to `"unknown_service"`.
-
-`:req_options` is forwarded to [`Req.new/1`](https://hexdocs.pm/req/Req.html#new/1) — see [Req's docs](https://hexdocs.pm/req) for the full option list.
 
 ## How-to
 
