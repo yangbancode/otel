@@ -33,11 +33,14 @@ defmodule Otel.E2E.DecoratorTest do
 
       assert [span] = trace_spans(e2e_id)
       assert span["name"] == "otel_dec_e2e.process"
+      # Args land flat at the top level (each individually
+      # queryable as a Tempo tag).
       assert Tempo.attribute(span, "amount") == 42
       assert Tempo.attribute(span, "currency") == "USD"
       assert Tempo.attribute(span, "e2e_id") == e2e_id
-      # Return value lands as the `result` attribute.
-      assert Tempo.attribute(span, "result") == "42 USD #{e2e_id}"
+      # Return value lands under the magic-underscore key —
+      # collision-proof against any user arg name in practice.
+      assert Tempo.attribute(span, "__result__") == "42 USD #{e2e_id}"
       assert span["status"]["code"] == "STATUS_CODE_OK"
     end
   end
@@ -52,8 +55,8 @@ defmodule Otel.E2E.DecoratorTest do
 
   # `@span` captures arg names verbatim — `e2e_id` arg becomes
   # the `e2e_id` (underscore) span attribute, not `e2e.id`
-  # (dot). `Tempo.search/1` is hardcoded to the dotted tag, so
-  # search by the underscore form here instead.
+  # (dot). `Tempo.search/1` is hardcoded to the dotted tag,
+  # so search by the underscore form here instead.
   defp trace_spans(e2e_id) do
     query = URI.encode_query(tags: "e2e_id=#{e2e_id}", limit: 32)
     url = "http://localhost:3200/api/search?#{query}"

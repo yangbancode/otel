@@ -68,7 +68,7 @@ regression detection across the SDK / collector boundary.
 
 | Status | # | Scenario | API | Backend assertion |
 |---|---|---|---|---|
-| ✅ | 1 | Decorated function — span name + auto-captured args + return value | `@span [:event] def f(a, b, c), do: ...` | Tempo: span name `"event.dotted"` + arg-named attributes + `result` attribute + `STATUS_CODE_OK` |
+| ✅ | 1 | Decorated function — span name + auto-captured args + return value | `@span [:event] def f(a, b, c), do: ...` | Tempo: span name `"event.dotted"` + arg-named attributes (top-level) + `__result__` attribute + `STATUS_CODE_OK` |
 
 ## Log — SDK API (`Otel.API.Logs.Logger.emit/2`)
 

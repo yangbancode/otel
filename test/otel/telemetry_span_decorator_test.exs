@@ -99,17 +99,13 @@ defmodule Otel.TelemetrySpanDecoratorTest do
   end
 
   describe "single-clause def" do
-    test "wraps body in :telemetry.span/3 + auto-captures arg by name" do
+    test "wraps body in :telemetry.span/3; args flat at top level" do
       attach_capture([[:otel_dec_test, :single]])
 
       assert SingleClause.hello("world") == "hello world"
 
-      assert_receive {:telemetry, [:otel_dec_test, :single, :start], _measure,
-                      %{name: "world"} = start_meta}
-
-      # Plain string-keyed metadata, plus telemetry's own
-      # context ref (`telemetry_span_context`).
-      assert Map.get(start_meta, :name) == "world" or Map.get(start_meta, "name") == "world"
+      assert_receive {:telemetry, [:otel_dec_test, :single, :start], _measure, start_meta}
+      assert start_meta.name == "world"
 
       assert_receive {:telemetry, [:otel_dec_test, :single, :stop], %{duration: _}, _}
     end
@@ -132,14 +128,14 @@ defmodule Otel.TelemetrySpanDecoratorTest do
   end
 
   describe "default args" do
-    test "captures both required and defaulted arg by name" do
+    test "captures both required and defaulted arg at top level" do
       attach_capture([[:otel_dec_test, :default]])
 
       assert DefaultArg.greet("world") == "hello world"
 
       assert_receive {:telemetry, [:otel_dec_test, :default, :start], _, meta}
-      assert meta_value(meta, :name) == "world"
-      assert meta_value(meta, :greeting) == "hello"
+      assert meta.name == "world"
+      assert meta.greeting == "hello"
     end
   end
 
@@ -151,7 +147,7 @@ defmodule Otel.TelemetrySpanDecoratorTest do
 
       assert_receive {:telemetry, [:otel_dec_test, :pattern, :start], _, meta}
       # Pattern arg → no source name, captured as arg_0
-      assert meta_value(meta, :arg_0) == %{name: "alice"}
+      assert meta.arg_0 == %{name: "alice"}
     end
   end
 
@@ -162,31 +158,31 @@ defmodule Otel.TelemetrySpanDecoratorTest do
       assert UnderscoreArg.add(1, :ignored, 2) == 3
 
       assert_receive {:telemetry, [:otel_dec_test, :underscore, :start], _, meta}
-      assert meta_value(meta, :a) == 1
-      assert meta_value(meta, :b) == 2
+      assert meta.a == 1
+      assert meta.b == 2
       # Leading `_` preserved in the metadata key — privacy
       # filtering is the caller's responsibility, not ours.
-      assert meta_value(meta, :_ignored) == :ignored
+      assert meta._ignored == :ignored
     end
   end
 
   describe "return value capture" do
-    test "stop event carries :result; start event carries args (separate)" do
+    test "stop event carries :__result__; start carries args (separate)" do
       attach_capture([[:otel_dec_test, :single]])
 
       assert SingleClause.hello("ada") == "hello ada"
 
       # `:telemetry.span/3` keeps start and stop metadata
       # separate when the span function returns a 2-tuple —
-      # start has args, stop has only what we returned.
-      # `Otel.TelemetryTracer` calls `set_attributes` on both
-      # events, so the OTel span ends up with the union (see
-      # the e2e test).
+      # start has args at top level, stop has only
+      # `:__result__`. `Otel.TelemetryTracer` calls
+      # `set_attributes` on both events, so the OTel span
+      # ends up with the union (see the e2e test).
       assert_receive {:telemetry, [:otel_dec_test, :single, :start], _, start_meta}
-      assert meta_value(start_meta, :name) == "ada"
+      assert start_meta.name == "ada"
 
       assert_receive {:telemetry, [:otel_dec_test, :single, :stop], _, stop_meta}
-      assert meta_value(stop_meta, :result) == "hello ada"
+      assert stop_meta.__result__ == "hello ada"
     end
   end
 
@@ -212,7 +208,7 @@ defmodule Otel.TelemetrySpanDecoratorTest do
       assert PrivateFn.public_call(3) == 6
 
       assert_receive {:telemetry, [:otel_dec_test, :private, :start], _, meta}
-      assert meta_value(meta, :x) == 3
+      assert meta.x == 3
     end
   end
 
@@ -236,9 +232,5 @@ defmodule Otel.TelemetrySpanDecoratorTest do
       assert meta.kind == :error
       assert meta.reason == %RuntimeError{message: "boom"}
     end
-  end
-
-  defp meta_value(meta, key) when is_atom(key) do
-    Map.get(meta, key) || Map.get(meta, Atom.to_string(key))
   end
 end

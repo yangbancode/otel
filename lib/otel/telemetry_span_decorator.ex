@@ -22,8 +22,11 @@ defmodule Otel.TelemetrySpanDecorator do
       def process(job, opts) do
         :telemetry.span(
           [:my_app, :worker, :process],
-          %{"job" => job, "opts" => opts},
-          fn -> {handle(job, opts), %{}} end
+          %{job: job, opts: opts},
+          fn ->
+            result = handle(job, opts)
+            {result, %{__result__: result}}
+          end
         )
       end
 
@@ -35,8 +38,14 @@ defmodule Otel.TelemetrySpanDecorator do
 
   | Where | Captured | Source |
   |---|---|---|
-  | `start_metadata` | each named argument | function args, by source name |
-  | `stop_metadata` | `:result` | function's return value |
+  | `start_metadata` | each named argument | function args, source-name keys |
+  | `stop_metadata` | `:__result__` | function's return value |
+
+  The return-value key uses the leading-double-underscore
+  convention (mirrors `__MODULE__`, `__ENV__`, etc.) to avoid
+  silent collision with a user arg literally named `result`.
+  Args remain flat at the top level so each individual arg
+  is queryable as a regular Tempo / Mimir / Loki attribute.
 
   Plain vars and default args (`x \\\\ 1`) keep their original
   name; pattern-match args (`%{...}`, `[h | t]`, etc.) fall
@@ -205,17 +214,21 @@ defmodule Otel.TelemetrySpanDecorator do
         unquote(metadata_map),
         fn ->
           result = super(unquote_splicing(vars))
-          {result, %{result: result}}
+          {result, %{__result__: result}}
         end
       )
     end
   end
 
-  # Build an `%{arg_name: var, ...}` AST (atom-keyed —
-  # `:telemetry` metadata convention). `Otel.TelemetryTracer`
-  # stringifies keys on its side. All args are captured,
-  # including underscore-prefixed ones — privacy is the
-  # caller's responsibility.
+  # Build a flat `%{arg_name: var, ...}` AST. The return value
+  # is captured separately under `:__result__` (see
+  # `build_span_call/3`) — the magic-underscore key is
+  # syntactically valid as an arg name but social convention
+  # in Elixir reserves leading `__name__` for compiler
+  # metaprogramming, so a user arg literally clashing with
+  # `__result__` is essentially nonexistent. All args
+  # captured, underscore-prefixed included — privacy
+  # filtering is the caller's responsibility.
   @spec build_metadata_map(arg_names :: [atom()], vars :: [Macro.t()]) :: Macro.t()
   defp build_metadata_map(arg_names, vars) do
     kvs = Enum.zip(arg_names, vars)
