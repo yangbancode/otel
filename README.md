@@ -93,7 +93,17 @@ children = [
 ]
 ```
 
-`Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation.
+```elixir
+# lib/my_app/worker.ex
+defmodule MyApp.Worker do
+  use Otel.Decorator
+
+  @span [:my_app, :worker, :process]
+  def process(job, opts), do: ...
+end
+```
+
+`Otel.TelemetryTracer` bridges `:telemetry.span/3` — see [`:telemetry`](https://hexdocs.pm/telemetry) for instrumentation. `Otel.Decorator`'s `@span` annotation auto-wraps the function body in `:telemetry.span/3` and captures named args as span attributes.
 
 ## License
 
