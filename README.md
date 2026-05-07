@@ -7,7 +7,7 @@
 
 # Otel
 
-Pure Elixir implementation of [OpenTelemetry](https://opentelemetry.io/)
+Pure Elixir, [OpenTelemetry](https://opentelemetry.io/)-compatible
 
 ## Features
 
