@@ -26,6 +26,17 @@ defmodule Otel.TelemetryReporterTest do
     pid
   end
 
+  describe "start_link/1" do
+    test "without :metrics → no-op reporter (alive, no handlers attached)" do
+      pid = start_supervised!(Otel.TelemetryReporter)
+      assert Process.alive?(pid)
+      # No metric definitions configured → no telemetry handlers
+      # owned by this reporter.
+      handlers = :telemetry.list_handlers([])
+      refute Enum.any?(handlers, &match?({Otel.TelemetryReporter, _, ^pid}, &1.id))
+    end
+  end
+
   describe "Counter" do
     test "counts events regardless of measurement value" do
       start_reporter!([counter("http.req.stop.duration", tags: [:method])])
@@ -270,6 +281,59 @@ defmodule Otel.TelemetryReporterTest do
       :telemetry.execute([:ev, :stop], %{count: 1}, %{})
       [dp] = datapoints("ev.stop.count")
       assert dp.value == 1
+    end
+  end
+
+  describe "primitive_any coercion (build_attrs)" do
+    test "nested map tag value → recursive coercion" do
+      start_reporter!([counter("nested.map.count", tags: [:user])])
+
+      :telemetry.execute([:nested, :map], %{count: 1}, %{user: %{id: 42, role: :admin}})
+
+      [dp] = datapoints("nested.map.count")
+      assert dp.attributes == %{"user" => %{"id" => 42, "role" => "admin"}}
+    end
+
+    test "nested list tag value → element-wise coercion" do
+      start_reporter!([counter("nested.list.count", tags: [:roles])])
+
+      :telemetry.execute([:nested, :list], %{count: 1}, %{roles: [:admin, :user, "guest"]})
+
+      [dp] = datapoints("nested.list.count")
+      assert dp.attributes == %{"roles" => ["admin", "user", "guest"]}
+    end
+
+    test "non-primitive (pid/ref) tag value → coerced to string via inspect/1" do
+      start_reporter!([counter("nested.misc.count", tags: [:owner, :ref])])
+      ref = make_ref()
+
+      :telemetry.execute([:nested, :misc], %{count: 1}, %{owner: self(), ref: ref})
+
+      [dp] = datapoints("nested.misc.count")
+      # `String.Chars` impl exists for pids → `to_string/1` →
+      # `#PID<...>` form; refs fall through to `inspect/1`.
+      assert is_binary(dp.attributes["owner"])
+      assert dp.attributes["owner"] =~ ~r/^#PID</
+      assert dp.attributes["ref"] == inspect(ref)
+    end
+  end
+
+  describe "multi-metric per event" do
+    test "two metrics under the same event_name dispatch independently" do
+      # Same event drives both a Counter (count) and a Sum (delta).
+      start_reporter!([
+        counter("multi.event.count", event_name: [:multi, :event]),
+        sum("multi.event.bytes", event_name: [:multi, :event], measurement: :bytes)
+      ])
+
+      :telemetry.execute([:multi, :event], %{bytes: 100}, %{})
+      :telemetry.execute([:multi, :event], %{bytes: 250}, %{})
+
+      [counter_dp] = datapoints("multi.event.count")
+      [sum_dp] = datapoints("multi.event.bytes")
+
+      assert counter_dp.value == 2
+      assert sum_dp.value == 350
     end
   end
 

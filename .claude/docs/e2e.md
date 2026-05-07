@@ -61,6 +61,8 @@ regression detection across the SDK / collector boundary.
 | ✅ | 2 | Nested span carries `parent_span_id` + same `trace_id` | nested `:telemetry.span` in same process | Tempo: inner `parentSpanId` = outer `spanId`, shared `traceId` |
 | ✅ | 3 | Exception → ERROR status + recorded exception event | `raise` inside the span function | Tempo: `STATUS_CODE_ERROR`, `status.message`, `events[].name == "exception"` |
 | ✅ | 4 | `metadata.span_kind` overrides default `:internal` | `:telemetry.span(prefix, %{span_kind: :client}, ...)` | Tempo: `kind = "SPAN_KIND_CLIENT"`, `span_kind` not leaked as attribute |
+| ✅ | 5 | `:telemetry.span` inside `with_span/4` carries the outer span as parent | `Otel.Trace.with_span("outer", ..., fn _ -> :telemetry.span(...) end)` | Tempo: inner `parentSpanId` = outer `spanId`, shared `traceId` |
+| ✅ | 6 | Multiple event prefixes registered to one tracer instance | `{Otel.TelemetryTracer, events: [a_prefix, b_prefix]}` + emit on both | Tempo: both spans land; sibling top-level spans get distinct `traceId` |
 
 ## Log — SDK API (`Otel.API.Logs.Logger.emit/2`)
 
