@@ -59,9 +59,9 @@ end
 config :otel, otp_app: :my_app, req_options: []
 ```
 
-### Logs
+`:req_options` is forwarded to [`Req.new/1`](https://hexdocs.pm/req/Req.html#new/1) — see [Req](https://hexdocs.pm/req) for the full option list (base URL, headers, auth, retry, TLS).
 
-`:logger` bridge:
+### Logs
 
 ```elixir
 # config/config.exs
@@ -71,27 +71,29 @@ config :kernel,
   ]
 ```
 
-### Metrics
+`Otel.LoggerHandler` bridges Erlang's `:logger` to OpenTelemetry Logs — see the module for the severity / body / attribute mapping it applies.
 
-`:telemetry` bridge (in your supervision tree):
+### Metrics
 
 ```elixir
 # lib/my_app/application.ex
 children = [
-  {Otel.TelemetryReporter, metrics: [...]}
+  {Otel.TelemetryReporter, metrics: []}
 ]
 ```
+
+`Otel.TelemetryReporter` is a [`Telemetry.Metrics`](https://hexdocs.pm/telemetry_metrics) reporter — see [`Telemetry.Metrics`](https://hexdocs.pm/telemetry_metrics) for how to define metrics.
 
 ### Trace
 
-`:telemetry.span/3` bridge (in your supervision tree):
-
 ```elixir
 # lib/my_app/application.ex
 children = [
-  {Otel.TelemetryTracer, events: [...]}
+  {Otel.TelemetryTracer, events: []}
 ]
 ```
+
+`Otel.TelemetryTracer` bridges [`:telemetry.span/3`](https://hexdocs.pm/telemetry/telemetry.html#span/3) events to OpenTelemetry Spans — see [`:telemetry.span/3`](https://hexdocs.pm/telemetry/telemetry.html#span/3) for how to instrument your code.
 
 ## License
 
