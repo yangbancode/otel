@@ -67,6 +67,10 @@ defmodule Otel.MixProject do
       # Runtime — required for OTLP/HTTP exporters
       {:protobuf, "~> 0.16.0"},
       {:req, "~> 0.5"},
+      # Runtime — Telemetry.Metrics specs consumed by
+      # Otel.TelemetryReporter (`:telemetry` itself is a transitive
+      # dep, brought in by telemetry_metrics).
+      {:telemetry_metrics, "~> 1.1"},
       # Dev / test only
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
