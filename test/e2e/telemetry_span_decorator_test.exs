@@ -36,6 +36,8 @@ defmodule Otel.E2E.DecoratorTest do
       assert Tempo.attribute(span, "amount") == 42
       assert Tempo.attribute(span, "currency") == "USD"
       assert Tempo.attribute(span, "e2e_id") == e2e_id
+      # Return value lands as the `result` attribute.
+      assert Tempo.attribute(span, "result") == "42 USD #{e2e_id}"
       assert span["status"]["code"] == "STATUS_CODE_OK"
     end
   end

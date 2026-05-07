@@ -156,7 +156,7 @@ defmodule Otel.TelemetrySpanDecoratorTest do
   end
 
   describe "underscore args" do
-    test "underscore-prefixed args are not captured into metadata" do
+    test "underscore-prefixed args ARE captured (no drop)" do
       attach_capture([[:otel_dec_test, :underscore]])
 
       assert UnderscoreArg.add(1, :ignored, 2) == 3
@@ -164,8 +164,29 @@ defmodule Otel.TelemetrySpanDecoratorTest do
       assert_receive {:telemetry, [:otel_dec_test, :underscore, :start], _, meta}
       assert meta_value(meta, :a) == 1
       assert meta_value(meta, :b) == 2
-      refute Map.has_key?(meta, "_ignored")
-      refute Map.has_key?(meta, :_ignored)
+      # Leading `_` preserved in the metadata key — privacy
+      # filtering is the caller's responsibility, not ours.
+      assert meta_value(meta, :_ignored) == :ignored
+    end
+  end
+
+  describe "return value capture" do
+    test "stop event carries :result; start event carries args (separate)" do
+      attach_capture([[:otel_dec_test, :single]])
+
+      assert SingleClause.hello("ada") == "hello ada"
+
+      # `:telemetry.span/3` keeps start and stop metadata
+      # separate when the span function returns a 2-tuple —
+      # start has args, stop has only what we returned.
+      # `Otel.TelemetryTracer` calls `set_attributes` on both
+      # events, so the OTel span ends up with the union (see
+      # the e2e test).
+      assert_receive {:telemetry, [:otel_dec_test, :single, :start], _, start_meta}
+      assert meta_value(start_meta, :name) == "ada"
+
+      assert_receive {:telemetry, [:otel_dec_test, :single, :stop], _, stop_meta}
+      assert meta_value(stop_meta, :result) == "hello ada"
     end
   end
 

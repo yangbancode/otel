@@ -33,16 +33,22 @@ defmodule Otel.TelemetrySpanDecorator do
 
   ## Auto-captured metadata
 
-  Each named argument is captured into `start_metadata` under
-  its source-text name (atom-keyed, per `:telemetry`
-  convention; `Otel.TelemetryTracer` stringifies on the OTel
-  side). Plain vars and default args (`x \\\\ 1`) keep their
-  original name; pattern-match args (`%{...}`, `[h | t]`,
-  etc.) and underscore args are not captured.
+  | Where | Captured | Source |
+  |---|---|---|
+  | `start_metadata` | each named argument | function args, by source name |
+  | `stop_metadata` | `:result` | function's return value |
 
-  > **Privacy note** — all argument values flow into the span
-  > attribute set. Avoid `@span` on functions whose args carry
-  > secrets / PII unless your collector / sampler strips them.
+  Plain vars and default args (`x \\\\ 1`) keep their original
+  name; pattern-match args (`%{...}`, `[h | t]`, etc.) fall
+  back to a positional `:arg_<idx>` name; underscore-prefixed
+  args (`_ignored`) keep the leading `_` in the metadata key
+  (no drop). Keys are atom-typed per `:telemetry` convention;
+  `Otel.TelemetryTracer` stringifies on the OTel side.
+
+  > **Privacy note** — all argument values AND the return
+  > value flow into the span attribute set. Avoid `@span` on
+  > functions whose args / returns carry secrets or PII unless
+  > your collector / sampler strips them.
 
   ## Multi-clause functions
 
@@ -177,38 +183,42 @@ defmodule Otel.TelemetrySpanDecorator do
   end
 
   # Wrap `super(...)` in `:telemetry.span/3`. The 2-tuple
-  # `{result, %{}}` matches `:telemetry.span/3`'s expected
-  # span_function shape (returned value + stop_metadata; we
-  # don't carry stop_metadata in Phase 1).
+  # `{result, stop_meta}` matches `:telemetry.span/3`'s
+  # expected span_function shape (return value + stop_metadata).
+  # `stop_meta` carries the result under `:result` so the
+  # OTel span ends up with both args (start) and return value
+  # (stop) as attributes.
+  #
+  # `generated: true` marks the generated AST so that
+  # type-system warnings on always-raising user functions
+  # (where `result = super(...)` would be flagged as never
+  # matching `none()`) are suppressed.
   @spec build_span_call(
           event_prefix :: event_prefix(),
           metadata_map :: Macro.t(),
           vars :: [Macro.t()]
         ) :: Macro.t()
   defp build_span_call(event_prefix, metadata_map, vars) do
-    quote do
+    quote generated: true do
       :telemetry.span(
         unquote(event_prefix),
         unquote(metadata_map),
-        fn -> {super(unquote_splicing(vars)), %{}} end
+        fn ->
+          result = super(unquote_splicing(vars))
+          {result, %{result: result}}
+        end
       )
     end
   end
 
   # Build an `%{arg_name: var, ...}` AST (atom-keyed —
   # `:telemetry` metadata convention). `Otel.TelemetryTracer`
-  # stringifies keys on its side. Drops args whose extracted
-  # name starts with `_` (underscore patterns — treated as
-  # intentionally-unused).
+  # stringifies keys on its side. All args are captured,
+  # including underscore-prefixed ones — privacy is the
+  # caller's responsibility.
   @spec build_metadata_map(arg_names :: [atom()], vars :: [Macro.t()]) :: Macro.t()
   defp build_metadata_map(arg_names, vars) do
-    kvs =
-      arg_names
-      |> Enum.zip(vars)
-      |> Enum.reject(fn {name, _var} ->
-        String.starts_with?(Atom.to_string(name), "_")
-      end)
-
+    kvs = Enum.zip(arg_names, vars)
     {:%{}, [], kvs}
   end
 
