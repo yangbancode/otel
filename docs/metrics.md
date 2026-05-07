@@ -27,8 +27,8 @@ readers, exemplar filter, etc.
 All four instruments are synchronous — each measurement is reported
 immediately. For poll-based measurements (system metrics, BEAM stats,
 queue lengths read on a timer) use the BEAM-native
-[`:telemetry`](https://hex.pm/packages/telemetry) ecosystem; a
-telemetry-handler bridge for OTel is planned.
+[`:telemetry`](https://hex.pm/packages/telemetry) ecosystem via
+[`Otel.TelemetryReporter`](#telemetry-bridge).
 
 ## Instruments
 
@@ -138,3 +138,64 @@ Histograms and counters can attach trace exemplars (a sampled
 Export interval / timeout / exemplar filter are all hardcoded to
 spec defaults. See [Configuration](configuration.md) §"Metrics pillar"
 for the full list.
+
+## Telemetry bridge
+
+`Otel.TelemetryReporter` is a `Telemetry.Metrics` reporter that
+bridges BEAM `:telemetry` events into the OTel Metrics pipeline.
+Add it to your supervision tree with metric definitions:
+
+```elixir
+defmodule MyApp.Application do
+  use Application
+
+  @impl true
+  def start(_type, _args) do
+    children = [
+      {Otel.TelemetryReporter, metrics: metrics()}
+    ]
+    Supervisor.start_link(children, strategy: :one_for_one, name: MyApp.Supervisor)
+  end
+
+  defp metrics do
+    import Telemetry.Metrics
+
+    [
+      counter("phoenix.endpoint.stop.duration"),
+      summary("phoenix.endpoint.stop.duration",
+        unit: {:native, :millisecond}
+      ),
+      last_value("vm.memory.total", unit: {:byte, :kilobyte})
+    ]
+  end
+end
+```
+
+Type mapping:
+
+| `Telemetry.Metrics` | OTel instrument | dispatch |
+|---|---|---|
+| `counter/2` | `Counter` | `Counter.add(inst, 1, attrs)` (measurement ignored) |
+| `sum/2` | `UpDownCounter` (default) / `Counter` | `UpDownCounter.add(inst, value, attrs)` |
+| `last_value/2` | `Gauge` | `Gauge.record(inst, value, attrs)` |
+| `summary/2` | `Histogram` | `Histogram.record(inst, value, attrs)` |
+| `distribution/2` | `Histogram` | `Histogram.record(inst, value, attrs)` |
+
+`sum/2` defaults to `UpDownCounter` (accepts negatives). For
+monotonic Sum semantics:
+
+```elixir
+sum("http.request.bytes_sent", reporter_options: [monotonic: true])
+```
+
+`distribution/2` accepts custom buckets:
+
+```elixir
+distribution("query.duration",
+  unit: {:native, :millisecond},
+  reporter_options: [buckets: [10, 50, 100, 500, 1000]]
+)
+```
+
+Tags / `tag_values` / unit conversion / `:keep` / `:drop` predicates
+work as documented in the `Telemetry.Metrics` library.
