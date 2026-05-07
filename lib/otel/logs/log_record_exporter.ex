@@ -81,6 +81,7 @@ defmodule Otel.Logs.LogRecordExporter do
   @impl true
   @spec init(opts :: term()) :: {:ok, map()}
   def init(_opts) do
+    Process.flag(:trap_exit, true)
     loop()
     {:ok, %{}}
   end

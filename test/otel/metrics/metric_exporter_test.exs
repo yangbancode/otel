@@ -3,10 +3,16 @@ defmodule Otel.Metrics.MetricExporterTest do
   # (`:req_options`) and shares the global metrics ETS tables.
   use ExUnit.Case, async: false
 
-  defp restart_sdk(env), do: Otel.TestSupport.restart_with(env)
-
   setup do
-    restart_sdk(metrics: [readers: []])
+    Application.stop(:otel)
+    Application.ensure_all_started(:otel)
+
+    on_exit(fn ->
+      Application.delete_env(:otel, :req_options)
+      Application.stop(:otel)
+      Application.ensure_all_started(:otel)
+    end)
+
     :ok
   end
 
@@ -61,26 +67,28 @@ defmodule Otel.Metrics.MetricExporterTest do
   # verify nothing lands.
   describe "collect/0 — exemplars" do
     test "trace_based filter — sampled span emits exemplars; no-span context yields []" do
-      restart_sdk(metrics: [readers: []])
       counter = Otel.Metrics.Meter.create_counter("sampled", [])
 
       Otel.Trace.with_span("parent", fn _ ->
         Otel.Metrics.Meter.record(counter, 42, %{"method" => "GET"})
       end)
 
-      [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect()
+      [%{datapoints: [dp]}] =
+        Otel.Metrics.MetricExporter.collect() |> Enum.filter(&(&1.name == "sampled"))
+
       assert hd(dp.exemplars).value == 42
 
-      restart_sdk(metrics: [readers: []])
+      reset_sdk()
       not_sampled = Otel.Metrics.Meter.create_counter("not_sampled", [])
       Otel.Metrics.Meter.record(not_sampled, 1, %{})
 
-      [%{datapoints: [dp2]}] = Otel.Metrics.MetricExporter.collect()
+      [%{datapoints: [dp2]}] =
+        Otel.Metrics.MetricExporter.collect() |> Enum.filter(&(&1.name == "not_sampled"))
+
       assert dp2.exemplars == []
     end
 
     test "reservoirs reset between collect calls" do
-      restart_sdk(metrics: [readers: []])
       counter = Otel.Metrics.Meter.create_counter("reset_test", [])
 
       Otel.Trace.with_span("parent", fn _ ->
@@ -88,18 +96,16 @@ defmodule Otel.Metrics.MetricExporterTest do
         _ = Otel.Metrics.MetricExporter.collect()
 
         Otel.Metrics.Meter.record(counter, 2, %{})
-        [%{datapoints: [dp]}] = Otel.Metrics.MetricExporter.collect()
+
+        [%{datapoints: [dp]}] =
+          Otel.Metrics.MetricExporter.collect() |> Enum.filter(&(&1.name == "reset_test"))
+
         assert hd(dp.exemplars).value == 2
       end)
     end
   end
 
   describe "force_flush/1" do
-    setup do
-      restart_sdk([])
-      :ok
-    end
-
     test "no instruments → :ok (no HTTP request sent)" do
       start_server_and_configure(200)
 
@@ -129,7 +135,39 @@ defmodule Otel.Metrics.MetricExporterTest do
     end
   end
 
+  describe "graceful shutdown invariant" do
+    test "init traps exits so terminate/2 fires on supervisor :shutdown" do
+      # Per OTP gen_server contract: `terminate/2` is only called
+      # on supervisor `:shutdown` when the GenServer is trapping
+      # exits. The exporter's `terminate/2` does the final
+      # `do_export()` flush, so this flag is load-bearing —
+      # without it `Application.stop(:otel)` silently drops
+      # whatever measurements are pending in the snapshot.
+      pid = Process.whereis(Otel.Metrics.MetricExporter)
+      assert {:trap_exit, true} = Process.info(pid, :trap_exit)
+    end
+
+    test "Application.stop(:otel) snapshots pending measurements via terminate/2" do
+      # End-to-end behaviour: instrument state at shutdown time is
+      # collected, encoded, and POSTed. Without trap_exit this
+      # request never goes out and the assertion times out.
+      start_server_and_configure(200)
+
+      counter = Otel.Metrics.Meter.create_counter("shutdown_flush_test", [])
+      Otel.Metrics.Meter.record(counter, 1, %{})
+
+      Application.stop(:otel)
+
+      assert_receive :request_received, 5_000
+    end
+  end
+
   # --- Test helpers ---
+
+  defp reset_sdk do
+    Application.stop(:otel)
+    Application.ensure_all_started(:otel)
+  end
 
   defp start_server_and_configure(status_code) do
     {:ok, listen} = :gen_tcp.listen(0, [:binary, active: false, reuseaddr: true])
