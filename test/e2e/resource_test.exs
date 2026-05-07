@@ -3,7 +3,7 @@ defmodule Otel.E2E.ResourceTest do
   E2E coverage for SDK Resource configuration against Tempo.
 
   The SDK reads no `OTEL_*` env vars and no Mix Config besides
-  `config :otel, :app`. The configured atom drives `service.name`
+  `config :otel, :otp_app`. The configured atom drives `service.name`
   via `Atom.to_string/1` and `service.version` via
   `Application.spec(:my_app, :vsn)`.
 
@@ -18,7 +18,7 @@ defmodule Otel.E2E.ResourceTest do
   use Otel.E2E.Case, async: false
 
   describe "Resource configuration" do
-    test "4: :app config flows to Tempo via service.name and service.version",
+    test "4: :otp_app config flows to Tempo via service.name and service.version",
          %{e2e_id: e2e_id} do
       restart_with_app_config(:otel)
 
@@ -26,7 +26,7 @@ defmodule Otel.E2E.ResourceTest do
 
       # Pull the full OTLP-shaped trace and assert the Resource
       # carries the configured service.name / service.version.
-      # Land-only would pass even if the SDK ignored the :app
+      # Land-only would pass even if the SDK ignored the :otp_app
       # config entirely.
       assert {:ok, [%{"traceID" => trace_id_hex} | _]} = poll(Tempo.search(e2e_id))
       {:ok, body} = HTTP.get(Tempo.get_trace(trace_id_hex))
@@ -46,18 +46,18 @@ defmodule Otel.E2E.ResourceTest do
   # ---- helpers ----
 
   defp restart_with_app_config(app) do
-    prev_app = Application.get_env(:otel, :app)
+    prev_app = Application.get_env(:otel, :otp_app)
 
     Application.stop(:otel)
-    Application.put_env(:otel, :app, app)
+    Application.put_env(:otel, :otp_app, app)
     Application.ensure_all_started(:otel)
 
     on_exit(fn ->
       Application.stop(:otel)
 
       case prev_app do
-        nil -> Application.delete_env(:otel, :app)
-        v -> Application.put_env(:otel, :app, v)
+        nil -> Application.delete_env(:otel, :otp_app)
+        v -> Application.put_env(:otel, :otp_app, v)
       end
 
       Application.ensure_all_started(:otel)

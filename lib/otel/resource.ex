@@ -3,10 +3,12 @@ defmodule Otel.Resource do
   SDK Resource (`resource/sdk.md` §"SDK").
 
   Minikube hardcodes the resource to a fixed shape. The single
-  user knob is `config :otel, app: :my_app` — `service.name`
+  user knob is `config :otel, otp_app: :my_app` — `service.name`
   derives from the atom and `service.version` from the loaded
   application's vsn (`Application.spec(:my_app, :vsn)`, the
-  same value as `mix.exs`'s `version: ...`). SDK identity
+  same value as `mix.exs`'s `version: ...`). The `:otp_app` key
+  is itself optional; without it, both attributes fall back to
+  the no-config defaults below. SDK identity
   (`telemetry.sdk.*`, `deployment.environment`) is baked in at
   build time. Resource merging and Schema URL are dropped —
   power users go to `opentelemetry-erlang`. The `schema_url`
@@ -17,18 +19,19 @@ defmodule Otel.Resource do
   ## Configuration
 
       # config/runtime.exs
-      config :otel, app: :my_app
+      config :otel, otp_app: :my_app
 
   - `service.name` ← `Atom.to_string(:my_app)`
   - `service.version` ← `Application.spec(:my_app, :vsn)`
     (the version field of the loaded OTP application; matches
     `mix.exs`'s `version:`)
 
-  When `:app` is not configured, `service.name` falls back to
-  `"unknown_service"` and `service.version` is `nil` (encoded
-  as the OTLP empty `AnyValue` — same wire treatment in every
-  backend, no Tempo/Mimir divergence). When `:app` is set but
-  the application isn't loaded yet, `service.version` is `nil`
+  When `:otp_app` is not configured, `service.name` falls back
+  to `"unknown_service"` and `service.version` is `nil`
+  (encoded as the OTLP empty `AnyValue` — same wire treatment
+  in every backend, no Tempo/Mimir divergence). When
+  `:otp_app` is set but the application isn't loaded yet,
+  `service.version` is `nil`
   for the same reason; this is a transient state during boot
   that resolves once `Application.ensure_all_started/1`
   completes.
@@ -37,11 +40,11 @@ defmodule Otel.Resource do
 
   | Attribute | Source |
   |---|---|
-  | `telemetry.sdk.name` | this SDK's `:app` from `mix.exs` (compile-time) |
+  | `telemetry.sdk.name` | this SDK's `:app` key from `mix.exs` (compile-time) |
   | `telemetry.sdk.language` | `"elixir"` |
   | `telemetry.sdk.version` | this SDK's `:version` (compile-time) |
   | `deployment.environment` | `MIX_ENV` env var at SDK compile time (default `"dev"`) |
-  | `service.name` | `config :otel, app: :my_app` → `"my_app"` (default `"unknown_service"`) |
+  | `service.name` | `config :otel, otp_app: :my_app` → `"my_app"` (default `"unknown_service"`) |
   | `service.version` | `Application.spec(:my_app, :vsn)` (default `nil` → empty `AnyValue` on the wire) |
 
   Reading at runtime keeps a single source of truth for
@@ -52,7 +55,7 @@ defmodule Otel.Resource do
   runtime caching") `new/0` recomputes on each call.
 
   `service.version` falls back to `nil` rather than being
-  omitted when the application isn't loaded (or `:app` is
+  omitted when the application isn't loaded (or `:otp_app` is
   unset). Spec convention (Recommended, not Required) and
   `opentelemetry-erlang` would omit the key entirely; minikube
   keeps the key with a `nil` value, which the OTLP encoder
@@ -82,7 +85,7 @@ defmodule Otel.Resource do
   |---|---|---|
   | `telemetry.sdk.*` | compile | dep mix.exs config only available during build |
   | `deployment.environment` | compile | `MIX_ENV` is build-time intent; release boot doesn't export it |
-  | `service.name` / `service.version` | runtime | user's `:app` only set in user's runtime config; user app's vsn requires the app to be loaded |
+  | `service.name` / `service.version` | runtime | user's `:otp_app` only set in user's runtime config; user app's vsn requires the app to be loaded |
 
   ## References
 
@@ -117,14 +120,14 @@ defmodule Otel.Resource do
   **Application** (introspection) — Construct the SDK resource.
 
   See module doc for the attribute set. `service.name` and
-  `service.version` are read from `config :otel, :app` and
+  `service.version` are read from `config :otel, :otp_app` and
   `Application.spec/2` on every call (no caching), so updates
   take effect immediately. Caller may override any field via
   `opts`.
   """
   @spec new(opts :: map()) :: t()
   def new(opts \\ %{}) do
-    app = Application.get_env(:otel, :app)
+    app = Application.get_env(:otel, :otp_app)
 
     defaults = %{
       attributes: %{
@@ -141,7 +144,7 @@ defmodule Otel.Resource do
     struct!(__MODULE__, Map.merge(defaults, opts))
   end
 
-  # `:app` unset → fall back to `@default_service_name`
+  # `:otp_app` unset → fall back to `@default_service_name`
   # ("unknown_service"). When set, the atom renders as the
   # service name verbatim — matches the OTel convention of
   # `service.name = <application name>`.

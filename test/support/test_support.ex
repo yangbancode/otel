@@ -8,7 +8,7 @@ defmodule Otel.TestSupport do
   delivered by:
 
   1. Setting `Application.put_env(:otel, ...)` to override the
-     user-facing keys (`:req_options`, `:app`).
+     user-facing keys (`:req_options`, `:otp_app`).
   2. Starting the supervised storage / exporter children
      (`SpanStorage`, `LogRecordStorage`, the two per-table
      `XxxStorage` GenServers for metrics, `SpanExporter`,
@@ -48,7 +48,7 @@ defmodule Otel.TestSupport do
   meter `config` map) directly with the desired values —
   none of those flow through `Otel.TestSupport` overrides
   anymore. Resource changes propagate through
-  `Application.put_env(:otel, :app, :my_app)`.
+  `Application.put_env(:otel, :otp_app, :my_app)`.
 
   `:processors` / `:readers` are lists of `{module, config}`
   tuples. The first entry's module is started under the

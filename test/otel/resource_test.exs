@@ -1,24 +1,24 @@
 defmodule Otel.ResourceTest do
-  # async: false — `new/0` reads `Application.get_env(:otel, :app)`
+  # async: false — `new/0` reads `Application.get_env(:otel, :otp_app)`
   # and `Application.spec/2`; tests mutate the former and rely on
   # the latter's global state.
   use ExUnit.Case, async: false
 
   setup do
-    prev_app = Application.get_env(:otel, :app)
-    Application.delete_env(:otel, :app)
+    prev_app = Application.get_env(:otel, :otp_app)
+    Application.delete_env(:otel, :otp_app)
 
     on_exit(fn ->
       case prev_app do
-        nil -> Application.delete_env(:otel, :app)
-        v -> Application.put_env(:otel, :app, v)
+        nil -> Application.delete_env(:otel, :otp_app)
+        v -> Application.put_env(:otel, :otp_app, v)
       end
     end)
 
     :ok
   end
 
-  describe "new/0 — no :app config" do
+  describe "new/0 — no :otp_app config" do
     test "service.name falls back to \"unknown_service\"; service.version is nil" do
       attrs = Otel.Resource.new().attributes
 
@@ -39,12 +39,12 @@ defmodule Otel.ResourceTest do
     end
   end
 
-  describe "new/0 — :app config set to a loaded application" do
-    test "service.name from :app atom; service.version from Application.spec/2" do
+  describe "new/0 — :otp_app config set to a loaded application" do
+    test "service.name from :otp_app atom; service.version from Application.spec/2" do
       # `:otel` is loaded throughout the test suite — its vsn is
       # whatever `mix.exs` declares, which is exactly the contract
       # we want to verify (single source of truth).
-      Application.put_env(:otel, :app, :otel)
+      Application.put_env(:otel, :otp_app, :otel)
 
       attrs = Otel.Resource.new().attributes
 
@@ -56,13 +56,13 @@ defmodule Otel.ResourceTest do
     end
   end
 
-  describe "new/0 — :app config set to an unloaded application" do
+  describe "new/0 — :otp_app config set to an unloaded application" do
     test "service.name from atom; service.version is nil (Application.spec returns nil)" do
       # An atom that doesn't correspond to a loaded OTP application
       # — `Application.spec/2` returns `nil`, so service.version
       # falls back to the same nil-AnyValue treatment as the
-      # no-:app case.
-      Application.put_env(:otel, :app, :no_such_application)
+      # no-:otp_app case.
+      Application.put_env(:otel, :otp_app, :no_such_application)
 
       attrs = Otel.Resource.new().attributes
 
