@@ -76,12 +76,18 @@ defmodule Otel.TelemetrySpanDecorator do
   > them.
 
   > **Searchability note** — `__args__` and `__result__` are
-  > nested kvlistValue attributes. Most backends (Tempo,
-  > Jaeger, Datadog) display them in the span detail view
-  > but do NOT index them for tag search. To search by inner
-  > field, set the field as a top-level attribute inside the
-  > function body via
-  > `Otel.Trace.Span.set_attribute(Otel.Trace.current_span(), key, value)`.
+  > nested `kvlist_value` AnyValue attributes — spec-correct
+  > per `opentelemetry-specification/specification/common/README.md`
+  > L41-54 ("arbitrary deep nesting of values for arrays and
+  > maps is allowed") and OTLP `common/v1/common.proto` L25-51
+  > (`kvlist_value` is a first-class `AnyValue` variant).
+  > Backend support for indexing inner fields varies — Tempo
+  > (LGTM 0.26.0) displays them in the span detail view but
+  > does not index them for `/api/search?tags=` lookup. To
+  > make a field tag-searchable on Tempo, set it as a
+  > top-level attribute inside the function body via
+  > `Otel.Trace.Span.set_attribute(Otel.Trace.current_span(),
+  > key, value)`.
 
   ## Multi-clause functions
 
